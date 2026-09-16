@@ -349,6 +349,11 @@
 				{/if}
 				<div class="assistant-turn" data-role={message.role}>
 					<span class="sr-only">{message.role === 'user' ? 'You:' : 'Assistant:'}</span>
+					{#if message.role === 'assistant' && (message.profile === 'musixmatch' || (message.profile ?? 'genius') !== assistant.profile)}
+						<p class="assistant-divider">
+							Guidelines: {message.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'}
+						</p>
+					{/if}
 					{#if message.role === 'user'}
 						<p class="assistant-turn__text">{message.content}</p>
 					{:else}

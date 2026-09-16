@@ -292,7 +292,11 @@ export function createHandler(options: HandlerOptions = {}) {
 			}
 			const body = parsed.data;
 			validateConversation(body);
-			const selectedCorpus = catalog.resolve(body.clientRuleSetVersion, body.clientCorpusHash);
+			const selectedCorpus = catalog.resolve(
+				body.clientRuleSetVersion,
+				body.clientCorpusHash,
+				body.profile
+			);
 			if (!selectedCorpus) {
 				throw new ApiError(
 					'ruleset_mismatch',
@@ -531,6 +535,14 @@ export function createHandler(options: HandlerOptions = {}) {
 									});
 									usage = result.usage;
 									if (result.kind === 'tool_calls') {
+										if (
+											body.profile === 'musixmatch' &&
+											result.calls.some((call) => call.name === 'manage_links')
+										)
+											throw new ApiError(
+												'invalid_answer',
+												'This tool is not available for the selected profile.'
+											);
 										if (!body.toolsAvailable) {
 											throw new ApiError(
 												'invalid_answer',
@@ -693,6 +705,14 @@ export function createHandler(options: HandlerOptions = {}) {
 					spendUsd = estimateSpendUsd(result.usage);
 					metricSpendUsd = spendUsd;
 					if (result.kind === 'tool_calls') {
+						if (
+							body.profile === 'musixmatch' &&
+							result.calls.some((call) => call.name === 'manage_links')
+						)
+							throw new ApiError(
+								'invalid_answer',
+								'This tool is not available for the selected profile.'
+							);
 						if (!body.toolsAvailable) {
 							throw new ApiError('invalid_answer', 'Draft tools were used when none were offered.');
 						}

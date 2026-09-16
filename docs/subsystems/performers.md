@@ -10,6 +10,15 @@ format itself: `docs/performer-tagging.md`
 
 ## The rules
 
+- Rich drafts retain voice assignments independently of the visible format. Musixmatch selection
+  uses retained section identity and writes a metadata action; Genius markup is derived when
+  representable. Anonymous voices remain anonymous, and excess Genius style groups remain
+  review findings. They are never discarded to fit a platform's presentation limit.
+- Rich rename, merge and removal pair the model action with an invertible roster delta. The
+  top-level performer roster remains authoritative; undo restores affected identities and their
+  exact spelling before publishing the editor snapshot, without replacing unrelated additions.
+  `conversion-roster.svelte.test.ts` pins those atomic transitions.
+
 - A rename runs in both directions: `headerRenameFilter` mirrors header edits into the roster
   (`adoptHeaderRename`, alias kept), and `renamePerformer` on the controller is the reverse:
   one atomic edit over `headerNameAtoms`, roster adopted *before* the dispatch, Undo as the
@@ -74,7 +83,7 @@ format itself: `docs/performer-tagging.md`
   `<strong>`, trash via the shared `RemoveButton`. The collapsed Performers by section reference
   groups identical voice arrangements once, preserving style differences
   (`PerformerLegend.svelte.test.ts`).
-- An **unknown voice** is derived from the text, never stored: a styled slot the section's
+- In legacy Genius editing, an **unknown voice** is derived from the text: a styled slot the section's
   legend does not name (`unaccountedStyledSlots` in `legend-cleanup.ts`, the one owner). The
   picker draws one act-on-press chip per unaccounted slot in that slot's own styling (no dot,
   no performer colour: an unknown has no identity) plus a quiet `+ Unknown` action

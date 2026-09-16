@@ -31,9 +31,25 @@ export type {
  * Optional, like `cancelDraft` beside it, so a shell driving a controller that
  * has never heard of it is unchanged.
  */
-export type AutosaveController = CoreAutosaveController & {
+export type AutosaveController = Omit<CoreAutosaveController, 'schedule'> & {
 	noteDraftLoaded?(draftId: string): void;
+	schedule(snapshot: AutosaveSnapshot & { sideRecords?: DraftSaveSideRecords }): void;
+	/** Completed writes, including an atomic conflict copy. Never reload the editor from this. */
+	subscribeSaved?(listener: (result: DraftSaveResult) => void): () => void;
 };
+
+/** Local side records captured with the same snapshot as the lyrics. */
+export interface DraftSaveSideRecords {
+	ignoredDiagnostics?: readonly string[];
+	/** Null is an explicit detached source; absence retains the stored source. */
+	media?: MediaHandleRecord | null;
+}
+
+export interface DraftSaveResult {
+	sourceId: string;
+	draft: DraftRecord;
+	conflicted: boolean;
+}
 
 /** Fields accepted when creating a new local draft. Missing fields receive local defaults. */
 export type DraftCreateInput = Partial<DraftRecord>;
@@ -58,6 +74,8 @@ export type DraftCreateInput = Partial<DraftRecord>;
  */
 export interface MediaHandleRecord {
 	draftId: string;
+	/** Local attachment identity; provider identities derive from their actual source and ID. */
+	recordingId?: string;
 	name: string;
 	size?: number;
 	/** Absent means `'file'`. */
@@ -138,6 +156,12 @@ export interface AssistantToolTurnRecord {
 
 /** One message in an assistant conversation. */
 export interface AssistantMessageRecord {
+	/** Absent on historical messages, whose policy is Genius. */
+	profile?: 'genius' | 'musixmatch';
+	ruleSetVersion?: string;
+	corpusHash?: string;
+	/** Local editor scope; never sent as prompt or accepted from model output. */
+	draftScope?: string;
 	id: string;
 	chatId: string;
 	role: 'user' | 'assistant';
@@ -164,6 +188,17 @@ export interface BackupHandleRecord {
  * accepting partial creates and generating duplicate IDs when one is omitted.
  */
 export type DraftRepository = Omit<CoreDraftRepository, 'create' | 'duplicate'> & {
+	/** Unchanged raw row for recovery export when this build cannot interpret its model. */
+	exportRawDraft?(id: string): Promise<string | undefined>;
+	/** Preserve unreadable rich state and create a separate, explicitly blocked text recovery. */
+	recoverUnreadable?(id: string): Promise<DraftRecord | undefined>;
+	/** Historical blank cleanup only; false preserves a row changed since it was read. */
+	deleteIfUnchanged?(id: string, expectedGeneration: number): Promise<boolean>;
+	compareAndSave?(
+		draft: DraftRecord,
+		expectedGeneration: number,
+		sideRecords?: DraftSaveSideRecords
+	): Promise<DraftSaveResult>;
 	create(draft: DraftCreateInput): Promise<DraftRecord>;
 	duplicate(id: string, newId?: string): Promise<DraftRecord>;
 	/**

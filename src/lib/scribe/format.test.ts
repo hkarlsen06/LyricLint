@@ -111,7 +111,7 @@ describe('LyricLint Scribe format', () => {
 	test.each([
 		['renamed JSON', '{"format":"OTHER","version":1}'],
 		['malformed JSON', '{'],
-		['newer version', JSON.stringify({ ...JSON.parse(serializeScribe(input)), version: 2 })],
+		['newer version', JSON.stringify({ ...JSON.parse(serializeScribe(input)), version: 3 })],
 		[
 			'invalid nested data',
 			JSON.stringify({ ...JSON.parse(serializeScribe(input)), lineAnchors: [{ line: 0, time: 1 }] })

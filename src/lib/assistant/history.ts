@@ -212,13 +212,20 @@ function wireContent(message: AssistantMessageRecord): string {
  */
 export function boundedHistory(
 	history: AssistantMessageRecord[],
-	question: string
+	question: string,
+	profile: 'genius' | 'musixmatch' = 'genius'
 ): BoundedHistory {
 	const usable: Array<{ index: number; pair: WireMessage[] }> = [];
 	for (let i = 0; i + 1 < history.length; i++) {
 		const user = history[i]!;
 		const assistant = history[i + 1]!;
-		if (user.role === 'user' && assistant.role === 'assistant' && assistant.status === 'complete') {
+		if (
+			user.role === 'user' &&
+			assistant.role === 'assistant' &&
+			assistant.status === 'complete' &&
+			(user.profile ?? 'genius') === profile &&
+			(assistant.profile ?? 'genius') === profile
+		) {
 			usable.push({
 				index: i,
 				pair: [

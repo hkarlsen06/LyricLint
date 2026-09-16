@@ -1,10 +1,45 @@
 # The rules catalog: tiers, shared predicates, Harper, and how a rule ships
 
 Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/results.ts`, `src/lib/rules/harper.ts`, `src/lib/rules/registry.ts`,
+`src/lib/rules/musixmatch.ts`, `src/lib/profiles/`,
 `src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/spelling.ts`, `src/lib/rules/data/rule-set.ts`, `src/lib/ui/state/wiring.ts`,
 `src/lib/rules/catalog/policy-cases.ts`, `src/lib/languages/detect.ts`, `services/rules-assistant/`
 
 ## The rules
+
+- `RuleContext.profile` selects an isolated registry; omitted means Genius for existing callers.
+  Musixmatch findings have `mxm.*` identifiers and their own sources. `getRule` resolves both
+  registries, while `enabledRules` and the existing Genius manifest keep their original scope.
+  A profile switch does not apply diagnostic fixes. Musixmatch fixes are explicit previews,
+  bound to the current revision; semantic/audio uncertainties and contradictory sources never
+  produce automatic rewrites. `musixmatch.test.ts` pins repeated profile selection without
+  mutating the parsed input and checks every researched clause against the coverage inventory.
+- Explicit `RuleContext.languageRanges` scope Musixmatch checks inside multilingual lyrics.
+  A finding belongs to the language at its start; findings or fixes crossing a language boundary
+  require review and carry no replacement. Ranges are validated before evaluation.
+  `profiles/decisions.ts` separately evaluates user-confirmed ordinary quantities and instrumental
+  intervals: exact integer values, pronunciation/role facts, current recording identity and
+  interval placement are required. Unsupported numeric morphology and contradictory Japanese
+  spacing remain explicit refusals; no number or recording fact is inferred on switching.
+- `RuleContext.confirmedFacts` contains only currently eligible model decisions mapped into the
+  exact active projection by `profiles/confirmed-facts.ts`. The live checker and panel planners
+  share `projectionPolicyContext`; mismatched/recovery snapshots supply no facts. A matching
+  quantity or generated instrumental marker settles only its semantic review question. Repeated
+  numbers, unconfirmed literal markers and unrelated spelling/layout findings remain checked.
+  Changed ownership, quantity text, language or recording context requires confirmation again;
+  diagnostic ignores never supply facts. `confirmed-facts.test.ts` and the real-editor
+  `WorkspaceRules.svelte.test.ts` cover scoping, invalidation and text-identical undo.
+- Musixmatch sources retain `platformStanding` independently of Genius's author-role ladder.
+  Official platform sources are official for that platform; a linked community supplement does
+  not acquire that standing. `profiles/coverage.ts` records every researched clause, its language
+  scope, checks and remaining limits. No rule claims that passing text checks certifies listening,
+  authorship, native submission, translation quality or unresolved Arabic/Korean policy evidence.
+- Musixmatch check registration adds the definition in `musixmatch.ts`, its clause mapping in
+  `profiles/coverage.ts`, an invented trigger/accepted/ambiguous case in
+  `profiles/policy-cases.ts`, focused behavior tests, and a new pinned profile policy version when
+  semantics change. `profiles/reference.test.ts` derives and verifies each public check page;
+  the sitemap includes both registries. The four-registration Genius process below remains for
+  the existing Genius catalog.
 
 - Every rule declares `settlesOn` (`character` | `caret` | `line` | `document`; default
   `line`): the axis is how far right a change can still reach, not time. A diagnostic may

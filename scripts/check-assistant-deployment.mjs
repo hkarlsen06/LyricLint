@@ -1,5 +1,9 @@
 import { readFile } from 'node:fs/promises';
-import { fetchReleaseMetadata } from './production-release.mjs';
+import {
+	fetchReleaseMetadata,
+	siteReleaseCorpora,
+	corpusArtifactPath
+} from './production-release.mjs';
 
 /** Verify the live Worker serves the corpus built into this site's revision. */
 export async function checkAssistantDeployment(
@@ -8,32 +12,37 @@ export async function checkAssistantDeployment(
 	fetchHealth = fetch,
 	liveRelease
 ) {
+	const corpora = Array.isArray(corpus) ? corpus : [corpus];
+	const genius = corpora.find((entry) => (entry.profile ?? 'genius') === 'genius');
+	if (!genius) throw new Error('The incoming website has no Genius corpus metadata.');
 	const healthUrl = new URL('/health', answersUrl);
 	const response = await fetchReleaseMetadata(healthUrl, fetchHealth);
 	if (!response.ok) throw new Error(`Assistant health check failed: HTTP ${response.status}.`);
 	const health = await response.json();
-	if (health.ruleSetVersion !== corpus.ruleSetVersion || health.corpusHash !== corpus.contentHash) {
+	if (health.ruleSetVersion !== genius.ruleSetVersion || health.corpusHash !== genius.contentHash) {
 		throw new Error(
-			`Assistant deployment is stale: expected ruleset ${corpus.ruleSetVersion} and corpus ${corpus.contentHash}, ` +
+			`Assistant deployment is stale: expected ruleset ${genius.ruleSetVersion} and corpus ${genius.contentHash}, ` +
 				`received ${health.ruleSetVersion} and ${health.corpusHash}. ` +
 				'Rerun the coordinated production release with bun run assistant:deploy.'
 		);
 	}
 	// Publication must preserve the website that is still live if Pages fails.
 	// Checking only the candidate was the one-way gate behind the September outage.
-	if (liveRelease) {
+	if (liveRelease || corpora.length > 1) {
 		for (const release of [
-			{
-				ruleSetVersion: corpus.ruleSetVersion,
-				corpusHash: corpus.contentHash,
+			...corpora.map((entry) => ({
+				profile: entry.profile ?? 'genius',
+				ruleSetVersion: entry.ruleSetVersion,
+				corpusHash: entry.contentHash,
 				clientCorpusHash: true
-			},
-			liveRelease
+			})),
+			...(liveRelease ? siteReleaseCorpora(liveRelease) : [])
 		]) {
 			const supported = (
 				Array.isArray(health.supportedCorpora) ? health.supportedCorpora : []
 			).find(
 				(entry) =>
+					(entry?.profile ?? 'genius') === release.profile &&
 					entry?.ruleSetVersion === release.ruleSetVersion &&
 					entry.corpusHash === release.corpusHash
 			);
@@ -49,10 +58,11 @@ export async function checkAssistantDeployment(
 }
 
 if (import.meta.main) {
-	const corpus = JSON.parse(
-		await readFile(
-			new URL('../services/rules-assistant/generated/rules-context.json', import.meta.url),
-			'utf8'
+	const corpus = await Promise.all(
+		['genius', 'musixmatch'].map(async (profile) =>
+			JSON.parse(
+				await readFile(new URL(`../${corpusArtifactPath(profile)}`, import.meta.url), 'utf8')
+			)
 		)
 	);
 	await checkAssistantDeployment(process.env.PUBLIC_ASSISTANT_ANSWERS_URL, corpus);

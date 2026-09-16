@@ -106,6 +106,26 @@ describe('editor pure helpers', () => {
 		expect(Object.keys(proxy).sort()).toEqual([...lyricEditorCallbackKeys].sort());
 	});
 
+	it('adds a sync exit reason only for a profile switch', () => {
+		const onLyricSyncChange = vi.fn();
+		const proxy = createCallbackProxy(() => ({
+			onSnapshot: vi.fn(),
+			onAssignRequest: vi.fn(),
+			onSectionHeaderRequest: vi.fn(),
+			onDiagnosticActivate: vi.fn(),
+			onAnnouncement: vi.fn(),
+			onLyricSyncChange
+		}));
+		proxy.onLyricSyncChange?.(true, 12, false);
+		proxy.onLyricSyncChange?.(false);
+		proxy.onLyricSyncChange?.(false, undefined, undefined, 'profile');
+		expect(onLyricSyncChange.mock.calls).toEqual([
+			[true, 12, false],
+			[false, undefined, undefined],
+			[false, undefined, undefined, 'profile']
+		]);
+	});
+
 	it('recognizes effect-only playhead transactions', () => {
 		const state = EditorState.create({ doc: 'Hello' });
 		const tick = state.update({ effects: setPlayheadEffect.of(1) });

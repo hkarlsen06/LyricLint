@@ -8,7 +8,7 @@ import type { DraftSummary } from './types.js';
 export function createDraftSummaryReader(
 	database: LyricLintDatabase
 ): () => Promise<DraftSummary[]> {
-	const table = `idb://${database.name}/drafts/`;
+	const table = `idb://${database.name}/${database.drafts.name}/`;
 	const summaries = new Map<string, DraftSummary>();
 	const changed = new Set<string>();
 	let readAll = true;

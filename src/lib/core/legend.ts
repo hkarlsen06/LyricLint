@@ -222,6 +222,28 @@ export function parseLegend(raw: string, offset = 0): LegendVoiceGroup[] {
 	});
 }
 
+const ENTITY_PATTERN = /&(?:amp|lt|gt|quot|#39);/gu;
+
+/** Decode the HTML entities Genius legends may carry, for matching only. */
+export function decodeLegendText(value: string): string {
+	return value.replace(ENTITY_PATTERN, (entity) => {
+		switch (entity) {
+			case '&amp;':
+				return '&';
+			case '&lt;':
+				return '<';
+			case '&gt;':
+				return '>';
+			case '&quot;':
+				return '"';
+			case '&#39;':
+				return "'";
+			default:
+				return entity;
+		}
+	});
+}
+
 /**
  * What removing a header's whole legend deletes: from the end of the name part
  * through the legend, so the header colon, any space before it (`[Couplet 1 : A]`),

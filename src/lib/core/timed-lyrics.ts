@@ -54,11 +54,18 @@ function plainLine(text: string): string {
 export function formatTimedLyrics(
 	text: string,
 	anchors: readonly LineAnchor[],
-	format: TimedLyricsFormat
+	format: TimedLyricsFormat,
+	profile: 'genius' | 'musixmatch' = 'genius'
 ): string {
 	const lines = text.split('\n');
 	const cues = anchors
-		.map((anchor) => ({ time: anchor.time, text: plainLine(lines[anchor.line - 1] ?? '') }))
+		.map((anchor) => ({
+			time: anchor.time,
+			text:
+				profile === 'musixmatch'
+					? (lines[anchor.line - 1] ?? '').trim()
+					: plainLine(lines[anchor.line - 1] ?? '')
+		}))
 		.filter((cue) => cue.text.length > 0)
 		.sort((a, b) => a.time - b.time);
 

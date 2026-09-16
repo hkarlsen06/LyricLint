@@ -115,3 +115,40 @@ test('requires explicit hashless support while the legacy website is live', asyn
 		legacy
 	);
 });
+
+test('requires current and previous Musixmatch profile hashes before publishing either website', async () => {
+	const mxm = { profile: 'musixmatch', ruleSetVersion: 'mxm-2', contentHash: 'new-mxm' };
+	const current = {
+		profile: 'genius',
+		ruleSetVersion: corpus.ruleSetVersion,
+		corpusHash: corpus.contentHash
+	};
+	const newMxm = {
+		profile: 'musixmatch',
+		ruleSetVersion: mxm.ruleSetVersion,
+		corpusHash: mxm.contentHash
+	};
+	const oldMxm = { profile: 'musixmatch', ruleSetVersion: 'mxm-1', corpusHash: 'old-mxm' };
+	const live = { ...current, clientCorpusHash: true, profileCorpora: [current, oldMxm] };
+	const health = (supportedCorpora) => async () =>
+		Response.json({
+			ruleSetVersion: corpus.ruleSetVersion,
+			corpusHash: corpus.contentHash,
+			supportedCorpora
+		});
+	await checkAssistantDeployment(
+		answersUrl,
+		[corpus, mxm],
+		health([current, newMxm, oldMxm]),
+		live
+	);
+	for (const supported of [
+		[current, newMxm],
+		[current, oldMxm],
+		[current, { ...newMxm, profile: 'genius' }, oldMxm]
+	])
+		await assert.rejects(
+			checkAssistantDeployment(answersUrl, [corpus, mxm], health(supported), live),
+			/does not support/
+		);
+});

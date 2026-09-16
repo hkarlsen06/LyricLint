@@ -6,6 +6,7 @@ import { referenceTopics } from '#lib/reference/topics.js';
 import { topicChecks } from '#lib/reference/topic-checks.server.js';
 import { ruleLookupTable } from '#lib/rules/lookup-tables.js';
 import type { LayoutServerLoad } from './$types.js';
+import { musixmatchReferenceCorpus } from '#lib/profiles/reference.server.js';
 
 // Server-derived once for the unified guide. The browser never imports the rule engine.
 export const load: LayoutServerLoad = () => {
@@ -24,6 +25,7 @@ export const load: LayoutServerLoad = () => {
 			.map(({ topic }) => ({ topic, ...topicChecks(topic) })),
 		spellings: ruleLookupTable('spelling.standardized'),
 		referenceCorpus: referenceCorpus(),
+		musixmatchCorpus: musixmatchReferenceCorpus(),
 		guidanceCount: countGuidanceLookups(sections),
 		guidanceTopics: sections.map(({ topic }) => topic)
 	};

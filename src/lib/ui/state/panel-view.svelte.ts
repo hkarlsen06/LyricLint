@@ -157,7 +157,10 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	const ignoredDiagnosticKeys = $derived.by(() => {
 		void ignoreEpoch;
 		void deps.snapshot().revision;
-		return deps.ignoreStore.list(deps.draftId());
+		const musixmatch = deps.snapshot().conversion?.profile === 'musixmatch';
+		return deps.ignoreStore
+			.list(deps.draftId())
+			.filter((key) => ignoredDiagnosticRuleId(key).startsWith('mxm.') === musixmatch);
 	});
 	const ignoredDiagnosticMatches = $derived(
 		matchIgnoredDiagnostics(

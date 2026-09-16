@@ -25,11 +25,15 @@
 
 	let {
 		corpus,
+		profile = 'genius',
+		showProfileNavigation = false,
 		selectedSlug,
 		selectedTopic,
 		assistant: assistantProp
 	}: {
 		corpus: readonly ReferenceDocument[];
+		profile?: 'genius' | 'musixmatch';
+		showProfileNavigation?: boolean;
 		selectedSlug?: string;
 		selectedTopic?: string;
 		assistant?: AssistantState;
@@ -38,19 +42,14 @@
 	const root = resolve('/(site)');
 
 	const contextAssistant = useAssistantState();
+	const topicBase = $derived(profile === 'musixmatch' ? '/guidelines/musixmatch' : '/guidelines');
 	const assistant = $derived(assistantProp ?? contextAssistant);
 	const reading = $derived(readingAnchor());
 	const filters = $derived(referenceSearchState());
 	const searching = $derived(filters.query.trim().length > 0);
 	const tokens = $derived(referenceSearchTokens(filters.query));
 	const scope = $derived(filters.scope);
-	const hasFilters = $derived(
-		searching ||
-			scope !== 'all' ||
-			!!filters.topic ||
-			filters.severities.length > 0 ||
-			filters.fixabilities.length > 0
-	);
+	const hasFilters = $derived(searching || scope !== 'all' || !!filters.topic || filters.severities.length > 0 || filters.fixabilities.length > 0);
 	let browsingTopics = $state(false);
 	let filtersOpen = $state(false);
 	const effectiveTopic = $derived(filters.topic);
@@ -132,7 +131,11 @@
 		const path = doc.href.split('#')[0];
 		if (doc.kind === 'rule')
 			return selectedSlug && path === `/guidelines/checks/${selectedSlug}/` ? 'page' : undefined;
-		return !selectedSlug && doc.href.split('#')[1] === (reading || anchor) ? 'page' : undefined;
+		return selectedTopic &&
+			path === `${topicBase}/${selectedTopic}/` &&
+			doc.href.split('#')[1] === (reading || anchor)
+			? 'page'
+			: undefined;
 	}
 
 	/** Reveal the current result without discarding the reader's search or filters. */
@@ -158,14 +161,21 @@
 	<CaretRightIcon size={16} aria-hidden="true" weight="bold" />
 {/snippet}
 
-<div
-	class="site-split__index reference-index"
-	data-sveltekit-reset="false"
-	bind:this={column}
-	use:stickyTopics={[directory, resultGroups]}
-	tabindex="-1"
->
-	<div class="guide-glass" aria-hidden="true"></div>
+<div class="site-split__index reference-index" data-sveltekit-noscroll bind:this={column}>
+	{#if showProfileNavigation}
+		<nav aria-label="Guideline profile" class="guide-profiles">
+			<a
+				class="button button--quiet"
+				href={resolve('/(site)/guidelines')}
+				aria-current={profile === 'genius' ? 'true' : undefined}>Genius</a
+			>
+			<a
+				class="button button--quiet"
+				href={resolve('/(site)/guidelines/musixmatch')}
+				aria-current={profile === 'musixmatch' ? 'true' : undefined}>Musixmatch</a
+			>
+		</nav>
+	{/if}
 	<search class="site-finder" aria-label="Find transcription answers">
 		<label for="reference-search">Search the transcription guide</label>
 		<input
@@ -200,7 +210,7 @@
 				<button
 					type="button"
 					class="button button--quiet reference-ask"
-					onclick={() => void assistant.open()}
+					onclick={() => void assistant.open(profile)}
 				>
 					<MagicWandIcon aria-hidden="true" size={20} />
 					Ask a question
@@ -356,7 +366,9 @@
 							<a
 								class="button button--quiet"
 								href={referenceHref(
-									`${resolve('/(site)/guidelines/[topic]', { topic: topic.id })}/`
+									profile === 'musixmatch'
+										? `${resolve('/(site)/guidelines/musixmatch/[topic]', { topic: topic.id })}/`
+										: `${resolve('/(site)/guidelines/[topic]', { topic: topic.id })}/`
 								)}
 								aria-labelledby={`topic-title-${topic.id}`}
 								aria-describedby={`topic-question-${topic.id}`}>{@render topicLabel(topic)}</a
@@ -500,6 +512,18 @@
 		--current-row-marker-width: calc(var(--border-width) * 3);
 	}
 
+	.guide-profiles {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		margin-block-end: var(--space-4);
+	}
+	.guide-profiles a[aria-current='true'] {
+		background: var(--color-fill);
+		font-weight: var(--font-weight-semibold);
+		text-decoration: underline;
+		text-underline-offset: var(--space-1);
+	}
 	.reference-index {
 		padding-block-end: max(var(--space-6), var(--split-navigation-clearance, 0px));
 	}

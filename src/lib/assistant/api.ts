@@ -91,6 +91,7 @@ function isWireErrorBody(value: unknown): value is WireErrorBody {
 
 /** The POST body one turn sends, with the two optional flags the worker reads. */
 interface TurnRequestBody {
+	profile?: 'genius' | 'musixmatch';
 	chatId: string;
 	messages: WireMessageV2[];
 	clientRuleSetVersion: string;
@@ -101,6 +102,7 @@ interface TurnRequestBody {
 }
 
 export interface AskOptions {
+	profile?: 'genius' | 'musixmatch';
 	chatId: string;
 	messages: WireMessageV2[];
 	clientRuleSetVersion: string;
@@ -147,6 +149,7 @@ async function sendTurn(
 		supportsRetry: true
 	};
 	if (options.toolsAvailable) body.toolsAvailable = true;
+	if (options.profile) body.profile = options.profile;
 	if (options.turnstileToken) body.turnstileToken = options.turnstileToken;
 	let response: Response;
 	try {

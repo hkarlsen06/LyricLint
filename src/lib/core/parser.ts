@@ -110,6 +110,7 @@ const unknownLyricLine = /^\[\s*\?+\s*\]$/u;
  * line-local answer, which cannot see multi-line annotations.
  */
 export interface LineDocumentContext {
+	profile?: 'genius' | 'musixmatch';
 	annotations: readonly AnnotationSpan[];
 	lineFrom: number;
 }
@@ -135,6 +136,7 @@ function opensAnnotation(text: string, context: LineDocumentContext | undefined)
  * caller that holds a document must pass it.
  */
 export function isSectionHeaderLine(text: string, context?: LineDocumentContext): boolean {
+	if (context?.profile === 'musixmatch') return false;
 	const trimmed = text.trim();
 	if (!trimmed.startsWith('[') || unknownLyricLine.test(trimmed)) {
 		return false;

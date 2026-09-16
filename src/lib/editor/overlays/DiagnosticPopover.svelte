@@ -22,6 +22,7 @@
 		onChooseHeader?: () => void;
 		onAssignPerformers?: () => void;
 		onLinkSections?: () => void;
+		onReviewConversion?: () => void;
 		onSetLanguage?: (language: string) => void;
 		onIgnore: () => void;
 		/**
@@ -45,6 +46,7 @@
 		onChooseHeader,
 		onAssignPerformers,
 		onLinkSections,
+		onReviewConversion,
 		onSetLanguage,
 		onIgnore,
 		onDismiss = () => {}
@@ -130,6 +132,7 @@
 		{onChooseHeader}
 		{onAssignPerformers}
 		{onLinkSections}
+		{onReviewConversion}
 		onSetLanguage={onSetLanguage ? (language) => onSetLanguage(language) : undefined}
 		{onPreviewFix}
 		{onCancelPreview}

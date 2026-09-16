@@ -1,0 +1,178 @@
+{
+  "purpose": "Research provenance for platform-guidelines-comparison.md; not a production policy manifest.",
+  "retrievedOn": "2026-09-16",
+  "reviewStatus": "source-research-only",
+  "fingerprintNote": "Payload fingerprints identify these retrievals. Dynamic HTML can change without a policy change. Re-read source content before changing policy. Raw source prose and lyric examples are not stored in this repository.",
+  "sources": [
+    {
+      "id": "MXM-MAIN",
+      "url": "https://community.musixmatch.com/guidelines?lng=en",
+      "standing": "official-general-guidelines",
+      "payloadKind": "html",
+      "sha256": "d40e95310953b4eb5f91c8093d65862e53e4cb86d29a09ba9ed3d6a2983b0def"
+    },
+    {
+      "id": "MXM-EN-I",
+      "url": "https://support.musixmatch.com/en/articles/216161-english-insights",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "36402d7e4b2d1f2ce7b9e95b874a74470c281c858cf2fa3736e58791dfe10f44",
+      "sourceModifiedAt": "2025-05-23T09:13:35Z"
+    },
+    {
+      "id": "MXM-EN-Q",
+      "url": "https://support.musixmatch.com/en/articles/215653-english-faq",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "fdcb256ef1532ed835500aa48f9dffae352b1472083902ec3a3a3d5eda5693e2",
+      "sourceModifiedAt": "2026-08-18T10:23:36Z"
+    },
+    {
+      "id": "MXM-NO-I",
+      "url": "https://support.musixmatch.com/en/articles/219259-norwegian-insights",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "7d1331e6cb0d2feca5d5bd85e22ecb1e404ddf05b066837ef8cf67b49fbf049e",
+      "sourceModifiedAt": "2025-06-16T15:43:48Z"
+    },
+    {
+      "id": "MXM-DE-I",
+      "url": "https://support.musixmatch.com/en/articles/219239-german-insights",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "7c0c15a204bb77395cc7e44c21d8c8d4de1b81c4f98b4375a6703ea25f6d39dd",
+      "sourceModifiedAt": "2026-08-31T08:10:00Z"
+    },
+    {
+      "id": "MXM-ES-I",
+      "url": "https://support.musixmatch.com/en/articles/218397-spanish-insights",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "9621149d929e2ae8069252ac47aa692c99c51a3dc0d3e2c8bc9ddc428e015b72",
+      "sourceModifiedAt": "2025-05-23T09:13:54Z"
+    },
+    {
+      "id": "MXM-ES-Q",
+      "url": "https://support.musixmatch.com/en/articles/215661-spanish-faq",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "b29e53bbd20417de6e6d74eef9dd093eb98fcbeb4fa97059bf9ed15f52df5704",
+      "sourceModifiedAt": "2025-05-23T09:12:10Z"
+    },
+    {
+      "id": "MXM-FR-I",
+      "url": "https://support.musixmatch.com/en/articles/218850-french-insights",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "bdf22e24d4a510ff5fb103aff50b13b27097c5ae40bb21043b3bd1c82fdc9478",
+      "sourceModifiedAt": "2025-05-23T09:14:28Z"
+    },
+    {
+      "id": "MXM-FR-Q",
+      "url": "https://support.musixmatch.com/en/articles/215665-french-faq",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "6c94259c2ded2aa531f6711e169827efb6f2459126e4c1d5e570dfa09899123f",
+      "sourceModifiedAt": "2025-05-23T09:12:42Z"
+    },
+    {
+      "id": "MXM-JA-I",
+      "url": "https://support.musixmatch.com/en/articles/219237-japanese-insights",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "97e67c74ab0c1b88d495c2b7fdce05018f63d01616cf56d0c7893921b18769c4",
+      "sourceModifiedAt": "2025-05-23T09:15:14Z"
+    },
+    {
+      "id": "MXM-JA-Q",
+      "url": "https://support.musixmatch.com/en/articles/215671-japanese-faq",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "e4217af4b3c7d4916a0e89adeae67c19f15004940c9cf7b4f455eb1c4484dbeb",
+      "sourceModifiedAt": "2025-05-23T09:12:59Z"
+    },
+    {
+      "id": "MXM-ROM",
+      "url": "https://support.musixmatch.com/en/articles/215401-romanization-and-supported-languages",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "271147d968958f74725942d2ecf1d02f2cb76ea828cba65dac03f2626dce752b",
+      "sourceModifiedAt": "2025-07-24T10:03:58Z"
+    },
+    {
+      "id": "MXM-STUDIO",
+      "url": "https://support.musixmatch.com/en/articles/219731-the-studio-for-starters",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "3ba07aa34315f9acdc3d4158b688bd35ad48da26600d6819660068127c7526a7",
+      "sourceModifiedAt": "2026-04-30T14:24:22Z"
+    },
+    {
+      "id": "MXM-TRANSLATE",
+      "url": "https://support.musixmatch.com/en/articles/220242-take-your-favorite-lyrics-worldwide-how-to-translate",
+      "standing": "official-help-center",
+      "payloadKind": "html",
+      "sha256": "8c74405d1f496e52a2a8e5b2a0c8eca6c9d5197904321c5dc57a8cad0fafc49a",
+      "sourceModifiedAt": "2025-05-28T11:22:10Z"
+    },
+    {
+      "id": "MXM-INSIGHTS",
+      "url": "https://support.musixmatch.com/en/collections/571786-writing-guidelines-insights-per-language",
+      "standing": "official-discovery-index",
+      "payloadKind": "html",
+      "sha256": "538fce989d0fc4b7517a9dc08245cb477c1065a5ef578932dcdedefded220936"
+    },
+    {
+      "id": "MXM-FAQ",
+      "url": "https://support.musixmatch.com/en/collections/571709-writing-guidelines-faq-per-language",
+      "standing": "official-discovery-index",
+      "payloadKind": "html",
+      "sha256": "84122e6ea4a25f111ee0099b895606010c2fc9f7929dc894c9908ffc22c3d85e"
+    },
+    {
+      "id": "MXM-ROM-INSIGHTS",
+      "url": "https://support.musixmatch.com/en/collections/576646-romanization-insights-per-language",
+      "standing": "official-discovery-index",
+      "payloadKind": "html",
+      "sha256": "5ea69063d4dadd84db974dcdba877bd560b8ada96ffa140b1cd12bcb01f1d218"
+    },
+    {
+      "id": "MXM-METADATA",
+      "url": "https://docs.musixmatch.com/musixmatch-metadata",
+      "standing": "official-developer-documentation",
+      "payloadKind": "saved-markdown-utf8",
+      "sha256": "2e94402fa418e3ff0ae44966b3f89631bcf26cb22b101cd46fddc2148410357b"
+    },
+    {
+      "id": "MXM-BULK",
+      "url": "https://docs.musixmatch.com/enterprises/lyrics-bulk-submission",
+      "standing": "official-partner-documentation",
+      "payloadKind": "saved-markdown-utf8",
+      "sha256": "0ed9b3fd42848ec231961d2e3078e31f8c2fc4eac59120af625feb21d5f4e87d",
+      "sourceModifiedAt": "2025-07-08"
+    },
+    {
+      "id": "MXM-EN-EXT",
+      "url": "https://docs.google.com/document/d/1njyoifp2cyG-IQu0495eX1Mo0Hp2qy-vl4IeHX0DSCw/preview",
+      "standing": "linked-community-supplement",
+      "payloadKind": "public-text-export",
+      "sha256": "e84c39d6ae793235f5d3d0e65c758fc043d36223457cc39e80f940d07797b19d",
+      "visibleDocumentDate": "2025-01-28"
+    },
+    {
+      "id": "MXM-LINES",
+      "url": "https://docs.google.com/document/d/1ikqb3f--GK_yFGifnEhQ1Crnpntn2V0wJxj5el2vqiE/preview",
+      "standing": "linked-community-supplement",
+      "payloadKind": "public-text-export",
+      "sha256": "70a0f4cc4f2030f4b2e85ccfd3be7e9f9de73472e83a866e70c962673d8cdf82"
+    },
+    {
+      "id": "MXM-DE-EXT",
+      "url": "https://docs.google.com/document/d/1T-rAxki41XiVLjIijV0jvzSxsyXZnf1snmEObj7229M/preview",
+      "standing": "linked-community-supplement",
+      "payloadKind": "public-text-export",
+      "sha256": "6ee66604c0227e2889c69cbfad64f030f835d3d9448f8589a71fc42ef1a2c8b2",
+      "visibleDocumentDate": "2026-07-07"
+    }
+  ]
+}

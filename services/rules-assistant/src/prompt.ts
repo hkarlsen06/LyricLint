@@ -308,6 +308,10 @@ function corpusText(corpus: RulesCorpus): string {
 	].join('\n');
 }
 
+export function promptCacheKey(corpus: RulesCorpus): string {
+	return `lyriclint-rules-${corpus.profile === 'musixmatch' ? 'musixmatch-' : ''}${corpus.ruleSetVersion}-${corpus.contentHash.slice(0, 16)}`;
+}
+
 function isSettledMessage(
 	message: AnswerRequest['messages'][number]
 ): message is Extract<AnswerRequest['messages'][number], { content: string }> {
@@ -354,5 +358,12 @@ export function pruneHistory(messages: AnswerRequest['messages']): AnswerRequest
  * byte-identical for a given corpus.
  */
 export function developerPrompt(corpus: RulesCorpus): string {
-	return `${DEVELOPER_INSTRUCTIONS}\n\n<reviewed_corpus>\n${corpusText(corpus)}\n</reviewed_corpus>\n\n${CACHE_BREAKPOINT}`;
+	const instructions =
+		corpus.profile === 'musixmatch'
+			? DEVELOPER_INSTRUCTIONS.replace('with Genius lyric', 'with Musixmatch lyric').replace(
+					/Ground every Genius-specific claim[\s\S]*?(?=- Cite a rule by)/u,
+					'Ground every Musixmatch-specific claim in the selected Musixmatch corpus. Official Musixmatch sources are authoritative for Musixmatch; Genius author-role tiers do not rank them. Community supplements stay advisory. Every clause states its language scope and remaining automation limits. Missing Arabic/Korean evidence is not English fallback coverage. Japanese spacing/case, French times, joik and semantic roles retain unresolved scope. Do not infer words from censor masks or unknown tokens, translate, change pronunciation, invent section types, or normalize numeric meaning. Mode switching is a deterministic local representation operation and never calls you. Your optional proposals are separate, explicitly reviewed edits. Musixmatch keeps structure and performer tags outside lyric text; do not insert Genius headers or invent a native metadata handoff.\n\n'
+				)
+			: DEVELOPER_INSTRUCTIONS;
+	return `${instructions}\n\n<reviewed_corpus>\n${corpusText(corpus)}\n</reviewed_corpus>\n\n${CACHE_BREAKPOINT}`;
 }

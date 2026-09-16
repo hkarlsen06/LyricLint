@@ -48,7 +48,9 @@
 >
 	<div class="compare-dialog__surface">
 		<div class="compare-dialog__header">
-			<strong id="compare-dialog-title">Compare with the page</strong>
+			<strong id="compare-dialog-title"
+				>Compare with {controller.profile === 'musixmatch' ? 'Genius' : 'the page'}</strong
+			>
 			<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
 				<XIcon aria-hidden="true" size={16} weight="bold" />
 			</button>

@@ -77,7 +77,7 @@
 />
 
 <div class="panel-content panel-sections preferences-panel">
-	{#if isEnglishLanguage(controller.language)}
+	{#if controller.profile === 'genius' && isEnglishLanguage(controller.language)}
 		<section aria-labelledby="grammar-heading">
 			<div class="toggle-field preferences-panel__heading">
 				<h2 id="grammar-heading"><label for="grammar-check-switch">Grammar checking</label></h2>

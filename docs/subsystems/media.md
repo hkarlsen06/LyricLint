@@ -10,6 +10,26 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
 
 ## The rules
 
+- `MediaStore.recordingId` identifies the recording behind audio-dependent decisions. Remote
+  identity is the provider plus its actual video/track/song ID. Local attachments receive a
+  fresh UUID outside the conversion engine; reconnecting the same remembered file handle keeps
+  it, while selecting a replacement creates a new identity even for the same filename and size.
+  The media record, conflict copies and workspace backups preserve this field. Backups cannot
+  preserve a local handle, so reconnecting one through a picker counts as a new recording.
+  The workspace synchronizes this identity only after the current draft's real editor and media
+  restoration are ready. Active IME composition defers the update until the committed snapshot;
+  a refused unchanged basis is not retried on every caret move. Updating the recording identity
+  changes no editor history and leaves sync mode active when text and lyric profile stay the same.
+
+- `storageSnapshot()` captures the local attachment, including its file handle and current
+  position, alongside a draft save. It returns `undefined` while restoration is unresolved and
+  `null` for an explicit detach. After an atomic conflict copy, `adoptDraftId()` moves the
+  existing player's write ownership to the saved copy without detaching or restarting playback.
+  In a generation-aware workbench, all media writes (attachment, detach, name, and playhead)
+  schedule the guarded draft save instead of writing first under a potentially stale draft ID.
+  Flush media checkpoints before flushing autosave. Standalone legacy media-store consumers
+  retain their direct repository behavior.
+
 - One transport, four sources behind `MediaSource`; a source reports, it never decides. Every
   rule (resume rewind, clamps, `liveTime()`, run-in cancellation) is written once against the
   interface. `media-test-audio.ts` is the stub both test files drive.

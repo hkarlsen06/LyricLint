@@ -915,7 +915,9 @@ describe('RightPanel', () => {
 		await render(RightPanel, { controller: clean });
 		expect(screen.getByText('No issues found')).toBeTruthy();
 		expect(
-			screen.getByText('Your lyrics pass every enabled rule. Checking continues as you write.')
+			screen.getByText(
+				'No issues found by the enabled Genius checks. Checking continues as you write.'
+			)
 		).toBeTruthy();
 		await cleanup();
 

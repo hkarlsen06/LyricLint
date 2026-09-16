@@ -74,7 +74,17 @@ test('the keyboard gives its space to writing and restores navigation only after
 	const workspace = screen.getByTestId('workspace');
 	await waitFor(() => expect(Math.round(workspace.getBoundingClientRect().height)).toBe(420));
 	expect(screen.queryByRole('navigation', { name: 'Workbench views' })).toBeNull();
-	expect(screen.getByTestId('editor-region').getBoundingClientRect().height).toBeGreaterThan(300);
+	const editor = screen.getByTestId('editor-region');
+	const editorRect = editor.getBoundingClientRect();
+	const actionsRect = screen
+		.getByRole('group', { name: 'Document actions' })
+		.getBoundingClientRect();
+	// The two-row toolbar keeps format and Copy reachable; all remaining space,
+	// including the dismissed navigation's former slot, belongs to writing.
+	expect(editorRect.top).toBe(actionsRect.bottom);
+	const bottomInset = parseFloat(getComputedStyle(editor.closest('.editor-region')!).marginBottom);
+	expect(editorRect.bottom + bottomInset).toBe(workspace.getBoundingClientRect().bottom);
+	expect(editorRect.height).toBeGreaterThan(viewport.height / 2);
 	viewport.height = 844;
 	viewport.offsetTop = 0;
 	events.dispatchEvent(new Event('resize'));

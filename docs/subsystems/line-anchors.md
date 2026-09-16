@@ -45,7 +45,12 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
 - Sync mode: the editor owns the mode, the shell reacts (`onLyricSyncChange`); typing ends
   the run (read off the document changing, via a `transactionExtender`); pausing holds the
   run and a tap against a paused tape is refused out loud; no `preventDefault: true` on any
-  sync binding (it swallows keys when the command returns false, and that cost a green suite once).
+  sync binding (it swallows keys when the command returns false, cost a green suite once).
+- Switching lyric profiles ends a sync run in the profile transaction, including when both
+  profiles show identical text. The callback carries the explicit `profile` exit reason so the
+  shell preserves playback and playhead; the format announcement says that sync ended. Metadata
+  changes that leave text and profile unchanged keep the run active. Other exits retain their
+  existing pause behavior and callback shape. `workspace-conversion.svelte.test.ts` pins both.
 - Taps stamp `liveTime()` minus `tapOffsetSeconds` (50ms wall-clock, multiplied by rate), and
   publish the reading they took in the same transaction; the caret lands on the line just
   timed, advance deferred to the next tap; `Backspace`/`ArrowUp` clear and seek back through
