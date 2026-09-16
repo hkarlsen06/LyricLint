@@ -4,9 +4,48 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 `src/lib/editor/extensions/clipboard-metadata.ts`, `src/lib/editor/create-editor.ts`
 (`audioFileDrop`, `createCallbackProxy`), `src/lib/editor/extensions/update-bridge.ts`,
 `src/lib/editor/extensions/editor-state.ts`, context-derived decoration fields,
-`src/lib/editor/contracts.ts`
+`src/lib/editor/contracts.ts`, `src/lib/conversion/`,
+`src/lib/editor/extensions/conversion-state.ts`, `src/lib/editor/extensions/conversion-sections.ts`
 
 ## The rules
+
+- Rich drafts keep one `ConversionDocument`. `renderProfile` derives Genius or Musixmatch text
+  without allocating IDs, changing authored forms, applying lint fixes or mutating metadata.
+  Repeated switches preserve each projection byte for byte; edits reconcile through the
+  projection's exact ranges. Malformed or ambiguous syntax stays literal. A failed reconciliation
+  preserves the latest typed text and the last valid checkpoint separately for recovery.
+- `conversion-state.ts` commits text, model, selection, timing and links atomically. Switching is
+  isolated in undo history, including text-identical views; choosing the current view is a no-op.
+  IME changes finish before a queued switch. Undo retains the allocator high-water mark, including
+  after save/reload, so a new edit never reuses a retired occurrence's ID. Selection and viewport
+  follow occurrence mappings rather than searching for identical words.
+- Musixmatch section boundaries are editor widgets backed by stable retained IDs. Their controls
+  open Song details; they never become copied text. Voice decorations update in the same editor
+  transaction as the projection so a native caret cannot jump during asynchronous shell updates.
+  `conversion.svelte.test.ts`, `conversion-identities.svelte.test.ts` and
+  `e2e/profile-workbench.spec.ts` cover switching, undo, reload, native typing and selection.
+- Explicit semantic decisions use `resolveDecision` for both preview and commit. Quantities
+  require a complete selection, role and pronunciation; intervals require adjacent confirmed
+  section types and recording-bound listening facts. Repeat expansion requires independently
+  selected lyric and notation ranges, count and separator. Additional occurrences receive fresh
+  untimed identities without copied annotations or voices. None of these decisions is inferred
+  merely by changing format. Their UI lives in Song and invalidates stale previews.
+
+- Rich selection copies use clipboard metadata version 2 with a validated conversion fragment
+  and only its referenced performer identities. The exact `text/plain` flavor must match the
+  fragment's active projection. A copied fragment contains wholly selected wrappers and sections,
+  selected language ranges, and owned timing/link records; neighboring hidden lyrics and names
+  never travel. A partial generated delimiter falls back to the exact selected text.
+- Same-profile carrying pastes attach the validated fragment and allocate fresh record identities
+  in one editor transaction. Performer ID collisions are remapped deterministically and the shell
+  receives additions before the snapshot. Foreign-profile payloads preserve the exact pasted text
+  and hold incompatible metadata for explicit review in Song. The passage preview names its source
+  format and shows the exact receiving-format text; Apply commits text and details together, while
+  Keep current text discards the pending metadata. A deliberate Interpret as Genius/Musixmatch
+  action uses this same preview and commit path for selected ordinary text. Pending reviews map
+  through outside edits and invalidate when the passage is touched or the profile changes; undo
+  restores the previous reviewed basis. Rich attachment that cannot preserve
+  the exact projection uses the ordinary text paste and reports that its details were withheld.
 
 - Section-header choices follow a fixed typical song progression, with more common section
   types first at the same stage. Search only filters that sequence. Draft contents and the

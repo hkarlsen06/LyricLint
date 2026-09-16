@@ -44,6 +44,7 @@ class SectionGhostWidget extends WidgetType {
 
 function buildGhosts(state: EditorState, context: SectionGhostContext): DecorationSet {
 	const { parsed, diagnostics } = context;
+	if (parsed.profile === 'musixmatch') return Decoration.none;
 	if (parsed.text !== state.doc.toString()) {
 		return Decoration.none;
 	}

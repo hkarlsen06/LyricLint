@@ -42,24 +42,27 @@ export function loadRulePreviews(): Promise<{
 	previews: Map<string, RulePreview>;
 	sources: Map<string, RulePreviewSource>;
 }> {
-	cache ??= import('../../../services/rules-assistant/generated/rules-context-data.js').then(
-		(module) => {
-			const corpus: AssistantCorpus = module.corpus;
-			const sourcesById = new Map(corpus.sources.map((source) => [source.id, source]));
-			const previews = new Map<string, RulePreview>(
-				corpus.rules.map((rule) => [
-					rule.id,
-					{
-						...rule,
-						sources: rule.sourceIds.flatMap((sourceId) => {
-							const source = sourcesById.get(sourceId);
-							return source ? [source] : [];
-						})
-					}
-				])
-			);
-			return { ruleSetVersion: corpus.ruleSetVersion, previews, sources: sourcesById };
-		}
-	);
+	cache ??= Promise.all([
+		import('../../../services/rules-assistant/generated/rules-context-data.js'),
+		import('../../../services/rules-assistant/generated/musixmatch-context-data.js')
+	]).then(([module, mxm]) => {
+		const corpus: AssistantCorpus = module.corpus;
+		const sourcesById = new Map(
+			[...corpus.sources, ...mxm.corpus.sources].map((source) => [source.id, source])
+		);
+		const previews = new Map<string, RulePreview>(
+			[...corpus.rules, ...mxm.corpus.rules].map((rule) => [
+				rule.id,
+				{
+					...rule,
+					sources: rule.sourceIds.flatMap((sourceId) => {
+						const source = sourcesById.get(sourceId);
+						return source ? [source] : [];
+					})
+				}
+			])
+		);
+		return { ruleSetVersion: corpus.ruleSetVersion, previews, sources: sourcesById };
+	});
 	return cache;
 }

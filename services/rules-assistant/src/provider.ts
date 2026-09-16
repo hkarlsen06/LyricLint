@@ -375,7 +375,10 @@ export function providerRequest(
 		}
 	};
 	if (toolsAvailable) {
-		request.tools = DRAFT_TOOLS;
+		request.tools =
+			selectedCorpus.profile === 'musixmatch'
+				? DRAFT_TOOLS.filter((tool) => tool.name !== 'manage_links')
+				: DRAFT_TOOLS;
 		request.include = ['reasoning.encrypted_content'];
 	}
 	return request;

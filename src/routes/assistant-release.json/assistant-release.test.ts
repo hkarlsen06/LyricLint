@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { corpusMetadata } from '../../../services/rules-assistant/generated/rules-context-meta.js';
+import { musixmatchCorpusMetadata } from '../../../services/rules-assistant/generated/musixmatch-context-meta.js';
 import { GET } from './+server.js';
 
 afterEach(() => vi.unstubAllEnvs());
@@ -12,7 +13,11 @@ it('publishes the build revision and browser corpus identity without caching', a
 		revision,
 		...corpusMetadata,
 		clientCorpusHash: true,
-		answersUrl: 'https://assistant.test/v1/answers'
+		answersUrl: 'https://assistant.test/v1/answers',
+		profileCorpora: [
+			{ profile: 'genius', ...corpusMetadata },
+			{ profile: 'musixmatch', ...musixmatchCorpusMetadata }
+		]
 	});
 	expect(response.headers.get('cache-control')).toBe('no-store');
 });

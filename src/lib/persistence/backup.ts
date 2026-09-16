@@ -1,4 +1,10 @@
 import { normalizeGeniusUrl } from '../core/genius-url.js';
+import { copyConversionFields } from './copy.js';
+import {
+	parseConversionEnvelope,
+	parseConversionRecovery,
+	parseOriginalRecovery
+} from './conversion.js';
 import { validateLinkPassages } from '../core/link-record.js';
 import Dexie, { type ObservabilitySet } from 'dexie';
 
@@ -21,7 +27,7 @@ import type {
 } from './types.js';
 
 const FORMAT = 'lyriclint-workspace';
-const VERSION = 1;
+const VERSION = 2;
 const HANDLE_KEY = 'workspace';
 const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 const AUTOSAVE_DELAY_MS = 750;
@@ -62,7 +68,7 @@ interface IgnoredDiagnosticsRecord {
 
 interface WorkspaceBackupFile {
 	format: typeof FORMAT;
-	version: typeof VERSION;
+	version: 1 | typeof VERSION;
 	createdAt: string;
 	drafts: DraftRecord[];
 	appMetadata: AppMetadataRecord[];
@@ -187,6 +193,30 @@ function parseDraft(value: Json): DraftRecord {
 		updatedAt: stringField(value, 'updatedAt'),
 		ruleSetVersion: stringField(value, 'ruleSetVersion')
 	};
+	if (value.storageGeneration !== undefined) {
+		if (!Number.isSafeInteger(value.storageGeneration) || Number(value.storageGeneration) < 0) {
+			throw new WorkspaceBackupError('Invalid storage generation in backup.');
+		}
+		draft.storageGeneration = Number(value.storageGeneration);
+	}
+	try {
+		if (value.originalRecovery !== undefined)
+			draft.originalRecovery = parseOriginalRecovery(value.originalRecovery);
+		if (value.conversionRecovery !== undefined) {
+			draft.conversionRecovery = parseConversionRecovery(value.conversionRecovery, text);
+		}
+		if (value.conversion !== undefined) {
+			draft.conversion = parseConversionEnvelope(
+				value.conversion,
+				draft.conversionRecovery ? undefined : text
+			);
+		}
+		copyConversionFields(draft, draft);
+	} catch (error) {
+		throw new WorkspaceBackupError(
+			error instanceof Error ? error.message : 'Invalid conversion document in backup.'
+		);
+	}
 
 	if (value.geniusUrl !== undefined) {
 		const geniusUrl = normalizeGeniusUrl(value.geniusUrl);
@@ -286,6 +316,7 @@ function parseDraft(value: Json): DraftRecord {
 		}
 	}
 
+	copyConversionFields(draft, draft);
 	return draft;
 }
 
@@ -318,6 +349,9 @@ function parseMedia(value: Json): SerializableMediaRecord {
 	const songId = optionalStringField(value, 'songId');
 	const size = optionalNumberField(value, 'size');
 	const position = optionalNumberField(value, 'position');
+	const recordingId = optionalStringField(value, 'recordingId');
+	if (recordingId !== undefined && !/^file:[A-Za-z0-9_-]{1,200}$/u.test(recordingId))
+		throw new WorkspaceBackupError('Invalid local recording identity in backup.');
 	if (source !== undefined && !isMediaSource(source)) {
 		throw new WorkspaceBackupError('Invalid media source in backup.');
 	}
@@ -332,6 +366,7 @@ function parseMedia(value: Json): SerializableMediaRecord {
 	if (songId !== undefined) record.songId = songId;
 	if (size !== undefined) record.size = size;
 	if (position !== undefined) record.position = position;
+	if (recordingId !== undefined) record.recordingId = recordingId;
 	return record;
 }
 
@@ -383,7 +418,11 @@ export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
 	} catch {
 		throw new WorkspaceBackupError('This is not a valid LyricLint backup file.');
 	}
-	if (!isRecord(value) || value.format !== FORMAT || value.version !== VERSION) {
+	if (
+		!isRecord(value) ||
+		value.format !== FORMAT ||
+		(value.version !== 1 && value.version !== VERSION)
+	) {
 		throw new WorkspaceBackupError('This LyricLint backup version is not supported.');
 	}
 	if (
@@ -396,6 +435,17 @@ export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
 	}
 
 	const drafts = value.drafts.map(parseDraft);
+	if (
+		value.version === 1 &&
+		drafts.some(
+			(draft) =>
+				draft.conversion !== undefined ||
+				draft.conversionRecovery !== undefined ||
+				draft.originalRecovery !== undefined
+		)
+	) {
+		throw new WorkspaceBackupError('A conversion backup must use the current file version.');
+	}
 	const appMetadata = value.appMetadata.map(parseMetadata);
 	const media = value.media.map(parseMedia);
 	const ignoredDiagnostics = value.ignoredDiagnostics.map(parseIgnoredDiagnostics);
@@ -425,7 +475,7 @@ export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
 
 	return {
 		format: FORMAT,
-		version: VERSION,
+		version: value.version,
 		createdAt: stringField(value, 'createdAt'),
 		drafts,
 		appMetadata,
@@ -439,21 +489,30 @@ async function createBackupFile(
 	now: () => string,
 	ignoreStore?: DraftIgnoreStore
 ): Promise<WorkspaceBackupFile> {
-	const [drafts, appMetadata, media] = await database.transaction(
+	const [drafts, appMetadata, media, storedIgnores] = await database.transaction(
 		'r',
 		database.drafts,
 		database.appMetadata,
 		database.mediaHandles,
+		database.draftIgnores,
 		() =>
 			Promise.all([
 				database.drafts.toArray(),
 				database.appMetadata.toArray(),
-				database.mediaHandles.toArray()
+				database.mediaHandles.toArray(),
+				database.draftIgnores.toArray()
 			])
 	);
 	return {
 		format: FORMAT,
-		version: VERSION,
+		version: drafts.some(
+			(draft) =>
+				draft.conversion !== undefined ||
+				draft.conversionRecovery !== undefined ||
+				draft.originalRecovery !== undefined
+		)
+			? VERSION
+			: 1,
 		createdAt: now(),
 		drafts,
 		appMetadata,
@@ -463,7 +522,11 @@ async function createBackupFile(
 			return copy;
 		}),
 		ignoredDiagnostics: drafts.flatMap((draft) => {
-			const keys = ignoreStore?.list(draft.id) ?? [];
+			const stored = storedIgnores.find((record) => record.draftId === draft.id)?.keys ?? [];
+			// Guarded rows and side records were committed together. A stale tab's
+			// session mirror must never replace the newer original's choices in a backup.
+			const keys =
+				draft.storageGeneration !== undefined ? stored : (ignoreStore?.list(draft.id) ?? stored);
 			return keys.length > 0 ? [{ draftId: draft.id, keys }] : [];
 		})
 	};
@@ -569,7 +632,7 @@ export function createWorkspaceBackup(
 	async function checkMediaChanges(parts: ObservabilitySet): Promise<void> {
 		await ready;
 		if (destroyed || !handle || currentState.permission !== 'granted') return;
-		const keys = mutatedKeys(parts, `${databasePrefix}mediaHandles/`);
+		const keys = mutatedKeys(parts, `${databasePrefix}${database.mediaHandles.name}/`);
 		try {
 			const records =
 				keys === undefined
@@ -594,14 +657,18 @@ export function createWorkspaceBackup(
 		if (
 			parts.all ||
 			Object.keys(parts).some((part) =>
-				['drafts', 'appMetadata', 'draftIgnores'].some((table) =>
-					part.startsWith(`${databasePrefix}${table}/`)
+				[database.drafts.name, database.appMetadata.name, database.draftIgnores.name].some(
+					(table) => part.startsWith(`${databasePrefix}${table}/`)
 				)
 			)
 		) {
 			controller.schedule();
 		}
-		if (Object.keys(parts).some((part) => part.startsWith(`${databasePrefix}mediaHandles/`))) {
+		if (
+			Object.keys(parts).some((part) =>
+				part.startsWith(`${databasePrefix}${database.mediaHandles.name}/`)
+			)
+		) {
 			// A full library rewrite is disproportionate to a five-second progress checkpoint.
 			// Mark it dirty immediately so an explicit flush never waits on classification.
 			scheduleWrite(POSITION_BACKUP_DELAY_MS);

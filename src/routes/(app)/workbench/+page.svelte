@@ -4,6 +4,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { parseDocument } from '$lib/core/parser.js';
+	import { parseProjection, renderProfile } from '$lib/conversion/index.js';
 	import type {
 		AutosaveStatus,
 		DraftRecord,
@@ -41,6 +42,7 @@
 
 	let controller = $state<WorkbenchController | undefined>();
 	let bootError = $state<string | undefined>();
+	let storageNotice = $state<string | undefined>();
 	// Another tab of this browser holds the workbench, so this one has not opened
 	// local storage and is not going to until that tab goes away. It outranks the
 	// pending startup announcement.
@@ -57,16 +59,27 @@
 	const feedback = useFeedbackState();
 
 	function snapshotFor(draft: DraftRecord, revision = 0): EditorSnapshot {
-		return {
+		const projection =
+			draft.conversion && !draft.conversionRecovery
+				? renderProfile(draft.conversion.model, draft.conversion.profile)
+				: undefined;
+		const snapshot: EditorSnapshot = {
 			revision,
 			text: draft.text,
 			selection: draft.editorSelection ?? { anchor: 0, head: 0 },
-			parsed: parseDocument(draft.text),
+			parsed:
+				projection?.ok && draft.conversion
+					? parseProjection(draft.conversion.model, projection.value, draft.language)
+					: parseDocument(draft.text),
 			diagnostics: [],
 			composing: false,
 			canUndo: false,
 			canRedo: false
 		};
+		if (draft.conversion) snapshot.conversion = draft.conversion;
+		if (draft.conversionRecovery) snapshot.conversionRecovery = draft.conversionRecovery;
+		if (draft.originalRecovery) snapshot.originalRecovery = draft.originalRecovery;
+		return snapshot;
 	}
 
 	// The controller starts with a headless editor handle; the real CodeMirror
@@ -130,7 +143,17 @@
 					}
 				}
 
-				database = await openDatabase();
+				database = await openDatabase(undefined, (state) => {
+					if (cancelled) return;
+					if (state === 'blocked') {
+						storageNotice =
+							'Close other LyricLint tabs to finish upgrading local storage. Your saved drafts are unchanged.';
+					} else if (state === 'version-changed') {
+						storageNotice =
+							'Another tab upgraded local storage. Keep this tab open and export your current Scribe to preserve any unsaved edits.';
+						feedback.announce(storageNotice);
+					} else if (state === 'ready') storageNotice = undefined;
+				});
 				// Hydrated before the workbench exists to ask: the store's readers are
 				// synchronous, so the one await this costs is spent here, at boot.
 				const ignoreStore = await createDraftIgnoreStore(database);
@@ -193,12 +216,12 @@
 		})();
 
 		// Hiding the tab is the last moment either of these is reachable, and a
-		// reload or a close arrives here first. The playhead flushes alongside the
-		// text for the same reason the text flushes at all.
+		// reload or a close arrives here first. The controller captures the playhead
+		// before draining the guarded draft save, then the backup sees both.
 		const flushWhenHidden = () => {
 			if (document.visibilityState !== 'hidden') return;
 			void (async () => {
-				await Promise.all([controller?.flushAutosave(), controller?.media?.flushPosition()]);
+				await controller?.flushAutosave();
 				await controller?.backup?.flush();
 			})();
 		};
@@ -265,6 +288,14 @@
 		<button class="button" type="button" onclick={() => location.reload()}>Reload</button>
 	</div>
 {:else if controller}
+	{#if storageNotice}
+		<div class="storage-notice">
+			<p role="alert">{storageNotice}</p>
+			<button type="button" class="button" onclick={() => controller?.exportScribe()}
+				>Export current Scribe</button
+			>
+		</div>
+	{/if}
 	<Workspace
 		{controller}
 		editorComponent={EditorPane}
@@ -279,14 +310,21 @@
 	/>
 {:else if tabBusy}
 	<TabBusyNotice />
+{:else if storageNotice}
+	<div class="boot-message"><p role="status">{storageNotice}</p></div>
 {/if}
 
 <!-- Announce pending startup without a visual splash or animation gate. -->
-{#if !revealed && !bootError && !tabBusy}
+{#if !revealed && !bootError && !tabBusy && !storageNotice}
 	<p class="sr-only" role="status">Loading your workspace…</p>
 {/if}
 
 <style>
+	.storage-notice {
+		padding: var(--space-3) var(--space-4);
+		color: var(--color-text);
+	}
+
 	.boot-message {
 		margin: var(--space-8) auto;
 		max-width: var(--measure-prose);

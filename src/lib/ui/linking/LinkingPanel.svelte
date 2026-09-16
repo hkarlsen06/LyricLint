@@ -8,6 +8,7 @@
 	import { getLanguagePack } from '$lib/languages/registry.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import LinkingDetail from './LinkingDetail.svelte';
+	import RichLinking from './RichLinking.svelte';
 	import { linkingOverview, linkingSectionNames, type LinkingOverviewGroup } from './overview.js';
 
 	let {
@@ -19,7 +20,7 @@
 		active?: boolean;
 		onShowEditor?: () => void | Promise<void>;
 	} = $props();
-	let root: HTMLDivElement;
+	let root = $state<HTMLDivElement>();
 	const readInputs = () => ({
 		parsed: controller.snapshot.parsed,
 		links: controller.sectionLinks,
@@ -127,13 +128,13 @@
 			comparedHeaders: group.occurrences.map((occurrence) => occurrence.headerFrom)
 		});
 		await tick();
-		root.querySelector<HTMLElement>('[data-linking-heading]')?.focus();
+		root?.querySelector<HTMLElement>('[data-linking-heading]')?.focus();
 	}
 
 	async function back(): Promise<void> {
 		controller.closeLinking();
 		await tick();
-		root.querySelector<HTMLElement>('[data-linking-heading]')?.focus();
+		root?.querySelector<HTMLElement>('[data-linking-heading]')?.focus();
 	}
 
 	function report(message: string): void {
@@ -170,96 +171,100 @@
 	}
 </script>
 
-<div class="panel-content linking-panel" bind:this={root}>
-	{#if session}
-		{#key session.key}
-			{@const baseline = session}
-			<LinkingDetail
-				occurrences={baseline.occurrences}
-				{sectionNames}
-				onNavigate={navigate}
-				documentText={parsed.text}
-				onNavigateLyric={navigateLyric}
-				currentHeaderFrom={baseline.headerFrom}
-				initialSelected={baseline.selected}
-				fromOverview={baseline.fromOverview}
-				comparedHeaders={baseline.comparedHeaders}
-				differencesFor={(headers) => controller.editor.getLinkDifferences?.(headers) ?? []}
-				connectionsFor={controller.editor.getLinkConnections
-					? (headers) => controller.editor.getLinkConnections?.(headers) ?? []
-					: undefined}
-				onApply={(choice) => apply(choice, baseline)}
-				onBack={back}
-				typeOnlyHereAvailable={controller.editor.canTypeOnlyHere?.(baseline.headerFrom) ?? false}
-				typeOnlyHereActive={sectionOnlyActive}
-				onTypeOnlyHere={toggleSectionOnly}
-			/>
-		{/key}
-	{:else}
-		<h2 tabindex="-1" data-linking-heading>Link repeated sections</h2>
-		{#if overview.available.length === 0 && overview.linked.length === 0}
-			<p>Repeated sections will appear here so you can keep their shared lyrics in sync.</p>
+{#if controller.profile === 'musixmatch'}
+	<RichLinking {controller} {active} {onShowEditor} />
+{:else}
+	<div class="panel-content linking-panel" bind:this={root}>
+		{#if session}
+			{#key session.key}
+				{@const baseline = session}
+				<LinkingDetail
+					occurrences={baseline.occurrences}
+					{sectionNames}
+					onNavigate={navigate}
+					documentText={parsed.text}
+					onNavigateLyric={navigateLyric}
+					currentHeaderFrom={baseline.headerFrom}
+					initialSelected={baseline.selected}
+					fromOverview={baseline.fromOverview}
+					comparedHeaders={baseline.comparedHeaders}
+					differencesFor={(headers) => controller.editor.getLinkDifferences?.(headers) ?? []}
+					connectionsFor={controller.editor.getLinkConnections
+						? (headers) => controller.editor.getLinkConnections?.(headers) ?? []
+						: undefined}
+					onApply={(choice) => apply(choice, baseline)}
+					onBack={back}
+					typeOnlyHereAvailable={controller.editor.canTypeOnlyHere?.(baseline.headerFrom) ?? false}
+					typeOnlyHereActive={sectionOnlyActive}
+					onTypeOnlyHere={toggleSectionOnly}
+				/>
+			{/key}
 		{:else}
-			<p>Matching passages stay in sync. Each section keeps its own variations.</p>
-			{#each [{ title: 'Linked sections', groups: overview.linked, linked: true }, { title: 'Available to link', groups: overview.available, linked: false }] as category (category.title)}
-				{#if category.groups.length > 0}
-					<section aria-label={category.title}>
-						<h3>{category.title}</h3>
-						<ul class="linking-groups">
-							{#each category.groups as group (group.headerFrom)}
-								<li class="linking-group" class:linking-group--linked={category.linked}>
-									{#if group.existingGroups.length > 0}
-										<p class="linking-group__summary">
-											{group.action === 'add' ? 'Add to' : 'Combine'}
-											{existingNames(group)}
-										</p>
-									{/if}
-									{#if category.linked || newOccurrences(group).length > 0}
-										<div class="linking-group__members">
-											<ul
-												class="linked-members"
-												aria-label={group.existingGroups.length > 0
-													? 'Sections to add'
-													: 'Sections in this group'}
-											>
-												{#each category.linked ? group.occurrences : newOccurrences(group) as occurrence (occurrence.headerFrom)}
-													<li class="linked-member">
-														<span class="linked-member__name"
-															>{sectionNames.get(occurrence.headerFrom) ?? occurrence.label}</span
-														>
-														<button
-															type="button"
-															class="button button--quiet linked-member__line"
-															onclick={() => navigate(occurrence.headerFrom)}
-															>Line {occurrence.line}</button
-														>
-													</li>
-												{/each}
-											</ul>
-										</div>
-									{/if}
-									<div class="linking-group__footer">
-										{#if category.linked}
-											<span class="linking-group__state"
-												><Link2 size={16} aria-hidden="true" /> Linked</span
-											>
+			<h2 tabindex="-1" data-linking-heading>Link repeated sections</h2>
+			{#if overview.available.length === 0 && overview.linked.length === 0}
+				<p>Repeated sections will appear here so you can keep their shared lyrics in sync.</p>
+			{:else}
+				<p>Matching passages stay in sync. Each section keeps its own variations.</p>
+				{#each [{ title: 'Linked sections', groups: overview.linked, linked: true }, { title: 'Available to link', groups: overview.available, linked: false }] as category (category.title)}
+					{#if category.groups.length > 0}
+						<section aria-label={category.title}>
+							<h3>{category.title}</h3>
+							<ul class="linking-groups">
+								{#each category.groups as group (group.headerFrom)}
+									<li class="linking-group" class:linking-group--linked={category.linked}>
+										{#if group.existingGroups.length > 0}
+											<p class="linking-group__summary">
+												{group.action === 'add' ? 'Add to' : 'Combine'}
+												{existingNames(group)}
+											</p>
 										{/if}
-										<button
-											class="button"
-											type="button"
-											aria-label={`${actionLabel(group)} ${names(group)}`}
-											onclick={() => open(group)}>{actionLabel(group)}</button
-										>
-									</div>
-								</li>
-							{/each}
-						</ul>
-					</section>
-				{/if}
-			{/each}
+										{#if category.linked || newOccurrences(group).length > 0}
+											<div class="linking-group__members">
+												<ul
+													class="linked-members"
+													aria-label={group.existingGroups.length > 0
+														? 'Sections to add'
+														: 'Sections in this group'}
+												>
+													{#each category.linked ? group.occurrences : newOccurrences(group) as occurrence (occurrence.headerFrom)}
+														<li class="linked-member">
+															<span class="linked-member__name"
+																>{sectionNames.get(occurrence.headerFrom) ?? occurrence.label}</span
+															>
+															<button
+																type="button"
+																class="button button--quiet linked-member__line"
+																onclick={() => navigate(occurrence.headerFrom)}
+																>Line {occurrence.line}</button
+															>
+														</li>
+													{/each}
+												</ul>
+											</div>
+										{/if}
+										<div class="linking-group__footer">
+											{#if category.linked}
+												<span class="linking-group__state"
+													><Link2 size={16} aria-hidden="true" /> Linked</span
+												>
+											{/if}
+											<button
+												class="button"
+												type="button"
+												aria-label={`${actionLabel(group)} ${names(group)}`}
+												onclick={() => open(group)}>{actionLabel(group)}</button
+											>
+										</div>
+									</li>
+								{/each}
+							</ul>
+						</section>
+					{/if}
+				{/each}
+			{/if}
 		{/if}
-	{/if}
-</div>
+	</div>
+{/if}
 
 <style>
 	.linking-panel {

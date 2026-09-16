@@ -3,10 +3,38 @@ import { parseScribe, serializeScribe } from '$lib/scribe/format.js';
 import { createTestWorkbench, performer } from '../test-utils.js';
 
 function file(name: string, contents: string): File {
-	return { name, text: async () => contents } as File;
+	return new File([contents], name);
 }
 
 describe('Workbench Scribe projects', () => {
+	test('opens text files in their declared source profile and preserves exact literal syntax', async () => {
+		const { controller, repository } = createTestWorkbench({ text: '[Verse]\nCurrent work' });
+		const source = '[Literal]\r\nA [moon](123)';
+		expect(await controller.importLyrics(file('Moon.txt', source), 'musixmatch')).toBe(true);
+		expect(await repository.get('generated-1')).toMatchObject({
+			title: 'Moon',
+			text: '[Literal]\nA [moon](123)',
+			originalText: source,
+			conversion: { profile: 'musixmatch', model: { sections: [], wrappers: [] } }
+		});
+		expect(controller.profile).toBe('musixmatch');
+		expect(await repository.get('draft-1')).toMatchObject({ text: '[Verse]\nCurrent work' });
+	});
+
+	test('refuses unsupported or oversized text files before changing drafts', async () => {
+		const { controller, repository } = createTestWorkbench();
+		const read = async () => {
+			throw new Error('This file must not be read');
+		};
+		const huge = new File([], 'Huge.txt');
+		Object.defineProperty(huge, 'size', { value: 4_000_001 });
+		huge.text = read;
+		expect(await controller.importLyrics(huge, 'genius')).toBe(false);
+		expect(await controller.importLyrics(file('Song.json', '{}'), 'genius')).toBe(false);
+		expect(controller.draftId).toBe('draft-1');
+		expect(await repository.list()).toHaveLength(1);
+	});
+
 	test('exports the current editable project as .lls rather than only its lyrics', async () => {
 		const exportLog: Array<{ text: string; filename: string }> = [];
 		const alice = performer('alice', 'Alice', 0);

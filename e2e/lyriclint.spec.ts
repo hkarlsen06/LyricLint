@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { corpusMetadata } from '../services/rules-assistant/generated/rules-context-meta.js';
+import { musixmatchCorpusMetadata } from '../services/rules-assistant/generated/musixmatch-context-meta.js';
 import {
 	heroCaptions,
 	heroPlaybackRate,
@@ -966,7 +967,11 @@ test('the assistant release manifest identifies the built website and citation c
 			execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
 		...corpusMetadata,
 		clientCorpusHash: true,
-		answersUrl: expect.any(String)
+		answersUrl: expect.any(String),
+		profileCorpora: [
+			{ profile: 'genius', ...corpusMetadata },
+			{ profile: 'musixmatch', ...musixmatchCorpusMetadata }
+		]
 	});
 });
 
@@ -982,14 +987,19 @@ test('sitemap lists every public page including the workbench', async ({ request
 	// costs; the arithmetic is written out so the next mismatch is legible.
 	const rulePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/checks\/[^/]+\/<\/loc>/gu) ?? [];
-	expect(rulePages).toHaveLength(60);
+	expect(rulePages).toHaveLength(86);
 	// One page per guidance topic — this number moves when `guidanceTopicTitles`
 	// gains a topic with entries, which docs/guidelines.md tells the contributor.
 	const guidelinePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/[^/]+\/<\/loc>/gu) ?? [];
-	expect(guidelinePages).toHaveLength(10);
+	expect(guidelinePages).toHaveLength(11);
+	const musixmatchTopics =
+		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/musixmatch\/[^/]+\/<\/loc>/gu) ?? [];
+	expect(musixmatchTopics).toHaveLength(10);
 	// Plus the home, about, workbench, unified guide, and privacy pages.
-	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + guidelinePages.length + 5);
+	expect(sitemap.match(/<url>/gu)).toHaveLength(
+		rulePages.length + guidelinePages.length + musixmatchTopics.length + 5
+	);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/about/</loc>');
 	expect(sitemap).not.toContain('/rules/');

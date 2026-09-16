@@ -3,6 +3,9 @@ import type { EditorState, Transaction } from '@codemirror/state';
 import { parseDocument } from '$lib/core/parser.js';
 import type { ParsedDocument } from '$lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from '../contracts.js';
+import { setConversionStateEffect } from './conversion-effects.js';
+import { conversionForState } from './conversion-state.js';
+import { parseProjection } from '$lib/conversion/index.js';
 
 export const setEditorContextEffect = StateEffect.define<EditorDisplayContext>();
 export const setEditorCallbacksEffect = StateEffect.define<LyricEditorCallbacks>();
@@ -39,7 +42,17 @@ export function parsedDocumentForState(state: EditorState): ParsedDocument {
 
 	const text = state.doc.toString();
 	const parsed = state.field(editorContextField, false)?.parsed;
-	const current = parsed?.text === text ? parsed : parseDocument(text);
+	const conversion = conversionForState(state);
+	const current =
+		conversion && conversion.projection.text === text
+			? parseProjection(
+					conversion.envelope.model,
+					conversion.projection,
+					state.field(editorContextField, false)?.language
+				)
+			: parsed?.text === text
+				? parsed
+				: parseDocument(text);
 	parsedDocuments.set(state, current);
 	return current;
 }
@@ -47,7 +60,10 @@ export function parsedDocumentForState(state: EditorState): ParsedDocument {
 export const editorRevisionField = StateField.define<number>({
 	create: () => 0,
 	update(value, transaction) {
-		return transaction.docChanged ? value + 1 : value;
+		return transaction.docChanged ||
+			transaction.effects.some((effect) => effect.is(setConversionStateEffect))
+			? value + 1
+			: value;
 	}
 });
 

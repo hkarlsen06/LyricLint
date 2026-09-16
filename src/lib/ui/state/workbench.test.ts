@@ -659,7 +659,7 @@ describe('workbench draft safety', () => {
 		expect(await repository.get(created)).toBeDefined();
 	});
 
-	test('drops the record of a draft the user empties out', async () => {
+	test('saves a deliberate clear of an existing draft', async () => {
 		const first = draft('draft-a');
 		const repository = createInMemoryDraftRepository([first]);
 		const controlled = controllableAutosave(repository);
@@ -672,7 +672,7 @@ describe('workbench draft safety', () => {
 		controller.onSnapshot(snapshot(first, 1, ''));
 		await controlled.autosave.flush();
 
-		await vi.waitFor(async () => expect(await repository.get(first.id)).toBeUndefined());
+		expect((await repository.get(first.id))?.text).toBe('');
 	});
 
 	test('uses the last selected language for a new draft', async () => {

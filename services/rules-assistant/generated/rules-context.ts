@@ -11,6 +11,8 @@ export type AssistantCorpusSourceAuthority = 'staff' | 'editorial' | 'external' 
 export type AssistantCorpusGuidanceAuthority = AssistantCorpusSourceAuthority | 'lyriclint';
 
 export interface AssistantCorpusSource {
+	platform?: 'genius' | 'musixmatch';
+	platformStanding?: 'official' | 'community';
 	id: string;
 	pageTitle: string;
 	sectionTitle: string;
@@ -20,6 +22,8 @@ export interface AssistantCorpusSource {
 }
 
 export interface AssistantCorpusGuidanceEntry {
+	languages?: string[];
+	handling?: string;
 	id: string;
 	topic: string;
 	topicTitle: string;
@@ -74,6 +78,8 @@ export interface AssistantCorpusLanguage {
 }
 
 export interface AssistantCorpus {
+	/** Absent on legacy artifacts, which always describe Genius. */
+	profile?: 'genius' | 'musixmatch';
 	formatVersion: number;
 	ruleSetVersion: string;
 	generatedAt: string;

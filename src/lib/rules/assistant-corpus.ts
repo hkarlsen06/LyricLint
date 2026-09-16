@@ -39,6 +39,11 @@ import { sourceRegistry } from './data/sources.js';
 import { harperRuleIds } from './harper.js';
 import { ruleLookupTables } from './lookup-tables.js';
 import { ruleReferences } from './reference.js';
+import type { ProfileId } from '$lib/profiles/types.js';
+import { profileGuidelines, languagePolicyGaps } from '$lib/profiles/coverage.js';
+import { profileSources } from '$lib/profiles/sources.js';
+import { profilePolicyVersions } from '$lib/profiles/versions.js';
+import { profileGuidelineTopic, profileGuidelineTitle } from '$lib/profiles/reference-topics.js';
 
 export type { AssistantCorpus } from './assistant-corpus-types.js';
 
@@ -82,7 +87,7 @@ export function policyNotesFromRulesDoc(rulesMd: string): string[] {
 }
 
 function corpusSource(source: SourceReference): AssistantCorpusSource {
-	return {
+	const result: AssistantCorpusSource = {
 		id: source.id,
 		pageTitle: source.pageTitle,
 		sectionTitle: source.sectionTitle,
@@ -90,17 +95,23 @@ function corpusSource(source: SourceReference): AssistantCorpusSource {
 		lastVerifiedAt: source.lastVerifiedAt,
 		authority: source.authority
 	};
+	if (source.platform) {
+		result.platform = source.platform;
+		result.platformStanding = source.platformStanding;
+	}
+	return result;
 }
 
 /** Everything but the stamp and the hash — deterministic for a given source tree. */
 export function buildAssistantCorpusContent(
-	rulesMd: string
+	rulesMd: string,
+	profile: ProfileId = 'genius'
 ): Omit<AssistantCorpus, 'generatedAt' | 'contentHash'> {
 	// `corpusContentHash` hashes `JSON.stringify`, which writes keys in insertion
 	// order — so where an optional key sits is part of the artifact, and an
 	// absent one has to be absent rather than `undefined`. That is why the two
 	// halves either side of `fixLabel` are named: appending it would move it.
-	const rules = ruleReferences().map((reference) => {
+	const rules = ruleReferences(profile).map((reference) => {
 		const head = {
 			id: reference.id,
 			slug: reference.slug,
@@ -122,6 +133,50 @@ export function buildAssistantCorpusContent(
 			? { ...head, fixLabel: reference.fix.label, ...example }
 			: { ...head, ...example };
 	});
+	if (profile === 'musixmatch') {
+		return {
+			formatVersion: 6,
+			profile,
+			ruleSetVersion: profilePolicyVersions.musixmatch,
+			rules,
+			lookups: [],
+			guidance: profileGuidelines.map((entry) => ({
+				id: entry.id,
+				topic: profileGuidelineTopic(entry),
+				topicTitle: entry.topic,
+				title: profileGuidelineTitle(entry),
+				statement: entry.statement,
+				authority: entry.handling === 'advisory' ? 'community' : 'external',
+				sourceIds: [...entry.sourceIds],
+				relatedRuleIds: [...entry.ruleIds],
+				note: entry.limit,
+				languages: [...entry.languages],
+				handling: entry.handling
+			})),
+			sources: profileSources.map(corpusSource).sort((a, b) => a.id.localeCompare(b.id, 'en')),
+			languages: reviewedLanguagePacks.map((pack) => ({
+				tag: pack.tag,
+				displayName: pack.displayName,
+				policy:
+					pack.tag === 'ar' || pack.tag === 'ko'
+						? languagePolicyGaps[pack.tag]
+						: 'Use only the language-scoped Musixmatch claims in this corpus; preserve native script and sung dialect.',
+				headerTerms: []
+			})),
+			harper: {
+				ruleIds: [],
+				behavior: 'Harper is not enabled in the Musixmatch profile.',
+				limitations: ['Genius proofreading dictionaries are not Musixmatch policy.']
+			},
+			policyNotes: [
+				'Use only this Musixmatch corpus. Official Musixmatch source standing is independent of Genius staff/editorial authority; community supplements remain advisory.',
+				'Every clause records its language scope, handling and remaining limits. A syntactic check is not full verification. Unresolved source conflicts, audio evidence, numeric meaning and unknown words never justify a guessed edit.',
+				'Switching is a deterministic, lossless local representation operation. The assistant never runs conversion and must not reinterpret switching as permission to edit lyrics.',
+				'No complete Arabic or Korean language-specific policy has been established by the inspected sources. Do not claim that generic checks or an English fallback fill this gap.',
+				"Main-page finite slang forms: ballin', 'cause (because), cuz (cousin), 'em, gon' or gonna, I'ma, outta, 'til, yo (greeting), yo' (possessive). Meaning is a precondition; there is no unconditional replacement of every matching spelling."
+			]
+		};
+	}
 
 	const sources = [...sourceRegistry.values()]
 		.filter((source) => source.reviewStatus === 'reviewed')
@@ -185,14 +240,18 @@ export async function corpusContentHash(
 
 export async function buildAssistantCorpus(
 	rulesMd: string,
-	generatedAt: string
+	generatedAt: string,
+	profile: ProfileId = 'genius'
 ): Promise<AssistantCorpus> {
-	const content = buildAssistantCorpusContent(rulesMd);
+	const content = buildAssistantCorpusContent(rulesMd, profile);
 	const contentHash = await corpusContentHash(content);
 	// Key order matters only for human diffs; hashing covers `content` alone, so
 	// regenerating never dirties the artifact unless the reviewed data moved.
+	const head = content.profile
+		? { formatVersion: content.formatVersion, profile: content.profile }
+		: { formatVersion: content.formatVersion };
 	return {
-		formatVersion: content.formatVersion,
+		...head,
 		ruleSetVersion: content.ruleSetVersion,
 		generatedAt,
 		contentHash,

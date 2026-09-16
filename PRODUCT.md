@@ -6,21 +6,23 @@ product
 
 ## Users
 
-LyricLint is primarily for experienced Genius transcribers and editors who spend long sessions preparing or cleaning lyric transcriptions. They need a fast, keyboard-friendly workspace that preserves exact Genius markup, explains every warning, and prevents accidental loss.
+LyricLint is primarily for experienced Genius and Musixmatch transcribers and editors who spend long sessions preparing or cleaning lyric transcriptions. They need a fast, keyboard-friendly workspace that preserves their words and platform-specific details, explains every warning, and prevents accidental loss.
 
 Newer transcribers are a secondary audience. The interface should teach through clear diagnostics and source links without slowing expert users with mandatory onboarding.
 
 ## Product Purpose
 
-LyricLint is a local-first lyric editor and linter for Genius conventions. Users paste or write a transcription, structure it with language-appropriate section headers, assign performers to selected passages, review sourced guideline warnings, and copy valid Genius markup.
+LyricLint is a local-first lyric editor and linter for Genius and Musixmatch conventions. Users paste or write a transcription, structure its sections, assign performers to selected passages, review sourced guideline warnings, and copy the active format. Each draft can switch between formats while retaining exact authored wording, annotations, voices, timings and section relationships. Switching alone never accepts fixes or invents missing facts.
 
 Success means that users can:
 
 - Recover their work after closing or crashing the tab.
 - Identify objective formatting problems before submitting lyrics.
-- Understand which Genius source supports every emitted warning.
+- Understand which source for the selected platform supports every emitted warning.
 - Apply performer differentiation without hand-writing fragile HTML.
 - See who performs each passage without changing the exported markup.
+- Switch formats repeatedly without losing information, including through undo, save and reload.
+- Work in every currently supported language; language-specific source gaps and listening decisions remain explicit review requirements.
 - Continue editing when Genius or the network is unavailable, except where they have opted a draft into YouTube playback.
 
 The initial product is a standalone paste, edit, lint, and copy tool with a transport for the audio being transcribed. That audio is a local file by default, which never leaves the user's disk; a YouTube video is offered as an alternative because that is where most transcribers' audio actually is, and it is opted into per draft. Direct Genius editing, cloud accounts, collaboration, and browser-extension integration are later possibilities.
@@ -42,8 +44,8 @@ The product should feel like a focused editorial instrument: dense enough for ex
 
 ## Design Principles
 
-1. **The source stays visible.** Genius-compatible plain text and literal HTML markup remain the canonical document.
-2. **Every warning earns trust.** A production rule must include an exact Genius source, a reviewed interpretation, and a last-verified date.
+1. **Authored work stays intact.** Legacy Genius documents remain exact text. Rich documents retain shared lyrics and platform-specific details in one model; the editor shows the selected format's projection. Hidden details stay inspectable in Song, and Scribe export preserves the complete model.
+2. **Every warning earns trust.** A production rule must include an exact source for its platform, a reviewed interpretation, and a last-verified date.
 3. **Automation is reversible.** Structural and performer transformations are previewable where needed and always form one undoable edit.
 4. **Expert speed, accessible operation.** Common actions have direct keyboard and touch paths, while all controls and diagnostics remain discoverable and screen-reader reachable. Phones give writing, review, and tools their own views.
 5. **Local work is durable, and draft linting is local.** Drafts autosave locally and the editor remains useful offline. What reaches a network is asked for and never assumed: online audio playback per session, and the rules assistant per question — which receives only what is typed into its own composer, never the document.

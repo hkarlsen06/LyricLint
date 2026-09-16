@@ -24,7 +24,9 @@ export async function createDraftIgnoreStore(
 	const rows = await database.draftIgnores.toArray();
 	const ignores = new Map<string, Set<string>>(rows.map((row) => [row.draftId, new Set(row.keys)]));
 
+	let persistenceHandler: ((draftId: string) => boolean) | undefined;
 	function persist(draftId: string): void {
+		if (persistenceHandler?.(draftId)) return;
 		const keys = [...(ignores.get(draftId) ?? [])].sort();
 		const write: Promise<unknown> =
 			keys.length === 0
@@ -36,6 +38,9 @@ export async function createDraftIgnoreStore(
 	}
 
 	return {
+		setPersistenceHandler(handler) {
+			persistenceHandler = handler;
+		},
 		isIgnored(draftId, diagnosticKey) {
 			return ignores.get(draftId)?.has(diagnosticKey) ?? false;
 		},
@@ -56,9 +61,14 @@ export async function createDraftIgnoreStore(
 			return [...(ignores.get(draftId) ?? [])].sort();
 		},
 
-		clearDraft(draftId) {
+		async reloadDraft(draftId) {
+			const row = await database.draftIgnores.get(draftId);
+			if (row) ignores.set(draftId, new Set(row.keys));
+			else ignores.delete(draftId);
+		},
+		clearDraft(draftId, write = true) {
 			ignores.delete(draftId);
-			persist(draftId);
+			if (write) persist(draftId);
 		}
 	};
 }

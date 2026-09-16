@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { DraftRecord } from '$lib/core/types.js';
@@ -35,6 +35,38 @@ async function waitForBody(): Promise<void> {
 
 describe('DraftMenu', () => {
 	afterEach(cleanup);
+
+	test.each([390, 1200])(
+		'reviews a text file source format at %i pixels without moving its import trigger',
+		async (width) => {
+			await page.viewport(width, 844);
+			const { controller } = createTestWorkbench();
+			const importLyrics = vi.fn(async () => true);
+			await render(DraftMenu, {
+				controller: { ...controller, profile: 'musixmatch', importLyrics }
+			});
+			await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+			await waitForBody();
+			const trigger = screen.getByRole('button', { name: 'Import…' });
+			const before = trigger.getBoundingClientRect();
+			const file = new File(['[Literal]\nLyrics'], 'A long lyrics filename '.repeat(8) + '.txt', {
+				type: 'text/plain'
+			});
+			await fireEvent.change(document.querySelector('input[type="file"]')!, {
+				target: { files: [file] }
+			});
+			const source = screen.getByRole('combobox', { name: 'Source format' });
+			expect((source as HTMLSelectElement).value).toBe('musixmatch');
+			expect(trigger.getBoundingClientRect().top).toBe(before.top);
+			expect(source.getBoundingClientRect().right).toBeLessThanOrEqual(width);
+			expect(parseFloat(getComputedStyle(source).fontSize)).toBeGreaterThanOrEqual(16);
+			await fireEvent.change(source, { target: { value: 'genius' } });
+			await fireEvent.click(screen.getByRole('button', { name: 'Open lyrics' }));
+			expect(importLyrics).toHaveBeenCalledWith(file, 'genius');
+			await waitFor(() => expect(document.querySelector('details')?.open).toBe(false));
+			await page.viewport(800, 600);
+		}
+	);
 
 	test('can close before the row module arrives without reopening or taking focus', async () => {
 		const { controller } = createTestWorkbench();
@@ -99,7 +131,7 @@ describe('DraftMenu', () => {
 		const heading = screen.getByRole('heading', { name: "Saved 'scribes", level: 2 });
 		const titlebar = heading.closest('.draft-menu__titlebar');
 		const importButton = within(titlebar as HTMLElement).getByRole('button', {
-			name: 'Import Scribe…'
+			name: 'Import…'
 		});
 		expect(importButton.classList.contains('button')).toBe(true);
 		expect(importButton.classList.contains('button--quiet')).toBe(false);

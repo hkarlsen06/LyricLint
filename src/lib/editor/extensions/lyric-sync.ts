@@ -1,4 +1,6 @@
+import { profileForState } from './conversion-state.js';
 // Decision record: docs/subsystems/line-anchors.md — read it before changing this file, and update it with any behavior change.
+import { profileProjection } from './conversion-effects.js';
 import { EditorState, Prec, StateEffect, StateField } from '@codemirror/state';
 import type { Extension, Line, TransactionSpec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
@@ -135,7 +137,7 @@ const lyricSyncField = StateField.define<LyricSyncState>({
 	}
 });
 
-function lyricSyncActive(state: EditorState): boolean {
+export function lyricSyncActive(state: EditorState): boolean {
 	return state.field(lyricSyncField, false)?.active ?? false;
 }
 
@@ -143,7 +145,7 @@ function lyricSyncActive(state: EditorState): boolean {
 function stampableFrom(state: EditorState, number: number): Line | undefined {
 	for (let candidate = Math.max(1, number); candidate <= state.doc.lines; candidate += 1) {
 		const line = state.doc.line(candidate);
-		if (isStampableLine(line, state.doc)) return line;
+		if (isStampableLine(line, state.doc, profileForState(state))) return line;
 	}
 	return undefined;
 }
@@ -152,7 +154,7 @@ function stampableFrom(state: EditorState, number: number): Line | undefined {
 function stampableBefore(state: EditorState, number: number): Line | undefined {
 	for (let candidate = Math.min(number, state.doc.lines); candidate >= 1; candidate -= 1) {
 		const line = state.doc.line(candidate);
-		if (isStampableLine(line, state.doc)) return line;
+		if (isStampableLine(line, state.doc, profileForState(state))) return line;
 	}
 	return undefined;
 }
@@ -189,7 +191,7 @@ interface LyricSyncOptions {
 	 * It is the editor's answer because the anchors are the editor's. `scoped`
 	 * says the run covers a selection rather than the song.
 	 */
-	onChange(active: boolean, startAt?: number, scoped?: boolean): void;
+	onChange(active: boolean, startAt?: number, scoped?: boolean, reason?: 'profile'): void;
 	announce(message: string): void;
 	/**
 	 * Something happened in the run that the user has to be able to *see*.
@@ -215,7 +217,7 @@ function stampableLines(state: EditorState, section: Section): Line[] {
 	const last = state.doc.lineAt(Math.min(section.to, state.doc.length)).number;
 	for (let number = first; number <= last; number += 1) {
 		const line = state.doc.line(number);
-		if (isStampableLine(line, state.doc)) lines.push(line);
+		if (isStampableLine(line, state.doc, profileForState(state))) lines.push(line);
 	}
 	return lines;
 }
@@ -608,7 +610,7 @@ export function lyricSyncSkipTarget(state: EditorState): { line: Line; time: num
 	for (let candidate = caret.number; candidate <= state.doc.lines; candidate += 1) {
 		const line = state.doc.line(candidate);
 		if (until !== undefined && line.from > until) return undefined;
-		if (!isStampableLine(line, state.doc)) continue;
+		if (!isStampableLine(line, state.doc, profileForState(state))) continue;
 		if (anchorTimeAt(state, line.from) !== undefined) continue;
 		// The first untimed stampable line at or after the caret. Everything
 		// stampable between the caret and it is timed by construction, so landing
@@ -685,7 +687,7 @@ export function syncMoveTo(view: EditorView, pos: number): boolean {
 	const sync = view.state.field(lyricSyncField, false);
 	if (!sync?.active) return false;
 	const line = view.state.doc.lineAt(Math.min(Math.max(pos, 0), view.state.doc.length));
-	if (!isStampableLine(line, view.state.doc)) return false;
+	if (!isStampableLine(line, view.state.doc, profileForState(view.state))) return false;
 	view.dispatch({
 		// Armed, for the same reason a resumed run is: the press landed on a line
 		// that already has a time, so the next tap belongs to the one after it.
@@ -756,7 +758,10 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 		// transaction that carried the edit: one undo step, one snapshot, and no
 		// instant in which the document has changed while the mode is still on.
 		EditorState.transactionExtender.of((transaction) =>
-			transaction.docChanged && transaction.startState.field(lyricSyncField).active
+			(transaction.docChanged ||
+				(transaction.annotation(profileProjection) &&
+					profileForState(transaction.startState) !== profileForState(transaction.state))) &&
+			transaction.startState.field(lyricSyncField).active
 				? { effects: setLyricSyncEffect.of(false) }
 				: null
 		),
@@ -798,12 +803,15 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 			const state = update.state.field(lyricSyncField);
 			if (before === state.active) return;
 			if (!state.active) {
-				options.onChange(false);
+				const changedProfile = profileForState(update.startState) !== profileForState(update.state);
+				if (changedProfile) options.onChange(false, undefined, undefined, 'profile');
+				else options.onChange(false);
 				// The one exit that arrives without having been asked for. `end`
 				// speaks for the three deliberate ones, and this is the transaction
 				// the user typed — which is loud on screen and silent to a screen
 				// reader, so it is the one that needs saying out loud.
-				if (update.docChanged) options.announce('Sync stopped: the document changed.');
+				if (update.docChanged && !changedProfile)
+					options.announce('Sync stopped: the document changed.');
 				return;
 			}
 
@@ -840,7 +848,10 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 function firstUntimed(state: EditorState): Line | undefined {
 	for (let candidate = 1; candidate <= state.doc.lines; candidate += 1) {
 		const line = state.doc.line(candidate);
-		if (isStampableLine(line, state.doc) && anchorTimeAt(state, line.from) === undefined)
+		if (
+			isStampableLine(line, state.doc, profileForState(state)) &&
+			anchorTimeAt(state, line.from) === undefined
+		)
 			return line;
 	}
 	return undefined;
@@ -906,7 +917,7 @@ function selectionScope(state: EditorState): { first: Line; last: Line } | undef
 	let last: Line | undefined;
 	for (let number = firstNumber; number <= lastNumber; number += 1) {
 		const line = state.doc.line(number);
-		if (!isStampableLine(line, state.doc)) continue;
+		if (!isStampableLine(line, state.doc, profileForState(state))) continue;
 		first ??= line;
 		last = line;
 	}

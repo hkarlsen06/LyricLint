@@ -8,6 +8,7 @@ import {
 } from './check-assistant-release.mjs';
 import {
 	assertReleaseCorpus,
+	corpusArtifactPath,
 	deployProduction,
 	parseSiteRelease,
 	productionWorkerConfig,
@@ -15,6 +16,7 @@ import {
 	readSiteRelease,
 	releaseCorporaModule,
 	sameRelease,
+	siteReleaseCorpora,
 	waitForPublication
 } from './production-release.mjs';
 
@@ -64,13 +66,18 @@ if (import.meta.main) {
 	);
 	if (candidate.revision !== state.revision)
 		throw new Error('The tested Pages artifact belongs to a different revision.');
-	const corpus = JSON.parse(
-		await readFile(
-			new URL('../services/rules-assistant/generated/rules-context.json', import.meta.url),
-			'utf8'
-		)
+	const corpus = await Promise.all(
+		siteReleaseCorpora(candidate).map(async (release) => {
+			const entry = JSON.parse(
+				await readFile(
+					new URL(`../${corpusArtifactPath(release.profile)}`, import.meta.url),
+					'utf8'
+				)
+			);
+			assertReleaseCorpus(release, entry);
+			return entry;
+		})
 	);
-	assertReleaseCorpus(candidate, corpus);
 	const answersUrl = candidate.answersUrl;
 	const published = await deployProduction(candidate, {
 		isCurrentRevision: async () =>
@@ -81,11 +88,10 @@ if (import.meta.main) {
 			// A shallow checkout may not contain the published revision. Fetch only
 			// that exact commit, then read reviewed data rather than executable code.
 			run('git', ['fetch', '--no-tags', '--depth=1', 'origin', live.revision]);
-			const liveCorpus = JSON.parse(
-				capture('git', [
-					'show',
-					`${live.revision}:services/rules-assistant/generated/rules-context.json`
-				])
+			const liveCorpus = siteReleaseCorpora(live).map((release) =>
+				JSON.parse(
+					capture('git', ['show', `${live.revision}:${corpusArtifactPath(release.profile)}`])
+				)
 			);
 			await writeFile(
 				new URL('../services/rules-assistant/generated/release-corpora.ts', import.meta.url),

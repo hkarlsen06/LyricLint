@@ -166,6 +166,20 @@ describe('PreferencesPanel skimmability', () => {
 describe('PreferencesPanel grammar toggle', () => {
 	afterEach(cleanup);
 
+	test('withholds the unavailable grammar control in Musixmatch without changing the preference', async () => {
+		const { controller } = createTestWorkbench();
+		const view = await render(PreferencesPanel, {
+			controller: { ...controller, profile: 'musixmatch' }
+		});
+		expect(screen.queryByRole('switch', { name: 'Grammar checking' })).toBeNull();
+		expect(controller.grammarCheckEnabled).toBe(true);
+		await view.rerender({ controller });
+		expect(screen.getByRole('switch', { name: 'Grammar checking' })).toHaveAttribute(
+			'aria-checked',
+			'true'
+		);
+	});
+
 	test('reflects and writes the preference', async () => {
 		const { controller, repository } = createTestWorkbench();
 		const setPreference = vi.spyOn(repository, 'setPreference');

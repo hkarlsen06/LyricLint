@@ -16,6 +16,7 @@
 	import CompareDialog from './CompareDialog.svelte';
 	import DraftMenu from './DraftMenu.svelte';
 	import LanguagePicker from './LanguagePicker.svelte';
+	import ProfilePicker from './ProfilePicker.svelte';
 	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
 	let {
@@ -27,10 +28,19 @@
 	} = $props();
 	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
 	let commandsOpen = $state(false);
+	let confirmClear = $state(false);
+	let clearOpen = $state(false);
 	let commandsTrigger = $state<HTMLButtonElement>();
 
 	function closeCommands(event: KeyboardEvent) {
-		if (event.key !== 'Escape' || !commandsOpen || event.defaultPrevented) return;
+		if (event.key !== 'Escape' || event.defaultPrevented) return;
+		if (clearOpen) {
+			clearOpen = false;
+			confirmClear = false;
+			event.preventDefault();
+			return;
+		}
+		if (!commandsOpen) return;
 		if (event.target instanceof Element && event.target.closest('dialog[open]')) return;
 		event.preventDefault();
 		commandsOpen = false;
@@ -224,6 +234,7 @@
 	     surface never carries two contrast actions, and the user is never offered
 	     the end of a job they have not started. -->
 	<div class="document-toolbar__commands">
+		<ProfilePicker {controller} />
 		<div
 			class="document-toolbar__secondary"
 			class:document-toolbar__secondary--phone={phone.current}
@@ -282,6 +293,46 @@
 					<Redo aria-hidden="true" size={16} strokeWidth={2} />
 					{#if phone.current}Redo{/if}
 				</button>
+				<details
+					class="document-clear"
+					bind:open={clearOpen}
+					{@attach dismissOnOutside(() => {
+						clearOpen = false;
+						confirmClear = false;
+					})}
+				>
+					<summary>Clear</summary>
+					<div class="document-clear__actions">
+						<button
+							type="button"
+							class="button"
+							class:button--contrast={confirmClear}
+							onclick={() => {
+								if (!confirmClear) {
+									confirmClear = true;
+									controller.feedback.announce(
+										'Confirm clearing the lyrics and every retained detail.'
+									);
+									return;
+								}
+								if (controller.applyConversionAction({ kind: 'clearDocument' }))
+									confirmClear = false;
+							}}
+							><span class="document-clear__label"
+								><span aria-hidden="true" class="document-clear__measure"
+									>Clear lyrics and retained details</span
+								><span>{confirmClear ? 'Confirm clear' : 'Clear lyrics and retained details'}</span
+								></span
+							></button
+						>
+						<button
+							type="button"
+							class="button button--quiet"
+							disabled={!confirmClear}
+							onclick={() => (confirmClear = false)}>Cancel</button
+						>
+					</div>
+				</details>
 				<LanguagePicker {controller} expandedLabel={phone.current} />
 				<!-- Reviewing what the copy will change on the page is the step before
 		     copying it, so it sits beside the action it precedes. The component
@@ -312,6 +363,40 @@
 </header>
 
 <style>
+	.document-toolbar {
+		position: relative;
+		z-index: var(--layer-menu);
+	}
+	.document-clear {
+		position: relative;
+	}
+	.document-clear__actions {
+		position: absolute;
+		inset-block-start: 100%;
+		inset-inline-end: 0;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: var(--space-2);
+		width: min(25rem, calc(100vw - var(--space-6)));
+		box-sizing: border-box;
+		background: var(--color-surface);
+		padding: var(--space-2);
+		box-shadow: var(--shadow-popover);
+		z-index: var(--layer-menu);
+	}
+	.document-clear__actions .button {
+		min-width: 0;
+		white-space: normal;
+	}
+	.document-clear__label {
+		display: grid;
+	}
+	.document-clear__label > span {
+		grid-area: 1 / 1;
+	}
+	.document-clear__measure {
+		visibility: hidden;
+	}
 	.document-toolbar__secondary-actions {
 		display: flex;
 		align-items: center;
@@ -350,6 +435,8 @@
 		align-items: stretch;
 	}
 	.document-toolbar--phone {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		position: relative;
 		z-index: var(--layer-menu);
 		overflow: visible;
@@ -365,8 +452,13 @@
 		display: none;
 	}
 	.document-toolbar--phone .document-toolbar__commands {
+		justify-content: flex-end;
+		width: 100%;
 		flex: none;
 		gap: var(--space-1);
+	}
+	.document-toolbar--phone .document-toolbar__commands :global(.profile-picker) {
+		margin-inline-end: auto;
 	}
 	.document-toolbar--phone .draft-switcher {
 		flex: 1;
@@ -400,5 +492,15 @@
 	}
 	.document-toolbar__secondary--phone .document-toolbar__secondary-actions > :global(button > svg) {
 		flex: none;
+	}
+	.document-toolbar__secondary--phone .document-clear__actions {
+		position: static;
+		width: 100%;
+		padding-inline: 0;
+		background: transparent;
+		box-shadow: none;
+	}
+	.document-toolbar--phone .document-clear__actions .button {
+		white-space: normal;
 	}
 </style>

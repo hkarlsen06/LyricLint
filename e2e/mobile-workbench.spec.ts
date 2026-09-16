@@ -33,6 +33,32 @@ async function replaceLyrics(page: Page, text: string): Promise<void> {
 	await expectLyrics(page, text);
 }
 
+test('phone format switching preserves multilingual lyrics and retained annotations through reload', async ({
+	page
+}) => {
+	await openWorkspace(page);
+	const source = '[Verse]\n[مرحبا](123) — café\n\n[Chorus]\n夜の光 🎵';
+	const plain = 'مرحبا — café\n\n夜の光 🎵';
+	await replaceLyrics(page, source);
+	async function choose(profile: 'Genius' | 'Musixmatch') {
+		await page.getByRole('button', { name: /^Lyric format:/u }).click();
+		await page.getByRole('menuitemradio', { name: profile, exact: true }).click();
+	}
+	for (let index = 0; index < 3; index++) {
+		await choose('Musixmatch');
+		await expectLyrics(page, plain);
+		await choose('Genius');
+		await expectLyrics(page, source);
+	}
+	await choose('Musixmatch');
+	await expect(page.getByLabel('Autosave status')).toHaveAttribute('aria-label', /Saved locally/u);
+	await page.reload();
+	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toBeVisible();
+	await expectLyrics(page, plain);
+	await choose('Genius');
+	await expectLyrics(page, source);
+});
+
 test.describe('normal-motion integration', () => {
 	test.use({ reducedMotion: 'no-preference' });
 

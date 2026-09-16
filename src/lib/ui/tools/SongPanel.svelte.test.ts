@@ -25,6 +25,7 @@ describe('SongPanel skimmability', () => {
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Song metadata',
 			'Genius page',
+			'Document details',
 			'Document'
 		]);
 		expect((screen.getByRole('link', { name: 'Search YouTube' }) as HTMLAnchorElement).href).toBe(

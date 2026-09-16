@@ -7,6 +7,7 @@
 		onChooseHeader,
 		onAssignPerformers,
 		onLinkSections,
+		onReviewConversion,
 		onSetLanguage,
 		onPreviewFix,
 		onCancelPreview,
@@ -19,6 +20,7 @@
 		onChooseHeader: () => void;
 		onAssignPerformers?: () => void;
 		onLinkSections?: () => void;
+		onReviewConversion?: () => void;
 		onSetLanguage?: (language: string, trigger: HTMLButtonElement) => void;
 		onPreviewFix: (fix: DiagnosticFix) => void;
 		onCancelPreview: () => void;
@@ -42,6 +44,7 @@
 		{onChooseHeader}
 		{onAssignPerformers}
 		{onLinkSections}
+		{onReviewConversion}
 		{onSetLanguage}
 		{onPreviewFix}
 		{onCancelPreview}

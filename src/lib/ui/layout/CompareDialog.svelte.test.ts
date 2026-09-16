@@ -3,6 +3,24 @@ import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
 import CompareDialog from './CompareDialog.svelte';
+import { importDocument, parseProjection, renderProfile } from '$lib/conversion/index.js';
+import { createConversionEnvelope } from '$lib/persistence/conversion.js';
+import { profilePolicyVersions } from '$lib/profiles/versions.js';
+
+function musixmatchWorkbench() {
+	const imported = importDocument({ profile: 'genius', text: '[Verse]\nLine', language: 'en' });
+	if (!imported.ok) throw new Error(imported.refusal.message);
+	const projected = renderProfile(imported.value, 'musixmatch');
+	if (!projected.ok) throw new Error(projected.refusal.message);
+	const workbench = createTestWorkbench({ text: projected.value.text });
+	workbench.controller.onSnapshot({
+		...workbench.editor.getSnapshot(),
+		revision: 5,
+		parsed: parseProjection(imported.value, projected.value),
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
+	return workbench;
+}
 
 function openDialog(): HTMLDialogElement {
 	const dialog = document.querySelector<HTMLDialogElement>('dialog.compare-dialog');
@@ -18,6 +36,34 @@ async function pasteBaseline(text: string): Promise<void> {
 
 describe('CompareDialog', () => {
 	afterEach(cleanup);
+
+	test('compares the Genius representation while Musixmatch is active without changing the model', async () => {
+		const { controller } = musixmatchWorkbench();
+		const original = JSON.stringify(controller.snapshot.conversion?.model);
+		controller.setCompareBaseline('[Verse]\nLine');
+		await render(CompareDialog, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		expect(screen.getByText('Compare with Genius')).toBeTruthy();
+		expect(await screen.findByText(/matches the page exactly/)).toBeTruthy();
+		expect(screen.queryByText(/Genius view has retained details to review/)).toBeNull();
+		expect(controller.snapshot.text).toBe('Line');
+		expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(original);
+	});
+
+	test('maps a Genius comparison row to its Musixmatch lyric position', async () => {
+		const { controller, calls } = musixmatchWorkbench();
+		controller.setCompareBaseline('[Verse]\nLyne');
+		await render(CompareDialog, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		await waitFor(() => expect(openDialog().querySelector('ins')?.textContent).toBe('i'));
+		const added = openDialog().querySelector('ins')!;
+		const rect = added.getBoundingClientRect();
+		await fireEvent.click(added.closest('button')!, {
+			clientX: rect.left + 1,
+			clientY: rect.top + rect.height / 2
+		});
+		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 1, head: 1 }));
+	});
 
 	test('the trigger does not draw over an empty document', async () => {
 		const { controller } = createTestWorkbench({ text: '' });

@@ -15,10 +15,17 @@ import type {
 import { policyCases, type RulePolicyCase } from './catalog/policy-cases.js';
 import { lookupSearchTerms, ruleLookupTable } from './lookup-tables.js';
 import { ruleSlug } from './reference-search.js';
-import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
 import { sortDiagnostics } from './results.js';
 import { enabledRules } from './registry.js';
+import { musixmatchRules } from './musixmatch.js';
+import { musixmatchPolicyCases } from '$lib/profiles/policy-cases.js';
+import { getProfileSource, profileSourceRegistry } from '$lib/profiles/sources.js';
+import { profilePolicyVersions } from '$lib/profiles/versions.js';
+import type { ProfileId } from '$lib/profiles/types.js';
+import { profileGuidelines } from '$lib/profiles/coverage.js';
+import { profileGuidelineTopic, profileGuidelineTitle } from '$lib/profiles/reference-topics.js';
+import { referenceTopics } from '$lib/reference/topics.js';
 
 // Reference pages are prerendered from real rule output. Browsers load the
 // statistical profiles on demand; the static builder needs them before it
@@ -42,6 +49,7 @@ if (!('window' in globalThis)) {
 
 /** Everything a reference page states about one rule, all diagnostic-derived. */
 export interface RuleReference {
+	profile?: ProfileId;
 	id: string;
 	/**
 	 * What the rule is called — the reviewed case's own `title`, and the one
@@ -99,7 +107,9 @@ export { ruleSlug };
 // is not invertible by string transform. The map is; a collision between two
 // IDs would silently drop an entry here, which reference.test.ts turns into a
 // failure by asserting every ID round-trips.
-const idBySlug = new Map(enabledRules.map((rule) => [ruleSlug(rule.id), rule.id]));
+const idBySlug = new Map(
+	[...enabledRules, ...musixmatchRules].map((rule) => [ruleSlug(rule.id), rule.id])
+);
 
 export function ruleFromSlug(slug: string): string | undefined {
 	return idBySlug.get(slug);
@@ -201,11 +211,13 @@ function seoDescription(explanation: string): string {
 }
 
 function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleReference {
+	const profile = rule.id.startsWith('mxm.') ? 'musixmatch' : 'genius';
 	const context: RuleContext = {
+		profile,
 		language: policy.language ?? 'en',
 		performers: performerRecordsFor(policy.performers ?? ['A']),
-		sources: sourceRegistry,
-		ruleSetVersion: currentRuleSet.version,
+		sources: profile === 'musixmatch' ? profileSourceRegistry : sourceRegistry,
+		ruleSetVersion: profilePolicyVersions[profile],
 		// The reference never dispatches the fixes it reads labels from, so any
 		// revision works; zero states that these edits are not for applying.
 		revision: 0
@@ -218,7 +230,7 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 		throw new Error(`Rule ${rule.id} produced no diagnostic for its invalid policy example`);
 	}
 	const sources = lead.sourceIds.map((sourceId) => {
-		const source = sourceRegistry.get(sourceId);
+		const source = getProfileSource(sourceId);
 		if (!source) {
 			// Provenance is the entire reason these pages exist, so a citation that
 			// cannot be resolved is a page that must not build.
@@ -229,7 +241,20 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 	const prefix = rule.id.slice(0, rule.id.indexOf('.'));
 	const fix = lead.fixes?.[0];
 	const lookup = ruleLookupTable(rule.id);
-	const guidelines = guidanceForRule(rule.id);
+	const guidelines: RuleGuidelineLink[] =
+		profile === 'musixmatch'
+			? profileGuidelines
+					.filter((entry) => entry.ruleIds.includes(rule.id))
+					.map((entry) => {
+						const topic = profileGuidelineTopic(entry);
+						return {
+							topic,
+							topicTitle: referenceTopics.find((candidate) => candidate.id === topic)!.title,
+							anchor: entry.id.toLowerCase(),
+							title: profileGuidelineTitle(entry)
+						};
+					})
+			: guidanceForRule(rule.id);
 	const reference: RuleReference = {
 		id: rule.id,
 		title: policy.title,
@@ -245,6 +270,7 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 		sources,
 		seoDescription: seoDescription(lead.explanation)
 	};
+	if (profile === 'musixmatch') reference.profile = profile;
 	if (fix) reference.fix = { label: fix.label, kind: fix.kind };
 	if (policy.variant) reference.variant = { ...policy.variant };
 	if (lookup) reference.lookupTerms = lookupSearchTerms(lookup);
@@ -253,9 +279,21 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 }
 
 let cache: RuleReference[] | undefined;
+let musixmatchCache: RuleReference[] | undefined;
 
 /** Every enabled rule's reference entry, in registry order. */
-export function ruleReferences(): RuleReference[] {
+export function ruleReferences(profile: ProfileId = 'genius'): RuleReference[] {
+	if (profile === 'musixmatch') {
+		if (!musixmatchCache) {
+			const caseById = new Map(musixmatchPolicyCases.map((policy) => [policy.id, policy]));
+			musixmatchCache = musixmatchRules.map((rule) => {
+				const policy = caseById.get(rule.id);
+				if (!policy) throw new Error(`Musixmatch rule ${rule.id} has no policy example`);
+				return deriveReference(rule, policy);
+			});
+		}
+		return musixmatchCache;
+	}
 	if (!cache) {
 		const caseById = new Map(policyCases.map((policy) => [policy.id, policy]));
 		cache = enabledRules.map((rule) => {
@@ -274,7 +312,11 @@ export function ruleReferences(): RuleReference[] {
 
 export function ruleReferenceFromSlug(slug: string): RuleReference | undefined {
 	const id = ruleFromSlug(slug);
-	return id ? ruleReferences().find((reference) => reference.id === id) : undefined;
+	return id
+		? ruleReferences(id.startsWith('mxm.') ? 'musixmatch' : 'genius').find(
+				(reference) => reference.id === id
+			)
+		: undefined;
 }
 
 /** One index section: a titled, contiguous slice of the reference. */

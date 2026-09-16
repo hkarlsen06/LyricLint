@@ -3,6 +3,7 @@ import type { MediaRepository } from './media-repository.js';
 import type { DraftRecord, DraftRepository } from './types.js';
 import { DEFAULT_DRAFT_TITLE } from './draft-repository.js';
 import { isReadableDraft } from './readable-draft.js';
+import { hasConversionMetadata } from './conversion.js';
 
 const DEFAULT_TITLE = DEFAULT_DRAFT_TITLE;
 const DEFAULT_LANGUAGE = 'en';
@@ -61,12 +62,21 @@ export async function recoverStartupDraft(
 		// and deleting it takes the attachment with it, because `delete` clears
 		// the media record in the same transaction.
 		if (
+			draft.storageGeneration === undefined &&
 			draft.text.trim().length === 0 &&
+			!hasConversionMetadata(draft.conversion) &&
+			draft.conversionRecovery === undefined &&
+			draft.originalRecovery === undefined &&
 			// Stored partial records can violate DraftRecord; preserve any nonempty link without trusting its runtime type.
 			!(typeof draft.geniusUrl === 'string' && draft.geniusUrl.trim().length > 0) &&
 			(await media?.get(draft.id)) === undefined
 		) {
-			await repository.delete(draft.id);
+			if (repository.deleteIfUnchanged) {
+				if (!(await repository.deleteIfUnchanged(draft.id, 0))) {
+					const changed = await repository.get(draft.id);
+					if (changed && isReadableDraft(changed)) recoverable.push(changed);
+				}
+			} else await repository.delete(draft.id);
 			continue;
 		}
 		recoverable.push(draft);
@@ -78,6 +88,13 @@ export async function recoverStartupDraft(
 	const current = recoverable.find((draft) => draft.id === currentId);
 	if (current !== undefined) {
 		return current;
+	}
+	if (currentId !== undefined && repository.recoverUnreadable) {
+		const recovery = await repository.recoverUnreadable(currentId).catch(() => undefined);
+		if (recovery) {
+			await repository.setCurrent(recovery.id);
+			return recovery;
+		}
 	}
 
 	// `listRecords` is ordered newest first.

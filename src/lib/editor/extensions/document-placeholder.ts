@@ -3,6 +3,8 @@ import type { EditorState } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet, Rect } from '@codemirror/view';
 import type { LanguagePack } from '$lib/core/types.js';
+import { conversionForState } from './conversion-state.js';
+import { setConversionStateEffect } from './conversion-effects.js';
 import { editorContextField, setEditorContextEffect } from './editor-state.js';
 
 /*
@@ -96,7 +98,12 @@ class DocumentPlaceholderWidget extends WidgetType {
 
 function build(state: EditorState): DecorationSet {
 	if (state.doc.length > 0) return Decoration.none;
-	const lines = placeholderLines(state.field(editorContextField)?.languagePack);
+	const conversion = conversionForState(state);
+	const lines = conversion?.envelope.model.sections.length
+		? ['No lyrics in this format', 'View retained details in Song']
+		: conversion?.envelope.profile === 'musixmatch'
+			? [placeholderGuidance]
+			: placeholderLines(state.field(editorContextField)?.languagePack);
 	return Decoration.set([
 		// Inline at offset 0, as CodeMirror's own placeholder is, so the ghost
 		// starts on the line the caret is already sitting on rather than above or
@@ -108,7 +115,9 @@ function build(state: EditorState): DecorationSet {
 export const documentPlaceholderField = StateField.define<DecorationSet>({
 	create: (state) => build(state),
 	update(value, transaction) {
-		const contextChanged = transaction.effects.some((effect) => effect.is(setEditorContextEffect));
+		const contextChanged = transaction.effects.some(
+			(effect) => effect.is(setEditorContextEffect) || effect.is(setConversionStateEffect)
+		);
 		if (!transaction.docChanged && !contextChanged) return value;
 		return build(transaction.state);
 	},

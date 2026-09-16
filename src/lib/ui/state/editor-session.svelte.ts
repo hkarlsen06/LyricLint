@@ -123,6 +123,7 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			// snapshot matches the persisted state byte for byte, so store it
 			// (for its diagnostics) without dirtying the draft.
 			const unchanged =
+				next.conversion === snapshot.conversion &&
 				next.text === snapshot.text &&
 				next.selection.anchor === snapshot.selection.anchor &&
 				next.selection.head === snapshot.selection.head;
@@ -145,7 +146,11 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 		async copyCanonical() {
 			try {
 				await deps.copy(snapshot.text);
-				deps.feedback.announce('Canonical Genius markup copied.');
+				deps.feedback.announce(
+					snapshot.conversion?.profile === 'musixmatch'
+						? 'Musixmatch lyrics copied.'
+						: 'Canonical Genius markup copied.'
+				);
 				return true;
 			} catch {
 				report('Copy failed. Check browser clipboard permission and try again.');

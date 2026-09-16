@@ -3,6 +3,10 @@ import type { ChangeSet, EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { EditorSnapshot, TextEdit } from '$lib/core/types.js';
 import { diagnosticsForState } from './lint-decorations.js';
+import { conversionForState } from './conversion-state.js';
+import { setConversionStateEffect } from './conversion-effects.js';
+import { clipboardReviewFor, setClipboardReviewEffect } from './clipboard-review.js';
+import { renderProfile } from '$lib/conversion/projection.js';
 import {
 	editorComposingField,
 	editorRevisionField,
@@ -24,6 +28,23 @@ export function snapshotFromState(state: EditorState, atomic = false): EditorSna
 		canUndo: undoDepth(state) > 0,
 		canRedo: redoDepth(state) > 0
 	};
+	const conversion = conversionForState(state);
+	if (conversion) snapshot.conversion = conversion.envelope;
+	if (conversion?.recovery) snapshot.conversionRecovery = conversion.recovery;
+	const clipboardReview = clipboardReviewFor(state);
+	if (clipboardReview) {
+		const preview = renderProfile(
+			clipboardReview.conversion.model,
+			conversion?.envelope.profile ?? 'genius'
+		);
+		if (preview.ok)
+			snapshot.clipboardReview = {
+				sourceProfile: clipboardReview.conversion.profile,
+				from: clipboardReview.from,
+				to: clipboardReview.to,
+				previewText: preview.value.text
+			};
+	}
 	if (atomic) snapshot.atomic = true;
 	return snapshot;
 }
@@ -108,7 +129,19 @@ export function createUpdateListener(callback: (snapshot: EditorSnapshot) => voi
 			// not re-emit: the shell reacts to snapshots by re-applying context,
 			// so emitting here would form an infinite update cycle.
 			const resumedComposition = update.startState.field(editorComposingField);
-			if (update.docChanged || update.selectionSet || resumedComposition) {
+			const conversionChanged = update.transactions.some((transaction) =>
+				transaction.effects.some((effect) => effect.is(setConversionStateEffect))
+			);
+			const clipboardChanged = update.transactions.some((transaction) =>
+				transaction.effects.some((effect) => effect.is(setClipboardReviewEffect))
+			);
+			if (
+				update.docChanged ||
+				update.selectionSet ||
+				resumedComposition ||
+				conversionChanged ||
+				clipboardChanged
+			) {
 				// `input.atomic` is `dispatchAtomicEdit`'s own annotation, so every
 				// path that replaces text as one complete edit is covered by the one
 				// place that dispatches them. Only a document change can be atomic: a

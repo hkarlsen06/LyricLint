@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { assistantAnswersUrl } from '$lib/assistant/api.js';
 import { corpusMetadata } from '../../../services/rules-assistant/generated/rules-context-meta.js';
+import { musixmatchCorpusMetadata } from '../../../services/rules-assistant/generated/musixmatch-context-meta.js';
 
 export const prerender = true;
 export const trailingSlash = 'never';
@@ -15,7 +16,16 @@ export function GET(): Response {
 		throw new Error('RELEASE_REVISION must be a full Git commit SHA.');
 	}
 	return Response.json(
-		{ revision, ...corpusMetadata, clientCorpusHash: true, answersUrl: assistantAnswersUrl() },
+		{
+			revision,
+			...corpusMetadata,
+			clientCorpusHash: true,
+			answersUrl: assistantAnswersUrl(),
+			profileCorpora: [
+				{ profile: 'genius', ...corpusMetadata },
+				{ profile: 'musixmatch', ...musixmatchCorpusMetadata }
+			]
+		},
 		{ headers: { 'cache-control': 'no-store' } }
 	);
 }

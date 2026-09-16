@@ -29,8 +29,11 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   selection, retained choice, and focus on the Write control.
 - Portrait and landscape both work. There is no orientation gate or desktop recommendation
   toast. `e2e/lyriclint.spec.ts` pins both orientations and the absence of the recommendation.
-- Mobile document commands live behind the named Document disclosure; identity and Copy or
-  Paste remain visible. Touch editing actions are named, and assignment uses the shared
+- Mobile document commands live behind the named Document disclosure; identity, the format
+  picker, and Copy or Paste remain visible. The toolbar reserves an identity row and a command
+  row; opening the format menu or switching formats never moves the Copy target. Retained section
+  widgets open Song, and Show passage returns to Write without opening the keyboard.
+  `e2e/profile-workbench.spec.ts` covers these bounds and handoffs. Touch editing actions are named, and assignment uses the shared
   voice-group predicate. `MobileCommands.svelte.test.ts` pins bounds, dismissal, and selection.
 - Frequent buttons, icon controls, and severity filters use `--control-height-touch` (44px)
   on touch screens at every width. Shared size floors outrank compact route styles even

@@ -7,6 +7,18 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 ## The rules
 
+- Genius and Musixmatch diagnostics use separate registries, sources and ignore namespaces.
+  A profile change recomputes findings against that projection without applying fixes. Native
+  Musixmatch checks honor explicit language spans; Harper is withheld in Musixmatch until its
+  behavior is reviewed for that profile. Metadata-only findings appear in retained-detail review
+  with a Song destination, not at a fabricated text offset.
+- Quantity, instrumental, censored-word and repeat findings offer a shared Review action in
+  both the card and popover. It selects the actual finding, opens the implemented Song decision
+  and focuses its heading without opening the typing keyboard. The preview uses the commit
+  validator and expires when its facts, selection or document revision change. Ignoring a
+  finding never confirms a semantic fact. `diagnostic-parity.svelte.test.ts` pins the shared
+  controls; `e2e/profile-workbench.spec.ts` exercises the quantity workflow.
+
 - The shell's entrance may reveal the initial viewport's diagnostic rows once per ’scribe opening using
   temporary opacity only, in their
   existing reading order. New findings, fixes, filter changes, and later Harper results do not

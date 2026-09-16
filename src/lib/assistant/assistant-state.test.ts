@@ -1545,3 +1545,91 @@ describe('the assistant conversation lock', () => {
 		expect(chatLockName('chat-1')).toBe('lyriclint-chat-chat-1');
 	});
 });
+
+describe('profile-bound assistant turns', () => {
+	it('keeps a failed historical answer in its original profile when retrying from another guide', async () => {
+		const ask = vi.fn().mockRejectedValue(new AssistantError('provider_error'));
+		const { state } = makeState({ ask });
+		await state.open();
+		await state.send('How should I write a number?');
+		const id = state.messages[1].id;
+		const chatId = state.activeChatId!;
+		await state.open('musixmatch');
+		await state.selectChat(chatId);
+		await state.retry(id);
+		expect(ask).toHaveBeenCalledOnce();
+		expect(state.messages[1].profile).toBe('genius');
+		expect(state.failure?.message).toContain('original guideline profile');
+	});
+	it('binds requests and stored answers to the selected profile corpus', async () => {
+		const { state, deps } = makeState();
+		const draft = draftBridge();
+		state.registerDraftBridge({
+			...draft.bridge,
+			profile: () => 'musixmatch',
+			sessionId: () => 'mxm-1'
+		});
+		await state.send('How should I mark sections?');
+		expect(deps.ask).toHaveBeenCalledWith(
+			expect.objectContaining({ profile: 'musixmatch', clientRuleSetVersion: '2026.09.16.1' })
+		);
+		expect(state.messages.every((message) => message.profile === 'musixmatch')).toBe(true);
+		expect(state.messages[1].draftScope).toContain('mxm-1');
+	});
+
+	it('refuses an old proposal after switching away and back to the same profile and text', async () => {
+		const ask = vi
+			.fn()
+			.mockResolvedValueOnce(readCall())
+			.mockResolvedValueOnce(
+				toolCalls([
+					{
+						callId: 'edit',
+						name: 'propose_edits',
+						input: { proposals: [proposal('edit-one', 'hello', 'Hello')] }
+					}
+				])
+			);
+		const { state } = makeState({ ask, getDraftAccess: async () => 'granted' });
+		const draft = draftBridge();
+		let profile: 'genius' | 'musixmatch' = 'genius';
+		let epoch = 1;
+		const bridge = { ...draft.bridge, profile: () => profile, sessionId: () => epoch };
+		state.registerDraftBridge(bridge);
+		await state.send('Review it.');
+		const chatId = state.activeChatId!;
+		expect(state.toolSession?.phase).toBe('awaiting-review');
+		profile = 'musixmatch';
+		epoch += 1;
+		state.registerDraftBridge(bridge);
+		profile = 'genius';
+		epoch += 1;
+		state.registerDraftBridge(bridge);
+		await state.selectChat(chatId);
+		await state.approveProposal('edit-one');
+		expect(draft.apply).not.toHaveBeenCalled();
+		expect(state.messages[1].profile).toBe('genius');
+		expect(state.messages[1].status).toBe('interrupted');
+	});
+
+	it('ignores a response arriving after its profile session ended', async () => {
+		let finish!: (result: AnswerTurnResponse) => void;
+		const ask = vi.fn(
+			() =>
+				new Promise<AnswerTurnResponse>((resolve) => {
+					finish = resolve;
+				})
+		);
+		const { state } = makeState({ ask });
+		const draft = draftBridge();
+		state.registerDraftBridge({ ...draft.bridge, profile: () => 'genius', sessionId: () => 1 });
+		const pending = state.send('Read this.');
+		await vi.waitFor(() => expect(ask).toHaveBeenCalledOnce());
+		state.registerDraftBridge({ ...draft.bridge, profile: () => 'musixmatch', sessionId: () => 2 });
+		finish(answer('Old Genius answer'));
+		await pending;
+		expect(state.messages).toEqual([]);
+		expect(state.toolSession).toBeUndefined();
+		expect(state.profile).toBe('musixmatch');
+	});
+});

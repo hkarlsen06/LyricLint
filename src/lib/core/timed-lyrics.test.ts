@@ -8,6 +8,19 @@ const anchors = [
 ];
 
 describe('formatTimedLyrics', () => {
+	test('keeps literal bracket and tag text in Musixmatch timed lyrics', () => {
+		expect(
+			formatTimedLyrics(
+				'[Verse]\n<i>Literal</i>',
+				[
+					{ line: 1, time: 0 },
+					{ line: 2, time: 1 }
+				],
+				'lrc',
+				'musixmatch'
+			)
+		).toBe('[00:00.00][Verse]\n[00:01.00]<i>Literal</i>\n');
+	});
 	test('writes LRC in time order, without the markup a player cannot read', () => {
 		expect(formatTimedLyrics(text, anchors, 'lrc')).toBe(
 			'[00:12.34]First line\n[01:05.50]Second line\n'

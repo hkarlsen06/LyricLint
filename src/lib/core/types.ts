@@ -112,6 +112,8 @@ export interface ParseIssue extends TextRange {
 
 /** A header-delimited or blank-line-delimited portion of the lyric document. */
 export interface Section extends TextRange {
+	/** Retained boundary identity in a headerless profile projection. */
+	conversionSectionId?: string;
 	header?: SectionHeader;
 	language: string;
 	voiceGroups: VoiceGroup[];
@@ -140,6 +142,7 @@ export interface AnnotationSpan extends TextRange {
 
 /** A lossless derived view of the canonical lyric string. */
 export interface ParsedDocument {
+	profile?: import('$lib/profiles/types.js').ProfileId;
 	text: string;
 	sections: Section[];
 	syntaxIssues: ParseIssue[];
@@ -179,6 +182,9 @@ export type SourceAuthority = 'staff' | 'editorial' | 'external' | 'community';
 /** Versioned provenance for one bundled Genius guideline source. */
 export interface SourceReference {
 	id: string;
+	/** Platform sources retain their own standing, separate from Genius's author-role ladder. */
+	platform?: 'genius' | 'musixmatch';
+	platformStanding?: 'official' | 'community';
 	url: string;
 	annotationId?: number;
 	pageTitle: string;
@@ -328,7 +334,24 @@ export interface Diagnostic extends TextRange {
 }
 
 /** Immutable inputs made available to framework-independent lint rules. */
+/** A currently eligible authored fact, mapped from validated model ownership to this text. */
+export interface ConfirmedRuleFact extends TextRange {
+	kind: 'quantity' | 'instrumental-interval';
+	profile: 'genius' | 'musixmatch';
+	language: string;
+	text: string;
+	decisionId: string;
+}
+
 export interface RuleContext {
+	/** Omitted for legacy callers, whose transcription conventions remain Genius. */
+	profile?: 'genius' | 'musixmatch';
+	/** Content purpose is authored metadata, never inferred from script or section names. */
+	contentKind?: 'original' | 'translation' | 'romanization' | 'unknown';
+	/** Explicit language spans in the active projection; outside them uses language. */
+	languageRanges?: readonly (TextRange & { language: string })[];
+	/** Semantic confirmation only; it never suppresses unrelated spelling or layout checks. */
+	confirmedFacts?: readonly ConfirmedRuleFact[];
 	language: string;
 	performers: readonly PerformerRecord[];
 	sources: ReadonlyMap<string, SourceReference>;
@@ -393,8 +416,22 @@ export interface PerformerRecord {
 	order: number;
 }
 
+/** Only identities changed by one explicit document action; unrelated roster rows survive undo. */
+export interface PerformerRecordDelta {
+	before: readonly PerformerRecord[];
+	after: readonly PerformerRecord[];
+}
+
 /** A locally persisted lyric draft. All dates are ISO strings. */
 export interface DraftRecord {
+	/** Lossless profile state. Absence identifies a legacy Genius draft. */
+	conversion?: import('../persistence/conversion.js').ConversionEnvelope;
+	/** Latest visible input retained when reconciliation cannot safely update the model. */
+	conversionRecovery?: import('../persistence/conversion.js').ConversionRecovery;
+	/** Exact text retained from an unreadable model, including inputs beyond engine limits. */
+	originalRecovery?: import('../persistence/conversion.js').OriginalRecovery;
+	/** Storage compare-and-save generation, independent of editor undo revisions. */
+	storageGeneration?: number;
 	/** The Genius page this transcription belongs to, independent of attached audio. */
 	geniusUrl?: string;
 	id: string;
@@ -750,6 +787,14 @@ export type StyleSlotAllocation =
 
 /** Serializable storage boundary for draft creation and lifecycle operations. */
 export interface DraftRepository {
+	deleteIfUnchanged?(id: string, expectedGeneration: number): Promise<boolean>;
+	compareAndSave?(
+		draft: DraftRecord,
+		expectedGeneration: number,
+		sideRecords?: import('$lib/persistence/types.js').DraftSaveSideRecords
+	): Promise<import('$lib/persistence/types.js').DraftSaveResult>;
+	exportRawDraft?(id: string): Promise<string | undefined>;
+	recoverUnreadable?(id: string): Promise<DraftRecord | undefined>;
 	list(): Promise<DraftSummary[]>;
 	get(id: string): Promise<DraftRecord | undefined>;
 	create(draft: DraftRecord): Promise<DraftRecord>;
@@ -798,15 +843,30 @@ export interface AutosaveController {
  * answer at once and persist after.
  */
 export interface DraftIgnoreStore {
+	/** A workbench returns true when its guarded draft save owns this mutation. */
+	setPersistenceHandler?(handler: (draftId: string) => boolean): void;
 	isIgnored(draftId: string, diagnosticKey: string): boolean;
 	ignore(draftId: string, diagnosticKey: string): void;
 	restore(draftId: string, diagnosticKey: string): void;
 	list(draftId: string): string[];
-	clearDraft(draftId: string): void;
+	/** Refresh another saved draft before opening it in this session. */
+	reloadDraft?(draftId: string): Promise<void>;
+	/** false only clears the mirror after the repository already deleted the row. */
+	clearDraft(draftId: string, persist?: boolean): void;
 }
 
 /** Internally consistent state emitted by the editor boundary. */
 export interface EditorSnapshot {
+	clipboardReview?: {
+		sourceProfile: 'genius' | 'musixmatch';
+		from: number;
+		to: number;
+		previewText: string;
+	};
+	originalRecovery?: import('$lib/persistence/conversion.js').OriginalRecovery;
+	/** One committed lossless document and its selected representation. */
+	conversion?: import('$lib/persistence/conversion.js').ConversionEnvelope;
+	conversionRecovery?: import('$lib/persistence/conversion.js').ConversionRecovery;
 	revision: number;
 	text: string;
 	selection: SerializedSelection;
@@ -841,6 +901,24 @@ export interface EditorSnapshot {
 
 /** Shell-safe control surface for the CodeMirror-owned editor. */
 export interface EditorHandle {
+	applyClipboardReview?(): { ok: true } | { ok: false; message: string };
+	prepareInterpretation?(
+		sourceProfile: 'genius' | 'musixmatch',
+		range: TextRange
+	): { ok: true } | { ok: false; message: string };
+	dismissClipboardReview?(): void;
+	isLyricSyncActive?(): boolean;
+	isConversionSectionLocal?(sectionId: string): boolean;
+	toggleConversionSectionLocal?(sectionId: string): boolean;
+	dispatchConversionAction?(
+		action: import('$lib/conversion/decisions.js').ConversionAction,
+		baseRevision: number,
+		rosterChanges?: PerformerRecordDelta
+	): { ok: true } | { ok: false; message: string };
+	/** Switch representations atomically; a refusal leaves the document intact. */
+	switchProfile?(
+		profile: 'genius' | 'musixmatch'
+	): { ok: true } | { ok: false; message: string; deferred?: true };
 	focus(): void;
 	getSnapshot(): EditorSnapshot;
 	dispatchAtomic(edit: AtomicDocumentEdit): void;
@@ -1005,6 +1083,7 @@ export interface LineAnchor {
 
 /** Immutable editor inputs owned by the application shell. */
 export interface EditorContext {
+	profile?: 'genius' | 'musixmatch';
 	language: string;
 	performers: readonly PerformerRecord[];
 	ruleSetVersion: string;

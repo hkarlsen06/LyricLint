@@ -1,5 +1,6 @@
 import type { Diagnostic, DiagnosticFix, TextEdit } from '$lib/core/types.js';
 import { severityRank } from '$lib/core/types.js';
+import { compareCodeUnits } from '$lib/core/compare.js';
 
 /** Sort diagnostics deterministically by severity, range, rule, and copy. */
 export function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[] {
@@ -8,9 +9,9 @@ export function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[
 			severityRank[left.severity] - severityRank[right.severity] ||
 			left.from - right.from ||
 			left.to - right.to ||
-			left.ruleId.localeCompare(right.ruleId) ||
-			left.message.localeCompare(right.message) ||
-			left.explanation.localeCompare(right.explanation)
+			compareCodeUnits(left.ruleId, right.ruleId) ||
+			compareCodeUnits(left.message, right.message) ||
+			compareCodeUnits(left.explanation, right.explanation)
 	);
 }
 

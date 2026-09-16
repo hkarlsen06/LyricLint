@@ -8,6 +8,7 @@ function now(): string {
 /** What a caller supplies when attaching audio; the timestamp is stamped here. */
 interface MediaAttachInput {
 	draftId: string;
+	recordingId?: string;
 	name: string;
 	size?: number;
 	/** Absent means `'file'`, which is what every record written before this was. */
@@ -55,12 +56,24 @@ export function createMediaRepository(database: LyricLintDatabase): MediaReposit
 			return await database.mediaHandles.get(draftId);
 		},
 
-		async attach({ draftId, name, size, source, videoId, trackId, songId, handle, position }) {
+		async attach({
+			draftId,
+			recordingId,
+			name,
+			size,
+			source,
+			videoId,
+			trackId,
+			songId,
+			handle,
+			position
+		}) {
 			const record: MediaHandleRecord = {
 				draftId,
 				name,
 				attachedAt: now()
 			};
+			if (recordingId !== undefined) record.recordingId = recordingId;
 			if (size !== undefined) record.size = size;
 			if (source !== undefined) record.source = source;
 			if (videoId !== undefined) record.videoId = videoId;

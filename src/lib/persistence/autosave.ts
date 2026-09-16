@@ -1,11 +1,13 @@
-import { copyCompareBaseline, copySectionLinks } from './copy.js';
+import { copyCompareBaseline, copySectionLinks, copyConversionFields } from './copy.js';
 import type {
 	AutosaveController,
 	AutosaveOptions,
 	AutosaveSnapshot,
 	AutosaveStatus,
 	DraftRecord,
-	DraftRepository
+	DraftRepository,
+	DraftSaveResult,
+	DraftSaveSideRecords
 } from './types.js';
 
 const DEFAULT_DEBOUNCE_MS = 250;
@@ -16,6 +18,7 @@ interface PendingSave {
 	draft: DraftRecord;
 	generation: number;
 	retainedFailure: boolean;
+	sideRecords?: DraftSaveSideRecords;
 }
 
 function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
@@ -67,6 +70,7 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
 	if (draft.compareBaseline !== undefined) {
 		copy.compareBaseline = copyCompareBaseline(draft.compareBaseline);
 	}
+	copyConversionFields(draft, copy);
 
 	return copy;
 }
@@ -81,7 +85,7 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
 export function createAutosaveController(
 	// Saving is the whole of what this asks of a repository, and saying so is what
 	// lets a test drive the real controller against a repository double.
-	repository: Pick<DraftRepository, 'save'>,
+	repository: Pick<DraftRepository, 'save' | 'compareAndSave'>,
 	options: AutosaveOptions = {}
 ): AutosaveController {
 	const debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
@@ -90,6 +94,8 @@ export function createAutosaveController(
 	const timers = new Map<string, ReturnType<typeof setTimeout>>();
 	const latestRevision = new Map<string, number>();
 	const generations = new Map<string, number>();
+	const committedGenerations = new Map<string, number>();
+	const savedListeners = new Set<(result: DraftSaveResult) => void>();
 	let drainQueue = Promise.resolve();
 	let isSaving = false;
 	let lastSettledStatus: Extract<AutosaveStatus, 'idle' | 'saved'> = 'idle';
@@ -171,7 +177,30 @@ export function createAutosaveController(
 			refreshStatus();
 
 			try {
-				await repository.save(save.draft);
+				if (repository.compareAndSave) {
+					const result = await repository.compareAndSave(
+						save.draft,
+						Math.max(committedGenerations.get(saveDraftId) ?? 0, save.draft.storageGeneration ?? 0),
+						save.sideRecords
+					);
+					committedGenerations.set(result.draft.id, result.draft.storageGeneration ?? 0);
+					if (result.conflicted) {
+						const next = pending.get(saveDraftId);
+						if (next) {
+							pending.delete(saveDraftId);
+							clearDraftTimer(saveDraftId);
+							next.draft.id = result.draft.id;
+							next.draft.title = result.draft.title;
+							next.draft.storageGeneration = result.draft.storageGeneration;
+							next.generation = generationFor(result.draft.id);
+							pending.set(result.draft.id, next);
+							void enqueueDrain(result.draft.id);
+						}
+					}
+					for (const listener of savedListeners) listener(result);
+				} else {
+					await repository.save(save.draft);
+				}
 				if (generationFor(saveDraftId) === save.generation) {
 					lastSettledStatus = 'saved';
 				}
@@ -201,6 +230,10 @@ export function createAutosaveController(
 	};
 
 	return {
+		subscribeSaved(listener) {
+			savedListeners.add(listener);
+			return () => savedListeners.delete(listener);
+		},
 		schedule(snapshot) {
 			const draftId = snapshot.draft.id;
 			const existing = pending.get(draftId);
@@ -221,13 +254,23 @@ export function createAutosaveController(
 
 			const order = ++nextOrder;
 			latestRevision.set(draftId, snapshot.revision);
-			pending.set(draftId, {
+			const next: PendingSave = {
 				order,
 				revision: snapshot.revision,
 				draft: copySnapshot(snapshot),
 				generation: generationFor(draftId),
 				retainedFailure: false
-			});
+			};
+			if (snapshot.sideRecords !== undefined) {
+				const sideRecords: DraftSaveSideRecords = {};
+				if (snapshot.sideRecords.ignoredDiagnostics !== undefined)
+					sideRecords.ignoredDiagnostics = [...snapshot.sideRecords.ignoredDiagnostics];
+				if (snapshot.sideRecords.media !== undefined)
+					sideRecords.media =
+						snapshot.sideRecords.media === null ? null : { ...snapshot.sideRecords.media };
+				next.sideRecords = sideRecords;
+			}
+			pending.set(draftId, next);
 			refreshStatus();
 
 			clearDraftTimer(draftId);
@@ -254,6 +297,7 @@ export function createAutosaveController(
 			]);
 			pending.clear();
 			latestRevision.clear();
+			committedGenerations.clear();
 			for (const draftId of knownDraftIds) {
 				generations.set(draftId, generationFor(draftId) + 1);
 			}
@@ -265,6 +309,7 @@ export function createAutosaveController(
 			clearDraftTimer(draftId);
 			pending.delete(draftId);
 			latestRevision.delete(draftId);
+			committedGenerations.delete(draftId);
 			generations.set(draftId, generationFor(draftId) + 1);
 			if (pending.size === 0) {
 				lastSettledStatus = 'idle';
@@ -290,6 +335,7 @@ export function createAutosaveController(
 		 */
 		noteDraftLoaded(draftId) {
 			latestRevision.delete(draftId);
+			committedGenerations.delete(draftId);
 		},
 
 		status() {

@@ -4,6 +4,13 @@ import type { EditorView } from '@codemirror/view';
 import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js';
 import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { LyricEditorCallbacks } from './contracts.js';
+import { conversionForState } from './extensions/conversion-state.js';
+import {
+	toggleConversionSectionLocal,
+	conversionSectionLocal,
+	conversionSectionAt,
+	cancelConversionSectionLocal
+} from './extensions/conversion-scope.js';
 import { linkTargetAt } from './section-links.js';
 import { cancelTypeOnlyHere, isTypeOnlyHere, typeOnlyHere } from './extensions/section-links.js';
 import {
@@ -78,6 +85,10 @@ export function requestSectionLink(view: EditorView, callbacks: LyricEditorCallb
 		return true;
 	}
 	const range = logicalSelection(view);
+	if (conversionForState(view.state)?.envelope.profile === 'musixmatch') {
+		callbacks.onSectionLinkRequest?.({ range, selection: range, prefer: 'above' });
+		return true;
+	}
 	const target = linkTargetAt(
 		parsedDocumentForState(view.state),
 		view.state.field(editorContextField, false)?.languagePack,
@@ -107,6 +118,21 @@ function typeOnlyInLinkedSection(callbacks: LyricEditorCallbacks): (view: Editor
 			return true;
 		}
 		const range = logicalSelection(view);
+		const conversion = conversionForState(view.state);
+		if (conversion?.envelope.profile === 'musixmatch') {
+			const sectionId = conversionSectionAt(view.state, range);
+			if (!sectionId || !toggleConversionSectionLocal(view, sectionId))
+				return announce(
+					callbacks,
+					'Place the cursor in a linked section before changing its editing scope.'
+				);
+			return announce(
+				callbacks,
+				conversionSectionLocal(view.state)
+					? 'Editing only this section. Changes here stay local.'
+					: 'Matching linked passages will update together.'
+			);
+		}
 		const target = linkTargetAt(
 			parsedDocumentForState(view.state),
 			view.state.field(editorContextField, false)?.languagePack,
@@ -381,7 +407,9 @@ export function lyricLintKeymap(
 		// transport. Without audio, Escape can still turn the section mode off.
 		{
 			key: 'Escape',
-			run: (view) => callbacks.onRequestMediaTime?.() === undefined && cancelTypeOnlyHere(view)
+			run: (view) =>
+				callbacks.onRequestMediaTime?.() === undefined &&
+				(cancelConversionSectionLocal(view) || cancelTypeOnlyHere(view))
 		},
 		{ key: 'Escape', run: dismissDiagnostic(callbacks) },
 		...defaultKeymap,

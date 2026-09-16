@@ -6,7 +6,7 @@ import type {
 	TextRange
 } from '$lib/core/types.js';
 import { findExactPerformer } from './identity.js';
-import { decodeLegendText } from './import.js';
+import { decodeLegendText } from '$lib/core/legend.js';
 
 /** Characters that would change how another header parses if mirrored into it. */
 const STRUCTURAL_NAME_PATTERN = /[[\]<>,\n\r]/u;

@@ -1,3 +1,5 @@
+import { profileProjection } from './conversion-effects.js';
+import { profileForState } from './conversion-state.js';
 // Decision record: docs/subsystems/section-links.md — read it before changing this file, and update it with any behavior change.
 import { invertedEffects } from '@codemirror/commands';
 import {
@@ -1489,6 +1491,11 @@ function commitLinkedComposition(transaction: Transaction): TransactionSpec | un
 
 export function sectionLinkMirror(): Extension {
 	return EditorState.transactionFilter.of((transaction) => {
+		if (
+			transaction.annotation(profileProjection) ||
+			profileForState(transaction.startState) === 'musixmatch'
+		)
+			return transaction;
 		const composition = commitLinkedComposition(transaction);
 		if (composition) return [transaction, composition];
 		if (

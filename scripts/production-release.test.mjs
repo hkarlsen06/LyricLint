@@ -352,3 +352,51 @@ test('the raw publisher refuses local use, PRs, other branches and missing crede
 		/endpoint does not match/
 	);
 });
+
+test('retains both exact published profiles and refuses a missing or swapped Musixmatch artifact', () => {
+	const content = { profile: 'musixmatch', ruleSetVersion: 'mxm-1', rules: [{ id: 'mxm.old' }] };
+	const mxm = {
+		...content,
+		contentHash: createHash('sha256').update(JSON.stringify(content)).digest('hex'),
+		generatedAt: '2026-09-16T00:00:00Z'
+	};
+	const release = {
+		...previous.release,
+		profileCorpora: [
+			{
+				profile: 'genius',
+				ruleSetVersion: previous.corpus.ruleSetVersion,
+				corpusHash: previous.corpus.contentHash
+			},
+			{ profile: 'musixmatch', ruleSetVersion: mxm.ruleSetVersion, corpusHash: mxm.contentHash }
+		]
+	};
+	assert.deepEqual(parseSiteRelease(release), release);
+	const module = releaseCorporaModule([candidate.corpus], [previous.corpus, mxm], release);
+	assert.ok(module.includes(JSON.stringify(mxm)));
+	assert.ok(module.includes(JSON.stringify(previous.corpus)));
+	assert.throws(
+		() => releaseCorporaModule(candidate.corpus, previous.corpus, release),
+		/musixmatch corpus is missing/
+	);
+	assert.throws(
+		() => releaseCorporaModule(candidate.corpus, [previous.corpus, { ...mxm, rules: [] }], release),
+		/does not match/
+	);
+	assert.equal(sameRelease(release, previous.release), false);
+	assert.equal(
+		sameRelease(release, { ...release, profileCorpora: [...release.profileCorpora].reverse() }),
+		true
+	);
+	for (const profileCorpora of [
+		null,
+		[],
+		[release.profileCorpora[1]],
+		[...release.profileCorpora, release.profileCorpora[1]],
+		[{ ...release.profileCorpora[0], profile: 'unknown' }]
+	])
+		assert.throws(
+			() => parseSiteRelease({ ...release, profileCorpora }),
+			/invalid assistant release profile/
+		);
+});

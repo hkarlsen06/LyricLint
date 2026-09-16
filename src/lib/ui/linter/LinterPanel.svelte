@@ -7,6 +7,8 @@
 	import DiagnosticList from './DiagnosticList.svelte';
 	import SeverityIcon from '$lib/diagnostics/SeverityIcon.svelte';
 	import { severityPluralLabels } from '$lib/diagnostics/severity-labels.js';
+	import { retainedFindings } from '$lib/conversion/review.js';
+	import RetainedReview from '../tools/RetainedReview.svelte';
 	import { tick } from 'svelte';
 
 	let {
@@ -97,7 +99,15 @@
 
 	// Only blame the filters when they are actually what is hiding something;
 	// an otherwise clean draft should read as clean.
+	const detailFindings = $derived(retainedFindings(controller.snapshot));
 	const emptyState = $derived.by(() => {
+		if (controller.snapshot.conversionRecovery || controller.snapshot.originalRecovery) {
+			return {
+				title: 'Retained details need recovery',
+				detail:
+					'Your latest lyrics are preserved. Open Song to export the text and retained data before repairing their associations.'
+			};
+		}
 		// An untouched draft is not "clean" — it has nothing to lint yet. The
 		// editor now carries the instructions (a ghost transcription where the
 		// caret is, and Paste lyrics in the toolbar), so this line says what the
@@ -113,6 +123,16 @@
 						: 'You can keep writing while the checker loads.'
 			};
 		}
+		if (controller.isEmpty && controller.snapshot.conversion?.model.sections.length)
+			return {
+				title: 'No lyrics in this format',
+				detail: 'Retained section details are available in Song.'
+			};
+		if (detailFindings.length)
+			return {
+				title: 'Retained details need review',
+				detail: 'Review the retained section or format details below.'
+			};
 		if (controller.isEmpty) {
 			return {
 				title: 'Ready for your lyrics',
@@ -136,7 +156,7 @@
 		}
 		return {
 			title: 'No issues found',
-			detail: 'Your lyrics pass every enabled rule.\nChecking continues as you write.',
+			detail: `No issues found by the enabled ${controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} checks.\nChecking continues as you write.`,
 			clean: true
 		};
 	});
@@ -190,7 +210,9 @@
 		>
 	{/if}
 	{#if controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0}
-		<h2 class="linter-panel__heading">Review lyrics</h2>
+		<h2 class="linter-panel__heading">
+			Review {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics
+		</h2>
 	{/if}
 	<!-- The chips are on screen whenever there is something to filter. They used
 	     to be revealed by pressing the Linter tab a second time from inside the
@@ -272,6 +294,11 @@
 				onclick={(event) => void retryChecking(event.currentTarget)}>Retry checking</button
 			>
 		{/if}
+		{#if controller.isEmpty && controller.snapshot.conversion?.model.sections.length}<button
+				type="button"
+				class="button"
+				onclick={() => controller.openSectionDetails('new')}>View retained details</button
+			>{/if}
 		{#if controller.isEmpty && controller.canLoadSample}
 			<div class="linter-panel__empty-action">
 				<button type="button" class="button" onclick={() => controller.loadSample()}>
@@ -281,6 +308,7 @@
 		{/if}
 	{/snippet}
 
+	<RetainedReview {controller} findings={detailFindings} />
 	<DiagnosticList
 		overview={mobile && !reviewFocused}
 		focusedOnly={mobile && reviewFocused}
@@ -301,6 +329,7 @@
 		canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
 		onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
 		onLinkSections={(diagnostic) => controller.linkDiagnosticSections(diagnostic)}
+		onReviewConversion={(diagnostic) => controller.openConversionReview(diagnostic)}
 		onSetLanguage={(language) => controller.setLanguage(language)}
 		onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
 		onCancelPreview={() => controller.clearFixPreview()}

@@ -2,6 +2,7 @@ import { guidanceTopics } from '$lib/guidance/entries.js';
 import { currentRuleSet } from '$lib/rules/index.js';
 import { ruleReferences } from '$lib/rules/reference.js';
 import { siteUrl } from '$lib/seo.js';
+import { referenceTopics } from '$lib/reference/topics.js';
 import type { RequestHandler } from './$types.js';
 
 export const prerender = true;
@@ -11,8 +12,11 @@ const paths = [
 	'/about/',
 	'/workbench/',
 	'/guidelines/',
+	'/guidelines/musixmatch/',
 	'/privacy/',
 	...ruleReferences().map((reference) => `/guidelines/checks/${reference.slug}/`),
+	...ruleReferences('musixmatch').map((reference) => `/guidelines/checks/${reference.slug}/`),
+	...referenceTopics.map((topic) => `/guidelines/musixmatch/${topic.id}/`),
 	...guidanceTopics().map(({ topic }) => `/guidelines/${topic}/`)
 ];
 

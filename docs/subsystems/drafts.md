@@ -6,6 +6,36 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 
 ## The rules
 
+- Rich drafts store the exact active text with a versioned `conversion` envelope. Its pinned
+  renderer, guideline versions, model, and recovery projection must validate together. Legacy
+  line-number anchors and links are omitted after migration; the model owns their stable records.
+  A metadata-only rich draft survives every blank-document sweep. Unreadable rich state is never
+  downgraded over its original row: startup creates a separately labeled text recovery and keeps
+  the original bytes available through `exportRawDraft`.
+- A rich model owns `defaultLanguage`; the top-level draft language is its compatibility copy
+  and mismatches are refused at reads/imports. This keeps language changes, rendered text,
+  persistence, and undo in the same document transaction.
+- Schema 6 uses physical `draftsV6`, `appMetadataV6`, `mediaHandlesV6`, and `draftIgnoresV6`
+  stores, atomically copied from their legacy stores. The public database properties retain their
+  existing names. A version number alone is insufficient: Dexie retries `VersionError` without
+  a requested version, allowing an older bundle to reopen. Its legacy stores cannot overwrite
+  current rich records or their attachments. Mutation readers use the actual table names.
+  Blocked upgrades report a close-other-tabs notice before opening finishes. A superseded
+  connection closes explicitly and stops Dexie's default version-change handler, which would
+  otherwise re-enable automatic reopening; the editor keeps its local state and offers Scribe
+  export while further storage operations refuse.
+- Autosave compares `storageGeneration` within the write transaction. A stale writer creates a
+  separate conflict copy with its local ignored choices and media reference in that same
+  transaction, then continues under the new ID without replacing the editor or restarting audio.
+  A failed transaction retains the complete pending snapshot and reports failure. Editor undo
+  revisions and timestamps never arbitrate competing writers. Media attachment, detach, title,
+  playhead, and ignored-diagnostic changes remain local until that same guarded transaction.
+  Consumers without a draft generation context retain their legacy direct-storage behavior.
+- Rich backups and Scribe files use version 2; ordinary legacy exports retain version 1. Import
+  refuses unknown or mismatched rich state before writing. Reconciliation recovery carries both
+  latest visible text and the last valid checkpoint; unreadable originals carry a source-draft
+  reference, and inputs beyond the engine limit retain exact text without inventing a checkpoint.
+
 - At five saved drafts the menu offers case-insensitive title/opening-lyric search. Filtering never
   changes the saved records; a no-match result retains the search field, and closing the
   menu clears search and pending row actions. `DraftMenu.svelte.test.ts` pins recovery.
@@ -14,10 +44,11 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   keeping the draft in its accessible name. The confirm takes the trigger's own slot
   (`RemoveButton`, shared by every list that offers a way out of a row) and moves focus onto
   itself; the armed row is the list's state, one question open at a time.
-- A draft with nothing in it is never written: `createDraft` loads a transient record, the
-  first save with text creates the row, `discardEmptyDraft` gives it back, and
-  `recoverStartupDraft` sweeps blanks — but spares a wordless draft with attached audio
-  (`hasAttachment`, consulted on **every** save) or a saved Genius page link.
+- An untouched new blank draft is transient. A deliberate clear of saved work is a guarded
+  save, including an empty conflict copy, and survives reload. `recoverStartupDraft` sweeps
+  historical blanks without a storage generation only after rechecking that generation in the
+  deletion transaction; a concurrent save wins. Audio, a Genius page link, and rich metadata
+  also keep wordless drafts recoverable. Explicit Delete remains the way to remove saved work.
 - A landed save re-reads the drafts list, bounded by `sawPendingSave`; `noteSaveStatus` in
   `draft-store.svelte.ts` is the one place `saveStatus` is assigned.
 - The list caches derived summaries in memory, never on disk. Committed Dexie mutation keys
@@ -41,6 +72,34 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   `docs/subsystems/media.md` for what counts as a name worth having.
 
 ## Decision record
+
+### Profile switching keeps one durable document
+
+`persistence/conversion.ts` validates the entire envelope and exact active projection at each
+storage or file boundary. Every copier keeps recovery fields and storage generations. Duplication
+copies media references and ignored diagnostics atomically with the document. Local database
+recovery leaves unrecognized rich bytes untouched and creates a separate blocked text copy; a
+remembered recovery reference prevents repeated startup from producing duplicates.
+
+`conversion-persistence.test.ts` covers the complete export/import and reopen path, metadata-only
+drafts, rollback when a conflict copy cannot be saved, continuing edits after a fork, and the
+actual older-Dexie reopening behavior. Explicit deletion also clears the retained legacy rows so
+the database barrier does not leave deleted lyrics behind.
+
+### Deliberate clears and side records share the conflict boundary
+
+Clearing saved lyrics used to call unconditional deletion, bypassing the generation check and
+allowing a stale tab to remove another tab's newer lyrics, audio, and ignores. Saved clears now
+use the normal CAS save and remain recoverable, including an empty local conflict copy. Only
+never-saved blank documents stay transient; old blank cleanup checks its read generation again.
+
+The media and ignore stores used to write before lyric autosave, so a conflict fork could occur
+after local side records had already overwritten the newer original. The workbench now routes
+those mutations through its captured draft snapshot. Standalone legacy consumers keep direct
+writes. Backups read committed side records for generation-bearing drafts, so a stale session
+mirror cannot substitute local ignored choices onto the newer original. Opening another draft
+refreshes its ignore mirror; explicit deletion clears that mirror without scheduling a new save. The actual controller-order regressions in `workbench-conflicts.test.ts` cover a stale
+clear, local attachment and ignores before flush, detach, playhead, and a racing historical sweep.
 
 ### A longer draft list can be searched without opening each document
 
@@ -66,7 +125,7 @@ visible when deletion is armed. A header-only or wordless audio draft simply has
 `DraftMenu.svelte.test.ts` pins duplicate-only display, search by lyric, and opening the intended
 copy; `persistence.test.ts` pins header skipping and the absence of the derived field on records.
 
-### A draft is one line, and an empty draft is not a draft
+### A draft is one line; untouched new blanks stay transient
 
 The drafts menu used to spend two rows on every draft: its name, then `Rename Duplicate Export
 Delete` spelled out underneath. Seven drafts came to twenty-eight words of chrome around seven
@@ -121,14 +180,12 @@ discard it was working around. This costs a wordless draft with a song in it a r
 list, which is the right trade: an `Untitled transcription` the user can see and delete beats an attachment
 that vanishes with no sign it existed.
 
-**A draft with nothing in it is never written.** Every "new draft" used to create a record
-immediately, so a session of second thoughts left a list of `Untitled transcription`s that had never held a
-character. Now `createDraft` loads a transient record and writes nothing; the first save with text
-in it is what creates the row and takes over the current-draft pointer, so a reload before the
-first keystroke comes back to the draft that still has the work in it. A draft emptied out gives up
-its record the same way (`discardEmptyDraft`) — undo puts the text back and the next save writes
-the same id, so nothing is lost. `recoverStartupDraft` sweeps blank records on the way through for
-the databases earlier builds already filled.
+**An untouched new draft stays transient.** Every "new draft" used to create a record
+immediately, leaving a list of `Untitled transcription`s that had never held a character.
+`createDraft` now writes nothing until there is work to preserve. Historical builds also discarded
+a saved draft when its text was cleared; that behavior is superseded by the guarded clear-save
+contract above. `recoverStartupDraft` only sweeps historical blanks without a storage generation,
+rechecking that generation before deletion. A deliberate saved clear survives reload.
 
 **Which makes a landed save the moment a draft joins the list, so a landed save is what re-reads
 it.** The list was fetched once at boot and thereafter only by the operations that change it —
@@ -259,6 +316,14 @@ reports a refusal by toast and announcement, without announcing an export. Impor
 filename and byte ceiling before loading or reading the file, then uses the unchanged parser
 validation before writing any draft state. The lightweight format contract owns the byte ceiling
 and error class; the codec reexports both for compatibility.
+
+The same import picker accepts `.txt` lyrics. Choosing text reveals a named source-format field,
+defaulted to the current profile, before creating a draft. Opening imports the source exactly
+after the editor's usual LF line-ending boundary, retains the original decoded text in
+`originalText`, and selects that source profile. There is no syntax guessing or conversion during
+opening. File-byte and engine work ceilings are checked before creation, and a failed current
+autosave blocks opening another document. Tests cover literal Musixmatch brackets, original line
+endings, refusal before reading oversized files, and the picker at phone and desktop widths.
 
 
 ### Draft rows load behind the native menu

@@ -150,6 +150,7 @@ interface EditorOverlayCallbacks {
 	onIgnoreDiagnostic?(diagnostic: Diagnostic): void;
 	/** Select a language offered directly by a language diagnostic. */
 	onSetLanguage?(language: string): void;
+	onConversionReviewRequest?(diagnostic: Diagnostic): void;
 	/** Add a performer to the draft roster from the floating assignment card. */
 	onAddPerformer?(displayName: string): void;
 	/**
@@ -165,6 +166,10 @@ interface EditorOverlayCallbacks {
 	/** A deliberate pointer press; true means Review handled it instead of a popover. */
 	onDiagnosticReviewRequest?(diagnostic: Diagnostic, range?: TextRange): boolean;
 	onDiagnosticActivateIntent?(diagnostic: Diagnostic, intent: 'navigate' | 'fix'): void;
+	/** Open the retained details of a stable section identity, including empty sections. */
+	onSectionDetailRequest?(sectionId: string): void;
+	/** Apply the same touched performer identities as this history event before publishing its snapshot. */
+	onPerformerRecordsChanged?(delta: import('$lib/core/types.js').PerformerRecordDelta): void;
 	/**
 	 * An audio file was dropped on the document.
 	 *
@@ -217,6 +222,8 @@ interface EditorOverlayCallbacks {
 	 * record does.
 	 */
 	onMediaSourcePasted?(source: ClipboardMediaSource): void;
+	/** Merge validated copied identities before the pasted model's snapshot is published. */
+	onPerformersPasted?(performers: readonly import('$lib/core/types.js').PerformerRecord[]): void;
 	/**
 	 * Play from a line's anchored moment.
 	 *
@@ -256,7 +263,7 @@ interface EditorOverlayCallbacks {
 	 * the whole document, and offered inside a scope it would be a press that
 	 * refuses — the failure `availableRates` exists to prevent.
 	 */
-	onLyricSyncChange?(active: boolean, startAt?: number, scoped?: boolean): void;
+	onLyricSyncChange?(active: boolean, startAt?: number, scoped?: boolean, reason?: 'profile'): void;
 	/**
 	 * A run did something on its own that the user has to be able to see.
 	 *
@@ -327,6 +334,8 @@ interface EditorOverlayCallbacks {
 export type LyricEditorCallbacks = EditorCallbacks & EditorOverlayCallbacks;
 
 export interface EditorPaneProps {
+	initialConversion?: import('$lib/persistence/conversion.js').ConversionEnvelope;
+	initialConversionRecovery?: import('$lib/persistence/conversion.js').ConversionRecovery;
 	initialText: string;
 	initialSelection?: SerializedSelection;
 	/** Revision of the snapshot used to mount or remount this editor instance. */

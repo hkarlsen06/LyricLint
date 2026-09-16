@@ -13,6 +13,8 @@ import type {
 	AssistantToolTurnRecord
 } from '$lib/persistence/types.js';
 import { corpusMetadata } from '../../../services/rules-assistant/generated/rules-context-meta.js';
+import { musixmatchCorpusMetadata } from '../../../services/rules-assistant/generated/musixmatch-context-meta.js';
+import type { ProfileId } from '$lib/profiles/types.js';
 import { askAssistant, type AskOptions } from './api.js';
 import { browserChatLocks, withChatLock, type ChatLockOutcome } from './chat-lock.js';
 import { nowIso, type AssistantChatRepository } from './chat-repository.js';
@@ -165,6 +167,7 @@ function linkFailure(
 	bridge: AssistantDraftBridge | undefined,
 	action: AssistantLinkAction
 ): AssistantLinkFailureReason | undefined {
+	if (bridge?.profile?.() === 'musixmatch') return 'not-linkable';
 	if (!bridge) return 'not-found';
 	const resolution = resolveLinkAction(bridge.readText(), action);
 	if (!resolution.ok) return resolution.reason;
@@ -289,9 +292,37 @@ export function createAssistantState(deps: AssistantDeps) {
 	// Kept beyond a bridge's cleanup so the next registration can distinguish a
 	// keyed remount of this 'scribe from an actual move to another one.
 	let registeredDraftId: string | undefined;
+	let registeredDraftScope: string | undefined;
+	let guideProfile = $state<ProfileId>('genius');
 	let conversationGeneration = 0;
 	/** The attempt a challenge resumes. */
 	let currentAttempt: { assistantMessageId: string } | undefined;
+	let activeRequestAbort: AbortController | undefined;
+	function selectedProfile(): ProfileId {
+		return draftBridge?.profile?.() ?? guideProfile;
+	}
+	function selectedCorpus(profile = selectedProfile()) {
+		return profile === 'musixmatch'
+			? musixmatchCorpusMetadata
+			: { ruleSetVersion: deps.ruleSetVersion, corpusHash: deps.corpusHash };
+	}
+	function scopeFor(bridge: AssistantDraftBridge | undefined): string | undefined {
+		return bridge
+			? JSON.stringify([
+					bridge.draftId(),
+					bridge.profile?.() ?? guideProfile,
+					String(bridge.sessionId?.() ?? 'legacy')
+				])
+			: undefined;
+	}
+	function scopeMatches(message: AssistantMessageRecord | undefined): boolean {
+		if (!message || (message.profile ?? 'genius') !== selectedProfile()) return false;
+		if (message.draftScope !== undefined) return message.draftScope === scopeFor(draftBridge);
+		// Old permission-only turns may ask again in the current context. Old writes have no scope proof.
+		return !message.toolTurns?.some((turn) =>
+			turn.calls.some((call) => call.name !== 'read_scribe')
+		);
+	}
 
 	const readAccess = deps.getDraftAccess ?? getDraftAccess;
 	const writeAccess = deps.setDraftAccess ?? setDraftAccess;
@@ -351,7 +382,10 @@ export function createAssistantState(deps: AssistantDeps) {
 		chatId: string,
 		expectedGeneration = conversationGeneration
 	): Promise<void> {
-		await repo.markPendingInterrupted(chatId, (message) => decisionPending(message) !== undefined);
+		await repo.markPendingInterrupted(
+			chatId,
+			(message) => decisionPending(message) !== undefined && scopeMatches(message)
+		);
 		const storedMessages = await repo.messagesFor(chatId);
 		// A draft switch may have cleared the surface while IndexedDB was reading.
 		// Do not let that stale read put the previous conversation back.
@@ -387,7 +421,9 @@ export function createAssistantState(deps: AssistantDeps) {
 		const last = messages.at(-1);
 		const calls = last ? decisionPending(last) : undefined;
 		toolSession =
-			last && calls ? { assistantMessageId: last.id, phase: phaseFor(calls) } : undefined;
+			last && calls && scopeMatches(last)
+				? { assistantMessageId: last.id, phase: phaseFor(calls) }
+				: undefined;
 	}
 
 	/** Leaving a conversation abandons the decision it was waiting on; the
@@ -419,6 +455,9 @@ export function createAssistantState(deps: AssistantDeps) {
 	 * context.
 	 */
 	function clearConversationForDraftChange(): void {
+		activeRequestAbort?.abort();
+		activeRequestAbort = undefined;
+		busy = false;
 		conversationGeneration += 1;
 		const assistantMessageId =
 			currentAttempt?.assistantMessageId ?? toolSession?.assistantMessageId;
@@ -475,6 +514,7 @@ export function createAssistantState(deps: AssistantDeps) {
 		response: Extract<TurnResponse, { kind: 'tool_calls' }>
 	): Promise<'continue' | 'wait' | 'failed'> {
 		const message = currentMessage(assistantMessageId);
+		if (!scopeMatches(message)) return 'failed';
 		const priorTurns = message?.toolTurns ?? [];
 		quota = response.quota;
 		if (priorTurns.length >= MAX_TOOL_ROUNDS) {
@@ -490,6 +530,8 @@ export function createAssistantState(deps: AssistantDeps) {
 		let storedDecision: DraftAccessDecision | undefined;
 		if (response.calls.some((call) => call.name === 'read_scribe') && bridge) {
 			storedDecision = await readAccess(bridge.draftId());
+			if (!scopeMatches(currentMessage(assistantMessageId)) || draftBridge !== bridge)
+				return 'failed';
 			draftAccessState = storedDecision;
 		}
 		const calls: AssistantToolCallRecord[] = response.calls.map((call) => {
@@ -566,10 +608,20 @@ export function createAssistantState(deps: AssistantDeps) {
 		userMessage: AssistantMessageRecord,
 		turnstileToken?: string
 	): Promise<void> {
+		const attemptProfile = selectedProfile();
+		const attemptDraftScope = scopeFor(draftBridge);
+		const attemptGeneration = bridgeGeneration;
+		const requestAbort = new AbortController();
+		activeRequestAbort = requestAbort;
+		const stillCurrent = () =>
+			attemptProfile === selectedProfile() &&
+			attemptDraftScope === scopeFor(draftBridge) &&
+			attemptGeneration === bridgeGeneration;
 		busy = true;
 		failure = undefined;
 		currentAttempt = { assistantMessageId };
 		const showProgress = (answer: Extract<TurnResponse, { kind: 'answer' }>['assistant']) => {
+			if (!stillCurrent()) return;
 			messages = messages.map((message) =>
 				message.id === assistantMessageId ? { ...message, answer } : message
 			);
@@ -579,19 +631,25 @@ export function createAssistantState(deps: AssistantDeps) {
 			await patchMessage(assistantMessageId, { status: 'pending' });
 			while (true) {
 				const pending = currentMessage(assistantMessageId);
-				if (!pending) return;
-				const window = boundedHistory(messages.slice(0, assistantIndex - 1), userMessage.content);
+				if (!pending || !stillCurrent() || !scopeMatches(pending)) return;
+				const window = boundedHistory(
+					messages.slice(0, assistantIndex - 1),
+					userMessage.content,
+					attemptProfile
+				);
 				contextDividerIndex = window.firstIncludedIndex;
 				const bridge = draftBridge;
 				const draftText = bridge?.readText().slice(0, MAX_DRAFT_CHARS) ?? '';
 				const askOptions: AskOptions = {
+					signal: requestAbort.signal,
+					profile: attemptProfile,
 					chatId,
 					messages: [
 						...window.messages,
 						...liveToolSuffix(pending.toolTurns, draftText, bridge?.sectionLinks() ?? [])
 					],
-					clientRuleSetVersion: deps.ruleSetVersion,
-					clientCorpusHash: deps.corpusHash,
+					clientRuleSetVersion: selectedCorpus(attemptProfile).ruleSetVersion,
+					clientCorpusHash: selectedCorpus(attemptProfile).corpusHash,
 					toolsAvailable: draftBridge !== undefined,
 					onProgress: showProgress,
 					onRetry: resetProgress
@@ -601,7 +659,7 @@ export function createAssistantState(deps: AssistantDeps) {
 				// A draft switch can interrupt a parked or in-flight tool turn while
 				// its provider response is on the way back. Never let that late response
 				// recreate the session against the replacement bridge.
-				if (currentMessage(assistantMessageId)?.status !== 'pending') return;
+				if (!stillCurrent() || currentMessage(assistantMessageId)?.status !== 'pending') return;
 				// A token is for the request it resumed, not every later tool round.
 				turnstileToken = undefined;
 				challengePending = false;
@@ -641,7 +699,10 @@ export function createAssistantState(deps: AssistantDeps) {
 				await patchMessage(assistantMessageId, { status: 'failed' });
 			}
 		} finally {
-			busy = false;
+			if (activeRequestAbort === requestAbort) {
+				activeRequestAbort = undefined;
+				busy = false;
+			}
 		}
 	}
 
@@ -651,11 +712,13 @@ export function createAssistantState(deps: AssistantDeps) {
 	): Promise<void> {
 		const message = currentMessage(assistantMessageId);
 		const turns = message?.toolTurns;
+		if (!scopeMatches(message)) return;
 		const latest = turns?.at(-1);
 		if (!turns || !latest) return;
 		const nextCalls = update(latest.calls);
 		const nextTurns = [...turns.slice(0, -1), { ...latest, calls: nextCalls }];
 		await patchMessage(assistantMessageId, { toolTurns: nextTurns });
+		if (!scopeMatches(currentMessage(assistantMessageId))) return;
 		const phase = phaseFor(nextCalls);
 		toolSession = { assistantMessageId, phase };
 		if (callsAcknowledged(nextCalls)) await attempt(assistantMessageId);
@@ -664,6 +727,10 @@ export function createAssistantState(deps: AssistantDeps) {
 	function pendingProposal(id: string): AssistantProposalRecord | undefined {
 		const assistantMessageId = toolSession?.assistantMessageId;
 		if (!assistantMessageId) return undefined;
+		if (!scopeMatches(currentMessage(assistantMessageId))) {
+			interruptToolSessionForDraftChange();
+			return undefined;
+		}
 		const calls = currentMessage(assistantMessageId)?.toolTurns?.at(-1)?.calls ?? [];
 		for (const call of calls) {
 			if (call.name !== 'propose_edits') continue;
@@ -678,6 +745,10 @@ export function createAssistantState(deps: AssistantDeps) {
 	function pendingLinkAction(id: string): AssistantLinkActionRecord | undefined {
 		const assistantMessageId = toolSession?.assistantMessageId;
 		if (!assistantMessageId) return undefined;
+		if (!scopeMatches(currentMessage(assistantMessageId))) {
+			interruptToolSessionForDraftChange();
+			return undefined;
+		}
 		const calls = currentMessage(assistantMessageId)?.toolTurns?.at(-1)?.calls ?? [];
 		for (const call of calls) {
 			if (call.name !== 'manage_links') continue;
@@ -799,7 +870,14 @@ export function createAssistantState(deps: AssistantDeps) {
 			return draftAccessState;
 		},
 
-		async open(): Promise<void> {
+		get profile() {
+			return selectedProfile();
+		},
+		async open(profile?: ProfileId): Promise<void> {
+			if (profile && !draftBridge && profile !== guideProfile) {
+				guideProfile = profile;
+				clearConversationForDraftChange();
+			}
 			isOpen = true;
 			await initialize();
 		},
@@ -911,6 +989,8 @@ export function createAssistantState(deps: AssistantDeps) {
 			// existing conversation can be refused here.
 			const outcome = await withConversationLock(chatId, async () => {
 				const user = await repo.addMessage({
+					profile: selectedProfile(),
+					...selectedCorpus(),
 					chatId,
 					role: 'user',
 					createdAt: nowIso(),
@@ -918,6 +998,9 @@ export function createAssistantState(deps: AssistantDeps) {
 					content: text
 				});
 				const placeholder = await repo.addMessage({
+					profile: selectedProfile(),
+					...selectedCorpus(),
+					draftScope: scopeFor(draftBridge),
 					chatId,
 					role: 'assistant',
 					createdAt: nowIso(),
@@ -936,6 +1019,13 @@ export function createAssistantState(deps: AssistantDeps) {
 			if (busy) return;
 			const target = messages.find((message) => message.id === assistantMessageId);
 			if (!target || target.role !== 'assistant' || hasCompletedAnswer(target)) return;
+			if ((target.profile ?? 'genius') !== selectedProfile()) {
+				failure = {
+					code: 'invalid_request',
+					message: 'Switch to the original guideline profile to retry this question.'
+				};
+				return;
+			}
 			const chatId = activeChatId;
 			if (!chatId) return;
 			// The reset is inside the lock with the request it precedes: stripped
@@ -945,6 +1035,9 @@ export function createAssistantState(deps: AssistantDeps) {
 				toolSession = undefined;
 				challengePending = false;
 				await patchMessage(assistantMessageId, {
+					profile: selectedProfile(),
+					...selectedCorpus(),
+					draftScope: scopeFor(draftBridge),
 					status: 'pending',
 					content: '',
 					answer: undefined,
@@ -969,10 +1062,15 @@ export function createAssistantState(deps: AssistantDeps) {
 			// effect depends on itself and boot never settles.
 			untrack(() => {
 				const nextDraftId = bridge.draftId();
-				if (registeredDraftId !== undefined && registeredDraftId !== nextDraftId) {
+				const nextScope = scopeFor(bridge);
+				if (
+					registeredDraftId !== undefined &&
+					(registeredDraftId !== nextDraftId || registeredDraftScope !== nextScope)
+				) {
 					clearConversationForDraftChange();
 				}
 				registeredDraftId = nextDraftId;
+				registeredDraftScope = nextScope;
 			});
 			draftBridge = bridge;
 			draftAccessState = undefined;
@@ -1002,7 +1100,14 @@ export function createAssistantState(deps: AssistantDeps) {
 			const bridge = draftBridge;
 			const assistantMessageId = toolSession?.assistantMessageId;
 			if (!bridge || !assistantMessageId || toolSession?.phase !== 'awaiting-permission') return;
+			if (!scopeMatches(currentMessage(assistantMessageId))) {
+				interruptToolSessionForDraftChange();
+				return;
+			}
+			const scope = scopeFor(bridge);
 			await writeAccess(bridge.draftId(), 'granted');
+			if (draftBridge !== bridge || scope !== scopeFor(draftBridge)) return;
+			await patchMessage(assistantMessageId, { draftScope: scope });
 			bridgeGeneration += 1;
 			draftAccessState = 'granted';
 			await updateLatestTurn(assistantMessageId, (calls) =>
@@ -1016,7 +1121,13 @@ export function createAssistantState(deps: AssistantDeps) {
 			const bridge = draftBridge;
 			const assistantMessageId = toolSession?.assistantMessageId;
 			if (!bridge || !assistantMessageId || toolSession?.phase !== 'awaiting-permission') return;
+			if (!scopeMatches(currentMessage(assistantMessageId))) {
+				interruptToolSessionForDraftChange();
+				return;
+			}
+			const scope = scopeFor(bridge);
 			await writeAccess(bridge.draftId(), 'denied');
+			if (draftBridge !== bridge || scope !== scopeFor(draftBridge)) return;
 			bridgeGeneration += 1;
 			draftAccessState = 'denied';
 			await updateLatestTurn(assistantMessageId, (calls) =>

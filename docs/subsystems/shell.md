@@ -11,6 +11,16 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 ## The rules
 
+- The document toolbar exposes a per-draft Genius/Musixmatch format menu with keyboard navigation,
+  a checked state and stable width. Song owns retained section types, voices, annotations,
+  language spans, authored forms and explicit conversion decisions. Hidden information is reviewed
+  through its metadata location, never through invented lyric underlines. Copy and text export
+  always use the active projection; Scribe export preserves the complete document.
+- Format changes reset stale diagnostic and assistant proposals, including a switch away and
+  back. Compare always renders the Genius projection against the Genius baseline and maps a
+  chosen difference back to the active editor. Text checks and retained-detail review never claim
+  that listening, attribution or external Musixmatch tagging have been completed.
+
 - The workspace reveals its initial viewport's lyric lines and diagnostic rows on load and
   each ’scribe identity change, top-to-bottom, using only temporary opacity. A prepaint mask prevents a flash;
   its two-second limit reveals all content if startup is slow. Interaction immediately reveals
@@ -95,7 +105,7 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   the toolbar's `Copy lyrics` action. Contextual actions may appear on other surfaces with
   shared behavior and the emphasis described in `DESIGN.md`. `SongPanel.svelte.test.ts` and
   `PreferencesPanel.svelte.test.ts` cover these sections.
-- The grammar-checking section draws only while the document's language is English
+- The grammar-checking section draws only in Genius while the document's language is English
   (`isEnglishLanguage`, the same predicate the catalog rules gate on). Harper refuses every
   other language before its download, so under Norwegian the switch would be an answer that
   cannot be carried out. The app-scoped preference keeps its stored value; only the control

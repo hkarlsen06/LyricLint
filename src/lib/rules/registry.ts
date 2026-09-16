@@ -62,6 +62,8 @@ import {
 	unknownUnresolvedRule
 } from './catalog/unknown-marker.js';
 import { sourceRegistry } from './data/sources.js';
+import { profileSourceRegistry } from '$lib/profiles/sources.js';
+import { musixmatchRules } from './musixmatch.js';
 
 export const enabledRules: readonly RuleDefinition[] = [
 	syntaxUnbalancedBracketsRule,
@@ -155,8 +157,9 @@ export function validateRuleRegistry(
 }
 
 validateRuleRegistry();
+validateRuleRegistry(musixmatchRules, profileSourceRegistry);
 
-const ruleById = new Map(enabledRules.map((rule) => [rule.id, rule]));
+const ruleById = new Map([...enabledRules, ...musixmatchRules].map((rule) => [rule.id, rule]));
 
 export function getRule(id: string): RuleDefinition | undefined {
 	return ruleById.get(id);

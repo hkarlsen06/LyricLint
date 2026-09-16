@@ -1,6 +1,47 @@
 // Decision record: docs/subsystems/drafts.md and docs/subsystems/section-links.md — read both before changing this file, and update them with any behavior change.
 import type { CompareBaselineRecord, SectionLink } from '../core/types.js';
 import { validateLinkPassages } from '../core/link-record.js';
+import {
+	copyConversionEnvelope,
+	parseConversionRecovery,
+	parseOriginalRecovery
+} from './conversion.js';
+import type { DraftRecord } from './types.js';
+
+/** Rich state is authoritative; legacy view coordinates are migration inputs only. */
+export function copyConversionFields(source: DraftRecord, target: DraftRecord): void {
+	if (source.originalRecovery !== undefined)
+		target.originalRecovery = parseOriginalRecovery(source.originalRecovery);
+	if (source.storageGeneration !== undefined) {
+		if (!Number.isSafeInteger(source.storageGeneration) || source.storageGeneration < 0) {
+			throw new Error('Invalid draft storage generation.');
+		}
+		target.storageGeneration = source.storageGeneration;
+	}
+	if (source.conversionRecovery !== undefined) {
+		target.conversionRecovery = parseConversionRecovery(source.conversionRecovery, source.text);
+		if (
+			source.conversion === undefined ||
+			JSON.stringify(source.conversion) !== JSON.stringify(source.conversionRecovery.checkpoint)
+		) {
+			throw new Error('The recovery checkpoint and conversion document do not match.');
+		}
+	}
+	if (source.conversion !== undefined) {
+		if (
+			source.conversion.model.defaultLanguage !== source.language &&
+			source.conversionRecovery === undefined
+		) {
+			throw new Error('The draft language and conversion document do not match.');
+		}
+		target.conversion = copyConversionEnvelope(
+			source.conversion,
+			target.conversionRecovery ? undefined : source.text
+		);
+		delete target.lineAnchors;
+		delete target.sectionLinks;
+	}
+}
 
 /**
  * A deep copy of a draft's section links.

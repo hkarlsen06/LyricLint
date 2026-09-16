@@ -1,6 +1,8 @@
 <script lang="ts">
 	import InlineDiffText from '../primitives/InlineDiffText.svelte';
 	import { onMount } from 'svelte';
+	import { retainedFindings } from '$lib/conversion/review.js';
+	import { renderProfile, mapSelection } from '$lib/conversion/index.js';
 	import { diffDocuments, type DiffRow } from '$lib/core/document-diff.js';
 	import { formatDraftDate } from '../drafts/draft-date.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
@@ -11,10 +13,11 @@
 	/** The paste step is showing over a baseline that already exists. */
 	let replacing = $state(false);
 
+	const retainedReview = $derived(retainedFindings(controller.snapshot, 'genius'));
 	const baseline = $derived(controller.compareBaseline);
 	const asking = $derived(baseline === undefined || replacing);
 	const diff = $derived(
-		baseline !== undefined ? diffDocuments(baseline.text, controller.snapshot.text) : undefined
+		baseline !== undefined ? diffDocuments(baseline.text, controller.geniusText) : undefined
 	);
 
 	/**
@@ -74,6 +77,13 @@
 	 * order to go and edit.
 	 */
 	function revealRow(at: number): void {
+		const conversion = controller.snapshot.conversion;
+		if (conversion?.profile === 'musixmatch') {
+			const genius = renderProfile(conversion.model, 'genius');
+			const active = renderProfile(conversion.model, 'musixmatch');
+			if (!genius.ok || !active.ok) return;
+			at = mapSelection(genius.value, active.value, { anchor: at, head: at }).anchor;
+		}
 		close();
 		// A closing modal restores focus to its trigger — synchronously on some
 		// engines, a task later on WebKit — so editor focus taken in the same
@@ -148,6 +158,10 @@
 	}
 </script>
 
+{#if retainedReview.length}<p class="compare-dialog__scope">
+		The Genius view has retained details to review in Song. This comparison does not confirm that
+		the transcription is ready to submit.
+	</p>{/if}
 {#if asking}
 	<!-- The ask is what makes the comparison unambiguous: a paste into the
 				     editor is working text, a paste here is the page's version, and no
@@ -288,6 +302,10 @@
 {/if}
 
 <style>
+	.compare-dialog__scope {
+		padding-inline: var(--space-5);
+		color: var(--color-text-muted);
+	}
 	/* The ask is prose and a paste area directly on the dialog — the dialog is
 	   already the surface, so nothing in it is boxed. */
 	.compare-dialog__ask {

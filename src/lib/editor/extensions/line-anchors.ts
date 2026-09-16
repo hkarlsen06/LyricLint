@@ -1,3 +1,4 @@
+import { profileForState } from './conversion-state.js';
 // Decision record: docs/subsystems/line-anchors.md — read it before changing this file, and update it with any behavior change.
 import {
 	EditorState,
@@ -43,8 +44,16 @@ export type { LineAnchor };
  * and only the document knows the `](id)` that closes it — sung text that gets
  * timed, not structure.
  */
-export function isStampableLine(line: Line, doc: Text): boolean {
-	return isLyricLine(line.text, { annotations: annotationSpansFor(doc), lineFrom: line.from });
+export function isStampableLine(
+	line: Line,
+	doc: Text,
+	profile: 'genius' | 'musixmatch' = 'genius'
+): boolean {
+	return isLyricLine(line.text, {
+		annotations: annotationSpansFor(doc),
+		lineFrom: line.from,
+		profile
+	});
 }
 
 /**
@@ -1302,7 +1311,11 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 				// deliberate anchor must not vanish.
 				if (
 					found === undefined &&
-					!isStampableLine(view.state.doc.lineAt(line.from), view.state.doc)
+					!isStampableLine(
+						view.state.doc.lineAt(line.from),
+						view.state.doc,
+						profileForState(view.state)
+					)
 				) {
 					return null;
 				}

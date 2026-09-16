@@ -33,13 +33,14 @@
 	import { onDestroy, tick, type Component, untrack } from 'svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import {
+		projectionPolicyContext,
 		buildRuleContext,
 		filterForEditorState,
 		everyLyricLineTimed,
 		isTypingChange,
 		selectionCoversLyricLine,
 		timedLinesSkippable,
-		resolveVoiceGroupRanges
+		resolveProfileVoiceGroupRanges
 	} from '../state/wiring.js';
 	import ControlTooltip from '../primitives/ControlTooltip.svelte';
 	import DocumentToolbar from './DocumentToolbar.svelte';
@@ -78,7 +79,8 @@
 		loadNativeRules?: () => Promise<{ runRules: NativeRules }>;
 	} = $props();
 
-	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
+	const placeholderEditor = untrack(() => controller.editor);
+	let editorHandle = $state<EditorHandle>(placeholderEditor);
 	let editorExpanded = $state(false);
 	let workspaceElement = $state<HTMLElement>();
 	let entranceReadyDraftId = $state<string>();
@@ -107,6 +109,13 @@
 		}
 		if (tab !== 'linter') toolsTab = tab;
 		previousTab = tab;
+	});
+
+	let previousPassageRequest = untrack(() => controller.conversionPassageRequest);
+	$effect(() => {
+		const request = controller.conversionPassageRequest;
+		if (request !== previousPassageRequest && phone.current) mobileView = 'write';
+		previousPassageRequest = request;
 	});
 
 	function showMobileView(view: MobileView): void {
@@ -215,9 +224,52 @@
 		void mediaPicker?.open(source, () => void focusMediaOpener(workspace));
 	}
 
+	let lastRecordingAttempt:
+		| {
+				editor: EditorHandle;
+				model: NonNullable<EditorSnapshot['conversion']>['model'];
+				recordingId: string | undefined;
+		  }
+		| undefined;
+	$effect(() => {
+		if (
+			!editorHandle ||
+			editorHandle === placeholderEditor ||
+			controller.editor !== editorHandle ||
+			entranceReadyDraftId !== controller.draftId ||
+			!editorHandle.dispatchConversionAction
+		)
+			return;
+		const snapshot = controller.snapshot;
+		const conversion = snapshot.conversion;
+		const media = controller.media;
+		if (
+			!conversion ||
+			!media ||
+			media.restoring ||
+			snapshot.conversionRecovery ||
+			snapshot.originalRecovery ||
+			snapshot.composing ||
+			untrack(() => editorHandle.getSnapshot().composing)
+		)
+			return;
+		const recordingId = media.recordingId;
+		if (conversion.model.recordingId === recordingId) return;
+		if (
+			lastRecordingAttempt?.editor === editorHandle &&
+			lastRecordingAttempt.model === conversion.model &&
+			lastRecordingAttempt.recordingId === recordingId
+		)
+			return;
+		lastRecordingAttempt = { editor: editorHandle, model: conversion.model, recordingId };
+		untrack(() => controller.applyConversionAction({ kind: 'setRecording', recordingId }));
+	});
+
 	// Undefined in a workspace rendered on its own, which is how every component
 	// test renders it — the control simply does not draw there.
 	const assistant = useAssistantState();
+	const assistantProfile = $derived(controller.profile);
+	const assistantSession = $derived(controller.profileSession);
 
 	// The assistant store outlives this workspace and deliberately knows nothing
 	// about the editor. This bridge reads the controller's current handle at call
@@ -225,10 +277,20 @@
 	// was just destroyed. Tracking the draft id re-registers the seam when the
 	// open draft changes, which also reloads that draft's stored access decision.
 	$effect(() => {
-		if (!assistant) return;
+		if (
+			!assistant ||
+			!editorHandle ||
+			editorHandle === placeholderEditor ||
+			controller.editor !== editorHandle
+		)
+			return;
 		const draftId = controller.draftId;
+		const profile = assistantProfile;
+		const sessionId = assistantSession;
 		const bridge: AssistantDraftBridge = {
 			draftId: () => draftId,
+			profile: () => profile,
+			sessionId: () => sessionId,
 			readText: () => controller.snapshot.text,
 			revision: () => controller.snapshot.revision,
 			preview(edit) {
@@ -354,7 +416,7 @@
 				}
 			}
 		};
-		return assistant.registerDraftBridge(bridge);
+		return untrack(() => assistant.registerDraftBridge(bridge));
 	});
 
 	const reducedMotion = prefersReducedMotion();
@@ -483,7 +545,7 @@
 					`${performer.id}:${performer.normalizedKey}:${performer.aliases.join('\u001f')}`
 			)
 			.join('\u001e');
-		return `${controller.language}\u0000${performerKey}\u0000${snapshot.revision}\u0000${snapshot.text}`;
+		return `${snapshot.conversion?.profile ?? 'genius'}\u0000${snapshot.conversion?.model.contentKind ?? 'unknown'}\u0000${controller.language}\u0000${performerKey}\u0000${snapshot.revision}\u0000${snapshot.text}`;
 	}
 
 	// What a Harper answer belongs to: the draft as well as the lint key, because
@@ -506,6 +568,7 @@
 	function shouldRunHarper(snapshot: EditorSnapshot): boolean {
 		return (
 			!harperUnavailable &&
+			(snapshot.conversion?.profile ?? 'genius') === 'genius' &&
 			controller.grammarCheckEnabled &&
 			resolveLanguageTag(controller.language) === 'en' &&
 			snapshot.text.trim().length > 0
@@ -607,6 +670,10 @@
 	// The controller owns recovered links before the real editor is attached.
 	// Reading the bindable handle directly here briefly sees its unrestored state.
 	function enrichSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
+		if (snapshot.conversionRecovery || snapshot.originalRecovery) {
+			invalidateHarper();
+			return { ...snapshot, diagnostics: [] };
+		}
 		noteDocumentChange(snapshot);
 		// Keep publishing text, selection and revisions while the first catalog
 		// request is pending. Its completion always checks the latest snapshot.
@@ -639,11 +706,16 @@
 					})
 				};
 			}
+			const policy = projectionPolicyContext(snapshot);
 			const context = buildRuleContext(
 				controller.language,
 				controller.performers,
 				controller.ruleSet?.version ?? 'unavailable',
-				snapshot.revision
+				snapshot.revision,
+				snapshot.conversion?.profile,
+				snapshot.conversion?.model.contentKind,
+				policy.languageRanges,
+				policy.confirmedFacts
 			);
 			const nativeDiagnostics = nativeRules(snapshot.parsed, context);
 			nativeRulesStatus = 'ready';
@@ -708,6 +780,7 @@
 	});
 
 	const editorContext = $derived<EditorDisplayContext>({
+		profile: controller.profile,
 		language: controller.language,
 		performers: controller.performers,
 		ruleSetVersion: controller.ruleSet?.version ?? 'unavailable',
@@ -716,25 +789,35 @@
 			revision: controller.snapshot.revision,
 			items: controller.unignoredDiagnostics
 		},
-		voiceGroups: resolveVoiceGroupRanges(controller.snapshot.parsed, controller.performers),
+		voiceGroups: resolveProfileVoiceGroupRanges(controller.snapshot, controller.performers),
 		languagePack: getLanguagePack(controller.language),
 		reducedMotion,
 		sources: [...controller.sources.values()]
 	});
 
 	const editorCallbacks: LyricEditorCallbacks = {
+		onPerformersPasted: (performers) => controller.adoptPastedPerformers(performers),
 		onSnapshot: publishSnapshot,
 		// Assignment happens inline in the floating card; the right panel keeps
 		// whatever tab the user chose.
 		onAssignRequest: () => {},
 		onAddPerformer: (displayName) => controller.addPerformer(displayName),
+		onPerformerRecordsChanged: (delta) => controller.adoptPerformerRecords(delta),
 		onPerformerRenamed: ({ performerId, previousName, displayName }) =>
 			controller.adoptHeaderRename(performerId, previousName, displayName),
-		onSectionHeaderRequest: () => {},
+		onSectionDetailRequest: (sectionId) => {
+			controller.openSectionDetails(sectionId);
+			editorExpanded = false;
+			if (phone.current) mobileView = 'tools';
+		},
+		onSectionHeaderRequest: () => {
+			if (controller.profile === 'musixmatch') controller.insertSection();
+		},
 		// `Ctrl-Alt-U`, and the action bar's own press goes through the controller
 		// directly — one implementation either way, because the edit is the
 		// session's to dispatch.
 		onUnknownMarkerRequest: () => {
+			if (controller.profile === 'musixmatch') return false;
 			controller.insertUnknownMarker();
 			return true;
 		},
@@ -790,6 +873,19 @@
 		onAnnouncement: (message) => controller.feedback.announce(message),
 		createPerformerEdit: ({ range, performerIds, sectionPerformerIds }) => {
 			const snapshot = controller.snapshot;
+			if (controller.profile === 'musixmatch') {
+				const sectionId = snapshot.parsed.sections.find(
+					(section) => section.from <= range.from && range.from <= section.to
+				)?.conversionSectionId;
+				if (sectionId)
+					controller.applyConversionAction({
+						kind: 'assignVoice',
+						range,
+						sectionId,
+						performerIds: [...performerIds]
+					});
+				return undefined;
+			}
 			const result = assignVoiceGroup({
 				revision: snapshot.revision,
 				text: snapshot.text,
@@ -806,6 +902,19 @@
 		},
 		createUnknownVoiceEdit: ({ range, styleSlot }) => {
 			const snapshot = controller.snapshot;
+			if (controller.profile === 'musixmatch') {
+				const sectionId = snapshot.parsed.sections.find(
+					(section) => section.from <= range.from && range.from <= section.to
+				)?.conversionSectionId;
+				if (sectionId)
+					controller.applyConversionAction({
+						kind: 'assignVoice',
+						range,
+						sectionId,
+						performerIds: []
+					});
+				return undefined;
+			}
 			const request: UnknownVoiceRequest = {
 				revision: snapshot.revision,
 				text: snapshot.text,
@@ -870,6 +979,7 @@
 		onApplyDiagnosticFixBatch: (diagnostic, fix) => controller.applyFixBatch(diagnostic, fix),
 		onIgnoreDiagnostic: (diagnostic) => controller.ignoreDiagnostic(diagnostic),
 		onSetLanguage: (language) => controller.setLanguage(language),
+		onConversionReviewRequest: (diagnostic) => controller.openConversionReview(diagnostic),
 		// The song dropped onto the lyrics it belongs to. The editor recognized the
 		// file and knows nothing else about it; where the bytes go is the media
 		// store's business. False when the draft has no store yet, so the drop
@@ -925,7 +1035,8 @@
 			// Only an explicit request navigates. Reading or selecting lyrics keeps
 			// the current tool and its pending decision in place.
 			if (origin?.takesFocus === false) return;
-			controller.openLinking(request.range.from);
+			if (controller.profile === 'musixmatch') controller.setActiveTab('linking');
+			else controller.openLinking(request.range.from);
 			editorExpanded = false;
 			if (phone.current) mobileView = 'tools';
 			void tick().then(() => {
@@ -941,7 +1052,7 @@
 		// The editor owns the mode and this only reacts, which is what keeps the
 		// tape and the mode from ever disagreeing: `Escape` and running out of lines
 		// end a run without the shell being asked, and both arrive here.
-		onLyricSyncChange: (active, startAt, scoped) => {
+		onLyricSyncChange: (active, startAt, scoped, reason) => {
 			syncing = active;
 			syncScoped = active && (scoped ?? false);
 			const player = controller.media?.player;
@@ -976,7 +1087,7 @@
 							?.focus({ preventScroll: true });
 					} else editorHandle?.focus();
 				});
-			} else {
+			} else if (reason !== 'profile') {
 				player?.pause();
 			}
 		},
@@ -1009,7 +1120,9 @@
 
 	// Read off the snapshot rather than asked for through the handle: the anchors
 	// carry their own line numbers and the text is already here.
-	const allLinesTimed = $derived(everyLyricLineTimed(controller.snapshot.text, anchors));
+	const allLinesTimed = $derived(
+		everyLyricLineTimed(controller.snapshot.text, anchors, controller.profile)
+	);
 
 	// Whether a run standing here has timed lines to skip past — a song synced
 	// once and then split into more lines is timed everywhere except the new
@@ -1018,7 +1131,12 @@
 	// `allLinesTimed`, plus the selection: a tap moves the caret and writes an
 	// anchor, and both arrive here as state this derivation already reads.
 	const skippableAhead = $derived(
-		timedLinesSkippable(controller.snapshot.text, anchors, controller.snapshot.selection.head)
+		timedLinesSkippable(
+			controller.snapshot.text,
+			anchors,
+			controller.snapshot.selection.head,
+			controller.profile
+		)
 	);
 
 	// Whether a press on the sync control would scope the run to the selection —
@@ -1026,7 +1144,11 @@
 	// the snapshot the shell already holds, so the strip's label can say what the
 	// press will do before it is made.
 	const selectionSyncable = $derived(
-		selectionCoversLyricLine(controller.snapshot.text, controller.snapshot.selection)
+		selectionCoversLyricLine(
+			controller.snapshot.text,
+			controller.snapshot.selection,
+			controller.profile
+		)
 	);
 
 	// Two timed lines is the floor for a scroll to mean anything: with one, the
@@ -1270,6 +1392,8 @@
 				{@const mountedDraftId = controller.draftId}
 				<EditorComponent
 					initialText={controller.snapshot.text}
+					initialConversion={controller.snapshot.conversion}
+					initialConversionRecovery={controller.snapshot.conversionRecovery}
 					initialSelection={controller.snapshot.selection}
 					initialRevision={controller.snapshot.revision}
 					context={editorContext}

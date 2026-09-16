@@ -355,6 +355,7 @@ export type WireMessageV2 = z.infer<typeof wireMessageV2Schema>;
 
 export const answerRequestSchema = z
 	.object({
+		profile: z.enum(['genius', 'musixmatch']).optional(),
 		chatId: z.string().min(1).max(64),
 		messages: z.array(wireMessageV2Schema).min(1).max(REQUEST_RULES.maxSuppliedMessages),
 		turnstileToken: z.string().min(1).max(4096).optional(),

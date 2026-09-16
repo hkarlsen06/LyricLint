@@ -8,8 +8,22 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
 `src/lib/ui/site/rule-search.svelte.ts`, `src/lib/ui/site/guidance-search.svelte.ts`,
 `src/lib/ui/site/guidance-reading.svelte.ts`, `src/lib/guidance/guidance-search.ts`,
 `src/routes/(site)/rules/`, `src/routes/(site)/guidelines/`, `static/_redirects`, `vite.config.ts`
+Musixmatch additions: `src/lib/profiles/reference.server.ts`, `src/lib/profiles/policy-cases.ts`.
 
 ## The rules
+
+- The profile navigation keeps Genius and Musixmatch guide corpora distinct while reusing the
+  same finder and reader-facing topics. `/guidelines/musixmatch/` is the Musixmatch directory;
+  its topic routes publish all researched clauses with language scope, provenance, partial-check
+  limits and unresolved-source status. `/guidelines/?profile=musixmatch` enters that directory.
+  Check pages keep the common `/guidelines/checks/` path and derive their text from actual rule
+  output and tested invented cases. `mxm.*` IDs make profile ownership explicit.
+- A source-review finding is not an assertion that its example lyric is wrong. Check pages label
+  manual examples as requiring review and do not invent an accepted lyric for a missing-policy
+  finding. The assistant opens with the selected guide's independent, versioned corpus; stored
+  answers retain their original profile. `profiles/reference.test.ts`,
+  `ReferenceIndex.svelte.test.ts` and `e2e/profile-guide.spec.ts` pin reachability, profile
+  navigation, retained search selection, source conflicts and phone geometry.
 
 - Guidelines explain sourced conventions; rules explain the linter's exact triggers and fixes.
   One guide at `/guidelines/` uses `ReferenceIndex`, shared topics, and one server-derived corpus.

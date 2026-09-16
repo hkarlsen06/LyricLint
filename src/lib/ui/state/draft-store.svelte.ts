@@ -1,8 +1,22 @@
 import { normalizeGeniusUrl } from '$lib/core/genius-url.js';
-import { copyCompareBaseline, copySectionLinks } from '$lib/persistence/copy.js';
+import {
+	copyCompareBaseline,
+	copySectionLinks,
+	copyConversionFields
+} from '$lib/persistence/copy.js';
+import {
+	hasConversionMetadata,
+	type ConversionEnvelope,
+	type ConversionRecovery,
+	type OriginalRecovery
+} from '$lib/persistence/conversion.js';
 // The broadened controller, not the frozen one: `noteDraftLoaded` is the
 // persistence layer's own hook and is what a reopened draft's saves depend on.
-import type { AutosaveController } from '$lib/persistence/types.js';
+import type {
+	AutosaveController,
+	DraftSaveSideRecords,
+	DraftSaveResult
+} from '$lib/persistence/types.js';
 import type {
 	AutosaveStatus,
 	CompareBaselineRecord,
@@ -56,6 +70,11 @@ function prependRecentLanguage(languages: readonly string[], language: string): 
  * the draft identity, so the composing controller supplies that step.
  */
 interface DraftStoreBindings {
+	readonly conversion?: ConversionEnvelope;
+	readonly conversionRecovery?: ConversionRecovery;
+	readonly originalRecovery?: OriginalRecovery;
+	readonly saveSideRecords?: DraftSaveSideRecords;
+	onDraftForked?(result: DraftSaveResult): void;
 	readonly snapshot: EditorSnapshot;
 	readonly performers: readonly PerformerRecord[];
 	/** The editor's live anchors, saved with the text they describe. */
@@ -100,7 +119,9 @@ interface DraftStoreDependencies {
 	 * controller that does not pass it leaves the mirror answering for a record
 	 * that is gone until the next reload.
 	 */
-	ignoreStore?: Pick<DraftIgnoreStore, 'clearDraft'>;
+	ignoreStore?: Pick<DraftIgnoreStore, 'clearDraft' | 'reloadDraft'>;
+	/** Capture the outgoing playhead before draining its guarded save. */
+	beforeFlush?: () => Promise<void>;
 }
 
 interface DraftStore {
@@ -153,17 +174,22 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	let createdAt = $state(deps.initialDraft.createdAt);
 	let originalText = $state(deps.initialDraft.originalText);
 	let compareBaseline = $state(deps.initialDraft.compareBaseline);
+	let storageGeneration = deps.initialDraft.storageGeneration;
 	let drafts = $state<DraftSummary[]>([]);
 	let saveStatus = $state<AutosaveStatus>(deps.autosave.status());
 	let statusRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 	// Whether a save has been scheduled since the list was last re-read. See
 	// `noteSaveStatus`.
 	let sawPendingSave = false;
-	// Whether this draft has a record in the repository. A draft with no text
-	// never does — see `scheduleSave` — so blankness and persistence track each
-	// other, and startup recovery has already swept any blank record an older
-	// build left behind.
-	let persisted = deps.initialDraft.text.trim().length > 0 || !!deps.initialDraft.geniusUrl?.trim();
+	// A deliberate clear of saved work remains a recoverable, guarded save.
+	// Only a new draft that has never been saved can remain transient.
+	let persisted =
+		deps.initialDraft.storageGeneration !== undefined ||
+		deps.initialDraft.text.trim().length > 0 ||
+		!!deps.initialDraft.geniusUrl?.trim() ||
+		hasConversionMetadata(deps.initialDraft.conversion) ||
+		deps.initialDraft.conversionRecovery !== undefined ||
+		deps.initialDraft.originalRecovery !== undefined;
 
 	const feedback = deps.feedback;
 	const bindings = deps.bindings;
@@ -187,7 +213,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			id: draftId,
 			title,
 			text: currentSnapshot.text,
-			language,
+			language: bindings.conversion?.model.defaultLanguage ?? language,
 			performers: cloneRoster(bindings.performers),
 			createdAt,
 			updatedAt: deps.now(),
@@ -203,6 +229,13 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		if (compareBaseline !== undefined) {
 			record.compareBaseline = copyCompareBaseline(compareBaseline);
 		}
+		if (storageGeneration !== undefined) record.storageGeneration = storageGeneration;
+		if (bindings.conversion !== undefined) record.conversion = bindings.conversion;
+		if (bindings.conversionRecovery !== undefined)
+			record.conversionRecovery = bindings.conversionRecovery;
+		if (bindings.originalRecovery !== undefined)
+			record.originalRecovery = bindings.originalRecovery;
+		copyConversionFields(record, record);
 		return record;
 	}
 
@@ -258,54 +291,32 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		void store.refreshDrafts().catch(() => {});
 	}
 
-	/**
-	 * Drop the record of a draft the user has emptied, and forget any write
-	 * still queued for it. Undo puts the text back and the next save writes the
-	 * same id again, so nothing is lost by letting the empty version go.
-	 */
-	function discardEmptyDraft(): void {
-		if (deps.autosave.cancelDraft) {
-			deps.autosave.cancelDraft(draftId);
-		} else {
-			deps.autosave.cancel();
-		}
-		noteSaveStatus(deps.autosave.status());
-		if (!persisted) return;
-		persisted = false;
-		const discardedId = draftId;
-		// The record's ignore rows go with it inside `delete`'s own transaction,
-		// so the session's mirror is the only copy left standing.
-		deps.ignoreStore?.clearDraft(discardedId);
-		void deps.repository
-			.delete(discardedId)
-			.then(() => store.refreshDrafts())
-			.catch(() => {
-				reportFailure('Local storage could not be updated.');
-			});
-	}
-
 	function scheduleSave(keepEmpty = false): void {
 		const draft = draftFromSnapshot();
 
-		// An empty document is not a draft. It has nothing to recover and shows up
-		// as one more "Untitled transcription" among the real ones, so it is never
-		// written — and a draft emptied out gives up the record it had.
-		//
-		// Attached audio and a Genius page link are worth keeping on *every*
-		// save rather than only at the moment of attaching: the document is still
-		// wordless on the next snapshot, so without this the draft the attachment
-		// just created would be discarded again a keystroke later.
+		// Never-saved blank drafts are transient. Clearing saved work is an edit,
+		// so it must pass through CAS and preserve a conflicting empty local copy.
 		if (
+			!persisted &&
 			draft.text.trim().length === 0 &&
+			!hasConversionMetadata(draft.conversion) &&
+			draft.conversionRecovery === undefined &&
+			draft.originalRecovery === undefined &&
 			!geniusUrl?.trim() &&
 			!keepEmpty &&
 			!(deps.hasAttachment?.() ?? false)
 		) {
-			discardEmptyDraft();
+			if (deps.autosave.cancelDraft) deps.autosave.cancelDraft(draftId);
+			else deps.autosave.cancel();
+			noteSaveStatus(deps.autosave.status());
 			return;
 		}
 
-		deps.autosave.schedule({ revision: bindings.snapshot.revision, draft });
+		deps.autosave.schedule({
+			revision: bindings.snapshot.revision,
+			draft,
+			sideRecords: bindings.saveSideRecords
+		});
 		if (!persisted) {
 			// The first text is what creates the record, so it is also what makes
 			// this the draft a reload comes back to.
@@ -322,6 +333,11 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 					: undefined;
 		};
 		statusRefreshTimer = setTimeout(refreshStatus, 250);
+	}
+
+	async function flushPendingSaves(): Promise<void> {
+		await deps.beforeFlush?.();
+		await deps.autosave.flush();
 	}
 
 	function rememberLanguage(nextLanguage: string): void {
@@ -351,6 +367,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		createdAt = nextDraft.createdAt;
 		originalText = nextDraft.originalText;
 		compareBaseline = nextDraft.compareBaseline;
+		storageGeneration = nextDraft.storageGeneration;
 		bindings.onDraftLoaded(nextDraft);
 	}
 
@@ -417,7 +434,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		async flushAutosave() {
 			noteSaveStatus('saving');
 			try {
-				await deps.autosave.flush();
+				await flushPendingSaves();
 				noteSaveStatus(deps.autosave.status());
 			} catch {
 				// `noteSaveStatus` carries the report; a second one here would be the
@@ -432,8 +449,9 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			// first save that gives it one.
 			if (!persisted) return;
 			try {
-				await deps.repository.rename(draftId, trimmed);
 				scheduleSave();
+				await flushPendingSaves();
+				if (deps.autosave.status() === 'failed') throw new Error('Unsaved draft title');
 				await store.refreshDrafts();
 			} catch {
 				noteSaveStatus('failed', "'Scribe title could not be saved locally.");
@@ -457,7 +475,11 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		},
 		async createDraft() {
 			try {
-				await deps.autosave.flush();
+				await flushPendingSaves();
+				if (deps.autosave.status() === 'failed') {
+					noteSaveStatus('failed');
+					return;
+				}
 			} catch {
 				// Swapping to a fresh draft over a failed flush would abandon the
 				// unsaved work; keep the user where their words still are. The report
@@ -476,14 +498,24 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		},
 		async openDraft(id) {
 			try {
-				await deps.autosave.flush();
+				await flushPendingSaves();
+				if (deps.autosave.status() === 'failed') {
+					noteSaveStatus('failed');
+					return;
+				}
 				if (id === draftId) return;
-				const draft = await deps.repository.get(id);
+				let draft: DraftRecord | undefined;
+				try {
+					draft = await deps.repository.get(id);
+				} catch {
+					draft = await deps.repository.recoverUnreadable?.(id);
+				}
 				if (!draft) {
 					feedback.announce("That 'scribe is no longer available.");
 					return;
 				}
-				await deps.repository.setCurrent(id);
+				await deps.ignoreStore?.reloadDraft?.(draft.id);
+				await deps.repository.setCurrent(draft.id);
 				loadDraft(draft, true);
 				await store.refreshDrafts();
 				feedback.announce(`Opened ${draft.title}.`);
@@ -500,21 +532,23 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				return;
 			}
 			try {
-				await deps.repository.rename(id, trimmed);
+				if (id === draftId) {
+					title = trimmed;
+					scheduleSave();
+					await flushPendingSaves();
+					if (deps.autosave.status() === 'failed') throw new Error('Unsaved draft title');
+				} else await deps.repository.rename(id, trimmed);
 			} catch {
 				reportFailure("'Scribe title could not be saved locally.");
 				return;
-			}
-			if (id === draftId) {
-				title = trimmed;
-				scheduleSave();
 			}
 			await store.refreshDrafts();
 			feedback.announce(`Renamed 'scribe to ${trimmed}.`);
 		},
 		async duplicateDraft(id) {
 			try {
-				await deps.autosave.flush();
+				await flushPendingSaves();
+				if (deps.autosave.status() === 'failed') throw new Error('Unsaved draft');
 				const duplicate = await deps.repository.duplicate(id, deps.idFactory());
 				await store.refreshDrafts();
 				feedback.announce(`Duplicated ${duplicate.title.replace(/ copy$/, '')}.`);
@@ -547,11 +581,12 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				await deps.repository.delete(id);
 				// Same as the discard above: the rows went with the record, and the
 				// mirror is what would otherwise go on answering for a deleted draft.
-				deps.ignoreStore?.clearDraft(id);
+				deps.ignoreStore?.clearDraft(id, false);
 				if (id === draftId) {
 					const remaining = await deps.repository.list();
 					const next = remaining[0] ? await deps.repository.get(remaining[0].id) : undefined;
 					if (next) {
+						await deps.ignoreStore?.reloadDraft?.(next.id);
 						await deps.repository.setCurrent(next.id);
 						loadDraft(next, true);
 					} else {
@@ -580,6 +615,24 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	// The seeded list already leads with the opened draft's language; this call
 	// is what persists it for the next session.
 	rememberLanguage(deps.initialDraft.language);
+	deps.autosave.subscribeSaved?.((result) => {
+		if (result.sourceId !== draftId) return;
+		storageGeneration = result.draft.storageGeneration;
+		if (!result.conflicted) return;
+		draftId = result.draft.id;
+		title = result.draft.title;
+		createdAt = result.draft.createdAt;
+		persisted = true;
+		bindings.onDraftForked?.(result);
+		feedback.announce(
+			'Another tab saved this draft. Your edits were saved as a separate conflict copy.'
+		);
+		feedback.addToast({
+			message: 'Your edits were saved as a separate conflict copy.',
+			duration: NOTICE_TOAST_DURATION
+		});
+		void store.refreshDrafts();
+	});
 
 	return store;
 }

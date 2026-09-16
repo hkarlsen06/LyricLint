@@ -65,6 +65,38 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('ReferenceIndex', () => {
+	it('keeps the Musixmatch guide profile, topic links and search selection together', async () => {
+		const mxmCorpus = corpus.map((entry) => ({
+			...entry,
+			href:
+				entry.kind === 'guideline' ? '/guidelines/musixmatch/section-headers/#voices' : entry.href
+		}));
+		const view = await render(ReferenceIndex, {
+			corpus: mxmCorpus,
+			profile: 'musixmatch',
+			showProfileNavigation: true
+		});
+		await expect
+			.element(page.getByRole('link', { name: 'Musixmatch', exact: true }))
+			.toHaveAttribute('aria-current', 'true');
+		expect(document.querySelector('.reference-topics a')?.getAttribute('href')).toBe(
+			'/guidelines/musixmatch/section-headers/'
+		);
+		const profiles = document.querySelector<HTMLElement>('.guide-profiles')!;
+		const before = profiles.getBoundingClientRect().y;
+		await page.getByRole('searchbox').fill('two singers');
+		expect(profiles.getBoundingClientRect().y).toBe(before);
+		expect(document.querySelector('.reference-result')?.getAttribute('href')).toContain(
+			'/guidelines/musixmatch/section-headers/'
+		);
+		setReadingAnchor('voices');
+		await view.rerender({ selectedTopic: 'section-headers' });
+		await expect
+			.element(page.getByRole('link', { name: /Credit each singer/ }))
+			.toHaveAttribute('aria-current', 'page');
+		expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(1);
+	});
+
 	it('starts with a compact topic directory and exposes entries only after a choice', async () => {
 		await render(ReferenceIndex, { corpus });
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(0);

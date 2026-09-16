@@ -1,3 +1,5 @@
+import { profileProjection } from './conversion-effects.js';
+import { profileForState } from './conversion-state.js';
 import { EditorState, StateEffect, StateField, Transaction } from '@codemirror/state';
 import type { ChangeDesc, Extension, TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -108,6 +110,11 @@ function beginSession(state: EditorState, change: TextRange): HeaderRenameSessio
  */
 export function headerRenameFilter(): Extension {
 	return EditorState.transactionFilter.of((transaction) => {
+		if (
+			transaction.annotation(profileProjection) ||
+			profileForState(transaction.startState) === 'musixmatch'
+		)
+			return transaction;
 		if (!transaction.docChanged) {
 			return transaction;
 		}

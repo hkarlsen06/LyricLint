@@ -26,17 +26,22 @@
 
 	let {
 		corpus,
+		profile = 'genius',
+		showProfileNavigation = false,
 		selectedSlug,
 		selectedTopic,
 		assistant: assistantProp
 	}: {
 		corpus: readonly ReferenceDocument[];
+		profile?: 'genius' | 'musixmatch';
+		showProfileNavigation?: boolean;
 		selectedSlug?: string;
 		selectedTopic?: string;
 		assistant?: AssistantState;
 	} = $props();
 
 	const contextAssistant = useAssistantState();
+	const topicBase = $derived(profile === 'musixmatch' ? '/guidelines/musixmatch' : '/guidelines');
 	const assistant = $derived(assistantProp ?? contextAssistant);
 	const filters = $derived(referenceSearchState());
 	const searching = $derived(filters.query.trim().length > 0);
@@ -48,7 +53,7 @@
 			? corpus.find((doc) =>
 					selectedSlug
 						? doc.href === `/guidelines/checks/${selectedSlug}/`
-						: doc.kind === 'guideline' && doc.href.startsWith(`/guidelines/${selectedTopic}/`)
+						: doc.kind === 'guideline' && doc.href.startsWith(`${topicBase}/${selectedTopic}/`)
 				)?.topic
 			: undefined
 	);
@@ -126,7 +131,7 @@
 		if (doc.kind === 'rule')
 			return selectedSlug && path === `/guidelines/checks/${selectedSlug}/` ? 'page' : undefined;
 		return selectedTopic &&
-			path === `/guidelines/${selectedTopic}/` &&
+			path === `${topicBase}/${selectedTopic}/` &&
 			doc.href.split('#')[1] === (reading || anchor)
 			? 'page'
 			: undefined;
@@ -156,6 +161,20 @@
 {/snippet}
 
 <div class="site-split__index reference-index" data-sveltekit-noscroll bind:this={column}>
+	{#if showProfileNavigation}
+		<nav aria-label="Guideline profile" class="guide-profiles">
+			<a
+				class="button button--quiet"
+				href={resolve('/guidelines/')}
+				aria-current={profile === 'genius' ? 'true' : undefined}>Genius</a
+			>
+			<a
+				class="button button--quiet"
+				href={resolve('/guidelines/musixmatch/')}
+				aria-current={profile === 'musixmatch' ? 'true' : undefined}>Musixmatch</a
+			>
+		</nav>
+	{/if}
 	<search class="site-finder" aria-label="Find transcription answers">
 		<label for="reference-search">Search the transcription guide</label>
 		<input
@@ -173,7 +192,7 @@
 			<button
 				type="button"
 				class="button button--quiet button--flush reference-ask"
-				onclick={() => void assistant.open()}
+				onclick={() => void assistant.open(profile)}
 			>
 				<WandSparkles aria-hidden="true" size={20} strokeWidth={1.75} />
 				Ask a question
@@ -316,7 +335,9 @@
 							<a
 								class="button button--quiet"
 								href={referenceHref(
-									`${resolve('/(site)/guidelines/[topic]', { topic: topic.id })}/`
+									profile === 'musixmatch'
+										? `${resolve('/(site)/guidelines/musixmatch/[topic]', { topic: topic.id })}/`
+										: `${resolve('/(site)/guidelines/[topic]', { topic: topic.id })}/`
 								)}
 								aria-labelledby={`topic-title-${topic.id}`}
 								aria-describedby={`topic-question-${topic.id}`}>{@render topicLabel(topic)}</a
@@ -394,6 +415,18 @@
 </div>
 
 <style>
+	.guide-profiles {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		margin-block-end: var(--space-4);
+	}
+	.guide-profiles a[aria-current='true'] {
+		background: var(--color-fill);
+		font-weight: var(--font-weight-semibold);
+		text-decoration: underline;
+		text-underline-offset: var(--space-1);
+	}
 	.reference-index {
 		padding-block-end: var(--space-6);
 	}

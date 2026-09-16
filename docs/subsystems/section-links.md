@@ -10,6 +10,14 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
 
 ## The rules
 
+- Musixmatch's Linking panel addresses retained sections by stable identity; hidden Genius
+  headings are never parsed out of Musixmatch lyric text. `conversion/links.ts` adapts those
+  identities to the existing passage aligner only after an explicit linking action. Adding a
+  member includes its entire existing group, and `extendPassages` preserves prior connections,
+  local exclusions and independent wording. Unlinking removes that member without changing any
+  lyrics or the remaining peers. Rendering the panel or switching profiles discovers nothing.
+  `RichLinking.svelte.test.ts` and `conversion/links.test.ts` cover projected navigation,
+  explicit membership, mirroring, retained variations, exact projections and undo.
 - A section group records which performances belong together. Each stored **passage** names
   the actual subset sharing exact text; a chorus-only passage remains connected when an intro
   joins the group. Occurrences have non-overlapping absolute ranges and at most one occurrence

@@ -235,6 +235,9 @@ export function createTestWorkbench(options?: {
 				canUndo: false,
 				canRedo: false
 			};
+			if (draft.conversion) snapshot.conversion = draft.conversion;
+			if (draft.conversionRecovery) snapshot.conversionRecovery = draft.conversionRecovery;
+			if (draft.originalRecovery) snapshot.originalRecovery = draft.originalRecovery;
 			return snapshot;
 		}
 	};

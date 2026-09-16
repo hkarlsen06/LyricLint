@@ -67,6 +67,10 @@
 
 	// Only this check is loaded; the parent carries the lightweight shared finder.
 	const reference = $derived(data.reference);
+	const profileName = $derived(reference.profile === 'musixmatch' ? 'Musixmatch' : 'Genius');
+	const publishedAt = $derived(
+		reference.profile === 'musixmatch' ? '2026-09-16' : currentRuleSet.publishedAt
+	);
 	// The rule's name, not the message it happens to produce on its example. The
 	// index row that opened this page leads with the same string, and a heading
 	// that disagreed with the row pressed to reach it reads as having landed
@@ -81,13 +85,13 @@
 		url: canonicalUrl,
 		mainEntityOfPage: canonicalUrl,
 		description: reference.seoDescription,
-		datePublished: currentRuleSet.publishedAt,
-		dateModified: currentRuleSet.publishedAt,
+		datePublished: publishedAt,
+		dateModified: publishedAt,
 		author: {
 			'@type': 'Organization',
 			name: 'LyricLint'
 		},
-		about: 'Genius lyric formatting',
+		about: `${profileName} lyric formatting`,
 		citation: reference.sources.map((source) => source.url)
 	});
 </script>
@@ -100,7 +104,7 @@
 	<meta property="og:title" content={pageTitle} />
 	<meta property="og:description" content={reference.seoDescription} />
 	<meta property="og:url" content={canonicalUrl} />
-	<meta property="article:published_time" content={currentRuleSet.publishedAt} />
+	<meta property="article:published_time" content={publishedAt} />
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={pageTitle} />
 	<meta name="twitter:description" content={reference.seoDescription} />
@@ -112,6 +116,11 @@
 
 <main id="main" tabindex="-1" class="site-prose site-split__page">
 	<h1><RuleSearchHighlight text={reference.title} /></h1>
+	{#if reference.profile === 'musixmatch'}
+		<p>
+			<a href={`${resolve('/(site)/guidelines/musixmatch')}/`}>Musixmatch transcription guide</a>
+		</p>
+	{/if}
 
 	<!-- The diagnostic's facts in the diagnostic's idiom: one meta line under the
 	     message. The line number a card would carry is meaningless here, so its
@@ -137,7 +146,9 @@
 				? 'Convention: '
 				: 'Conventions: '}{#each reference.guidelines as guideline, index (`${guideline.topic}#${guideline.anchor}`)}{#if index > 0}{guidelineSeparator}{/if}<a
 					href={referenceHref(
-						`${resolve('/(site)/guidelines/[topic]', { topic: guideline.topic })}/#${guideline.anchor}`
+						reference.profile === 'musixmatch'
+							? `${resolve('/(site)/guidelines/musixmatch/[topic]', { topic: guideline.topic })}/#${guideline.anchor}`
+							: `${resolve('/(site)/guidelines/[topic]', { topic: guideline.topic })}/#${guideline.anchor}`
 					)}><RuleSearchHighlight text={guideline.title} /></a
 				>{/each}.
 		</p>
@@ -204,7 +215,11 @@
 
 	<h2>Example</h2>
 	<figure class="site-sample site-sample--invalid">
-		<figcaption class="site-sample__label">Flagged by this rule</figcaption>
+		<figcaption class="site-sample__label">
+			{reference.severity === 'manual-review'
+				? 'Requires review under this check'
+				: 'Flagged by this rule'}
+		</figcaption>
 		<pre
 			class="site-sample__text"
 			lang={reference.language}
@@ -220,15 +235,22 @@
 	<p class="site-aside">
 		In the workbench this reads: <strong><RuleSearchHighlight text={reference.message} /></strong>
 	</p>
-	<figure class="site-sample site-sample--valid">
-		<figcaption class="site-sample__label">Accepted by this rule</figcaption>
-		<pre
-			class="site-sample__text"
-			lang={reference.language}
-			dir={reference.language === 'ar' ? 'rtl' : undefined}><RuleSearchHighlight
-				text={reference.valid}
-			/></pre>
-	</figure>
+	{#if reference.valid}
+		<figure class="site-sample site-sample--valid">
+			<figcaption class="site-sample__label">Accepted by this rule</figcaption>
+			<pre
+				class="site-sample__text"
+				lang={reference.language}
+				dir={reference.language === 'ar' ? 'rtl' : undefined}><RuleSearchHighlight
+					text={reference.valid}
+				/></pre>
+		</figure>
+	{:else}
+		<p>
+			An empty document needs no check. This finding describes missing language-policy evidence; it
+			does not assert that the example’s lyric wording is incorrect.
+		</p>
+	{/if}
 
 	<h2>The fix</h2>
 	{#if reference.fix}

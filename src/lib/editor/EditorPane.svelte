@@ -62,6 +62,8 @@
 
 	let {
 		initialText,
+		initialConversion,
+		initialConversionRecovery,
 		initialSelection,
 		initialRevision = 0,
 		context,
@@ -84,6 +86,7 @@
 	// agreement between separate flags. All transitions live in overlay-state.ts.
 	let session = $state<OverlaySession>(closedOverlaySession());
 	let lastRevision = untrack(() => initialRevision);
+	let lastProfile = untrack(() => initialConversion?.profile ?? 'genius');
 	// Bumped on editor scroll so anchored overlays recompute their coordinates
 	// and stay attached to their line instead of floating in the viewport.
 	let scrollTick = $state(0);
@@ -150,6 +153,7 @@
 	function needsSectionVoice(): boolean {
 		const current = session.overlay;
 		return (
+			context.profile !== 'musixmatch' &&
 			current.kind === 'performer' &&
 			!current.legend &&
 			!current.pendingVoice &&
@@ -179,6 +183,7 @@
 		) {
 			return { existingSlots: [], canAllocateNew: false };
 		}
+		if (context.profile === 'musixmatch') return { existingSlots: [], canAllocateNew: true };
 		return unknownVoiceOffers(context.parsed, {
 			anchor: current.range.from,
 			head: current.range.to
@@ -249,6 +254,7 @@
 	}
 
 	function canRemoveFormattingForRange(range: TextRange): boolean {
+		if (context.profile === 'musixmatch') return false;
 		return (context.voiceGroups ?? []).some(
 			(voiceRange) =>
 				!voiceRange.legend &&
@@ -378,6 +384,11 @@
 		return {
 			...callbacks,
 			onSnapshot(snapshot: EditorSnapshot) {
+				const profile = snapshot.conversion?.profile ?? 'genius';
+				if (profile !== lastProfile) {
+					session = closeOverlay(session);
+					lastProfile = profile;
+				}
 				if (snapshot.revision !== lastRevision) {
 					lastRevision = snapshot.revision;
 					session = forgetDismissedSelection(session);
@@ -393,6 +404,10 @@
 				callbacks.onAssignRequest(request);
 			},
 			onSectionHeaderRequest(request) {
+				if (context.profile === 'musixmatch') {
+					callbacks.onSectionHeaderRequest(request);
+					return;
+				}
 				session = openSectionPicker(session, request.range);
 				callbacks.onSectionHeaderRequest(request);
 			},
@@ -719,6 +734,8 @@
 				if (cancelled) return;
 				const options: CreateLyricEditorOptions = {
 					initialText,
+					initialConversion,
+					initialConversionRecovery,
 					initialSelection,
 					initialRevision,
 					context,
@@ -865,6 +882,13 @@
 			onLinkSections={() =>
 				startSectionLink(diagnosticOverlay.diagnostic, diagnosticOverlay.anchorRange)}
 			onSetLanguage={callbacks.onSetLanguage ? setLanguage : undefined}
+			onReviewConversion={callbacks.onConversionReviewRequest
+				? () => {
+						const diagnostic = diagnosticOverlay.diagnostic;
+						session = closeOverlay(session);
+						callbacks.onConversionReviewRequest?.(diagnostic);
+					}
+				: undefined}
 			onIgnore={ignoreDiagnostic}
 			onDismiss={(heldFocus) => {
 				clearFixPreview();

@@ -120,7 +120,12 @@ import {
 	typeOnlyHereNotifier
 } from './extensions/section-links.js';
 import { caretLayer } from './extensions/caret-layer.js';
-import { clipboardMetadata } from './extensions/clipboard-metadata.js';
+import {
+	clipboardMetadata,
+	applyClipboardReview,
+	dismissClipboardReview,
+	prepareInterpretation
+} from './extensions/clipboard-metadata.js';
 import { selectionAnchorPlugin } from './extensions/selection-anchor.js';
 import { searchReplace } from './extensions/search-replace.js';
 import { createUpdateListener, snapshotFromState } from './extensions/update-bridge.js';
@@ -133,8 +138,24 @@ import {
 	requestSectionLink
 } from './keymap.js';
 import { dispatchAtomicEdit } from './transaction-adapter.js';
+import { lyricSyncActive } from './extensions/lyric-sync.js';
+import {
+	conversionScopeField,
+	conversionSectionLocal,
+	toggleConversionSectionLocal
+} from './extensions/conversion-scope.js';
+import { conversionSectionBoundaries } from './extensions/conversion-sections.js';
+import {
+	conversionState,
+	conversionForState,
+	switchEditorProfile,
+	profileForState,
+	dispatchConversionAction
+} from './extensions/conversion-state.js';
 
 export interface CreateLyricEditorOptions {
+	initialConversion?: import('$lib/persistence/conversion.js').ConversionEnvelope;
+	initialConversionRecovery?: import('$lib/persistence/conversion.js').ConversionRecovery;
 	initialText: string;
 	initialSelection?: SerializedSelection;
 	initialRevision?: number;
@@ -555,6 +576,8 @@ const lyricEditorCallbackKeySet = {
 	onSnapshot: true,
 	onAssignRequest: true,
 	onSectionHeaderRequest: true,
+	onSectionDetailRequest: true,
+	onPerformerRecordsChanged: true,
 	onDiagnosticActivate: true,
 	onAnnouncement: true,
 	createPerformerEdit: true,
@@ -566,6 +589,7 @@ const lyricEditorCallbackKeySet = {
 	onApplyDiagnosticFixBatch: true,
 	onIgnoreDiagnostic: true,
 	onSetLanguage: true,
+	onConversionReviewRequest: true,
 	onAddPerformer: true,
 	onPerformerRenamed: true,
 	onDiagnosticActivateIntent: true,
@@ -575,6 +599,7 @@ const lyricEditorCallbackKeySet = {
 	onRequestMediaPlayback: true,
 	onRequestMediaSource: true,
 	onMediaSourcePasted: true,
+	onPerformersPasted: true,
 	onSeekMedia: true,
 	onLineAnchorsChanged: true,
 	onLyricSyncChange: true,
@@ -598,6 +623,8 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		onSnapshot: (snapshot) => read().onSnapshot(snapshot),
 		onAssignRequest: (request) => read().onAssignRequest(request),
 		onSectionHeaderRequest: (request) => read().onSectionHeaderRequest(request),
+		onPerformerRecordsChanged: (delta) => read().onPerformerRecordsChanged?.(delta),
+		onSectionDetailRequest: (sectionId) => read().onSectionDetailRequest?.(sectionId),
 		onDiagnosticActivate: (diagnostic, range) => read().onDiagnosticActivate(diagnostic, range),
 		onAnnouncement: (message) => read().onAnnouncement(message),
 		createPerformerEdit: (choice) => read().createPerformerEdit?.(choice),
@@ -611,6 +638,7 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 			read().onApplyDiagnosticFixBatch?.(diagnostic, fix),
 		onIgnoreDiagnostic: (diagnostic) => read().onIgnoreDiagnostic?.(diagnostic),
 		onSetLanguage: (language) => read().onSetLanguage?.(language),
+		onConversionReviewRequest: (diagnostic) => read().onConversionReviewRequest?.(diagnostic),
 		onAddPerformer: (displayName) => read().onAddPerformer?.(displayName),
 		onPerformerRenamed: (rename) => read().onPerformerRenamed?.(rename),
 		onDiagnosticReviewRequest: (diagnostic, range) =>
@@ -639,9 +667,12 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		// the floor, both without a visible failure anywhere.
 		onRequestMediaSource: () => read().onRequestMediaSource?.(),
 		onMediaSourcePasted: (source) => read().onMediaSourcePasted?.(source),
+		onPerformersPasted: (performers) => read().onPerformersPasted?.(performers),
 		onSeekMedia: (time) => read().onSeekMedia?.(time),
-		onLyricSyncChange: (active, startAt, scoped) =>
-			read().onLyricSyncChange?.(active, startAt, scoped),
+		onLyricSyncChange: (active, startAt, scoped, reason) =>
+			reason === undefined
+				? read().onLyricSyncChange?.(active, startAt, scoped)
+				: read().onLyricSyncChange?.(active, startAt, scoped, reason),
 		onLyricSyncNotice: (message) => read().onLyricSyncNotice?.(message),
 		onLineAnchorsChanged: () => read().onLineAnchorsChanged?.(),
 		onDiagnosticHighlight: (diagnostic) => read().onDiagnosticHighlight?.(diagnostic),
@@ -734,8 +765,10 @@ export function createLyricEditor(
 		// backing a run up and jumping to a line cannot come to mean different
 		// things about where the tape ends up.
 		onSeek: (time: number) => callbackProxy.onSeekMedia?.(time),
-		onChange: (active: boolean, startAt?: number, scoped?: boolean) =>
-			callbackProxy.onLyricSyncChange?.(active, startAt, scoped),
+		onChange: (active: boolean, startAt?: number, scoped?: boolean, reason?: 'profile') =>
+			reason === undefined
+				? callbackProxy.onLyricSyncChange?.(active, startAt, scoped)
+				: callbackProxy.onLyricSyncChange?.(active, startAt, scoped, reason),
 		announce: (message: string) => callbackProxy.onAnnouncement(message),
 		// The second audience. `announce` above reaches the `sr-only` region and
 		// nothing else, and a run filling a whole section from a linked peer is the
@@ -813,6 +846,9 @@ export function createLyricEditor(
 		editorCallbacksField,
 		editorRevisionField.init(() => initialRevision),
 		editorComposingField,
+		conversionState(options.initialConversion, options.initialConversionRecovery),
+		conversionSectionBoundaries,
+		conversionScopeField,
 		legendCleanupFilter(),
 		// Transaction filters run in reverse registration order, so listing the
 		// rename filter after legend cleanup makes it run first: it needs the
@@ -898,7 +934,15 @@ export function createLyricEditor(
 	// Populate the display fields before a view exists, so its first DOM already
 	// represents the recovered document instead of immediately rebuilding it.
 	const state = emptyContextState.update({
-		effects: contextEffects(emptyContextState, options.context),
+		effects: [
+			...contextEffects(emptyContextState, options.context),
+			...(options.initialConversion
+				? [
+						setLineAnchorsEffect.of(conversionForState(emptyContextState)!.projection.lineAnchors),
+						setSectionLinksEffect.of(conversionForState(emptyContextState)!.projection.sectionLinks)
+					]
+				: [])
+		],
 		annotations: Transaction.addToHistory.of(false)
 	}).state;
 	// Build disconnected so constructor style reads cannot repeatedly lay out the
@@ -1064,13 +1108,39 @@ export function createLyricEditor(
 	}
 
 	const handle: EditorHandle = {
+		isLyricSyncActive() {
+			return lyricSyncActive(view.state);
+		},
+		isConversionSectionLocal(sectionId) {
+			return conversionSectionLocal(view.state) === sectionId;
+		},
+		toggleConversionSectionLocal(sectionId) {
+			return toggleConversionSectionLocal(view, sectionId);
+		},
+		dispatchConversionAction(action, baseRevision, rosterChanges) {
+			return dispatchConversionAction(view, action, baseRevision, rosterChanges);
+		},
+		switchProfile(profile) {
+			return switchEditorProfile(view, profile);
+		},
 		focus() {
 			view.focus();
 		},
 		getSnapshot(): EditorSnapshot {
 			return snapshotFromState(view.state);
 		},
+		applyClipboardReview() {
+			return applyClipboardReview(view);
+		},
+		prepareInterpretation(profile, range) {
+			return prepareInterpretation(view, profile, range);
+		},
+		dismissClipboardReview() {
+			dismissClipboardReview(view);
+		},
 		dispatchAtomic(edit) {
+			if (conversionForState(view.state)?.recovery)
+				throw new Error('Recover the lyric associations before applying a structured edit.');
 			// Validation belongs before cleanup: a stale edit throws without changing
 			// either the document or the preview the reader is still considering.
 			dispatchAtomicEdit(view, edit);
@@ -1090,6 +1160,8 @@ export function createLyricEditor(
 			});
 		},
 		dispatchAtomicOnlyHere(edit, range) {
+			if (conversionForState(view.state)?.recovery)
+				throw new Error('Recover the lyric associations before applying a structured edit.');
 			// The scope annotation and the words land in one transaction: section
 			// links can neither copy the proposal first nor record its exception
 			// after a snapshot has already escaped.
@@ -1206,7 +1278,7 @@ export function createLyricEditor(
 		},
 		getTimingLine(pos) {
 			const line = view.state.doc.lineAt(Math.max(0, Math.min(pos, view.state.doc.length)));
-			return isStampableLine(line, view.state.doc)
+			return isStampableLine(line, view.state.doc, profileForState(view.state))
 				? { line: line.number, text: line.text }
 				: undefined;
 		},
@@ -1215,7 +1287,7 @@ export function createLyricEditor(
 			if (!Number.isInteger(number) || number < 1 || number > view.state.doc.lines) return false;
 			if (time !== undefined && (!Number.isFinite(time) || time < 0)) return false;
 			const line = view.state.doc.line(number);
-			if (!isStampableLine(line, view.state.doc)) return false;
+			if (!isStampableLine(line, view.state.doc, profileForState(view.state))) return false;
 			view.dispatch({
 				effects:
 					time === undefined

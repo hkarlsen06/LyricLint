@@ -1,3 +1,5 @@
+import { profileProjection } from './conversion-effects.js';
+import { profileForState } from './conversion-state.js';
 import { EditorState, Transaction } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
 import { cleanupLegendSlots } from '$lib/performers/legend-cleanup.js';
@@ -15,6 +17,11 @@ import { editorComposingField, parsedDocumentForState } from './editor-state.js'
  */
 export function legendCleanupFilter(): Extension {
 	return EditorState.transactionFilter.of((transaction) => {
+		if (
+			transaction.annotation(profileProjection) ||
+			profileForState(transaction.startState) === 'musixmatch'
+		)
+			return transaction;
 		if (!transaction.docChanged) {
 			return transaction;
 		}

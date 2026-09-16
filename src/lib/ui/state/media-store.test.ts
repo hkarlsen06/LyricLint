@@ -129,6 +129,64 @@ function setup(
 }
 
 describe('media store across sessions', () => {
+	it('keeps a local recording identity only while reconnecting its known handle', async () => {
+		const file = new File(['recording'], 'same-name.mp3', { type: 'audio/mpeg' });
+		const handle = fakeHandle(file, 'prompt');
+		const initial = setup();
+		await initial.media.attachFile(file, handle);
+		const identity = initial.media.recordingId;
+		expect(identity).toMatch(/^file:/u);
+		expect((await initial.repository.get('draft-1'))?.recordingId).toBe(identity);
+		const reopened = setup({ repository: initial.repository });
+		await reopened.media.openFor('draft-1');
+		expect(reopened.media.recordingId).toBe(identity);
+		await reopened.media.reconnect();
+		expect(reopened.media.recordingId).toBe(identity);
+		await reopened.media.attachFile(file, handle);
+		expect(reopened.media.recordingId).not.toBe(identity);
+		await reopened.media.detach();
+		expect(reopened.media.recordingId).toBeUndefined();
+	});
+
+	it.each([
+		{ source: 'youtube' as const, videoId: 'dQw4w9WgXcQ', identity: 'youtube:dQw4w9WgXcQ' },
+		{
+			source: 'spotify' as const,
+			trackId: '4uLU6hMCjMI75M1A2tKUQC',
+			identity: 'spotify:4uLU6hMCjMI75M1A2tKUQC'
+		},
+		{ source: 'apple' as const, songId: '1440857781', identity: 'apple:1440857781' }
+	])(
+		'scopes $source recording facts to the provider and identifier',
+		async ({ identity, ...source }) => {
+			const repository = createInMemoryMediaRepository();
+			await repository.attach({ draftId: 'draft-1', name: 'The same title', ...source });
+			const { media } = setup({ repository });
+			await media.openFor('draft-1');
+			expect(media.recordingId).toBe(identity);
+		}
+	);
+
+	it('moves a conflict copy to the same live player and retains its local attachment snapshot', async () => {
+		let draftId = 'draft-1';
+		const { media, player, repository, file, audio } = setup({ draftId: () => draftId });
+		await media.attachFile(file);
+		const first = media.storageSnapshot();
+		expect(first?.name).toBe(file.name);
+		await repository.attach({ ...first!, draftId: 'conflict-copy' });
+		draftId = 'conflict-copy';
+		media.adoptDraftId(draftId);
+		expect(media.player).toBe(player);
+		expect(player.attached).toBe(true);
+		expect(media.storageSnapshot()?.draftId).toBe(draftId);
+		audio.currentTime = 12;
+		await media.flushPosition();
+		expect((await repository.get(draftId))?.position).toBe(12);
+		expect((await repository.get('draft-1'))?.position).not.toBe(12);
+		await media.detach();
+		expect(media.storageSnapshot()).toBeNull();
+	});
+
 	it('reopens the track and its playhead when permission is already granted', async () => {
 		const repository = createInMemoryMediaRepository();
 		const file = new File([''], 'sensommer.mp3', { type: 'audio/mpeg' });

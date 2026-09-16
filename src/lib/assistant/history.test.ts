@@ -66,3 +66,23 @@ describe('boundedHistory', () => {
 		expect(window.firstIncludedIndex).toBe(0);
 	});
 });
+
+describe('profile history scope', () => {
+	it('keeps original attribution and never presents Genius history as Musixmatch context', () => {
+		const history = [
+			message('user', 'Genius question'),
+			message('assistant', 'Genius answer'),
+			{ ...message('user', 'MXM question'), profile: 'musixmatch' as const },
+			{ ...message('assistant', 'MXM answer'), profile: 'musixmatch' as const }
+		];
+		expect(
+			boundedHistory(history, 'Next', 'musixmatch').messages.map((item) => item.content)
+		).toEqual(['MXM question', 'MXM answer', 'Next']);
+		expect(boundedHistory(history, 'Next').messages.map((item) => item.content)).toEqual([
+			'Genius question',
+			'Genius answer',
+			'Next'
+		]);
+		expect(history[0].profile).toBeUndefined();
+	});
+});

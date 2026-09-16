@@ -668,6 +668,7 @@ describe('autosave and recovery', () => {
 		const repository = createDraftRepository(database);
 		const complete = {
 			...draft({ id: 'whole-draft', text: '[Verse]\nFirst line\n[Chorus]\nFirst line' }),
+			storageGeneration: 0,
 			originalText: '[Verse]\noriginal',
 			geniusUrl: 'https://genius.com/Artist-song-lyrics',
 			editorSelection: { anchor: 3, head: 7 },
@@ -711,7 +712,9 @@ describe('autosave and recovery', () => {
 				text: '[Verse]\nFirst line as the page had it',
 				pastedAt: '2026-01-01T12:00:00.000Z'
 			} satisfies Required<CompareBaselineRecord>
-		} satisfies Required<DraftRecord>;
+		} satisfies Required<
+			Omit<DraftRecord, 'conversion' | 'conversionRecovery' | 'originalRecovery'>
+		>;
 		const autosave = createAutosaveController(repository, { debounceMs: 10 });
 
 		const created = await repository.create(complete);
@@ -720,6 +723,7 @@ describe('autosave and recovery', () => {
 
 		autosave.schedule({ revision: 1, draft: complete });
 		await autosave.flush();
+		complete.storageGeneration = 1;
 
 		const backup = createWorkspaceBackup(database, {
 			now: () => '2026-01-02T00:00:00.000Z'
@@ -751,6 +755,7 @@ describe('autosave and recovery', () => {
 		let saveCount = 0;
 		const delayedRepository: DraftRepository = {
 			...repository,
+			compareAndSave: undefined,
 			async save(record) {
 				saveCount += 1;
 				if (saveCount === 1) {
@@ -796,6 +801,7 @@ describe('autosave and recovery', () => {
 		const savedIds: string[] = [];
 		const recordingRepository: DraftRepository = {
 			...repository,
+			compareAndSave: undefined,
 			save(record) {
 				savedIds.push(record.id);
 				return Promise.resolve();
@@ -836,6 +842,7 @@ describe('autosave and recovery', () => {
 		let saveCount = 0;
 		const failingRepository: DraftRepository = {
 			...repository,
+			compareAndSave: undefined,
 			async save(record: DraftRecord) {
 				saveCount += 1;
 				if (record.id === 'failed-draft' && saveCount === 1) {
@@ -867,6 +874,7 @@ describe('autosave and recovery', () => {
 		expect((await repository.get('failed-draft'))?.text).toBe('private lyric content');
 		expect(autosave.status()).toBe('saved');
 		expect(Object.keys(autosave)).toEqual([
+			'subscribeSaved',
 			'schedule',
 			'flush',
 			'cancel',
@@ -902,6 +910,7 @@ describe('autosave and recovery', () => {
 		let shouldFail = true;
 		const retryingRepository: DraftRepository = {
 			...repository,
+			compareAndSave: undefined,
 			async save(record) {
 				if (shouldFail) {
 					shouldFail = false;
@@ -975,7 +984,10 @@ describe('autosave and recovery', () => {
 		autosave.noteDraftLoaded?.('reopened-draft');
 		autosave.schedule({
 			revision: 1,
-			draft: draft({ id: 'reopened-draft', text: 'second visit, one keystroke in' })
+			draft: {
+				...(await repository.get('reopened-draft'))!,
+				text: 'second visit, one keystroke in'
+			}
 		});
 		await autosave.flush();
 
@@ -991,6 +1003,7 @@ describe('autosave and recovery', () => {
 		let shouldFail = true;
 		const failingRepository: DraftRepository = {
 			...repository,
+			compareAndSave: undefined,
 			async save(record) {
 				if (shouldFail) {
 					shouldFail = false;
@@ -1022,6 +1035,7 @@ describe('autosave and recovery', () => {
 		const savedIds: string[] = [];
 		const cancellingRepository: DraftRepository = {
 			...repository,
+			compareAndSave: undefined,
 			async save(record) {
 				savedIds.push(record.id);
 				// Mid-drain: the queue has already picked this write and has not yet

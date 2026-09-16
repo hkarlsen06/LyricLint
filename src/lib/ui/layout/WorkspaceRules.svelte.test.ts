@@ -53,6 +53,46 @@ describe('Workspace native checker startup', () => {
 		expect(screen.queryByText('Checking lyrics…')).toBeNull();
 	});
 
+	it('settles a confirmed quantity without changing its text and restores review on undo', async () => {
+		const native = await import('$lib/rules/engine.js');
+		const { controller } = createTestWorkbench({ text: '12 stars and 12 moons.' });
+		controller.setGrammarCheckEnabled(false);
+		await render(Workspace, {
+			controller,
+			editorComponent: EditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} },
+			loadNativeRules: async () => native
+		});
+		await waitFor(() => expect(controller.editor.dispatchConversionAction).toBeTypeOf('function'));
+		controller.switchProfile('musixmatch');
+		const quantities = () =>
+			controller.snapshot.diagnostics.filter((finding) => finding.ruleId === 'mxm.numbers.context');
+		await waitFor(() => expect(quantities()).toHaveLength(2));
+		expect(
+			controller.applyConversionAction({
+				kind: 'confirmQuantity',
+				range: { from: 0, to: 2 },
+				facts: {
+					profile: 'musixmatch',
+					language: 'en',
+					value: '12',
+					usage: 'ordinary-cardinal',
+					pronunciation: 'whole-quantity'
+				}
+			})
+		).toBe(true);
+		await waitFor(() => expect(quantities().map((finding) => finding.from)).toEqual([13]));
+		expect(controller.snapshot.text).toBe('12 stars and 12 moons.');
+		expect(
+			controller.snapshot.diagnostics.some(
+				(finding) => finding.ruleId === 'mxm.punctuation.line-ending'
+			)
+		).toBe(true);
+		controller.editor.undo();
+		await waitFor(() => expect(quantities()).toHaveLength(2));
+		expect(controller.snapshot.text).toBe('12 stars and 12 moons.');
+	});
+
 	it('never publishes an unlinked-repeat finding while the real editor restores saved links', async () => {
 		const native = await import('$lib/rules/engine.js');
 		const text = ['[Chorus]', 'Go', '', '[Verse]', 'Hey', '', '[Chorus 2]', 'Go'].join('\n');

@@ -46,38 +46,40 @@
 	// Up to four editing/source commands, followed by the workspace toggle.
 	// The toggle belongs at the editor edge it expands and remains reachable
 	// when the tools are hidden.
-	const actions = $derived([
-		{
-			id: 'section',
-			mark: '[+]',
-			label: 'Section header',
-			caption: mac ? '⇧⌘H' : 'Ctrl+Shift+H',
-			keyshortcuts: mac ? 'Meta+Shift+H' : 'Control+Shift+H',
-			run: () => controller.insertSection()
-		},
-		{
-			// The accessible name keeps the mark, because `[?]` is the thing this
-			// writes and a reader who knows the convention should be able to find the
-			// control by it.
-			id: 'unknown',
-			mark: '[?]',
-			label: 'Unknown lyric [?]',
-			caption: mac ? '⌃⌥U' : 'Ctrl+Alt+U',
-			keyshortcuts: 'Control+Alt+U',
-			run: () => controller.insertUnknownMarker()
-		},
-		{
-			// The one command here that writes nothing, which is why it is the one
-			// drawn as a pictogram rather than as a mark: the other two show what
-			// they put in the document, and this one has nothing to show.
-			id: 'find',
-			mark: undefined,
-			label: 'Find and replace',
-			caption: mac ? '⌘F' : 'Ctrl+F',
-			keyshortcuts: mac ? 'Meta+F' : 'Control+F',
-			run: () => controller.toggleSearch()
-		}
-	]);
+	const actions = $derived(
+		[
+			{
+				id: 'section',
+				mark: '[+]',
+				label: controller.profile === 'musixmatch' ? 'Section boundary' : 'Section header',
+				caption: mac ? '⇧⌘H' : 'Ctrl+Shift+H',
+				keyshortcuts: mac ? 'Meta+Shift+H' : 'Control+Shift+H',
+				run: () => controller.insertSection()
+			},
+			{
+				// The accessible name keeps the mark, because `[?]` is the thing this
+				// writes and a reader who knows the convention should be able to find the
+				// control by it.
+				id: 'unknown',
+				mark: '[?]',
+				label: 'Unknown lyric [?]',
+				caption: mac ? '⌃⌥U' : 'Ctrl+Alt+U',
+				keyshortcuts: 'Control+Alt+U',
+				run: () => controller.insertUnknownMarker()
+			},
+			{
+				// The one command here that writes nothing, which is why it is the one
+				// drawn as a pictogram rather than as a mark: the other two show what
+				// they put in the document, and this one has nothing to show.
+				id: 'find',
+				mark: undefined,
+				label: 'Find and replace',
+				caption: mac ? '⌘F' : 'Ctrl+F',
+				keyshortcuts: mac ? 'Meta+F' : 'Control+F',
+				run: () => controller.toggleSearch()
+			}
+		].filter((action) => action.id !== 'unknown' || controller.profile === 'genius')
+	);
 	// The audio attach draws only while there is nothing for the strip to show:
 	// no attachment and no remembered source. Past that the strip itself carries
 	// the way back in, so the tray never offers what the row below already does.

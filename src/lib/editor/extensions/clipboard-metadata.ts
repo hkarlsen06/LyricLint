@@ -1,9 +1,11 @@
 // Decision record: docs/subsystems/editor.md — read it before changing this file, and update it with any behavior change.
 import type { EditorState, Extension } from '@codemirror/state';
+import { isolateHistory } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
 import { isSectionHeaderLine } from '$lib/core/parser.js';
 import { annotationSpansFor } from './annotation-spans.js';
-import type { LinkHole, LinkPassageOccurrence, SectionLink } from '$lib/core/types.js';
+import type { LinkHole, LinkPassageOccurrence, SectionLink, TextRange } from '$lib/core/types.js';
+import type { ProfileId } from '$lib/profiles/types.js';
 import { validateLinkPassages } from '$lib/core/link-record.js';
 import {
 	clipboardHtml,
@@ -15,6 +17,23 @@ import { sectionBodyRange } from '../section-links.js';
 import { editorCallbacksField, parsedDocumentForState } from './editor-state.js';
 import { anchorLineEffect, lineAnchorsFor } from './line-anchors.js';
 import { pastedSectionMetadata, sectionLinksFor, setSectionLinkEffect } from './section-links.js';
+import { setSectionLinksEffect } from './section-links.js';
+import { setLineAnchorsEffect } from './line-anchors.js';
+import { conversionForState, profileForState } from './conversion-state.js';
+import { profileProjection, setConversionStateEffect } from './conversion-effects.js';
+import { sliceDocument, pasteDocument } from '$lib/conversion/clipboard.js';
+import { importDocument } from '$lib/conversion/import.js';
+import { renderProfile } from '$lib/conversion/projection.js';
+import { createConversionEnvelope } from '$lib/persistence/conversion.js';
+import {
+	clipboardReviewField,
+	clipboardReviewHistory,
+	clipboardReviewFor,
+	setClipboardReviewEffect,
+	type PendingClipboardReview
+} from './clipboard-review.js';
+import { profilePolicyVersions } from '$lib/profiles/versions.js';
+import { editorContextField } from './editor-state.js';
 
 /**
  * What a copy of `[from, to)` carries beside its text, or `undefined` for a
@@ -35,6 +54,33 @@ function metadataForRange(
 	from: number,
 	to: number
 ): ClipboardMetadata | undefined {
+	const converted = conversionForState(state);
+	if (converted && !converted.recovery) {
+		const fragment = sliceDocument(converted.envelope.model, converted.projection, { from, to });
+		if (fragment.ok) {
+			const conversion = createConversionEnvelope(
+				fragment.value,
+				converted.envelope.profile,
+				converted.envelope.policyVersions
+			);
+			const referenced = new Set(fragment.value.voices.flatMap((voice) => voice.performerIds));
+			const performers = (state.field(editorContextField, false)?.performers ?? []).filter(
+				(performer) => referenced.has(performer.id)
+			);
+			return {
+				lines: state.sliceDoc(from, to).split('\n').length,
+				anchors: [],
+				links: [],
+				conversion,
+				performers: performers.map((performer) => ({
+					...performer,
+					aliases: [...performer.aliases]
+				}))
+			};
+		}
+		// A partial delimiter cannot carry somebody else's hidden metadata.
+		return undefined;
+	}
 	const doc = state.doc;
 	const firstLine = doc.lineAt(from).number;
 	const lastLine = doc.lineAt(to).number;
@@ -139,7 +185,14 @@ function claimCopy(event: ClipboardEvent, view: EditorView, cut: boolean): boole
 	// qualifies the timings, and a copy that is only words stays an ordinary
 	// copy. The shell answers for remote sources alone; a local file is a handle
 	// only this browser can redeem.
-	const media = state.field(editorCallbacksField, false)?.onRequestMediaSource?.();
+	const hasSongDetails =
+		metadata.anchors.length > 0 ||
+		metadata.links.length > 0 ||
+		(metadata.conversion?.model.lines.some((line) => line.time !== undefined) ?? false) ||
+		(metadata.conversion?.model.links.length ?? 0) > 0;
+	const media = hasSongDetails
+		? state.field(editorCallbacksField, false)?.onRequestMediaSource?.()
+		: undefined;
 	const carried = media ? { ...metadata, media } : metadata;
 
 	const text = state.sliceDoc(range.from, range.to);
@@ -323,6 +376,128 @@ function chronologicalAnchors(
  * or past the anchor below it — or behind a carried timing before them — are
  * dropped while the words still land.
  */
+
+function conversionForPaste(state: EditorState) {
+	const existing = conversionForState(state);
+	if (existing) return existing;
+	const context = state.field(editorContextField, false);
+	const imported = importDocument({
+		text: state.doc.toString(),
+		profile: 'genius',
+		language: context?.language,
+		performers: context?.performers,
+		lineAnchors: lineAnchorsFor(state),
+		sectionLinks: sectionLinksFor(state)
+	});
+	if (!imported.ok) return undefined;
+	const rendered = renderProfile(imported.value, 'genius');
+	if (!rendered.ok) return undefined;
+	return {
+		envelope: createConversionEnvelope(imported.value, 'genius', profilePolicyVersions),
+		projection: rendered.value
+	};
+}
+
+/** An explicit review action may convert the copied fragment into the receiving format. */
+export function prepareInterpretation(
+	view: EditorView,
+	sourceProfile: ProfileId,
+	range: TextRange
+): { ok: true } | { ok: false; message: string } {
+	if (view.state.readOnly || view.composing || conversionForState(view.state)?.recovery)
+		return {
+			ok: false,
+			message: 'Finish or recover the current edit before interpreting a passage.'
+		};
+	if (
+		!Number.isInteger(range.from) ||
+		!Number.isInteger(range.to) ||
+		range.from < 0 ||
+		range.from >= range.to ||
+		range.to > view.state.doc.length
+	)
+		return { ok: false, message: 'Select the passage whose source format you want to interpret.' };
+	const text = view.state.doc.sliceString(range.from, range.to);
+	const context = view.state.field(editorContextField, false);
+	const imported = importDocument({
+		text,
+		profile: sourceProfile,
+		language: context?.language,
+		performers: context?.performers
+	});
+	if (!imported.ok) return { ok: false, message: imported.refusal.message };
+	const referenced = new Set(imported.value.voices.flatMap((voice) => voice.performerIds));
+	const pending = {
+		...range,
+		text,
+		conversion: createConversionEnvelope(imported.value, sourceProfile, profilePolicyVersions),
+		performers: (context?.performers ?? []).filter((performer) => referenced.has(performer.id))
+	};
+	view.dispatch({
+		effects: setClipboardReviewEffect.of(pending),
+		annotations: isolateHistory.of('full')
+	});
+	return { ok: true };
+}
+
+export function applyClipboardReview(
+	view: EditorView
+): { ok: true } | { ok: false; message: string } {
+	const pending = clipboardReviewFor(view.state);
+	if (!pending) return { ok: false, message: 'These copied details are no longer available.' };
+	if (view.state.readOnly || view.composing)
+		return { ok: false, message: 'Finish the current edit before applying copied details.' };
+	const current = conversionForPaste(view.state);
+	if (!current || current.recovery)
+		return {
+			ok: false,
+			message: 'Recover the document associations before applying copied details.'
+		};
+	const pasted = pasteDocument(
+		current.envelope.model,
+		current.projection,
+		pending,
+		pending.conversion.model,
+		current.envelope.profile,
+		pending.performers,
+		view.state.field(editorContextField, false)?.performers
+	);
+	if (!pasted.ok) return { ok: false, message: pasted.refusal.message };
+	const callbacks = view.state.field(editorCallbacksField, false);
+	if (pasted.value.performers.length) callbacks?.onPerformersPasted?.(pasted.value.performers);
+	const insert = pasted.value.changes[0]?.insert ?? '';
+	view.dispatch({
+		changes: pasted.value.changes,
+		selection: { anchor: pending.from + insert.length },
+		effects: [
+			setConversionStateEffect.of({
+				envelope: {
+					...current.envelope,
+					model: pasted.value.document,
+					projectionText: pasted.value.projection.text
+				},
+				projection: pasted.value.projection
+			}),
+			setLineAnchorsEffect.of(pasted.value.projection.lineAnchors),
+			setSectionLinksEffect.of(pasted.value.projection.sectionLinks),
+			setClipboardReviewEffect.of(undefined)
+		],
+		annotations: [
+			profileProjection.of(true),
+			pastedSectionMetadata.of(true),
+			isolateHistory.of('full')
+		],
+		scrollIntoView: true,
+		userEvent: 'input.clipboard-review'
+	});
+	if (pending.media) callbacks?.onMediaSourcePasted?.(pending.media);
+	return { ok: true };
+}
+
+export function dismissClipboardReview(view: EditorView): void {
+	view.dispatch({ effects: setClipboardReviewEffect.of(undefined) });
+}
+
 function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
 	const data = event.clipboardData;
 	if (!data) return false;
@@ -335,6 +510,80 @@ function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
 	if (starts.length !== metadata.lines) return false;
 
 	const { from, to } = view.state.selection.main;
+	if (metadata.conversion) {
+		const callbacks = view.state.field(editorCallbacksField, false);
+		const foreign = metadata.conversion.profile !== profileForState(view.state);
+		if (metadata.conversion.projectionText !== text) {
+			callbacks?.onAnnouncement(
+				'The copied details did not match the pasted lyrics. Only the text was pasted.'
+			);
+			return false;
+		}
+		const current = foreign ? conversionForState(view.state) : conversionForPaste(view.state);
+		if (current && !current.recovery && !foreign) {
+			const pasted = pasteDocument(
+				current.envelope.model,
+				current.projection,
+				{ from, to },
+				metadata.conversion.model,
+				metadata.conversion.profile,
+				metadata.performers,
+				view.state.field(editorContextField, false)?.performers
+			);
+			if (pasted.ok) {
+				event.preventDefault();
+				if (pasted.value.performers.length)
+					callbacks?.onPerformersPasted?.(pasted.value.performers);
+				view.dispatch({
+					changes: pasted.value.changes,
+					selection: { anchor: from + text.length },
+					effects: [
+						setConversionStateEffect.of({
+							envelope: {
+								...current.envelope,
+								model: pasted.value.document,
+								projectionText: pasted.value.projection.text
+							},
+							projection: pasted.value.projection
+						}),
+						setLineAnchorsEffect.of(pasted.value.projection.lineAnchors),
+						setSectionLinksEffect.of(pasted.value.projection.sectionLinks)
+					],
+					annotations: [profileProjection.of(true), pastedSectionMetadata.of(true)],
+					scrollIntoView: true,
+					userEvent: 'input.paste'
+				});
+				if (metadata.media) callbacks?.onMediaSourcePasted?.(metadata.media);
+				return true;
+			}
+		}
+		let review: PendingClipboardReview | undefined;
+		if (foreign) {
+			review = {
+				from,
+				to: from + text.length,
+				text,
+				conversion: metadata.conversion,
+				performers: metadata.performers ?? []
+			};
+			if (metadata.media) review.media = metadata.media;
+		}
+		event.preventDefault();
+		view.dispatch({
+			changes: { from, to, insert: text },
+			selection: { anchor: from + text.length },
+			effects: setClipboardReviewEffect.of(review),
+			annotations: pastedSectionMetadata.of(true),
+			scrollIntoView: true,
+			userEvent: 'input.paste'
+		});
+		callbacks?.onAnnouncement(
+			foreign
+				? 'Pasted exact lyrics. Review the copied details in Song before applying their different lyric format.'
+				: 'Pasted exact lyrics. The copied details could not be attached safely at this position.'
+		);
+		return true;
+	}
 	// Positions are stated in the new document's coordinates, which is what the
 	// anchor field reads its effect against — `from` plus an offset into the
 	// insert is that position whether or not the paste landed mid-line.
@@ -368,9 +617,13 @@ function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
  * answer for is one it must not stand in front of.
  */
 export function clipboardMetadata(): Extension {
-	return EditorView.domEventHandlers({
-		copy: (event, view) => claimCopy(event, view, false),
-		cut: (event, view) => claimCopy(event, view, true),
-		paste: (event, view) => claimPaste(event, view)
-	});
+	return [
+		clipboardReviewField,
+		clipboardReviewHistory,
+		EditorView.domEventHandlers({
+			copy: (event, view) => claimCopy(event, view, false),
+			cut: (event, view) => claimCopy(event, view, true),
+			paste: (event, view) => claimPaste(event, view)
+		})
+	];
 }

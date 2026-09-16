@@ -11,6 +11,7 @@ import type {
 	EditorSnapshot,
 	LineAnchor,
 	PerformerRecord,
+	PerformerRecordDelta,
 	RuleSetManifest,
 	SectionLink,
 	DraftIgnoreStore,
@@ -18,7 +19,8 @@ import type {
 	SourceReference,
 	TextRange
 } from '$lib/core/types.js';
-import { SvelteDate, SvelteMap } from 'svelte/reactivity';
+import { conversionReviewAction, type ConversionReviewKind } from '$lib/conversion/review.js';
+import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { resolveLanguageTag } from '$lib/languages/registry.js';
 import { randomId } from '$lib/core/random-id.js';
 import type { TimedLyricsFormat } from '$lib/core/timed-lyrics.js';
@@ -28,7 +30,7 @@ import { sampleDraftLanguage, sampleDraftText } from '../sample-draft.js';
 import { createDraftStore, safeFilename } from './draft-store.svelte.js';
 import { createEditorSession } from './editor-session.svelte.js';
 import type { FeedbackState, ToastMessage } from './feedback.svelte.js';
-import { createFeedbackState } from './feedback.svelte.js';
+import { createFeedbackState, NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 import type { BulkFixPlan } from '$lib/rules/bulk-fix.js';
 import type { RightPanelTab } from './panel-view.svelte.js';
 import { createPanelView } from './panel-view.svelte.js';
@@ -41,9 +43,14 @@ import { createMediaStore } from './media-store.svelte.js';
 import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persistence/backup.js';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 import { headerNameAtoms, isMirrorableHeaderName } from '$lib/performers/index.js';
-import { buildRuleContext } from './wiring.js';
+import { buildRuleContext, projectionPolicyContext } from './wiring.js';
 import { maxScribeBytes, ScribeFormatError } from '$lib/scribe/contracts.js';
 import type { ScribeProjectInput } from '$lib/scribe/format.js';
+import { profileSources } from '$lib/profiles/sources.js';
+import type { ProfileId } from '$lib/profiles/types.js';
+import { applyPerformerRecordDelta } from '$lib/editor/extensions/conversion-roster.js';
+import { normalizePerformerKey, allocatePerformerColor } from '$lib/performers/index.js';
+import { renderProfile } from '$lib/conversion/index.js';
 
 interface WorkbenchDependencies {
 	editor: EditorHandle;
@@ -79,6 +86,29 @@ interface WorkbenchDependencies {
 }
 
 export interface WorkbenchController {
+	applyClipboardReview(): boolean;
+	dismissClipboardReview(): void;
+	readonly requestedSectionId: string | undefined;
+	readonly requestedConversionReview: { kind: ConversionReviewKind; sequence: number } | undefined;
+	openConversionReview(diagnostic: Diagnostic): void;
+	readonly conversionPassageRequest: number;
+	openSectionDetails(sectionId: string): void;
+	showConversionPassage(range: TextRange): void;
+	applyConversionAction(
+		action: import('$lib/conversion/decisions.js').ConversionAction,
+		rosterChanges?: PerformerRecordDelta
+	): boolean;
+	adoptPerformerRecords(delta: PerformerRecordDelta): void;
+	prepareInterpretation(sourceProfile: ProfileId): void;
+	adoptPastedPerformers(performers: readonly PerformerRecord[]): void;
+	exportOriginalRecovery(): Promise<void>;
+	readonly profile: ProfileId;
+	readonly pendingProfile: ProfileId | undefined;
+	readonly profileSession: number;
+	isConversionSectionLocal(sectionId: string): boolean;
+	toggleConversionSectionLocal(sectionId: string): boolean;
+	readonly geniusText: string;
+	switchProfile(profile: ProfileId): void;
 	readonly editor: EditorHandle;
 	readonly snapshot: EditorSnapshot;
 	/**
@@ -240,6 +270,7 @@ export interface WorkbenchController {
 	exportScribe(id?: string): Promise<void>;
 	/** Validate and import a Scribe as a new local draft, without overwriting this one. */
 	importScribe(file: File): Promise<boolean>;
+	importLyrics(file: File, sourceProfile: ProfileId): Promise<boolean>;
 	deleteDraft(id: string): Promise<void>;
 	deleteAllDrafts(): Promise<void>;
 	backupWorkspace(): Promise<void>;
@@ -261,7 +292,9 @@ const grammarCheckPreference = 'grammarCheck';
  */
 export function createWorkbenchController(deps: WorkbenchDependencies): WorkbenchController {
 	const feedback = deps.feedback ?? createFeedbackState();
-	const sources = new SvelteMap((deps.sources ?? []).map((source) => [source.id, source]));
+	const sources = new SvelteMap(
+		[...(deps.sources ?? []), ...profileSources].map((source) => [source.id, source])
+	);
 	const copy = deps.copy ?? copyCanonicalMarkup;
 	const readClipboard = deps.readClipboard ?? readClipboardText;
 	const exportText = deps.exportText ?? downloadUtf8Text;
@@ -291,6 +324,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	// links, and a save landing in that window would write the blank over the
 	// draft's own.
 	let knownSectionLinks = $state<readonly SectionLink[]>(deps.initialDraft.sectionLinks ?? []);
+	let pendingProfile = $state<ProfileId | undefined>();
+	let profileSession = $state(0);
+	let conversionScopeRevision = $state(0);
+	let requestedSectionId = $state<string | undefined>();
+	let requestedConversionReview = $state<{ kind: ConversionReviewKind; sequence: number }>();
+	let conversionPassageRequest = $state(0);
 	let linkingHeaderFrom = $state<number | undefined>();
 	let linkingFromOverview = $state(false);
 	let linkingComparedHeaders = $state<readonly number[] | undefined>();
@@ -318,7 +357,31 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		// in-session ignore mirror has to be told or it answers for a draft that
 		// no longer has a record — and loses the ignores on reload.
 		ignoreStore: deps.ignoreStore,
+		beforeFlush: async () => {
+			await media?.flushPosition();
+		},
 		bindings: {
+			get originalRecovery() {
+				return editorSession.snapshot.originalRecovery;
+			},
+			get saveSideRecords() {
+				return {
+					ignoredDiagnostics: deps.ignoreStore.list(draft.draftId),
+					media: media?.storageSnapshot()
+				};
+			},
+			onDraftForked(result) {
+				media?.adoptDraftId(result.draft.id);
+				for (const key of deps.ignoreStore.list(result.sourceId))
+					deps.ignoreStore.ignore(result.draft.id, key);
+				panel.refreshIgnoredDiagnostics();
+			},
+			get conversionRecovery() {
+				return editorSession.snapshot.conversionRecovery;
+			},
+			get conversion() {
+				return editorSession.snapshot.conversion;
+			},
 			get snapshot() {
 				return editorSession.snapshot;
 			},
@@ -336,6 +399,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				return editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
 			},
 			onDraftLoaded(nextDraft) {
+				pendingProfile = undefined;
 				resetLinking();
 				roster.reset(nextDraft.performers);
 				panel.refreshIgnoredDiagnostics();
@@ -411,6 +475,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// every later save. Both directions are lazy closures because the two
 			// stores need each other and only one of them can be built first.
 			onAttached: () => draft.keepDraft(),
+			onStorageChange: deps.repository.compareAndSave
+				? (ownerId) => {
+						if (ownerId === draft.draftId) draft.keepDraft();
+					}
+				: undefined,
 			onPositionSettled: deps.backup?.schedule,
 			onTitleSuggestion: (title) => void nameDraftAfterSource(title)
 		};
@@ -422,16 +491,30 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 
 	const media = deps.mediaRepository ? buildMediaStore(deps.mediaRepository) : undefined;
 
+	if (deps.repository.compareAndSave) {
+		deps.ignoreStore.setPersistenceHandler?.((ownerId) => {
+			if (ownerId !== draft.draftId) return false;
+			draft.keepDraft();
+			return true;
+		});
+	}
+
 	const panel = createPanelView({
 		editor: () => editorSession.editor,
 		snapshot: () => editorSession.snapshot,
-		ruleContext: () =>
-			buildRuleContext(
-				draft.language,
+		ruleContext: () => {
+			const policy = projectionPolicyContext(editorSession.snapshot);
+			return buildRuleContext(
+				editorSession.snapshot.conversion?.model.defaultLanguage ?? draft.language,
 				roster.performers,
 				deps.ruleSet?.version ?? 'unavailable',
-				editorSession.snapshot.revision
-			),
+				editorSession.snapshot.revision,
+				editorSession.snapshot.conversion?.profile,
+				editorSession.snapshot.conversion?.model.contentKind,
+				policy.languageRanges,
+				policy.confirmedFacts
+			);
+		},
 		draftId: () => draft.draftId,
 		ignoreStore: deps.ignoreStore,
 		feedback,
@@ -471,6 +554,28 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		if (!current || !trimmed || current.displayName === trimmed) return;
 		const previousName = current.displayName;
 		const snapshot = editorSession.snapshot;
+		if (snapshot.conversion) {
+			const next = {
+				...current,
+				displayName: trimmed,
+				normalizedKey: normalizePerformerKey(trimmed),
+				aliases: [...new SvelteSet([...current.aliases, previousName])].filter(
+					(name) => name !== trimmed
+				),
+				colorId: allocatePerformerColor(
+					trimmed,
+					roster.performers.filter((entry) => entry.id !== id)
+				)
+			};
+			if (
+				controller.applyConversionAction(
+					{ kind: 'renamePerformer', performerId: id, previousName, displayName: trimmed },
+					{ before: [current], after: [next] }
+				)
+			)
+				feedback.announce(`Renamed ${previousName} to ${trimmed}.`);
+			return;
+		}
 		const occurrences = headerNameAtoms(snapshot.parsed, roster.performers).filter(
 			(atom) => atom.performerId === id && atom.text !== trimmed
 		);
@@ -511,6 +616,157 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	}
 
 	const controller: WorkbenchController = {
+		applyClipboardReview() {
+			const result = editorSession.editor.applyClipboardReview?.();
+			if (!result?.ok) {
+				const message = result?.message ?? 'The copied details are no longer available.';
+				feedback.announce(message);
+				feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+				return false;
+			}
+			feedback.announce('Passage details applied to this lyric format.');
+			editorSession.editor.focus();
+			return true;
+		},
+		dismissClipboardReview() {
+			editorSession.editor.dismissClipboardReview?.();
+			editorSession.editor.focus();
+		},
+		isConversionSectionLocal(sectionId) {
+			void conversionScopeRevision;
+			void editorSession.snapshot;
+			return editorSession.editor.isConversionSectionLocal?.(sectionId) ?? false;
+		},
+		toggleConversionSectionLocal(sectionId) {
+			return editorSession.editor.toggleConversionSectionLocal?.(sectionId) ?? false;
+		},
+		get profileSession() {
+			return profileSession;
+		},
+		get requestedConversionReview() {
+			return requestedConversionReview;
+		},
+		openConversionReview(diagnostic) {
+			const action = conversionReviewAction(diagnostic);
+			if (!action || !editorSession.snapshot.conversion || controller.profile !== 'musixmatch')
+				return;
+			editorSession.editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
+			requestedConversionReview = {
+				kind: action.kind,
+				sequence: (requestedConversionReview?.sequence ?? 0) + 1
+			};
+			panel.setActiveTab('song');
+		},
+		get requestedSectionId() {
+			return requestedSectionId;
+		},
+		get conversionPassageRequest() {
+			return conversionPassageRequest;
+		},
+		openSectionDetails(sectionId) {
+			requestedSectionId = sectionId;
+			panel.setActiveTab('song');
+		},
+		showConversionPassage(range) {
+			editorSession.editor.setSelection({ anchor: range.from, head: range.to });
+			editorSession.editor.revealRange(range);
+			conversionPassageRequest += 1;
+		},
+		prepareInterpretation(sourceProfile) {
+			const { anchor, head } = editorSession.snapshot.selection;
+			const result = editorSession.editor.prepareInterpretation?.(sourceProfile, {
+				from: Math.min(anchor, head),
+				to: Math.max(anchor, head)
+			});
+			if (!result?.ok) {
+				const message = result?.message ?? 'Select a passage in the lyrics first.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return;
+			}
+			panel.setActiveTab('song');
+		},
+		adoptPerformerRecords(delta) {
+			roster.reset(applyPerformerRecordDelta(roster.performers, delta));
+		},
+		applyConversionAction(action, rosterChanges) {
+			const result = editorSession.editor.dispatchConversionAction?.(
+				action,
+				editorSession.snapshot.revision,
+				rosterChanges
+			);
+			if (result?.ok) return true;
+			const message = result?.message ?? 'Document details are not ready yet.';
+			feedback.announce(message);
+			feedback.addToast({ message });
+			return false;
+		},
+		adoptPastedPerformers(performers) {
+			const ids = new SvelteSet(roster.performers.map((performer) => performer.id));
+			if (performers.some((performer) => ids.has(performer.id))) return;
+			roster.reset([...roster.performers, ...performers]);
+		},
+		async exportOriginalRecovery() {
+			const recovery =
+				editorSession.snapshot.originalRecovery ?? editorSession.snapshot.conversionRecovery;
+			const id = recovery?.sourceDraftId;
+			if (!id || !deps.repository.exportRawDraft) return;
+			try {
+				const text = await deps.repository.exportRawDraft(id);
+				if (!text) throw new Error('The original record is unavailable.');
+				exportText(text, safeFilename(`${draft.title} original data`, 'json'), 'application/json');
+				feedback.announce('Original recovery data exported.');
+			} catch {
+				const message = 'The original data could not be exported. It has not been changed.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+			}
+		},
+		get profile() {
+			return editorSession.snapshot.conversion?.profile ?? 'genius';
+		},
+		get pendingProfile() {
+			return pendingProfile;
+		},
+		get geniusText() {
+			const conversion = editorSession.snapshot.conversion;
+			if (!conversion) return editorSession.snapshot.text;
+			const rendered = renderProfile(conversion.model, 'genius');
+			return rendered.ok ? rendered.value.text : editorSession.snapshot.text;
+		},
+		switchProfile(profile) {
+			pendingProfile = undefined;
+			if (editorSession.snapshot.originalRecovery) {
+				const message =
+					'This recovered text is kept separately from its original data. Export the original data from Song before repairing its format.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return;
+			}
+			if (profile === controller.profile) return;
+			if (editorSession.snapshot.composing) {
+				pendingProfile = profile;
+				feedback.announce('The lyric format will change after this character is finished.');
+				return;
+			}
+			const syncEnded = editorSession.editor.isLyricSyncActive?.() ?? false;
+			const result = editorSession.editor.switchProfile?.(profile);
+			if (!result?.ok) {
+				const message = result?.message ?? 'Lyric format conversion is not ready yet.';
+				feedback.announce(message);
+				if (result?.deferred) {
+					pendingProfile = profile;
+					return;
+				}
+				feedback.addToast({ message });
+				return;
+			}
+			panel.clearFixPreview();
+			resetLinking();
+			feedback.announce(
+				`${profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} format.${syncEnded ? ' Sync ended.' : ''}`
+			);
+		},
 		get editor() {
 			return editorSession.editor;
 		},
@@ -523,7 +779,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get canLoadSample() {
 			return (
 				editorSession.snapshot.text.trim().length === 0 &&
-				resolveLanguageTag(draft.language) === sampleDraftLanguage
+				controller.profile === 'genius' &&
+				!editorSession.snapshot.conversion?.model.sections.length &&
+				resolveLanguageTag(controller.language) === sampleDraftLanguage
 			);
 		},
 		get draftId() {
@@ -537,7 +795,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			return draft.title;
 		},
 		get language() {
-			return draft.language;
+			return editorSession.snapshot.conversion?.model.defaultLanguage ?? draft.language;
 		},
 		get recentLanguages() {
 			return draft.recentLanguages;
@@ -613,6 +871,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// replacing the handle with `undefined` would make even an optional
 			// editor capability such as `previewAtomic` unsafe to inspect.
 			if (!handle) return;
+			if (handle !== editorSession.editor) {
+				profileSession += 1;
+				requestedConversionReview = undefined;
+				requestedSectionId = undefined;
+			}
 			editorSession.setEditorHandle(handle);
 			// Re-seat the draft's anchors on any editor that can hold them and has
 			// none. The capability is *checked* rather than optional-called: the
@@ -642,8 +905,31 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		setSaveStatus: draft.setSaveStatus,
 		onSnapshot(nextSnapshot) {
 			const previous = editorSession.snapshot;
+			if (
+				(previous.conversion?.profile ?? 'genius') !==
+				(nextSnapshot.conversion?.profile ?? 'genius')
+			)
+				profileSession += 1;
+			if (previous.originalRecovery)
+				nextSnapshot = { ...nextSnapshot, originalRecovery: previous.originalRecovery };
 			const change = editorSession.adoptSnapshot(nextSnapshot);
 			if (!change) return;
+			if (nextSnapshot.conversionRecovery && !previous.conversionRecovery) {
+				const message =
+					'Your latest text is preserved, but its retained details need recovery. Export a Scribe from Song to keep both the text and the last valid document.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+			}
+			if (pendingProfile && !nextSnapshot.composing) {
+				const requested = pendingProfile;
+				queueMicrotask(() => {
+					if (pendingProfile === requested) controller.switchProfile(requested);
+				});
+			}
+			if (nextSnapshot.conversion) {
+				knownLineAnchors = editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
+				knownSectionLinks = editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
+			}
 			// Offsets and difference indexes belong to the text that was reviewed.
 			// A new text needs a fresh choice; selection and lint-only updates do not.
 			if (previous.text !== nextSnapshot.text) resetLinking();
@@ -660,6 +946,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			draft.scheduleSave();
 		},
 		onSectionLinksChanged() {
+			conversionScopeRevision += 1;
 			knownSectionLinks = editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
 			draft.scheduleSave();
 		},
@@ -736,7 +1023,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// The editor's own field first, for the reason `bindings.lineAnchors`
 			// gives: the known set is the fallback, not the truth.
 			const anchors = editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
-			const content = formatTimedLyrics(editorSession.snapshot.text, anchors, format);
+			const content = formatTimedLyrics(
+				editorSession.snapshot.text,
+				anchors,
+				format,
+				editorSession.snapshot.conversion?.profile ?? 'genius'
+			);
 			if (content.length === 0) {
 				feedback.announce('There are no line timings to export.');
 				return;
@@ -754,7 +1046,14 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		toggleSeverity: panel.toggleSeverity,
 		setTitle: draft.setTitle,
-		setLanguage: draft.setLanguage,
+		setLanguage(language) {
+			if (
+				editorSession.snapshot.conversion &&
+				!controller.applyConversionAction({ kind: 'setLanguage', language })
+			)
+				return;
+			draft.setLanguage(language);
+		},
 		undo: editorSession.undo,
 		redo: editorSession.redo,
 		navigateToDiagnostic: panel.navigateToDiagnostic,
@@ -774,14 +1073,28 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		restoreDiagnostic: panel.restoreDiagnostic,
 		copyCanonical: editorSession.copyCanonical,
 		pasteLyrics: editorSession.pasteLyrics,
-		insertUnknownMarker: editorSession.insertUnknownMarker,
+		insertUnknownMarker() {
+			if (controller.profile === 'genius') editorSession.insertUnknownMarker();
+		},
 		loadSample() {
 			editorSession.replaceDocument(
 				sampleDraftText,
 				"Sample transcription loaded. Undo replaces it with an empty 'scribe."
 			);
 		},
-		insertSection: editorSession.insertSection,
+		insertSection() {
+			if (controller.profile === 'genius') {
+				editorSession.insertSection();
+				return;
+			}
+			const snapshot = editorSession.snapshot;
+			const conversion = snapshot.conversion;
+			const projection = conversion && renderProfile(conversion.model, conversion.profile);
+			const section = projection?.ok
+				? projection.value.sections.filter((entry) => entry.at <= snapshot.selection.head).at(-1)
+				: undefined;
+			controller.openSectionDetails(section?.id ?? 'new');
+		},
 		get searchOpen() {
 			return editorSession.searchOpen;
 		},
@@ -790,8 +1103,37 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		addPerformer: roster.addPerformer,
 		renamePerformer,
 		adoptHeaderRename: roster.adoptHeaderRename,
-		mergePerformers: roster.mergePerformers,
-		removePerformer: roster.removePerformer,
+		mergePerformers(sourceId, targetId) {
+			if (!editorSession.snapshot.conversion) {
+				roster.mergePerformers(sourceId, targetId);
+				return;
+			}
+			const source = roster.performers.find((entry) => entry.id === sourceId);
+			const target = roster.performers.find((entry) => entry.id === targetId);
+			if (!source || !target || sourceId === targetId) return;
+			const next = {
+				...target,
+				aliases: [
+					...new SvelteSet([...target.aliases, ...source.aliases, source.displayName])
+				].filter((name) => name !== target.displayName)
+			};
+			controller.applyConversionAction(
+				{ kind: 'mergePerformer', fromPerformerId: sourceId, toPerformerId: targetId },
+				{ before: [source, target], after: [next] }
+			);
+		},
+		removePerformer(id) {
+			if (!editorSession.snapshot.conversion) {
+				roster.removePerformer(id);
+				return;
+			}
+			const current = roster.performers.find((entry) => entry.id === id);
+			if (current)
+				controller.applyConversionAction(
+					{ kind: 'removePerformer', performerId: id },
+					{ before: [current], after: [] }
+				);
+		},
 		refreshDrafts: draft.refreshDrafts,
 		createDraft: draft.createDraft,
 		openDraft: draft.openDraft,
@@ -846,6 +1188,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// record never made.
 			if (exported.geniusUrl !== undefined) project.geniusUrl = exported.geniusUrl;
 			if (exported.originalText !== undefined) project.originalText = exported.originalText;
+			if (exported.conversion !== undefined) project.conversion = exported.conversion;
+			if (exported.conversionRecovery !== undefined)
+				project.conversionRecovery = exported.conversionRecovery;
+			if (exported.originalRecovery !== undefined)
+				project.originalRecovery = exported.originalRecovery;
 			if (exported.editorSelection !== undefined) project.selection = exported.editorSelection;
 			if (exported.compareBaseline !== undefined) {
 				project.compareBaseline = exported.compareBaseline;
@@ -864,6 +1211,55 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				const message = "That 'scribe could not be exported.";
 				feedback.announce(message);
 				feedback.addToast({ message });
+			}
+		},
+		async importLyrics(file, sourceProfile) {
+			try {
+				if (!file.name.toLocaleLowerCase().endsWith('.txt'))
+					throw new Error('Choose a lyrics file ending in .txt.');
+				if (sourceProfile !== 'genius' && sourceProfile !== 'musixmatch')
+					throw new Error('Choose a supported source format.');
+				const { CONVERSION_LIMITS, importDocument } = await import('$lib/conversion/index.js');
+				if (file.size > CONVERSION_LIMITS.text * 4)
+					throw new Error('This lyrics file is too large to import.');
+				const originalText = await file.text();
+				const text = originalText.replace(/\r\n?/g, '\n');
+				const model = importDocument({
+					text,
+					profile: sourceProfile,
+					language: controller.language
+				});
+				if (!model.ok) throw new Error(model.refusal.message);
+				const { createConversionEnvelope } = await import('$lib/persistence/conversion.js');
+				const { profilePolicyVersions } = await import('$lib/profiles/versions.js');
+				const timestamp = now();
+				const imported: DraftRecord = {
+					id: idFactory(),
+					title: file.name.slice(0, -4).trim() || DEFAULT_DRAFT_TITLE,
+					text,
+					originalText,
+					language: model.value.defaultLanguage,
+					performers: [],
+					createdAt: timestamp,
+					updatedAt: timestamp,
+					ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion,
+					conversion: createConversionEnvelope(model.value, sourceProfile, profilePolicyVersions)
+				};
+				await draft.flushAutosave();
+				if (deps.autosave.status() === 'failed')
+					throw new Error('Save or export the current draft before opening imported lyrics.');
+				await deps.repository.create(imported);
+				await draft.openDraft(imported.id);
+				feedback.announce(
+					`Imported ${imported.title} as ${sourceProfile === 'genius' ? 'Genius' : 'Musixmatch'} lyrics.`
+				);
+				return true;
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : 'The lyrics file could not be imported.';
+				feedback.announce(message);
+				feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+				return false;
 			}
 		},
 		async importScribe(file) {
@@ -913,6 +1309,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			const scribed = project.document;
 			if (scribed.geniusUrl !== undefined) imported.geniusUrl = scribed.geniusUrl;
 			if (scribed.originalText !== undefined) imported.originalText = scribed.originalText;
+			if (scribed.conversion !== undefined) imported.conversion = scribed.conversion;
+			if (scribed.conversionRecovery !== undefined)
+				imported.conversionRecovery = scribed.conversionRecovery;
+			if (scribed.originalRecovery !== undefined)
+				imported.originalRecovery = scribed.originalRecovery;
 			if (scribed.selection !== undefined) imported.editorSelection = scribed.selection;
 			if (scribed.compareBaseline !== undefined) {
 				imported.compareBaseline = scribed.compareBaseline;

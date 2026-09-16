@@ -8,6 +8,8 @@
 	import SongFacts, { hasSongFacts } from '../media/SongFacts.svelte';
 	import { pendingMediaActionLabel } from '../media/pending-media-label.js';
 	import { youtubeSearchTerm } from '../state/media-youtube.js';
+	import ConversionDetails from './ConversionDetails.svelte';
+	import ClipboardReview from './ClipboardReview.svelte';
 
 	let { controller, active = true }: { controller: WorkbenchController; active?: boolean } =
 		$props();
@@ -104,6 +106,29 @@
 	most two things, and a section's actions fit on one row.
 -->
 <div class="panel-content panel-sections song-panel">
+	<ClipboardReview {controller} />
+	{#if controller.snapshot.conversionRecovery || controller.snapshot.originalRecovery}
+		<section>
+			<h2>Recover retained details</h2>
+			<p>
+				{(controller.snapshot.conversionRecovery ?? controller.snapshot.originalRecovery)?.reason}
+			</p>
+			<p>
+				Your latest lyrics and the earlier data are preserved separately. Format conversion waits
+				until their associations can be restored.
+			</p>
+			<div class="tool-actions">
+				<button type="button" class="button" onclick={() => controller.exportScribe()}
+					>Export recovery Scribe</button
+				>
+				{#if (controller.snapshot.conversionRecovery ?? controller.snapshot.originalRecovery)?.sourceDraftId}
+					<button type="button" class="button" onclick={() => controller.exportOriginalRecovery()}
+						>Export original data</button
+					>
+				{/if}
+			</div>
+		</section>
+	{/if}
 	<!--
 		What the attached song is, in the forms somebody filling in a song page
 		elsewhere has to paste: its facts, its cover and its link.
@@ -205,6 +230,7 @@
 		the user already has. `current draft` is gone from the label rather than
 		shortened for room — the toolbar names the draft.
 	-->
+	<ConversionDetails {controller} />
 	<section>
 		<h2>Document</h2>
 		{#if documentCounts.length > 0}
@@ -221,8 +247,8 @@
 			</button>
 		</div>
 		<p>
-			Text holds the canonical lyrics. A Scribe keeps the editable LyricLint project as an .lls
-			file.
+			Text contains the active {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics.
+			A Scribe (.lls) keeps both formats, retained details, and the editable project.
 		</p>
 	</section>
 

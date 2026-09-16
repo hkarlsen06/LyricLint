@@ -2,13 +2,27 @@
 
 The one backend in the product, and deliberately not draft storage or sync: a
 Cloudflare Worker behind Cloudflare AI Gateway that answers questions about the
-Genius transcription guidelines and offers general proofreading and convention
+Genius or Musixmatch transcription guidelines and offers general proofreading and convention
 help for the accountless "Ask LyricLint" modal. Reviewed claims carry canonical
 references when relevant; general language advice does not need one.
 Draft linting stays in the browser. The service normally receives only the
 assistant's composer text; its draft tools can receive the open 'scribe only
 after the visitor's explicit per-'scribe decision, and only for that tool
 session.
+
+Each request selects a bundled profile, policy version and corpus hash together. An omitted
+profile remains Genius for older clients. Musixmatch has its own generated corpus containing all
+111 researched clauses, their language limits, provenance and unresolved source scope. Sources
+retain official Musixmatch versus community standing independently of the Genius authority
+ladder. Cross-profile hashes and citations are refused before provider work. The current
+Musixmatch tool set excludes header-addressed `manage_links`; its stable section metadata stays
+in the local editor.
+
+Client transcript messages keep their original profile and corpus identity. Only completed
+exchanges from the active profile enter a new request. Draft tool proposals are additionally
+bound to a local draft/profile/session key; switching away and back invalidates an old proposal,
+even when the lyrics are byte-identical. Switching is deterministic local rendering and never
+calls this assistant.
 
 Design notes live in `docs/architecture.md` at the repository root ("The rules
 assistant service"). The public contract is `POST /v1/answers` and `GET /health`.
@@ -168,11 +182,15 @@ allow publication to propagate without accepting stale or incompatible metadata.
 Retrying an already published revision verifies it without redeploying the Worker
 or removing compatibility for earlier clients.
 
-Requests select a known bundled corpus using `clientRuleSetVersion` and
+Requests select a known bundled corpus using `profile`, `clientRuleSetVersion` and
 `clientCorpusHash`; prompts, prompt-cache keys, and citation validation use that
 same selection. Legacy hashless requests are accepted only for an explicitly
 retained legacy corpus. Unknown pairs fail before provider work. Compatibility
-covers the new and actual previous live site, not arbitrary historical tabs.
+covers every advertised profile in the new and actual previous live site, not arbitrary historical
+tabs. Website manifests retain the top-level Genius identity for older rollout clients and also
+list `profileCorpora`. Release preparation reads each allowlisted artifact from the exact published
+revision, verifies its content hash, and refuses to drop a missing profile. The health gate checks
+both Genius and Musixmatch before publishing Pages.
 
 Push a release to `main` to start the pipeline. Both the root
 `bun run assistant:deploy` and this package's `bun run deploy` request a CI

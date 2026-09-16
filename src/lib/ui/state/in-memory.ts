@@ -1,3 +1,4 @@
+import { copyConversionFields, copySectionLinks } from '$lib/persistence/copy.js';
 import { summarizeDraft } from '$lib/persistence/draft-summary.js';
 import type {
 	AutosaveController,
@@ -13,7 +14,7 @@ import type {
 } from '$lib/persistence/index.js';
 
 function cloneDraft(draft: DraftRecord): DraftRecord {
-	return {
+	const copy: DraftRecord = {
 		...draft,
 		performers: draft.performers.map((performer) => ({
 			...performer,
@@ -21,6 +22,11 @@ function cloneDraft(draft: DraftRecord): DraftRecord {
 		})),
 		editorSelection: draft.editorSelection ? { ...draft.editorSelection } : undefined
 	};
+	if (draft.lineAnchors) copy.lineAnchors = draft.lineAnchors.map((anchor) => ({ ...anchor }));
+	if (draft.sectionLinks) copy.sectionLinks = copySectionLinks(draft.sectionLinks);
+	if (draft.compareBaseline) copy.compareBaseline = { ...draft.compareBaseline };
+	copyConversionFields(draft, copy);
+	return copy;
 }
 
 export function createInMemoryDraftRepository(
@@ -86,6 +92,12 @@ export function createInMemoryDraftRepository(
 			};
 			drafts.set(newId, duplicate);
 			return cloneDraft(duplicate);
+		},
+		async deleteIfUnchanged(id, expectedGeneration) {
+			const existing = drafts.get(id);
+			if (existing && (existing.storageGeneration ?? 0) !== expectedGeneration) return false;
+			drafts.delete(id);
+			return true;
 		},
 		async delete(id) {
 			drafts.delete(id);

@@ -14,6 +14,7 @@
  * reader.
  */
 const groupTitles = new Map<string, string>([
+	['mxm', 'Musixmatch'],
 	['syntax', 'Syntax and markup'],
 	['language', 'Language selection'],
 	['section', 'Section headers'],

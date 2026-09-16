@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { tick } from 'svelte';
 import { render } from 'vitest-browser-svelte';
+import { page } from 'vitest/browser';
 // The lockup's geometry is all `em` and `ch` against `--font-size-lg` in
 // `wordmark.css`, so a width assertion here is only meaningful with the real
 // tokens loaded.
@@ -71,6 +72,9 @@ describe('AppWordmark', () => {
 			await render(AppWordmark);
 			const element = lockup();
 			await fontsSettled();
+			// Chromium can start its pointer at the top-left wordmark. This case
+			// measures the unattended intro; hovering intentionally holds it open.
+			await page.getByRole('img', { name: 'LyricLint' }).unhover();
 
 			// Open on mount, which is also what prerendered HTML says: the intro is
 			// a hold on the state the page loaded in, not an animation that plays.

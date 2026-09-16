@@ -13,6 +13,9 @@ interface AssistantProposalApplyOptions {
  */
 export interface AssistantDraftBridge {
 	draftId(): string;
+	/** Profile and editor session identify the immutable scope of a proposal. */
+	profile?(): 'genius' | 'musixmatch';
+	sessionId?(): string | number;
 	readText(): string;
 	revision(): number;
 	/** False when the edit is stale or the editor refuses the preview. */

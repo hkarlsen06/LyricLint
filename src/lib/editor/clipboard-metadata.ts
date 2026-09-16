@@ -1,5 +1,8 @@
 import { validateLinkPassages } from '../core/link-record.js';
 import type { LinkPassageRecord, LinkPassageOccurrence } from '../core/types.js';
+import type { PerformerRecord } from '../core/types.js';
+import { parseConversionEnvelope, type ConversionEnvelope } from '../persistence/conversion.js';
+import { performerColorIds } from '../performers/color.js';
 
 /**
  * The second flavor a copy carries, and the arithmetic of reading it back.
@@ -94,6 +97,9 @@ export interface ClipboardLink {
 }
 
 export interface ClipboardMetadata {
+	/** Version 2 binds rich details to the exact plain-text flavor. */
+	conversion?: ConversionEnvelope;
+	performers?: PerformerRecord[];
 	/** How many lines the copied text splits into — the guard against a foreign `text/plain`. */
 	lines: number;
 	anchors: ClipboardAnchor[];
@@ -154,7 +160,7 @@ function escapeText(value: string): string {
  * dropped, not because the flavor hides the text.
  */
 export function clipboardHtml(text: string, metadata: ClipboardMetadata): string {
-	const payload = JSON.stringify({ v: payloadVersion, ...metadata });
+	const payload = JSON.stringify({ v: metadata.conversion ? 2 : payloadVersion, ...metadata });
 	return `<div ${clipboardMetadataAttribute}="${escapeAttribute(payload)}"><pre>${escapeText(text)}</pre></div>`;
 }
 
@@ -278,7 +284,7 @@ export function metadataFromClipboardHtml(html: string): ClipboardMetadata | und
 	} catch {
 		return undefined;
 	}
-	if (!isRecord(payload) || payload.v !== payloadVersion) return undefined;
+	if (!isRecord(payload) || (payload.v !== payloadVersion && payload.v !== 2)) return undefined;
 	const { lines } = payload;
 	if (!isLineCount(lines)) return undefined;
 
@@ -301,9 +307,56 @@ export function metadataFromClipboardHtml(html: string): ClipboardMetadata | und
 		.map((link) => readLink(link, lines))
 		.filter((link): link is ClipboardLink => link !== undefined);
 	const media = readMedia(payload.media);
+	let conversion: ConversionEnvelope | undefined;
+	let performers: PerformerRecord[] | undefined;
+	if (payload.v === 2) {
+		try {
+			conversion = parseConversionEnvelope(payload.conversion);
+			if (!Array.isArray(payload.performers) || payload.performers.length > 1000) return undefined;
+			performers = [];
+			const ids = new Set<string>();
+			for (const value of payload.performers) {
+				if (
+					!isRecord(value) ||
+					typeof value.id !== 'string' ||
+					!value.id ||
+					ids.has(value.id) ||
+					typeof value.displayName !== 'string' ||
+					typeof value.normalizedKey !== 'string' ||
+					!Array.isArray(value.aliases) ||
+					!value.aliases.every((alias) => typeof alias === 'string') ||
+					typeof value.colorId !== 'string' ||
+					!performerColorIds.some((color) => color === value.colorId) ||
+					typeof value.order !== 'number' ||
+					!Number.isSafeInteger(value.order) ||
+					value.order < 0
+				)
+					return undefined;
+				ids.add(value.id);
+				performers.push({
+					id: value.id,
+					displayName: value.displayName,
+					normalizedKey: value.normalizedKey,
+					aliases: value.aliases,
+					colorId: value.colorId,
+					order: value.order
+				});
+			}
+			if (conversion.model.voices.some((voice) => voice.performerIds.some((id) => !ids.has(id))))
+				return undefined;
+		} catch {
+			return undefined;
+		}
+	} else if (payload.conversion !== undefined || payload.performers !== undefined) return undefined;
 
-	if (anchors.length === 0 && links.length === 0 && !media) return undefined;
-	return media ? { lines, anchors, links, media } : { lines, anchors, links };
+	if (anchors.length === 0 && links.length === 0 && !media && !conversion) return undefined;
+	const metadata: ClipboardMetadata = { lines, anchors, links };
+	if (media) metadata.media = media;
+	if (conversion) {
+		metadata.conversion = conversion;
+		metadata.performers = performers;
+	}
+	return metadata;
 }
 
 /** Offset of each line's start within `text`; its length is the line count. */

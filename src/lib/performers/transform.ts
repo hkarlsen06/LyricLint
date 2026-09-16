@@ -831,9 +831,17 @@ export function canAssignVoiceGroup(
 	document: ParsedDocument,
 	selection: SerializedSelection
 ): boolean {
-	const range = normalizeSelection(document, selection);
-	if (isSelectionRefusal(range)) {
-		return false;
+	const range = assignmentSelectionRange(document, selection);
+	if (!range) return false;
+	if (document.profile === 'musixmatch') {
+		const sections = document.sections.filter(
+			(section) => section.from < range.to && range.from < section.to
+		);
+		return (
+			sections.length > 0 &&
+			!!sections[0].conversionSectionId &&
+			sections.every((section) => section.conversionSectionId === sections[0].conversionSectionId)
+		);
 	}
 	return sectionForRange(document.sections, range)?.header !== undefined;
 }
@@ -855,6 +863,13 @@ export function assignmentSelectionRange(
 	document: ParsedDocument,
 	selection: SerializedSelection
 ): TextRange | undefined {
+	if (document.profile === 'musixmatch') {
+		let from = Math.min(selection.anchor, selection.head);
+		let to = Math.max(selection.anchor, selection.head);
+		while (from < to && /\s/u.test(document.text[from])) from++;
+		while (from < to && /\s/u.test(document.text[to - 1])) to--;
+		return from < to ? { from, to } : undefined;
+	}
 	const range = normalizeSelection(document, selection);
 	return isSelectionRefusal(range) ? undefined : range;
 }

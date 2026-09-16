@@ -1,6 +1,9 @@
 // Decision record: docs/subsystems/media.md — read it before changing this file, and update it with any behavior change.
 import type { ClipboardMediaSource } from '$lib/editor/contracts.js';
 import type { MediaRepository } from '$lib/persistence/media-repository.js';
+import type { MediaHandleRecord } from '$lib/persistence/types.js';
+import { SvelteDate } from 'svelte/reactivity';
+import { randomId } from '$lib/core/random-id.js';
 import type { FeedbackState } from './feedback.svelte.js';
 import { NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 import type { MediaPlayer, MediaSourceKind } from './media-player.svelte.js';
@@ -145,6 +148,8 @@ interface MediaStoreDependencies {
 	 * nothing about the document, so nothing else will schedule the save.
 	 */
 	onAttached?: () => void;
+	/** When provided, all local media writes belong to the draft's CAS transaction. */
+	onStorageChange?: (draftId: string) => void;
 	/** Request a prompt portable backup after a pause, seek, or final position checkpoint lands. */
 	onPositionSettled?: () => void;
 	/**
@@ -164,6 +169,11 @@ interface MediaStoreDependencies {
 }
 
 export interface MediaStore {
+	readonly recordingId: string | undefined;
+	/** Local attachment captured alongside a save; undefined while restoration is unresolved. */
+	storageSnapshot(): MediaHandleRecord | null | undefined;
+	/** A conflict copy owns the existing player without detaching or restarting it. */
+	adoptDraftId(draftId: string): void;
 	readonly player: MediaPlayer;
 	/** Saved attachment state is still being recovered for the current draft. */
 	readonly restoring: boolean;
@@ -486,6 +496,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	// open: switching drafts detaches, and a position write racing that switch
 	// would otherwise stamp the old track's playhead onto the new draft.
 	let ownerDraftId: string | undefined;
+	let localRecord = $state.raw<MediaHandleRecord | null>(null);
 	let lastWriteAt = 0;
 	let lastWritten: number | undefined;
 
@@ -494,8 +505,10 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		if (draftId === undefined) return;
 		lastWriteAt = clock();
 		lastWritten = position;
+		if (localRecord?.draftId === draftId) localRecord = { ...localRecord, position };
 		try {
-			await deps.repository.savePosition(draftId, position);
+			if (deps.onStorageChange) deps.onStorageChange(draftId);
+			else await deps.repository.savePosition(draftId, position);
 			if (settled) deps.onPositionSettled?.();
 		} catch {
 			// The position is a convenience. Losing it is not worth a message.
@@ -520,10 +533,22 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		deps.onTitleSuggestion?.(name);
 		const draftId = ownerDraftId;
 		if (draftId === undefined) return;
+		if (localRecord?.draftId === draftId) localRecord = { ...localRecord, name };
+		if (deps.onStorageChange) {
+			deps.onStorageChange(draftId);
+			return;
+		}
 		void deps.repository.saveName(draftId, name).catch(() => {
 			// A better label is a convenience. Losing it is not worth a message.
 		});
 	});
+
+	async function rememberRecord(input: MediaAttachInput): Promise<void> {
+		localRecord = { ...input, attachedAt: new SvelteDate().toISOString() };
+		deps.onAttached?.();
+		if (deps.onStorageChange) deps.onStorageChange(input.draftId);
+		else await deps.repository.attach(input);
+	}
 
 	/**
 	 * Write the file down, and the playhead it is being reopened at.
@@ -542,7 +567,8 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	async function remember(
 		file: File,
 		handle?: FileSystemFileHandle,
-		position?: number
+		position?: number,
+		recordingId = `file:${randomId()}`
 	): Promise<void> {
 		try {
 			const input: MediaAttachInput = {
@@ -550,10 +576,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				name: file.name,
 				size: file.size,
 				source: 'file',
+				recordingId,
 				handle
 			};
 			if (position !== undefined) input.position = position;
-			await deps.repository.attach(input);
+			await rememberRecord(input);
 		} catch {
 			// Playback still works for this session; only the memory of it is lost.
 			feedback.announce('This audio could not be remembered for next time.');
@@ -570,6 +597,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	 * once already.
 	 */
 	function forget(): void {
+		localRecord = null;
 		pendingName = undefined;
 		pendingSource = undefined;
 		pendingHandle = undefined;
@@ -585,7 +613,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	/** Everything a new attachment forgets, whichever kind it is. */
 	function claim(): number | undefined {
 		const startAt = pendingPosition;
+		const retainedRecord = localRecord;
 		forget();
+		localRecord = retainedRecord;
 		ownerDraftId = deps.draftId();
 		lastWriteAt = clock();
 		lastWritten = startAt;
@@ -690,6 +720,28 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	}
 
 	const store: MediaStore = {
+		get recordingId() {
+			if (!localRecord) return undefined;
+			if (localRecord.source === 'youtube')
+				return localRecord.videoId ? `youtube:${localRecord.videoId}` : undefined;
+			if (localRecord.source === 'spotify')
+				return localRecord.trackId ? `spotify:${localRecord.trackId}` : undefined;
+			if (localRecord.source === 'apple')
+				return localRecord.songId ? `apple:${localRecord.songId}` : undefined;
+			return localRecord.recordingId;
+		},
+		storageSnapshot() {
+			if (restoring) return undefined;
+			if (!localRecord) return null;
+			const record = { ...localRecord };
+			if (ownerDraftId === localRecord.draftId && player.attached)
+				record.position = player.liveTime();
+			return record;
+		},
+		adoptDraftId(draftId) {
+			if (ownerDraftId !== undefined) ownerDraftId = draftId;
+			if (localRecord) localRecord = { ...localRecord, draftId };
+		},
 		get player() {
 			return player;
 		},
@@ -775,7 +827,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 						videoId: parsed.videoId
 					};
 					if (resumed.position !== undefined) input.position = resumed.position;
-					await deps.repository.attach(input);
+					await rememberRecord(input);
 				} catch {
 					feedback.announce('This video could not be remembered for next time.');
 				}
@@ -877,7 +929,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 						trackId
 					};
 					if (resumed.position !== undefined) input.position = resumed.position;
-					await deps.repository.attach(input);
+					await rememberRecord(input);
 				} catch {
 					feedback.announce('This track could not be remembered for next time.');
 				}
@@ -936,7 +988,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 						songId
 					};
 					if (resumed.position !== undefined) input.position = resumed.position;
-					await deps.repository.attach(input);
+					await rememberRecord(input);
 				} catch {
 					feedback.announce('This song could not be remembered for next time.');
 				}
@@ -1043,7 +1095,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 					if (source.kind === 'youtube') input.videoId = source.id;
 					if (source.kind === 'spotify') input.trackId = source.id;
 					if (source.kind === 'apple') input.songId = source.id;
-					await deps.repository.attach(input);
+					await rememberRecord(input);
 				} catch {
 					feedback.announce('The pasted song could not be remembered for next time.');
 				}
@@ -1159,7 +1211,10 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 					try {
 						const file = await handle.getFile();
 						if (superseded()) return;
+						const recordingId = localRecord?.recordingId;
+						const restored = pendingPosition;
 						adopt(file, handle);
+						if (!recordingId) await remember(file, handle, restored);
 						return;
 					} catch {
 						if (superseded()) return;
@@ -1196,7 +1251,8 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			forget();
 			lastWritten = undefined;
 			try {
-				await deps.repository.detach(deps.draftId());
+				if (deps.onStorageChange) deps.onStorageChange(deps.draftId());
+				else await deps.repository.detach(deps.draftId());
 			} catch {
 				feedback.announce('Local storage could not be updated.');
 			}
@@ -1232,6 +1288,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				}
 				if (generation !== openGeneration) return;
 				if (!record) return;
+				localRecord = { ...record };
 
 				pendingName = record.name;
 				pendingSource = record.source ?? 'file';
