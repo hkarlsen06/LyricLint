@@ -15,7 +15,10 @@ Musixmatch additions: `src/lib/profiles/reference.server.ts`, `src/lib/profiles/
 - The profile navigation keeps Genius and Musixmatch guide corpora distinct while reusing the
   same finder and reader-facing topics. `/guidelines/musixmatch/` is the Musixmatch directory;
   its topic routes publish all researched clauses with language scope, provenance, partial-check
-  limits and unresolved-source status. `/guidelines/?profile=musixmatch` enters that directory.
+  limits and unresolved-source status. Each topic entry names its handling with a pill, states
+  language names, folds citations, flags source conflicts inline, and discloses each related
+  check with its flagged and accepted examples; the landing lists question entrances and topics
+  with clause counts. `/guidelines/?profile=musixmatch` enters that directory.
   Check pages keep the common `/guidelines/checks/` path and derive their text from actual rule
   output and tested invented cases. `mxm.*` IDs make profile ownership explicit.
 - A source-review finding is not an assertion that its example lyric is wrong. Check pages label

@@ -172,6 +172,20 @@ for. It is configured once in `vitest-setup-client.ts`, where `eventWrapper: flu
 `asyncWrapper` that awaits `tick()` teach it Svelte's flush boundaries. Adding a second component
 renderer is the drift this split exists to prevent; adding a DOM query helper is not.
 
+## Writing style
+
+Write plainly in docs, comments, UI copy, and chat replies. The rule holds for every change that adds words.
+
+Use plain words and active voice. Name the actor in each sentence. Keep sentences short, with one idea in each. Prefer a strong verb over a weak verb plus an adverb. Write complete sentences with articles and verbs. Use "use", "help", "many", and "if" in place of fancier synonyms.
+
+Avoid these words: additionally, crucial, delve, enduring, enhance, fostering, garner, interplay, intricate, landscape, pivotal, showcase, tapestry, testament, underscore, vibrant. Avoid abstract metaphor nouns such as substrate, wedge, vector, nexus, primitive, scaffolding, modality, paradigm, endgame, north star, and flywheel. Say what the code does, with the mechanism or a number the reader can check. Cut any sentence that could fit unchanged in another project.
+
+State the point directly. Do not use "not just X, but Y" framing. Do not force ideas into groups of three. Pick one term for each concept and repeat it. Do not write "from X to Y" unless X and Y sit on a real scale. Delete trailing -ing phrases such as "highlighting", "ensuring", or "showcasing" unless the clause adds a sourced fact. Name the source for any claim, or delete the claim.
+
+Use periods or commas to separate thoughts. Do not use em dashes. Use sentence case for headings. Use straight quotes. Do not add decorative emojis. Keep bold for the rare term that needs it. A colon may open a list or an example, and nothing else. Delete filler such as "in order to", "due to the fact that", or "it is important to note that". Keep one hedge at most, and only when the fact is truly uncertain.
+
+Do not add chatbot phrases or praise. Answer directly, with no opener about the question and no closer offering further help.
+
 ## Final responses
 
 At the end of every turn, begin the final response by explaining what the user asked for, then
