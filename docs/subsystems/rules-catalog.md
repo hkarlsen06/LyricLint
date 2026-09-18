@@ -274,6 +274,12 @@ Both paths keep `matchesOutsideMarkup` and `settlesOn: 'line'`; the reviewed uns
 markup case stays excluded. `quotes-typewriter.test.ts` pins the reported Norwegian
 line, word boundaries, Unicode offsets, markup, and mixed safe/preview fixes.
 
+Guillemets, low quotes, and single guillemets are the same claim about the glyph form:
+a Norwegian line quoting with `«velkommen inn»` is standard typography elsewhere and a
+non-typewriter mark on Genius, so the rule straightens each half to `"` or `'` with a
+`safe` fix. Corner brackets and measurement primes stay out; they are not quotation
+marks in this sense.
+
 ### A line that is a header is not a lyric, and every rule has to agree about which
 
 Paste what a word processor or a lyric site gives you and the first line is `Verse 1:`. Three rules

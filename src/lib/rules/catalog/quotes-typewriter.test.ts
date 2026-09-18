@@ -14,6 +14,29 @@ describe('quotes.typewriter', () => {
 		expect(applyRuleFixes(rule, '[Verse]\nI don’t go')).toBe("[Verse]\nI don't go");
 	});
 
+	it('straightens guillemets, low quotes, and single guillemets', () => {
+		expect(applyRuleFixes(rule, '[Verse]\nDe sa «ta av deg den lua»')).toBe(
+			'[Verse]\nDe sa "ta av deg den lua"'
+		);
+		expect(messages('[Verse]\nDe sa «ta av deg den lua» og «velkommen inn»')).toEqual([
+			'Use a straight " instead of the opening double guillemet.',
+			'Use a straight " instead of the closing double guillemet.',
+			'Use a straight " instead of the opening double guillemet.',
+			'Use a straight " instead of the closing double guillemet.'
+		]);
+		expect(applyRuleFixes(rule, '[Strophe]\nEr sagte „komm her“')).toBe(
+			'[Strophe]\nEr sagte "komm her"'
+		);
+		expect(applyRuleFixes(rule, '[Verse]\n‹single› and ‚low‚')).toBe("[Verse]\n'single' and 'low'");
+	});
+
+	it('keeps guillemet replacements safe, so a quoted pair batches together', () => {
+		const findings = checkRule(rule, '[Verse]\nDe sa «ta av deg den lua»');
+		expect(findings.map((finding) => finding.fixes?.[0]?.kind)).toEqual(['safe', 'safe']);
+		expect(collectSafeFixes(findings)).toHaveLength(2);
+		expect(markedText('[Verse]\nDe sa «ta av deg den lua»', findings)).toEqual(['«', '»']);
+	});
+
 	it('flags the spacing acute accent in the Norwegian line and previews only that character', () => {
 		const text = '[Pre-Chorus]\nSe de fant, de fant no´ hoes, hoes, hoes';
 		const findings = checkRule(rule, text, { language: 'no' });

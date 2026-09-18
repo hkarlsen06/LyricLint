@@ -19,8 +19,16 @@ export const quoteMarks: CatalogLookup<{
 }> = {
 	'‘': { straight: "'", name: 'opening curly single quote', fix: 'safe' },
 	'’': { straight: "'", name: 'closing curly single quote', fix: 'safe' },
+	'‚': { straight: "'", name: 'low single quote', fix: 'safe' },
+	'‛': { straight: "'", name: 'reversed single quote', fix: 'safe' },
+	'‹': { straight: "'", name: 'opening single guillemet', fix: 'safe' },
+	'›': { straight: "'", name: 'closing single guillemet', fix: 'safe' },
 	'“': { straight: '"', name: 'opening curly double quote', fix: 'safe' },
 	'”': { straight: '"', name: 'closing curly double quote', fix: 'safe' },
+	'„': { straight: '"', name: 'low double quote', fix: 'safe' },
+	'‟': { straight: '"', name: 'reversed double quote', fix: 'safe' },
+	'«': { straight: '"', name: 'opening double guillemet', fix: 'safe' },
+	'»': { straight: '"', name: 'closing double guillemet', fix: 'safe' },
 	'´': { straight: "'", name: 'acute accent', fix: 'preview' }
 };
 
@@ -38,7 +46,7 @@ function isApostrophe(text: string, index: number): boolean {
 
 export const quotesTypewriterRule: RuleDefinition = {
 	id: 'quotes.typewriter',
-	version: 2,
+	version: 3,
 	defaultSeverity: 'warning',
 	fixability: 'preview',
 	sourceIds: ['G-TYPEWRITER'],

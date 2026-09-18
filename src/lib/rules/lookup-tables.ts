@@ -249,7 +249,7 @@ export function ruleLookupTables(): RuleLookupTable[] {
 		{
 			ruleId: 'quotes.typewriter',
 			description:
-				'Curly quotation marks and the typewriter mark each becomes. A closing curly ' +
+				'Curly quotation marks, guillemets, low and reversed quotes, and the typewriter mark each becomes. A closing curly ' +
 				'single quote between two letters is named as an apostrophe rather than as the ' +
 				'closing half of a pair, which is most of what this rule points at in real lyrics. ' +
 				'LyricLint also checks spacing acute accents beside words as possible apostrophe ' +

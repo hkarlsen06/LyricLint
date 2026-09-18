@@ -3,9 +3,9 @@ import type { AssistantCorpus } from './rules-context';
 
 export const corpus = {
 	formatVersion: 5,
-	ruleSetVersion: '2026.09.10.0',
-	generatedAt: '2026-09-10T18:23:46.870Z',
-	contentHash: '5b8a4913bae061c26eb8fff9b9ac1b3569bb394f89a09017fbb2c12e36d07d6d',
+	ruleSetVersion: '2026.09.18.0',
+	generatedAt: '2026-09-18T13:49:21.326Z',
+	contentHash: '0f7317a3c9e974a39f12b7e801c0ed99b7c32a23ce95417bc6822294279a4234',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -1305,12 +1305,20 @@ export const corpus = {
 		{
 			ruleId: 'quotes.typewriter',
 			description:
-				'Curly quotation marks and the typewriter mark each becomes. A closing curly single quote between two letters is named as an apostrophe rather than as the closing half of a pair, which is most of what this rule points at in real lyrics. LyricLint also checks spacing acute accents beside words as possible apostrophe typos, with a previewed replacement. Actual accented letters are unchanged.',
+				'Curly quotation marks, guillemets, low and reversed quotes, and the typewriter mark each becomes. A closing curly single quote between two letters is named as an apostrophe rather than as the closing half of a pair, which is most of what this rule points at in real lyrics. LyricLint also checks spacing acute accents beside words as possible apostrophe typos, with a previewed replacement. Actual accented letters are unchanged.',
 			entries: [
 				{ preferred: ["'"], instead: ['‘'], note: 'The opening curly single quote.', fix: 'safe' },
 				{ preferred: ["'"], instead: ['’'], note: 'The closing curly single quote.', fix: 'safe' },
+				{ preferred: ["'"], instead: ['‚'], note: 'The low single quote.', fix: 'safe' },
+				{ preferred: ["'"], instead: ['‛'], note: 'The reversed single quote.', fix: 'safe' },
+				{ preferred: ["'"], instead: ['‹'], note: 'The opening single guillemet.', fix: 'safe' },
+				{ preferred: ["'"], instead: ['›'], note: 'The closing single guillemet.', fix: 'safe' },
 				{ preferred: ['"'], instead: ['“'], note: 'The opening curly double quote.', fix: 'safe' },
 				{ preferred: ['"'], instead: ['”'], note: 'The closing curly double quote.', fix: 'safe' },
+				{ preferred: ['"'], instead: ['„'], note: 'The low double quote.', fix: 'safe' },
+				{ preferred: ['"'], instead: ['‟'], note: 'The reversed double quote.', fix: 'safe' },
+				{ preferred: ['"'], instead: ['«'], note: 'The opening double guillemet.', fix: 'safe' },
+				{ preferred: ['"'], instead: ['»'], note: 'The closing double guillemet.', fix: 'safe' },
 				{
 					preferred: ["'"],
 					instead: [],
