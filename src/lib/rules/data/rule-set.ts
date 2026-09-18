@@ -106,8 +106,8 @@ const previousRuleSet: RuleSetManifest = {
 };
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.09.10.0',
-	publishedAt: '2026-09-10',
+	version: '2026.09.18.0',
+	publishedAt: '2026-09-18',
 	sourceIds: [
 		...previousRuleSet.sourceIds,
 		'G-SYMBOLS',
