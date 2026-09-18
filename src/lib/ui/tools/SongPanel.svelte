@@ -14,6 +14,7 @@
 	let { controller, active = true }: { controller: WorkbenchController; active?: boolean } =
 		$props();
 	let confirmClearAnchors = $state(false);
+	let confirmClearDocument = $state(false);
 	let timedLyricsFormat = $state<TimedLyricsFormat>('lrc');
 	let lastTiming: WorkbenchController['currentLineTiming'];
 	const timing = $derived.by(() => {
@@ -67,6 +68,15 @@
 			count(documentStats.sections, 'section'),
 			count(documentStats.performers, 'performer')
 		].filter((label) => label !== undefined)
+	);
+	/**
+	 * Clearing is offered only where there is something to clear. An empty draft
+	 * with no retained sections states nothing and offers nothing — the same
+	 * rule the counts and the timed-lyrics section follow.
+	 */
+	const clearable = $derived(
+		controller.snapshot.text.trim().length > 0 ||
+			(controller.snapshot.conversion?.model.sections.length ?? 0) > 0
 	);
 	const searchName = $derived.by(() => {
 		const title = controller.title.trim();
@@ -250,6 +260,50 @@
 			Text contains the active {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics.
 			A Scribe (.lls) keeps both formats, retained details, and the editable project.
 		</p>
+		<!--
+			The document-scoped delete lives in the section about the document it
+			clears — next to the exports, not in the toolbar, which carries only
+			the commands used on every visit. Quiet until pressed, confirm in
+			place, in the same shape as the line-timings delete below.
+		-->
+		{#if clearable}
+			<div aria-live="polite">
+				{#if confirmClearDocument}
+					<p class="danger-text">
+						Delete the lyrics and every retained detail on this transcription? Exports already made
+						are untouched.
+					</p>
+					<div class="tool-actions">
+						<button
+							type="button"
+							class="button button--danger"
+							onclick={() => {
+								if (controller.applyConversionAction({ kind: 'clearDocument' }))
+									confirmClearDocument = false;
+							}}>Delete lyrics and details</button
+						>
+						<button
+							type="button"
+							class="button button--quiet"
+							onclick={() => (confirmClearDocument = false)}>Cancel</button
+						>
+					</div>
+				{:else}
+					<div class="tool-actions tool-actions--flush">
+						<button
+							type="button"
+							class="button button--quiet danger-text"
+							onclick={() => {
+								confirmClearDocument = true;
+								controller.feedback.announce(
+									'Confirm clearing the lyrics and every retained detail.'
+								);
+							}}>Clear lyrics and retained details…</button
+						>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</section>
 
 	<!--

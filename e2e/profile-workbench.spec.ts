@@ -103,22 +103,32 @@ test.describe('touch controls', () => {
 		await page.getByRole('button', { name: 'Show passage', exact: true }).first().click();
 		await expect(editor).toBeVisible();
 		await expect(control).toBeVisible();
-		await page.getByRole('button', { name: 'Document', exact: true }).click();
-		await page.locator('.document-clear summary').click();
+		// Clearing lives with the document it clears, in Song, rather than in the
+		// header: quiet until pressed, confirming in place.
+		await page
+			.getByRole('navigation', { name: 'Workbench views' })
+			.getByRole('button', {
+				name: 'Tools',
+				exact: true
+			})
+			.tap();
+		await page.getByRole('tab', { name: 'Song', exact: true }).tap();
 		const clear = page.getByRole('button', {
-			name: 'Clear lyrics and retained details',
+			name: 'Clear lyrics and retained details…',
 			exact: true
 		});
-		const clearBefore = await clear.boundingBox();
-		await clear.click();
-		const confirm = page.getByRole('button', { name: 'Confirm clear', exact: true });
-		expect(await confirm.boundingBox()).toEqual(clearBefore);
-		const actions = await page.locator('.document-clear__actions').boundingBox();
-		expect(actions!.x).toBeGreaterThanOrEqual(0);
-		expect(actions!.x + actions!.width).toBeLessThanOrEqual(360);
-		await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-		await page.keyboard.press('Escape');
-		await expect(clear).not.toBeVisible();
+		await clear.scrollIntoViewIfNeeded();
+		const clearBox = await clear.boundingBox();
+		expect(clearBox!.x).toBeGreaterThanOrEqual(0);
+		expect(clearBox!.x + clearBox!.width).toBeLessThanOrEqual(360);
+		await clear.tap();
+		await expect(
+			page.getByRole('button', { name: 'Delete lyrics and details', exact: true })
+		).toBeVisible();
+		await page.getByRole('button', { name: 'Cancel', exact: true }).tap();
+		await expect(
+			page.getByRole('button', { name: 'Delete lyrics and details', exact: true })
+		).not.toBeVisible();
 		await expect.poll(() => lyrics(page)).toBe('مرحبا بالعالم\n\n同じ言葉');
 	});
 });

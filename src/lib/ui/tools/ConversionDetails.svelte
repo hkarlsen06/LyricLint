@@ -35,6 +35,20 @@
 		void tick().then(() => censorHeading?.focus());
 	});
 	const targetProfile = $derived(controller.profile === 'genius' ? 'musixmatch' : 'genius');
+	/**
+	 * Listening decisions and repeat expansion are tasks, not metadata. They
+	 * draw only once Review has asked for them — the diagnostic's Review action
+	 * selects the finding, opens the matching decision here, and focuses its
+	 * heading — so the Song tab stays a record of the song rather than a list
+	 * of jobs. A draft with saved decisions still names them, because a saved
+	 * choice is retained metadata with its own remove control.
+	 */
+	const showDecisions = $derived(
+		controller.requestedConversionReview?.kind === 'quantity' ||
+			controller.requestedConversionReview?.kind === 'instrumental' ||
+			(model?.decisions.length ?? 0) > 0
+	);
+	const showRepeat = $derived(controller.requestedConversionReview?.kind === 'repeat');
 	let container: HTMLDivElement;
 	const selection = $derived({
 		from: Math.min(controller.snapshot.selection.anchor, controller.snapshot.selection.head),
@@ -404,8 +418,12 @@
 			</details>
 		{/if}
 	{/if}
-	<ConversionFacts {controller} />
-	<RepeatExpansion {controller} />
+	{#if showDecisions}
+		<ConversionFacts {controller} />
+	{/if}
+	{#if showRepeat}
+		<RepeatExpansion {controller} />
+	{/if}
 </div>
 
 <style>

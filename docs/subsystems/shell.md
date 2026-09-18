@@ -102,7 +102,11 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   `.right-panel__pane` must keep `[hidden]` out of its `display` rule
   (`RightPanel.svelte.test.ts` asserts exactly one pane draws).
 - Keep Song and Preferences sections focused on their own decisions. Song does not repeat
-  the toolbar's `Copy lyrics` action. Contextual actions may appear on other surfaces with
+  the toolbar's `Copy lyrics` action. Song lists the song's metadata and the files the draft
+  turns into; listening decisions and repeat expansion are tasks Review discovers, so they draw
+  only once a diagnostic's Review action asks for them. Clearing the lyrics and retained details
+  lives in the Document section it clears, confirming in place, and never in the toolbar.
+  Contextual actions may appear on other surfaces with
   shared behavior and the emphasis described in `DESIGN.md`. `SongPanel.svelte.test.ts` and
   `PreferencesPanel.svelte.test.ts` cover these sections.
 - The grammar-checking section draws only in Genius while the document's language is English

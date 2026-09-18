@@ -4,7 +4,11 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { WorkbenchController } from '../state/workbench.svelte.js';
 import type { MediaPlayer, SongDetails } from '../state/media-player.svelte.js';
 import type { MediaStore } from '../state/media-store.svelte.js';
-import { createTestWorkbench, performer } from '../test-utils.js';
+import { createTestWorkbench, diagnostic, performer } from '../test-utils.js';
+import { importDocument } from '$lib/conversion/import.js';
+import { renderProfile } from '$lib/conversion/index.js';
+import { createConversionEnvelope } from '$lib/persistence/conversion.js';
+import { profilePolicyVersions } from '$lib/profiles/versions.js';
 import SongPanel from './SongPanel.svelte';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
@@ -456,4 +460,102 @@ describe('Genius page link', () => {
 			expect(screen.queryByRole('link', { name: 'Open Genius page' })).toBeNull();
 		}
 	);
+});
+
+/*
+ * Song is a record of the song, not a list of jobs. Listening decisions and
+ * repeat expansion draw only once Review has asked for them through a
+ * diagnostic's Review action; clearing lives with the document it clears
+ * rather than in the header.
+ */
+describe('SongPanel conversion restraint', () => {
+	afterEach(cleanup);
+
+	function withConversion(source = '[Verse]\nTwo stars') {
+		const imported = importDocument({ text: source, profile: 'genius', language: 'en' });
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const rendered = renderProfile(imported.value, 'musixmatch');
+		if (!rendered.ok) throw new Error(rendered.refusal.message);
+		const workbench = createTestWorkbench({
+			text: rendered.value.text,
+			selection: { anchor: 0, head: 0 }
+		});
+		workbench.controller.onSnapshot({
+			...workbench.controller.snapshot,
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+		});
+		return workbench;
+	}
+
+	test('lists metadata without the listening tasks until Review asks', async () => {
+		const { controller } = withConversion();
+		const { container } = await render(SongPanel, { controller });
+
+		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
+			'Song metadata',
+			'Genius page',
+			'Document details',
+			'Document'
+		]);
+		expect(screen.queryByText('Decisions that need listening')).toBeNull();
+		expect(screen.queryByText('Expand a repeated passage')).toBeNull();
+		// Clearing is here, quiet, because the draft has lyrics.
+		expect(screen.getByRole('button', { name: 'Clear lyrics and retained details…' })).toBeTruthy();
+	});
+
+	test('opens the requested decision when Review asks for it, and nothing else', async () => {
+		const { controller } = withConversion('[Verse]\nI saw 2 stars');
+		controller.openConversionReview(
+			diagnostic({
+				ruleId: 'mxm.numbers.context',
+				severity: 'suggestion',
+				message: 'Confirm how the quantity is sung.'
+			})
+		);
+		// The stub editor holds its own selection; publish it the way a real
+		// editor's snapshot would so the passage form draws.
+		controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 5 } });
+		await render(SongPanel, { controller });
+
+		await waitFor(() =>
+			expect(screen.getByRole('heading', { name: 'Quantity in the selected passage' })).toBeTruthy()
+		);
+		expect(screen.queryByText('Expand a repeated passage')).toBeNull();
+	});
+
+	test('offers no clearing for an empty draft', async () => {
+		const { controller } = createTestWorkbench({ text: '' });
+		await render(SongPanel, { controller });
+
+		expect(screen.queryByRole('button', { name: /Clear lyrics/u })).toBeNull();
+	});
+
+	test('confirms clearing in place and carries it out', async () => {
+		const { controller, editor } = withConversion();
+		const dispatch = vi.fn(() => ({ ok: true }) as const);
+		editor.dispatchConversionAction = dispatch;
+		await render(SongPanel, { controller });
+
+		await fireEvent.click(
+			screen.getByRole('button', { name: 'Clear lyrics and retained details…' })
+		);
+		expect(screen.getByRole('button', { name: 'Delete lyrics and details' })).toBeTruthy();
+		await fireEvent.click(screen.getByRole('button', { name: 'Delete lyrics and details' }));
+		expect(dispatch).toHaveBeenCalledOnce();
+		expect(dispatch).toHaveBeenCalledWith({ kind: 'clearDocument' }, expect.any(Number), undefined);
+	});
+
+	test('cancel abandons the clearing without touching the document', async () => {
+		const { controller, editor } = withConversion();
+		const dispatch = vi.fn(() => ({ ok: true }) as const);
+		editor.dispatchConversionAction = dispatch;
+		await render(SongPanel, { controller });
+
+		await fireEvent.click(
+			screen.getByRole('button', { name: 'Clear lyrics and retained details…' })
+		);
+		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		expect(dispatch).not.toHaveBeenCalled();
+		expect(screen.queryByRole('button', { name: 'Delete lyrics and details' })).toBeNull();
+	});
 });
