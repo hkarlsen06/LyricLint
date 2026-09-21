@@ -37,7 +37,7 @@ describe('an assistant draft-read turn', () => {
 		expect(within(view.container).queryByRole('button', { name: 'Deny' })).toBeNull();
 
 		// The answer is a record of what the workbench did, not something the
-		// assistant said: the meta idiom — a glyph, muted, smaller, mono — rather
+		// assistant said: the meta idiom (a glyph, muted, smaller, mono) rather
 		// than the type the prose above it is set in.
 		const receipt = view.container.querySelector<HTMLElement>('.assistant-tool-turn__receipt')!;
 		const record = getComputedStyle(receipt);
@@ -60,7 +60,7 @@ describe('an assistant draft-read turn', () => {
 
 	test('an undecided call with no live session is stated as history, not asked again', async () => {
 		// The record outlives the session, so a restored transcript redraws this
-		// call — and `allowDraftRead` refuses without a session. Drawn as a
+		// call, and `allowDraftRead` refuses without a session. Drawn as a
 		// prompt it is two dead buttons under a line saying the turn is over.
 		const assistant = assistantStub();
 		const call: DraftReadCall = { callId: 'read-1', name: 'read_scribe' };

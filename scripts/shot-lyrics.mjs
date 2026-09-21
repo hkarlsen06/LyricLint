@@ -1,8 +1,8 @@
 /**
- * The performer-tagging document — invented like the other, but deliberately
+ * The performer-tagging document, invented like the other, but deliberately
  * *clean*: its subject is the picker over a selection, and a column of
  * unrelated underlines would compete with it. It is a whole short song rather
- * than an excerpt, because the still is cropped *portrait* — it sits beside the
+ * than an excerpt, because the still is cropped *portrait*: it sits beside the
  * section's copy on a desktop, so what fills its height is a long
  * transcription. The chorus and the bridge are already marked up, legend and
  * spans, so the roster's colours are on screen above the selection being
@@ -11,7 +11,7 @@
  * this picture's subject.
  *
  * Verse 2 is deliberately the one section with no legend, because it is the
- * section the shot assigns. The apostrophes are typewriter ones on purpose —
+ * section the shot assigns. The apostrophes are typewriter ones on purpose:
  * a curly `we'd` draws a finding whose fix the document-replacement lead then
  * previews as a diff, in a picture whose whole subject is the picker.
  */

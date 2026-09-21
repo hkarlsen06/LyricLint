@@ -75,7 +75,7 @@
 			"id": "family-contraction",
 			"category": "rule-family",
 			"language": "en",
-			"question": "The singer says 'dont' — do I need the apostrophe in the transcription?",
+			"question": "The singer says 'dont'. Do I need the apostrophe in the transcription?",
 			"expect": {
 				"scopes": ["reviewed", "mixed"]
 			}
@@ -184,7 +184,7 @@
 			"id": "family-numbers",
 			"category": "rule-family",
 			"language": "en",
-			"question": "The artist sings 'twenty-two' — do I write 22 or spell it out?",
+			"question": "The artist sings 'twenty-two'. Do I write 22 or spell it out?",
 			"expect": {
 				"scopes": ["reviewed", "mixed"],
 				"citesAny": ["numbers.spell-out"]
@@ -213,7 +213,7 @@
 			"id": "lang-ar",
 			"category": "language",
 			"language": "ar",
-			"question": "أكتب أغنية بالعربية — هل تكون عناوين المقاطع بالعربية أم بالإنجليزية؟",
+			"question": "أكتب أغنية بالعربية. هل تكون عناوين المقاطع بالعربية أم بالإنجليزية؟",
 			"expect": {
 				"scopes": ["reviewed", "mixed"]
 			}
@@ -286,7 +286,7 @@
 			"id": "policy-vs-grammar-as-sung",
 			"category": "policy-vs-grammar",
 			"language": "en",
-			"question": "The artist sings 'where you at?' — should I correct it to 'Where are you?' since that's more grammatical?",
+			"question": "The artist sings 'where you at?' Should I correct it to 'Where are you?' since that's more grammatical?",
 			"expect": {
 				"scopes": ["general", "mixed", "reviewed"],
 				"mentionsAll": ["where you at"]

@@ -7,7 +7,7 @@ import { type CatalogLookup, diagnostic, matchesOutsideMarkup, replacementFix } 
  *
  * The message has to carry the name because the character cannot. A line
  * holding both halves of a pair reports twice on the same line number, so the
- * meta line — severity, line, citation — is identical on both rows and the
+ * meta line (severity, line, citation) is identical on both rows and the
  * message is the only thing left to separate them. Printing the mark itself
  * does not: `“` and `”` differ by the direction of a curl at 15px, which is
  * exactly the size the panel draws them at.
@@ -36,7 +36,7 @@ const quotePattern = new RegExp(`[${Object.keys(quoteMarks).join('')}]`, 'gu');
 
 /**
  * Languages whose Genius communities quote with guillemets. There, every
- * double-quote form — the straight `"` included — becomes `«` or `»`; single
+ * double-quote form, the straight `"` included, becomes `«` or `»`; single
  * marks still straighten to `'`, because most of them are apostrophes.
  */
 export const guillemetLanguages = new Set(['no', 'nb', 'nn', 'da', 'sv', 'is', 'fo']);
@@ -70,7 +70,7 @@ function guillemetFor(mark: string, line: string, offset: number) {
 }
 
 /**
- * `’` between two letters is an apostrophe, not the closing half of anything —
+ * `’` between two letters is an apostrophe, not the closing half of anything,
  * and in real lyrics that is most of what this rule points at. Naming it as a
  * closing quote would trade one indistinguishable message for a confidently
  * wrong one.
@@ -93,7 +93,7 @@ export const quotesTypewriterRule: RuleDefinition = {
 	// `text[index + 1]`, so `Don’` reports the closing curly single quote and
 	// `Don’t` reports a curly apostrophe. Left at `character` the card was
 	// replaced by a differently worded one on the next keystroke, on every
-	// `don't`, `I'm` and `ain't` in the song — which is constantly.
+	// `don't`, `I'm` and `ain't` in the song, which is constantly.
 	settlesOn: 'line',
 	check(document, context) {
 		const guillemets = guillemetLanguages.has(context.language.toLowerCase().split('-')[0]);

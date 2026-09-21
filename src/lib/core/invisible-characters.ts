@@ -24,8 +24,8 @@ const SPACE_FIX = 'Replace with a normal space';
  * Characters that arrive with a paste and cannot be seen once they are here.
  *
  * The set is deliberately short. Every entry is a character that is in a lyric
- * by accident — a word processor's spacing, a scraper's separator, a file's
- * byte-order mark — and never because a transcriber typed it.
+ * by accident (a word processor's spacing, a scraper's separator, a file's
+ * byte-order mark), and never because a transcriber typed it.
  *
  * Bidi controls (U+200E, U+200F, U+202A–U+202E, U+2066–U+2069) and the joiners
  * (U+200C, U+200D) are excluded on purpose and must stay excluded. They carry

@@ -140,7 +140,7 @@
 	const pendingVoice = $derived(performerOverlay?.pendingVoice);
 	// Whether applying will need a second step. Read before the press so the
 	// button can say `Next` rather than promising an assignment and then asking
-	// another question — the legend flow's first step does the same.
+	// another question. The legend flow's first step does the same.
 	//
 	// A function reading the session state directly, rather than a `$derived` over
 	// the projections above: the press that consumes it arrives from inside the
@@ -165,7 +165,7 @@
 	// here is an assignment that will not refuse when pressed. Only the plain
 	// selection flow offers them: the legend flow is already naming a known
 	// voice, and step two's question is about the section's plain lyrics, which
-	// an unknown cannot answer — nothing would be written for it.
+	// an unknown cannot answer: nothing would be written for it.
 	//
 	// A function for the same reason `needsSectionVoice` is one: the press that
 	// consumes it arrives from inside the picker's own `{#key}` block.
@@ -187,7 +187,7 @@
 
 	// The step counter belongs to the two-voice flow only. A styled-only section
 	// names one voice, and the prompt says up front that its markup goes with the
-	// assignment — the picker is where that consequence is agreed to.
+	// assignment. The picker is where that consequence is agreed to.
 	// The step is carried beside the question rather than written into it: the
 	// picker draws it as a bar under the words, so `· 1 of 2` in the string would
 	// be the same fact twice and would change the question's width at every step.
@@ -216,7 +216,7 @@
 		}
 	);
 
-	// The range the assignment would actually rewrite — the transform's own
+	// The range the assignment would actually rewrite, the transform's own
 	// reading of the selection (whitespace trimmed, a lone parenthetical shrunk
 	// inside its parens, a caret grown to its line) rather than a second opinion
 	// read off the raw range. The chips lit on open are part of what Apply
@@ -384,7 +384,7 @@
 				}
 				callbacks.onSnapshot(snapshot);
 			},
-			// The keyboard's own way in, `Ctrl-Alt-P` — a press that meant only
+			// The keyboard's own way in, `Ctrl-Alt-P`: a press that meant only
 			// this, and one with no pointer behind it to drive the card, so it
 			// takes the focus. The pointer path never reaches here: it opens
 			// through `reportSelectionAnchor` and forwards to the outer callbacks.
@@ -531,8 +531,8 @@
 
 	/**
 	 * An unknown chip pressed: wrap the selection as a styled voice the legend
-	 * never names. One press is the whole answer — no legend means no second
-	 * question about who sings the rest — so the picker closes on it exactly as
+	 * never names. One press is the whole answer (no legend means no second
+	 * question about who sings the rest), so the picker closes on it exactly as
 	 * a committed range assignment does, selection suppressed and all.
 	 */
 	async function applyUnknownVoice(styleSlot?: StyleSlot): Promise<void> {
@@ -607,8 +607,8 @@
 	}
 
 	/**
-	 * Apply every occurrence of this exact fix. Only the shell can do it — the
-	 * batch has to be the one the linter panel would apply — so unlike `applyFix`
+	 * Apply every occurrence of this exact fix. Only the shell can do it (the
+	 * batch has to be the one the linter panel would apply), so unlike `applyFix`
 	 * there is no local fallback: without the handler the popover never offers
 	 * the control in the first place.
 	 */
@@ -920,7 +920,7 @@
 	 * nothing. Both halves of that matter:
 	 *
 	 * - A `height: 100%` that resolves to nothing still leaves `min-height: 12rem`
-	 *   standing, so a short document gets a foot of empty surface under it — and
+	 *   standing, so a short document gets a foot of empty surface under it, and
 	 *   before CodeMirror has loaded, that empty box is the whole of what the host
 	 *   contributes, stacked under the stand-in that is already drawing the verse.
 	 * - The fill is a square box behind a child that draws a rounded one. Where the

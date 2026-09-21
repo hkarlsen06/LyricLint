@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/drafts.md — summary metadata is derived, never persisted.
+// Decision record: docs/subsystems/drafts.md. Summary metadata is derived, never persisted.
 import { parseDocument } from '../core/parser.js';
 import type { DraftRecord, DraftSummary } from '../core/types.js';
 import { DEFAULT_DRAFT_TITLE } from './draft-defaults.js';

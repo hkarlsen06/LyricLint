@@ -56,7 +56,7 @@ type OverlayState =
 			/**
 			 * Whether the card may take the focus as it opens, exactly as the
 			 * diagnostic popover's own `takesFocus` decides. A card the user asked
-			 * for — `Ctrl-Alt-P`, or a legend action pressed in a diagnostic — is
+			 * for (`Ctrl-Alt-P`, or a legend action pressed in a diagnostic) is
 			 * theirs to drive, so it takes focus and answers Enter. The card that
 			 * opens itself off a pointer selection has not been asked for anything,
 			 * and taking the focus there is the bug this flag exists for: a
@@ -69,7 +69,7 @@ type OverlayState =
 			 * Step two of a selection assignment: the voices already chosen for the
 			 * selection, held while the picker asks who sings the rest of the section.
 			 * Set only when the assignment would otherwise write a legend that does
-			 * not begin at plain — see `assignmentNeedsSectionVoice`.
+			 * not begin at plain. See `assignmentNeedsSectionVoice`.
 			 */
 			pendingVoice?: readonly PerformerId[];
 	  }
@@ -337,7 +337,7 @@ export function forgetDismissedSelection(session: OverlaySession): OverlaySessio
 /**
  * What a settled anchor report leaves behind: the session it produced, and
  * whether the shell has an assignment to arbitrate. Only the performer picker
- * ever raises the second — a link needs nothing from the shell.
+ * ever raises the second: a link needs nothing from the shell.
  */
 export interface SelectionAnchorOutcome {
 	session: OverlaySession;
@@ -347,8 +347,8 @@ export interface SelectionAnchorOutcome {
 /**
  * A settled selection anchor.
  *
- * `undefined` means there is no anchored selection at all — collapsed,
- * whitespace-only, or composing — which retires the performer picker but
+ * `undefined` means there is no anchored selection at all (collapsed,
+ * whitespace-only, or composing), which retires the performer picker but
  * leaves a section picker or diagnostic popover alone: neither was opened
  * from the selection.
  *
@@ -384,8 +384,8 @@ export function reportSelectionAnchor(
 		return { session: settled, assignRequested: false };
 	}
 	// `false`: this is the one path nobody pressed. The selection under it is
-	// live text the user is in the middle of working on — most often a
-	// double-clicked word they are about to type over — so the card draws itself
+	// live text the user is in the middle of working on (most often a
+	// double-clicked word they are about to type over), so the card draws itself
 	// beside the caret and leaves it exactly where it was.
 	if (anchor.offersAssignment) {
 		return { session: openPerformerPicker(settled, anchor.range, false), assignRequested: true };
@@ -433,7 +433,7 @@ export function anchorPlacement(
 	anchor: SelectionAnchor | undefined,
 	range: TextRange,
 	/**
-	 * Which side to take when no reported anchor describes this range — a card
+	 * Which side to take when no reported anchor describes this range, a card
 	 * opened by a command rather than by a selection. It used to be `above`
 	 * unconditionally, which put a keyboard-opened card off the top of the screen
 	 * whenever the line it named was near the top of the viewport. The caller

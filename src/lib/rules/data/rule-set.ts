@@ -119,8 +119,8 @@ export const currentRuleSet: RuleSetManifest = {
 	// Spelled out rather than spliced from the previous set. The splice read as a
 	// changelog only while every change was an append; the moment one belonged in
 	// the interior it became two slices around an index, and the rule that was
-	// missing here — `performer.parenthetical-boundary`, enabled since it shipped
-	// and never listed — is exactly the omission that arrangement hid. The order
+	// missing here (`performer.parenthetical-boundary`, enabled since it shipped
+	// and never listed) is exactly the omission that arrangement hid. The order
 	// is `enabledRules`, with the three Harper IDs where they have always sat.
 	// `rule-set.test.ts` is what keeps this list and the registry in agreement.
 	ruleIds: [

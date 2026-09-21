@@ -1,7 +1,7 @@
 /*
  * Self-hosted webfonts. LyricLint is local-first with a static adapter, so the
- * faces DESIGN.md names — IBM Plex Sans for UI, IBM Plex Mono for source, and
- * Karla for the lyric words — ship with the app instead of being requested
+ * faces DESIGN.md names (IBM Plex Sans for UI, IBM Plex Mono for source, and
+ * Karla for the lyric words) ship with the app instead of being requested
  * from a CDN or hoped for on the user's machine. The binaries in /static/fonts
  * originate from @fontsource-variable/ibm-plex-sans 5.3.0,
  * @fontsource/ibm-plex-mono 5.3.0, and @fontsource-variable/karla 5.3.0; the
@@ -13,13 +13,13 @@
  * font-display: swap on every face, deliberately. This is a text editor: a
  * flash of fallback-styled text is a cosmetic blip, but a flash of *invisible*
  * text (`block`) would blank the user's document while fonts load. `optional`
- * is wrong for the opposite reason — it may skip the webfont entirely on a
+ * is wrong for the opposite reason: it may skip the webfont entirely on a
  * slow first load and silently ship the session in the fallback face.
  *
  * Subsets: latin + latin-ext only. The linter supports Arabic, Japanese, and
  * Korean lyrics (src/lib/languages/), but IBM Plex covers those scripts with
  * *separate families* (Plex Sans Arabic / JP / KR) and IBM Plex Mono has no
- * Arabic or CJK glyphs at all — no subset choice here could render them in
+ * Arabic or CJK glyphs at all. No subset choice here could render them in
  * the editor. Those scripts intentionally fall through the token stacks to
  * system faces; latin-ext keeps European diacritics (Norwegian, French,
  * German, Spanish, plus borrowed names in any lyric) in real Plex.
@@ -32,7 +32,7 @@
  * UI face: one variable file per subset carries the used weight axis
  * (400-700), so the token scale's 550/650 render as true intermediate
  * instances instead of snapping to a neighbouring static weight. The axis
- * tops out at 700 — IBM Plex has no 750 — so --font-weight-heavy clamps to
+ * tops out at 700 (IBM Plex has no 750), so --font-weight-heavy clamps to
  * 700 and renders like bold. That is a limit of the typeface itself, not of
  * this build; a local Plex install could do no better.
  */
@@ -61,8 +61,8 @@
 /*
  * Lyric face: what `--font-lyrics` resolves to for visitors without Programme
  * (tokens.css says why Programme leads that stack and cannot ship). Karla is
- * the nearest OFL face to the one Genius sets lyrics in — the same quirky
- * grotesque flavor and single-story g — and it was chosen over Space Grotesk
+ * the nearest OFL face to the one Genius sets lyrics in (the same quirky
+ * grotesque flavor and single-story g), and it was chosen over Space Grotesk
  * for one hard requirement: the performer style slots render lyric words in
  * true italic (slot 2) and semibold italic (slot 4), and Karla has a real
  * italic axis where Space Grotesk would be synthesized oblique. One variable

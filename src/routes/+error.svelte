@@ -12,8 +12,8 @@
 		<h1>LyricLint could not open this page</h1>
 		<!-- Neither sentence may assume the workbench has ever been opened. "Not
 		     part of the installed app" and "your local 'scribes" both name things a
-		     stranger following a truncated rule-page link has never seen — which,
-		     as the note below the copy says, is who most often reads this. -->
+		     stranger following a truncated rule-page link has never seen. As
+		     the note below the copy says, that is who most often reads this. -->
 		<p>
 			{page.status === 404
 				? 'There is nothing at this address. LyricLint is a tool for checking Genius lyric transcriptions, and the link that brought you here may have been cut short.'
@@ -27,7 +27,7 @@
 		     stays with the workspace: that is still the destination. -->
 		<!-- Both are full document loads, and on this page that is the whole point.
 		     A link here is otherwise a client-side navigation, which asks the very
-		     runtime that just failed to route out of its own failure — and it
+		     runtime that just failed to route out of its own failure, and it
 		     cannot, because the failure is usually a rejected dynamic import: the
 		     browser caches that rejection against the module's URL, so re-importing
 		     it from the same document fails instantly and forever. What the reader

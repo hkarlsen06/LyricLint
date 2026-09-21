@@ -1,20 +1,20 @@
 /**
  * Whether this origin's storage bucket is protected from automatic eviction.
  *
- * Everything the workbench keeps — 'scribes, chats, preferences — lives in
+ * Everything the workbench keeps ('scribes, chats, preferences) lives in
  * IndexedDB, which is *best-effort* storage by default: a browser under disk
  * pressure may evict the whole bucket, silently and all at once. The Storage
  * API's `persist()` asks for the bucket to be marked persistent instead, and
  * how that ask behaves is the whole design here:
  *
  * - Chromium never prompts. It answers from engagement heuristics, and the
- *   Permissions API reports that answer without asking — so where the query
+ *   Permissions API reports that answer without asking, so where the query
  *   already says `granted`, calling `persist()` is free and invisible, and the
  *   boot path does it silently.
  * - Firefox shows a real permission prompt. An uninvited prompt 250ms after the
  *   first keystroke is the touch-notice mistake with a dialog on it, so where
- *   the query says `prompt` — or cannot answer at all, which is how a browser
- *   without this permission name reads — nothing is asked until the user
+ *   the query says `prompt`, or cannot answer at all, which is how a browser
+ *   without this permission name reads, nothing is asked until the user
  *   presses the control in the Preferences panel's Local data section. The
  *   press pays for the dialog, the same rule the YouTube opt-in follows.
  *
@@ -52,7 +52,7 @@ function browserApi(): PersistentStorageApi | undefined {
 				return status.state;
 			} catch {
 				// A browser that cannot answer for this permission name is a browser
-				// whose `persist()` behaviour we cannot predict — treated as `prompt`
+				// whose `persist()` behaviour we cannot predict. It is treated as `prompt`
 				// by the caller, so any UI it might show follows a user's own press.
 				return 'unknown';
 			}
@@ -112,7 +112,7 @@ export async function ensurePersistentStorage(): Promise<void> {
 	}
 }
 
-/** The explicit ask, spent from the Local data control — a press pays for any
+/** The explicit ask, spent from the Local data control, where a press pays for any
  *  prompt the browser wants to show for it. */
 export async function requestPersistentStorage(): Promise<boolean> {
 	const impl = resolveApi();

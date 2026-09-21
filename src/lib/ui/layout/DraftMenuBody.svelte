@@ -222,7 +222,7 @@
 		     first-timer opening this out of curiosity met was the most destructive
 		     command in the application, pointed at nothing. It lives under `Local
 		     data` in the tools panel, where the paragraph above it says what local
-		     data is — a claim is made once, where the reader is deciding. -->
+		     data is: a claim is made once, where the reader is deciding. -->
 <style>
 	.draft-menu__identity {
 		display: grid;

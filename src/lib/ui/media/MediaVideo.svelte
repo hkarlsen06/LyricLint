@@ -4,7 +4,7 @@
 	let { media }: { media: MediaStore } = $props();
 
 	// Declared once, so the attachment has a stable identity and never re-runs.
-	// Re-running it would destroy the iframe and rebuild it — a black flash and a
+	// Re-running it would destroy the iframe and rebuild it: a black flash and a
 	// lost playhead every time anything else in the strip changed.
 	const mount = (node: HTMLElement) => media.player.mountVideo(node);
 </script>

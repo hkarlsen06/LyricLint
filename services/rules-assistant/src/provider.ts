@@ -246,7 +246,7 @@ export function estimateSpendUsd(usage: ProviderUsage): number {
 /**
  * Prefix every draft line with its 1-based number. A repeated chorus repeats
  * its neighbours as well as its words, so exact text plus adjacent context
- * cannot say which copy an edit is for — the line number is the only address
+ * cannot say which copy an edit is for. The line number is the only address
  * that can, and the model can only cite one it was shown. The prefix is added
  * here, at the one place the draft is rendered for the model, so what the
  * browser stores, sends, and resolves anchors against stays the lyric itself.
@@ -311,15 +311,15 @@ function settledInputItem(
 		// Each role has its own part type, and the API enforces it: an
 		// assistant turn replays as output_text, and input_text on an
 		// assistant message is a 400. This only fires when the history
-		// holds a COMPLETED exchange — failed turns are pruned — which is
+		// holds a COMPLETED exchange (failed turns are pruned), which is
 		// why every single-question test passed over it.
 		type: role === 'assistant' ? 'output_text' : 'input_text',
 		text
 	};
 	if (cacheBreakpoint) part.prompt_cache_breakpoint = { mode: 'explicit' };
 	// SAFETY: the pairing the SDK expresses through separate message types is
-	// established on the line above — an assistant turn carries `output_text` and
-	// every other role `input_text` — and the only field beyond those types is
+	// established on the line above (an assistant turn carries `output_text` and
+	// every other role `input_text`), and the only field beyond those types is
 	// `prompt_cache_breakpoint`, which the API accepts and the SDK never declares.
 	return { role, content: [part] } as OpenAI.Responses.ResponseInputItem;
 }
@@ -331,8 +331,8 @@ export function providerRequest(
 	selectedCorpus: RulesCorpus = corpus
 ): Omit<OpenAI.Responses.ResponseCreateParamsNonStreaming, 'stream'> {
 	const pruned = pruneHistory(messages);
-	// The history is walked in order rather than grouped by kind. Grouped — every
-	// settled message, then every tool item — an instruction appended after the
+	// The history is walked in order rather than grouped by kind. Grouped, with every
+	// settled message and then every tool item, an instruction appended after the
 	// tool rounds arrived before them, so FINAL_ROUND_INSTRUCTION told the model
 	// its rounds were spent above the rounds it was talking about, and a repair
 	// prompt landed the same way.
@@ -465,8 +465,8 @@ function entriesOf(source: JsonObject, keys: readonly string[]): [string, Json][
 
 /**
  * Reduce an output item to the fields the Responses API accepts back as input.
- * The SDK's streaming helper decorates its final response — `parsed_arguments`
- * on function calls, `parsed` on structured message parts — and the API
+ * The SDK's streaming helper decorates its final response (`parsed_arguments`
+ * on function calls, `parsed` on structured message parts), and the API
  * rejects the whole continuation with a 400 for any field it does not know.
  * An allowlist per type is the only shape that survives future decorations.
  */

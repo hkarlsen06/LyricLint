@@ -21,7 +21,7 @@ export class LyricLintDatabase extends Dexie {
 	 *
 	 * It is a table of its own and not a field on `DraftRecord` for two separate
 	 * reasons, and both have to hold. A `FileSystemFileHandle` is structured
-	 * cloneable but not JSON — putting one on the draft would break `exportDraft`
+	 * cloneable but not JSON, and putting one on the draft would break `exportDraft`
 	 * and `copyDraft`, which walk the record field by field. And a draft's audio
 	 * is a 60MB file: storing the bytes would spend the origin's whole quota on
 	 * one song, so nothing here ever holds the audio itself.

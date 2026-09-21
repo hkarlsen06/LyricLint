@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Apple's own artwork, unmodified, because their identity guidelines say to use
-	// theirs rather than draw one — see the comment on the markup below.
+	// theirs rather than draw one. See the comment on the markup below.
 	import appleMusicBadgeBlack from '$lib/assets/apple-music-listen-on-black.svg';
 	import appleMusicBadgeWhite from '$lib/assets/apple-music-listen-on-white.svg';
 	import type { MediaStore } from '../state/media-store.svelte.js';
@@ -18,7 +18,7 @@
 	beside moves: a song with a cover is named on the artwork band's own bar, and
 	one without is named in the transport. Two copies of these two links would be
 	two copies of every rule below, and the first to drift would be the one nobody
-	is looking at — which, for an attribution, is the copy that gets a
+	is looking at, which, for an attribution, is the copy that gets a
 	quota-extension request refused.
 
 	**Spotify's Design Guidelines require the mark wherever their content plays**,
@@ -29,7 +29,7 @@
 	from their identity guidelines shape every part of the badge and none of them
 	is discretionary: use their artwork rather than drawing one, never remove the
 	`Listen on` call to action, and never recolor it. So this is the whole lockup
-	at its own aspect ratio, carrying no `currentColor` — even the white file keeps
+	at its own aspect ratio, carrying no `currentColor`. Even the white file keeps
 	Apple's gradient on the note, and only the type is white.
 
 	`<picture>` rather than a Svelte-side theme value, because the theme here is

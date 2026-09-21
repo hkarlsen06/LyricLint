@@ -18,7 +18,7 @@
 
 	// One keystroke per control, the one a transcriber's hands can actually reach
 	// for: the Escape family. Escape toggles, Shift+Escape backs up, Alt+Escape
-	// (Option+Escape) goes forward — one key under the pinky and a modifier under
+	// (Option+Escape) goes forward, with one key under the pinky and a modifier under
 	// the other fingers or the thumb, none of which can write into the document.
 	// The physical J K L triad, `F7`–`F9`, and the universal `Ctrl-Alt` fallback
 	// stay in `aria-keyshortcuts`, because a control that named every way to press
@@ -28,19 +28,19 @@
 </script>
 
 <!--
-	Back, play/pause, forward — the three controls, in one implementation.
+	Back, play/pause, forward: the three controls, in one implementation.
 
 	Two surfaces show them: the strip under the editor, which is the transport's
 	home, and the artwork band in the right panel, where the cover is already being
 	looked at and the nearest play button was otherwise a whole column away. They
 	share this rather than mirroring it by hand, for the reason the diagnostic card
-	and its popover share theirs — two copies of three buttons is two copies of
+	and its popover share theirs. Two copies of three buttons is two copies of
 	every label rule, and `Previous line` appearing on one of them and
 	`Back 2 seconds` on the other is a bug nobody would notice for months.
 
 	**They are now identical, and the caption that used to separate them is gone.**
 	The one-modifier keystroke was printed under each glyph, which is where a
-	shortcut with nowhere else to live belongs — but it has somewhere else now, in
+	shortcut with nowhere else to live belongs, but it has somewhere else now, in
 	the shared tooltip that names the control anyway. Printed as well it was the
 	same fact twice, six pixels apart, in the shortest row in the window. A device
 	with no pointer to produce that tooltip has no modifier keys either, so nothing
@@ -82,7 +82,7 @@
 		A press the source cannot act on yet takes the glyph's own slot rather than
 		adding anything beside it, so nothing in the row moves while a track loads.
 
-		The label stays `Pause`, because that is still what the press does — it
+		The label stays `Pause`, because that is still what the press does: it
 		calls the pending start off. `aria-busy` is what says the wait is on; a
 		label reading `Loading` would name the state and lose the action.
 	-->

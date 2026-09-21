@@ -23,7 +23,7 @@ function pad(value: number, length: number): string {
 	return String(Math.floor(value)).padStart(length, '0');
 }
 
-/** `mm:ss.xx`, LRC's own form — minutes run past 60 rather than rolling over. */
+/** `mm:ss.xx`, LRC's own form: minutes run past 60 rather than rolling over. */
 function lrcTimestamp(seconds: number): string {
 	const hundredths = Math.round(seconds * 100);
 	return `${pad(hundredths / 6000, 2)}:${pad((hundredths / 100) % 60, 2)}.${pad(hundredths % 100, 2)}`;
@@ -38,7 +38,7 @@ function cueTimestamp(seconds: number, format: TimedLyricsFormat): string {
 
 /**
  * The supported markup is Genius's, not a player's, so it comes off on the way
- * out — an `<i>` a lyric app cannot read is visible garbage in the line.
+ * out: an `<i>` a lyric app cannot read is visible garbage in the line.
  */
 function plainLine(text: string): string {
 	return text.replace(/<\/?[ib]>/giu, '').trim();

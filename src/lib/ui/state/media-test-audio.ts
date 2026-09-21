@@ -8,7 +8,7 @@ import type { AudioElement } from './media-player.svelte.js';
  * arrives. What the media tests are checking is the transport's own arithmetic,
  * not the browser's, so they drive this instead.
  *
- * Test-only, and imported only from `*.test.ts` — it is here rather than beside
+ * Test-only, and imported only from `*.test.ts`. It is here rather than beside
  * one of them because both the player's tests and the strip's need it.
  */
 export class StubAudio extends EventTarget implements AudioElement {

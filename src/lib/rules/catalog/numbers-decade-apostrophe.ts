@@ -5,7 +5,7 @@ import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 /**
  * A decade-shaped run of digits: two ending in zero (`90`), or a four-digit
  * year ending in zero (`1990`). Deliberately not every number followed by
- * `'s` — `45's` is somebody's records or somebody's jersey, where the
+ * `'s`: `45's` is somebody's records or somebody's jersey, where the
  * possessive reading is as likely as the plural and this rule has nothing
  * trustworthy to offer.
  */
@@ -16,11 +16,11 @@ const decadeDigits = String.raw`(?:[12]\d{2}0|[1-9]0)`;
  * or wrong, curly or straight. This is the set the catalog owns, and
  * `projectLyricsForHarper` masks it before Harper ever sees the text: Harper
  * tokenizes `'90s` as a number followed by a one-letter word and spell-checks
- * the `s` into `so`, `as` and `is` — a fix preview reading `'90s` → `'90so` —
+ * the `s` into `so`, `as` and `is` (a fix preview reading `'90s` → `'90so`),
  * and its own decade lint on `90's` would otherwise stand where this rule's
  * reviewed finding belongs. The curly variants are in the set for the same
  * reason (`’90s` mis-tokenizes identically), while the *rule* below matches
- * straight apostrophes only — a curly one is `quotes.typewriter`'s finding
+ * straight apostrophes only; a curly one is `quotes.typewriter`'s finding
  * first, and two cards arguing over one token is the failure the
  * one-predicate-per-question rules exist to prevent.
  */

@@ -64,7 +64,7 @@ export const noUnknownParametersRule = defineRule({
   },
   createOnce(context) {
     // LyricLint vendored change: a function whose return type is a type predicate IS the
-    // boundary parser this rule points callers at, so its own input may be `unknown` —
+    // boundary parser this rule points callers at, so its own input may be `unknown`, following
     // the same exemption no-runtime-typeof grants under this option name.
     const isTypeGuard = (node: ParameterOwner): boolean =>
       "returnType" in node && node.returnType?.typeAnnotation.type === "TSTypePredicate";

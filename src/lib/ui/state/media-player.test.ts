@@ -129,7 +129,7 @@ describe('media player transport', () => {
 	});
 
 	// The whole point of timing a lyric is being able to go back to a line, so
-	// once there are cues the side keys step between them — and only between
+	// once there are cues the side keys step between them, and only between
 	// them. Outside the timed part of the song the plain nudge is what is left.
 	it('steps between cue points, and nudges outside them', () => {
 		const { audio, player } = setup(200);
@@ -156,7 +156,7 @@ describe('media player transport', () => {
 		expect(audio.currentTime).toBe(18);
 	});
 
-	// The step to a cue is a "replay this line" — only worth it while the playhead
+	// The step to a cue is a "replay this line", only worth it while the playhead
 	// is actually inside that line. Past the last timed line, or across an untimed
 	// stretch between two of them, the nearest cue can be far enough back that
 	// leaping to it is worse than the two-second nudge it replaced. Beyond
@@ -179,7 +179,7 @@ describe('media player transport', () => {
 		player.transport('back');
 		expect(audio.currentTime).toBe(61);
 
-		// Far past the last cue — the reported bug — nudges rather than leaping back.
+		// Far past the last cue (the reported bug) nudges rather than leaping back.
 		player.seek(61 + cueStepReach + 5);
 		player.transport('back');
 		expect(audio.currentTime).toBe(61 + cueStepReach + 5 - nudgeSeconds);
@@ -251,7 +251,7 @@ describe('media player transport', () => {
 describe('media player playhead memory', () => {
 	// `currentTime` does not stick before the browser has read the file, so a
 	// restore assigned at attach time is silently dropped and the track opens at
-	// 0:00 — which is the whole failure this holds off.
+	// 0:00, which is the whole failure this holds off.
 	it('holds a restored position until the track has a length', () => {
 		const audio = new StubAudio();
 		const player = createMediaPlayer({
@@ -322,7 +322,7 @@ describe('media player playhead memory', () => {
  *
  * A remote source is not ready the moment its transport appears: a video waits
  * on Google's player, a track on a device registration, a song on a script, a
- * sign-in and a queue. Every press in that gap used to be dropped — press play,
+ * sign-in and a queue. Every press in that gap used to be dropped: press play,
  * get silence, press again, and eventually one lands by luck.
  *
  * Driven through Apple Music because its queue is the easiest of the three to
@@ -412,7 +412,7 @@ describe('a press that arrives before the source is ready', () => {
 	 * The wait has to be visible, not merely correct.
 	 *
 	 * `playing` flipping to true is what makes the control say Pause and a second
-	 * press cancel — but a Pause button over silence is only half an answer, and
+	 * press cancel, but a Pause button over silence is only half an answer, and
 	 * the half that was missing read as nothing having happened. `starting` is the
 	 * other half and is the only thing it is for: the surfaces put a spinner in
 	 * the glyph's own slot while it is true.
@@ -441,7 +441,7 @@ describe('a press that arrives before the source is ready', () => {
 		expect(player.playing).toBe(true);
 	});
 
-	// Because the queued press reads as playing, the control says Pause — so the
+	// Because the queued press reads as playing, the control says Pause, so the
 	// obvious second press has to mean what it says and call the start off.
 	it('lets a second press cancel a start that has not happened yet', async () => {
 		const { player, calls, release, attaching } = slowAttachment();
@@ -492,7 +492,7 @@ describe('a press that arrives before the source is ready', () => {
 	 * A failure is what the source last said, not what it will always say.
 	 *
 	 * `error` was only ever cleared by an attach or a detach, so one refused press
-	 * — an expired token since refreshed, a device that came back — left the strip
+	 * (an expired token since refreshed, a device that came back) left the strip
 	 * printing that sentence *instead of the scrubber* for the rest of the
 	 * attachment, over a track the user could hear. It also armed `playIfAsked` to
 	 * refuse the next queued press.

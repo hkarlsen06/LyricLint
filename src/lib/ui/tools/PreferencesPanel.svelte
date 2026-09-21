@@ -56,7 +56,7 @@
 	async function protectStorage(): Promise<void> {
 		const granted = await requestPersistentStorage();
 		// The sentence and the control both change, but that change is not in a
-		// live region — and on Firefox the answer arrives out of a permission
+		// live region, and on Firefox the answer arrives out of a permission
 		// prompt, with focus wherever the browser left it.
 		controller.feedback.announce(
 			granted

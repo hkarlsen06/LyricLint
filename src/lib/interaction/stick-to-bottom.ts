@@ -17,7 +17,7 @@ import type { Attachment } from 'svelte/attachments';
  *
  * - **A pinned transcript is only ever unpinned by the scroll position moving
  *   up.** Appending to the foot of a scroller never moves `scrollTop`, so
- *   growth cannot look like a scroll — which is what makes this safe where
+ *   growth cannot look like a scroll, which is what makes this safe where
  *   comparing the distance to the bottom is not. That distance grows with every
  *   token, so a follower that read it would unpin itself mid-answer.
  * - **An unpinned transcript re-pins by reaching the bottom**, within
@@ -27,13 +27,13 @@ import type { Attachment } from 'svelte/attachments';
  *
  * That leaves one race, and it is the one that actually loses somebody's place.
  * A wheel gesture updates `scrollTop` immediately, but its `scroll` event is
- * dispatched at the top of the next frame — so a chunk of the answer landing in
+ * dispatched at the top of the next frame, so a chunk of the answer landing in
  * between would be followed while this module still believed it was pinned, and
  * the reader's scroll would be silently eaten. Two things close it. The follow
  * is deferred to a `requestAnimationFrame`, which the specified frame ordering
  * runs *after* the scroll steps, so the unpin is already recorded by the time
- * anything moves. And the pointer gestures are read for intent directly —
- * `wheel` upward, a touch drag downward — which unpins before the scroll has
+ * anything moves. And the pointer gestures are read for intent directly:
+ * `wheel` upward, a touch drag downward, which unpins before the scroll has
  * even happened. Either alone would be enough on most frames; both is what
  * makes it not depend on which.
  *
@@ -41,7 +41,7 @@ import type { Attachment } from 'svelte/attachments';
  * smooth scroll started on one chunk is still animating when the next arrives.
  *
  * `pin()` is the way back, and it belongs to the surface rather than to a
- * control here — sending a message is a request to see the answer to it, and so
+ * control here. Sending a message is a request to see the answer to it, and so
  * is switching to another conversation.
  */
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	// One citation is the meta line's last word; two or more wrap the line into
-	// a second and a third row — the exact mess the diagnostic card's meta rule
-	// exists to prevent — so they fold behind the card's own `Sources ⌄`
+	// a second and a third row, the exact mess the diagnostic card's meta rule
+	// exists to prevent, so they fold behind the card's own `Sources ⌄`
 	// disclosure instead, and unfolded each citation reads exactly as the
 	// inline one does, tooltip and search marking included. The control reuses
 	// the card's classes rather than restating them, so there is one
@@ -9,8 +9,8 @@
 	// list's place in the site's own meta row is site CSS.
 	//
 	// A run of citations is not the only run that wraps this line. An entry's
-	// `Checked by` ids are the other one — nine of them are seven lines of
-	// monospace links pushing the statement off the screen — and a second
+	// `Checked by` ids are the other one (nine of them are seven lines of
+	// monospace links pushing the statement off the screen), and a second
 	// disclosure written beside this one would be a second implementation of
 	// the same control, which is the drift this component exists to prevent.
 	// So the content is a slot: `children` is any run that folds the same way,
@@ -34,7 +34,7 @@
 		sources?: readonly SourceReference[];
 		/** Optional search-marking snippet, passed through to each citation. */
 		text?: Snippet<[string]>;
-		/** What the disclosure names — the citations' own word by default. */
+		/** What the disclosure names, the citations' own word by default. */
 		label?: string;
 		/** Whether the run is long enough to fold; more than one citation by default. */
 		folded?: boolean;
@@ -67,7 +67,7 @@
 	{#if expanded}
 		{#if children}
 			<!-- The same run the inline branch draws, in a row of its own under the
-			     whole meta line — the citations' own place, and for the same
+			     whole meta line, the citations' own place, and for the same
 			     reason: a run spliced into the middle of the line is what folding
 			     it was for. -->
 			<span class="site-meta__sources">{@render children()}</span>

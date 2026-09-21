@@ -11,7 +11,7 @@ export async function copyText(text: string): Promise<void> {
  *
  * A separate name for the same write because it is the application's one
  * output, and every caller of it means that rather than "put a string on the
- * clipboard" — which is what {@link copyText} is for.
+ * clipboard", which is what {@link copyText} is for.
  */
 export const copyCanonicalMarkup = copyText;
 
@@ -57,7 +57,7 @@ export function downloadUtf8Text(
  * Save a picture that lives on somebody else's CDN.
  *
  * `download` on an anchor is ignored cross-origin, and every cover this
- * application has to offer comes from Apple's, Spotify's or Google's host — so
+ * application has to offer comes from Apple's, Spotify's or Google's host, so
  * an anchor pointed straight at one navigates away from the workbench instead
  * of saving anything. The bytes have to come through `fetch` before there is a
  * blob of ours to name.

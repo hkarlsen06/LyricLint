@@ -59,7 +59,7 @@ describe('parseDocument', () => {
 		// The unknown-lyric marker wears the header's brackets when a whole line
 		// could not be made out. Parsed as a header it opened a section named "?",
 		// which is what put the custom-header review on the marker the editor's
-		// own tray inserts — and took the line out of `section.lines`, where every
+		// own tray inserts, and took the line out of `section.lines`, where every
 		// unknown rule and sync mode's tap look for it.
 		const document = parseDocument('[Intro]\nEikeli\n[?]\nEikeli');
 
@@ -94,7 +94,7 @@ describe('parseDocument', () => {
 
 	it('keeps an annotation-opening line as a lyric of its section, never a header', () => {
 		// A Genius annotation whose fragment crosses a line break opens with a `[`
-		// and no `]` on its own line — exactly the shape of a header still being
+		// and no `]` on its own line, exactly the shape of a header still being
 		// typed. Read as one it split the verse in two, reported a missing
 		// bracket, and stranded the tail's styled spans in a legendless section
 		// as spurious unknown voices (in that era, minted "Unresolved voice"
@@ -252,7 +252,7 @@ describe('parseDocument', () => {
 	);
 
 	// The trailing ordinal is scanned rather than matched: the regex that read it
-	// was polynomial on a line that never reaches a digit — 685ms at 32,000
+	// was polynomial on a line that never reaches a digit, 685ms at 32,000
 	// characters, on the hottest path in the application. These pin the split it
 	// replaced, ordinal by ordinal.
 	it.each([

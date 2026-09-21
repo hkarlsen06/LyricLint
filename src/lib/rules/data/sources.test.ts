@@ -111,7 +111,7 @@ function retrievedOn(id: string): string {
 // them, so their verification outruns their retrieval: `G-QE-MARKS` on
 // 2026-08-10, `G-SECTIONS` on 2026-08-11 (and on 2026-08-08, when its
 // examples corrected `performer.parenthetical-boundary`), and the rest of the
-// mined clusters on 2026-08-12 — `G-LANG-HEADERS` confirmed to be only the
+// mined clusters on 2026-08-12, with `G-LANG-HEADERS` confirmed to be only the
 // inventory, one annotation per language, seeding no entries of its own.
 const guidanceSourcingPass = new Set<string>([
 	'G-SECTION-NUMBERING',
@@ -161,7 +161,7 @@ function verifiedOn(id: string): string {
 	return retrievedOn(id);
 }
 
-// An annotation with Genius staff among its contributors ranks staff — the
+// An annotation with Genius staff among its contributors ranks staff, and the
 // roster is the approval signal, per the ruling docs/guidelines.md records.
 // Every annotation's banner and roster were checked by the maintainer on
 // 2026-08-10, in-session; no annotation carried the unreviewed banner.
@@ -198,7 +198,7 @@ const staffAnnotations = new Set([
 ]);
 
 // Reviewed (no unreviewed banner) with editors and moderators only in the
-// roster — no staff. G-LANG-HEADERS is deliberately absent from both sets: it
+// roster, no staff. G-LANG-HEADERS is deliberately absent from both sets: it
 // is a page, its track is confirmed unbadged, so its own text stays community.
 const editorialAnnotations = new Set([
 	'G-SECTION-NUMBERING',
@@ -213,7 +213,7 @@ const editorialAnnotations = new Set([
 ]);
 
 function authorityOf(id: string): SourceAuthority {
-	// The venue never decides a tier, the author's rank does — so the staff
+	// The venue never decides a tier, the author's rank does, so the staff
 	// forum reply (G-HEADER-COLLECTIVE) ranks exactly as staff guide content.
 	if (id === 'G-ADD-SONGS' || id === 'G-HEADER-COLLECTIVE' || staffAnnotations.has(id)) {
 		return 'staff';

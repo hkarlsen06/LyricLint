@@ -160,8 +160,8 @@ export function createAutosaveController(
 			// whose generation has moved on belongs to a draft that has since been
 			// deleted or discarded, and putting it back recreates the row the
 			// delete removed. `cancelDraft` drops the pending entry as well, so
-			// today this is the second gate on one fact rather than the only one —
-			// it is what keeps the invariant true of any write picked up before it
+			// today this is the second gate on one fact rather than the only one.
+			// It is what keeps the invariant true of any write picked up before it
 			// is issued, which is the shape a queue acquires by accident.
 			if (generationFor(saveDraftId) !== save.generation) {
 				continue;
@@ -277,7 +277,7 @@ export function createAutosaveController(
 		 * loaded into the editor.
 		 *
 		 * Revisions count from zero within one editor session, and reopening a
-		 * draft mounts a fresh editor that starts over at zero — so a draft opened
+		 * draft mounts a fresh editor that starts over at zero, so a draft opened
 		 * twice in one session came back carrying the previous visit's mark, and
 		 * `schedule` dropped every save until the new session out-typed the old
 		 * one. A sync run never does: an anchor tap changes no text and therefore

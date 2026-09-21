@@ -33,8 +33,8 @@
 			<header class="assistant-dialog__header">
 				<!--
 					One name, true from all three ways in. This modal opens from the
-					linter rules, from the guidance catalog — whose own spark says
-					"Ask about the transcription guidelines" — and from the workbench,
+					linter rules, from the guidance catalog (whose own spark says
+					"Ask about the transcription guidelines") and from the workbench,
 					so a title naming the rules alone was false from two of them, and
 					it contradicted the subtitle sitting directly under it. The pair
 					names the assistant and then says what it covers, rather than

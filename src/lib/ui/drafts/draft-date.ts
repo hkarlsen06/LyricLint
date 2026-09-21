@@ -4,7 +4,7 @@
  * `25.7.2026` is a machine's answer: every row carries the same eight
  * characters and the reader has to parse all of them to learn that the draft is
  * from today. The named recent days answer the question the list is actually
- * asked — which of these did I have open — and the numeric form only appears
+ * asked (which of these did I have open), and the numeric form only appears
  * once the answer stops being "recently". The year is dropped inside the
  * current one, where it is the same on every row.
  *

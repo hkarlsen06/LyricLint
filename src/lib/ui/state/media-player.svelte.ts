@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/media.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/media.md; read it before changing this file, and update it with any behavior change.
 import { browser } from '$app/environment';
 import type { FeedbackState } from './feedback.svelte.js';
 import type {
@@ -27,7 +27,7 @@ import { configureAppleMusic, createAppleMusicSource, loadMusicKit } from './med
  *
  * This is the single most valuable default in the transport. Transcription is a
  * loop of listen, pause, type, and the words either side of a pause are the ones
- * hardest to place — so a resume that starts exactly where the ear stopped makes
+ * hardest to place, so a resume that starts exactly where the ear stopped makes
  * the user rewind by hand nearly every time. Two seconds of run-in is enough to
  * re-enter the phrase and short enough that it never feels like a repeat.
  */
@@ -43,11 +43,11 @@ export const nudgeSeconds = 2;
  * Stepping back to a cue replays the line it starts, which is exactly what a
  * transcriber wants while they are inside that line. But the nearest cue is not
  * always the current line's start: past the last timed line, or across an
- * untimed stretch between two timed ones, it can be twenty seconds off — and a
+ * untimed stretch between two timed ones, it can be twenty seconds off, and a
  * "previous line" that leaps that far is worse than the plain two-second nudge it
  * was meant to improve on. So a cue only counts as a step when the playhead is
  * within this reach of it; beyond that it is a distant marker rather than a line
- * the user is in, and the nudge is what is left — the same behaviour the timed
+ * the user is in, and the nudge is what is left, the same behaviour the timed
  * navigation already falls back to before the first cue and after the last.
  *
  * Ten seconds clears any sung line while staying well under the leap that
@@ -63,9 +63,9 @@ export const cueStepReach = 10;
  * transcriber reaches for a speed control at all. On a media element
  * `preservesPitch` is what keeps these listenable rather than comic.
  *
- * This is the *offer*, not the promise. A source narrows it — YouTube has a
+ * This is the *offer*, not the promise. A source narrows it: YouTube has a
  * fixed menu of its own and ignores `setPlaybackRate` for anything outside it,
- * without a word — so what a surface actually renders is
+ * without a word, so what a surface actually renders is
  * `MediaPlayer.availableRates`, which is this list intersected with what the
  * attached source says it can do. Offering a rate that will not apply is worse
  * than offering fewer.
@@ -89,7 +89,7 @@ export type MediaSourceKind = 'file' | 'youtube' | 'spotify' | 'apple';
  * It is the *kind* rather than `player.artwork`, deliberately, and the two are
  * not the same question. This one is about ownership: a catalogue song's name
  * and mark belong to the band, so the strip must not draw them even while the
- * cover is still on its way — keyed on the picture, the strip would show both
+ * cover is still on its way; keyed on the picture, the strip would show both
  * for the length of the read and then hand them down, which reads as a glitch.
  * Whether the band has anything to draw *yet* is the band's own business, and
  * it draws nothing until its picture lands. Between the two, a song that has
@@ -110,14 +110,14 @@ export function drawsCoverBand(kind: MediaSourceKind | undefined): boolean {
  * cannot vouch for is left out rather than guessed at.
  *
  * **There are no producers, and there is no way to get them.** Apple's public
- * catalogue has no credits resource at all — the Music app's Credits screen is
- * fed by an endpoint they do not publish — so a producer field here would be one
+ * catalogue has no credits resource at all (the Music app's Credits screen is
+ * fed by an endpoint they do not publish), so a producer field here would be one
  * this application could never fill.
  *
  * **`label` is the album's, and the album is whichever release the song sits
  * on.** For "Bohemian Rhapsody" that is a 2000 compilation on Hollywood
  * Records, not the 1975 EMI original, while `releaseDate` on the song is
- * correctly 1975-10-31 — so the two can disagree inside one response. It is the
+ * correctly 1975-10-31, so the two can disagree inside one response. It is the
  * label of the release being played, which is true, rather than the label of the
  * first release, which Apple does not say.
  */
@@ -126,7 +126,7 @@ export interface SongDetails {
 	 * The two halves of `name`, kept apart because the cover band sets them at
 	 * opposite ends of one row.
 	 *
-	 * `name` is `Artist — Title` and is what a one-line readout wants; splitting
+	 * `name` joins the artist and title and is what a one-line readout wants; splitting
 	 * that string back up would be parsing a separator this application chose,
 	 * which is the kind of round trip that works until an artist has an em dash in
 	 * their name. Both sources have the two fields already.
@@ -135,7 +135,7 @@ export interface SongDetails {
 	title?: string;
 	/** ISO `YYYY-MM-DD`, from the song rather than from its album. */
 	releaseDate?: string;
-	/** Apple's `composerName`, unsplit — see the caveat above. */
+	/** Apple's `composerName`, unsplit; see the caveat above. */
 	writers?: string;
 	label?: string;
 	isrc?: string;
@@ -171,9 +171,9 @@ export interface MediaSourceEvents {
 	 *
 	 * On the transport for the same reason the cover is: these are facts about
 	 * what is playing, and the panel listing them should not have to know which of
-	 * four things is playing it. Only Apple Music reports them today — YouTube has
+	 * four things is playing it. Only Apple Music reports them today (YouTube has
 	 * no catalogue behind it, and Spotify's track read carries no writers or
-	 * label — so every other source simply never calls this.
+	 * label), so every other source simply never calls this.
 	 */
 	detailsChanged(details: SongDetails | undefined): void;
 	started(): void;
@@ -247,7 +247,7 @@ interface SongAttachment {
 /**
  * Why the transport is reporting its position.
  *
- * `settled` means playback has come to rest — a pause or the end of the track —
+ * `settled` means playback has come to rest (a pause or the end of the track)
  * and is the moment a listener should write the position down rather than
  * waiting for its next threshold.
  */
@@ -314,13 +314,13 @@ export interface MediaPlayer {
 	 * A press on play that the source has not been able to act on yet.
 	 *
 	 * `playing` already reports it, because the control has to flip and a second
-	 * press has to cancel — but a control that says Pause over silence is only
+	 * press has to cancel, but a control that says Pause over silence is only
 	 * half the answer. This is the other half, and the only thing it is for: the
 	 * surfaces draw a spinner in the glyph's place, so the gap reads as a wait
 	 * rather than as nothing having happened.
 	 *
-	 * It covers the whole gap — the attachment *and* the buffer after `play()` was
-	 * issued — because a spinner that gave up at the halfway mark put the Play
+	 * It covers the whole gap (the attachment *and* the buffer after `play()` was
+	 * issued), because a spinner that gave up at the halfway mark put the Play
 	 * glyph back for the second half, and one press reading as three states is the
 	 * thing this was supposed to stop.
 	 */
@@ -351,7 +351,7 @@ export interface MediaPlayer {
 	 * The workbench's own offer stands until a source contradicts it, which for a
 	 * video is the moment Google's player is ready. A control that collapsed to
 	 * one option on attach and grew back a second later would be worse than
-	 * either — and under-promising is its own kind of wrong answer.
+	 * either, and under-promising is its own kind of wrong answer.
 	 */
 	readonly availableRates: readonly number[];
 	attach(file: File, attachment?: MediaAttachment): void;
@@ -360,7 +360,7 @@ export interface MediaPlayer {
 	 *
 	 * Asynchronous where `attach` is not, because the first call is what fetches
 	 * Google's IFrame API. It resolves when the API is in hand, not when the video
-	 * plays — everything after that arrives as ordinary source events.
+	 * plays; everything after that arrives as ordinary source events.
 	 */
 	attachVideo(video: VideoAttachment): Promise<void>;
 	/**
@@ -369,7 +369,7 @@ export interface MediaPlayer {
 	 * Asynchronous like `attachVideo`, and silent like it: this resolves once the
 	 * track's name and length are in hand, having played nothing. Spotify has no
 	 * cue, so the call that actually starts the track is deferred to the first
-	 * `play()` — see `createSpotifySource`.
+	 * `play()`; see `createSpotifySource`.
 	 */
 	attachTrack(track: TrackAttachment): Promise<void>;
 	/**
@@ -377,7 +377,7 @@ export interface MediaPlayer {
 	 *
 	 * Silent like the other two, and for the reason the file source is: MusicKit
 	 * has a real cue, so the queue is built without playing. This resolves once
-	 * the song is queued — which includes the sign-in, where a sign-in is needed,
+	 * the song is queued, which includes the sign-in, where a sign-in is needed,
 	 * so it must be called from a gesture.
 	 */
 	attachSong(song: SongAttachment): Promise<void>;
@@ -397,7 +397,7 @@ export interface MediaPlayer {
 	 *
 	 * The timed lines of the lyric, pushed down by the shell. A transcriber
 	 * checking a line wants the line, not two seconds of wherever the last
-	 * press left off — so once a song has timings, back and forward mean the
+	 * press left off, so once a song has timings, back and forward mean the
 	 * previous and next timed line. Outside them, and for a song with none, the
 	 * plain nudge is what is left.
 	 */
@@ -420,7 +420,7 @@ export interface MediaPlayer {
 	 * The source's own playhead rather than the mirrored one.
 	 *
 	 * `currentTime` is reactive state fed by whatever the source reports, which is
-	 * a few times a second — near enough for a readout, up to a tick stale for a
+	 * a few times a second: near enough for a readout, up to a tick stale for a
 	 * write. The flush that runs as the tab is closing is the one place that
 	 * difference is the difference between the right second and the previous one.
 	 */
@@ -431,7 +431,7 @@ export interface MediaPlayer {
 	 * Watch for the source learning what it is playing.
 	 *
 	 * A file is named before it is opened. A video is a bare id until Google's
-	 * player answers with a title, and that title is worth writing down — it is
+	 * player answers with a title, and that title is worth writing down; it is
 	 * what the strip and the reconnect control say next session.
 	 */
 	setNameListener(listener: ((name: string) => void) | undefined): void;
@@ -448,8 +448,8 @@ function clamp(value: number, lower: number, upper: number): number {
  *
  * Named rather than taking `HTMLMediaElement` whole because the test double is
  * the other implementation of it: a real `<audio>` cannot be driven
- * deterministically — `play()` rejects on a synthetic object URL and
- * `currentTime` is ignored until metadata arrives — so what the media tests
+ * deterministically (`play()` rejects on a synthetic object URL and
+ * `currentTime` is ignored until metadata arrives), so what the media tests
  * check is this transport's arithmetic against a stub. A double held to every
  * member of the DOM interface could only ever have been a cast.
  */
@@ -482,7 +482,7 @@ interface FileSource extends MediaSource {
  *
  * One element for the lifetime of the source and a swapped `src`, rather than an
  * element per file: a fresh element per attachment leaks decoders and loses the
- * rate the user chose. It is never in the document — this is audio, and a
+ * rate the user chose. It is never in the document; this is audio, and a
  * visible `<audio controls>` would be a second transport disagreeing with the
  * strip.
  */
@@ -592,8 +592,8 @@ function createFileSource(deps: FileSourceDependencies): FileSource {
  * The workbench's transport, and the one place its arithmetic lives.
  *
  * It holds a source rather than a media element. Every rule that makes the
- * transport worth having — the two-second run-in on a resume, the clamp to both
- * ends of the track, a deliberate placement cancelling the run-in — is written
+ * transport worth having (the two-second run-in on a resume, the clamp to both
+ * ends of the track, a deliberate placement cancelling the run-in) is written
  * once here against `MediaSource`, so a local file and a YouTube video cannot
  * behave differently under the same key. The sources exist to make that possible
  * and to hide, each in its own file, whatever is asymmetric about them.
@@ -624,14 +624,14 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	 *
 	 * These are two different facts and the transport needs both, because between
 	 * them is a gap that is always visible and sometimes seconds long. A remote
-	 * source is not ready to be told anything the moment its strip draws — a video
+	 * source is not ready to be told anything the moment its strip draws (a video
 	 * waits on Google's player, a track on a device registration, a song on a
-	 * script, a sign-in and a queue — and even once it is, `play()` is a request
+	 * script, a sign-in and a queue), and even once it is, `play()` is a request
 	 * that buffers before it becomes sound.
 	 *
 	 * Every press in that gap used to be dropped: press play, get silence, press
 	 * again, and eventually one lands by luck. Holding the intent separately is
-	 * what fixes it, and one flag covers the whole gap rather than one per half —
+	 * what fixes it, and one flag covers the whole gap rather than one per half;
 	 * an earlier version cleared as soon as `play()` was *issued*, which put the
 	 * Play glyph back on screen for the buffer and made a single press look like
 	 * three states.
@@ -687,7 +687,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			// same allowance the action handlers make for themselves.
 			if (!('MediaMetadata' in globalThis)) return;
 			// The two halves where a catalogue reported them, and the one-line name
-			// where it did not — the same fallback the cover band's own row makes.
+			// where it did not, the same fallback the cover band's own row makes.
 			// Built a field at a time rather than spread conditionally: a song with
 			// no artist reports none, rather than one that is there and empty.
 			const metadata: MediaMetadataInit = { title: songDetails?.title ?? name };
@@ -752,7 +752,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 				playing = true;
 				// A source that is playing has outlived whatever it failed at. The
 				// error was only ever cleared by an attach or a detach, so one refused
-				// press — an expired token since refreshed, a device that came back —
+				// press (an expired token since refreshed, a device that came back)
 				// left the strip printing it over a track that was audibly running,
 				// with the scrubber replaced by that sentence for as long as the
 				// attachment lasted. It also armed `playIfAsked` to refuse the next
@@ -815,7 +815,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	/**
 	 * Place the playhead, clamped to the track. Never starts or stops playback.
 	 *
-	 * Every discrete press lands here — a nudge, a step to the next line — as
+	 * Every discrete press lands here (a nudge, a step to the next line) as
 	 * against `seek`, which is the scrubber's path and reports ordinary progress.
 	 */
 	function moveTo(target: number): void {
@@ -825,7 +825,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		source.seek(clamp(target, 0, source.duration));
 		currentTime = source.time;
 		// A deliberate placement, so it cancels the run-in the same way a scrub
-		// does — otherwise a back-2 followed by a resume moves four seconds and the
+		// does; otherwise a back-2 followed by a resume moves four seconds and the
 		// two controls stop being separately predictable.
 		rewindOnResume = false;
 		// One press, so it is worth writing down at once. A scrub is not: dragging
@@ -836,12 +836,12 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	/**
 	 * The step back and the step forward, or nothing when the playhead is outside
 	 * the timed part of the song *or too far from the nearest cue to be inside its
-	 * line* — `cueStepReach` is that distance, and past it the nudge takes over.
+	 * line*; `cueStepReach` is that distance, and past it the nudge takes over.
 	 *
 	 * The 0.25 margin is what makes repeated presses walk: landing exactly on a cue
 	 * and then asking for the one before it must not answer with the cue underfoot,
-	 * and a source that reports its own rounding — or the seek it was last told to
-	 * make — can be a few milliseconds either side of the number it was given.
+	 * and a source that reports its own rounding (or the seek it was last told to
+	 * make) can be a few milliseconds either side of the number it was given.
 	 */
 	function cueBefore(time: number): number | undefined {
 		const cue = cuePoints.findLast((candidate) => candidate < time - 0.25);
@@ -959,7 +959,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			return;
 		}
 		// The intent is *not* cleared here. It is cleared by the source reporting
-		// that playback started, stopped or failed — until one of those arrives the
+		// that playback started, stopped or failed; until one of those arrives the
 		// press is still outstanding, and so is the spinner.
 		source.play();
 	}
@@ -1251,7 +1251,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	return player;
 }
 
-/** `m:ss`, or `—` before the browser has read the duration. */
+/** `m:ss`, or an em dash placeholder before the browser has read the duration. */
 export function formatTime(seconds: number): string {
 	if (!Number.isFinite(seconds) || seconds < 0) return '—';
 	const whole = Math.floor(seconds);

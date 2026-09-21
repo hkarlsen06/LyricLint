@@ -3,7 +3,7 @@
  * screenshotted.
  *
  * It is a script rather than a checked-in picture taken by hand for the reason
- * `render-social-preview.mjs` is one — the shot has to be reproducible when a
+ * `render-social-preview.mjs` is one: the shot has to be reproducible when a
  * severity color, a card's shape, or the toolbar's arrangement moves. Re-run it
  * against a dev or preview server and commit what comes out:
  *
@@ -11,16 +11,16 @@
  *     bun scripts/render-workbench-shot.mjs
  *
  * `ORIGIN` overrides the server it drives; `--performers` writes the
- * performer-tagging detail shot — the
+ * performer-tagging detail shot: the
  * editor cropped portrait around a pointer selection with the performer picker
  * open over it, roster and all; `--harper` writes the on-device-grammar detail
- * shot — a hovered Harper underline with its popover open, fix preview and
+ * shot: a hovered Harper underline with its popover open, fix preview and
  * citation included. `--player` captures synced lyrics with their transport;
  * `--song` captures the Apple Music metadata and artwork commands.
  * Every file lands in `static/`.
  *
  * The documents these are taken of, and the performer scene's own setup, live
- * in `shot-scene.mjs` — `render-motion.mjs` films the same scene this
+ * in `shot-scene.mjs`; `render-motion.mjs` films the same scene this
  * photographs, and a second copy of either is a copy that drifts.
  */
 import { execFile } from 'node:child_process';
@@ -70,13 +70,13 @@ try {
 	const page = await browser.newPage({
 		// Narrower than a laptop's full width on purpose. The lyric column is capped
 		// at `--measure-editor` and left-aligned, so every pixel of window past the
-		// panel is empty document — at 1440 the shot was a third bare canvas, which
+		// panel is empty document, and at 1440 the shot was a third bare canvas, which
 		// in a picture reads as an application with nothing in it. The performers
 		// shot is taller instead: its crop is portrait, and the window has to hold
 		// the whole song plus the picker below the selection.
 		viewport: shotViewport(scene),
 		// A product shot is scaled down in the page, so it is rendered at 2x and
-		// let the browser resample it — a 1x capture set into a 1180px frame is
+		// let the browser resample it: a 1x capture set into a 1180px frame is
 		// visibly soft on every display anybody reads this page on.
 		deviceScaleFactor: 2,
 		colorScheme: 'dark',
@@ -101,8 +101,8 @@ try {
 
 		// The picker opens on a *pointer* selection and on nothing else, so the
 		// selection is made the way a user makes one: a drag across the words.
-		// The last line of a verse, so the picker — which prefers the space above
-		// the selection — covers two plain lyric lines rather than a section
+		// The last line of a verse, so the picker, which prefers the space above
+		// the selection, covers two plain lyric lines rather than a section
 		// header (a hidden header reads as a song with a hole in it). Verse 2
 		// specifically: the shot stands beside the section's heading, so the
 		// picker lands in the upper half of the picture, where the eye already is
@@ -120,8 +120,8 @@ try {
 
 		// Cropped portrait, to the width the lyric actually occupies rather than
 		// the editor column's: this shot sits *beside* the section's copy on a
-		// desktop, so its height is the whole song — first header to the picker
-		// under the selection — and its width is the text plus the gutter. The
+		// desktop, so its height is the whole song (first header to the picker
+		// under the selection) and its width is the text plus the gutter. The
 		// rest of the window is the hero shot's job.
 		const clip = await page.evaluate(() => {
 			const region = document.querySelector('.editor-region').getBoundingClientRect();
@@ -177,7 +177,7 @@ try {
 		await popover.waitFor({ state: 'visible', timeout: 10_000 });
 		await page.waitForTimeout(400);
 
-		// Cropped to the lines and the popover under them — the document is four
+		// Cropped to the lines and the popover under them; the document is four
 		// lines on purpose, so the card is most of the picture.
 		const clip = await page.evaluate(() => {
 			const region = document.querySelector('.editor-region').getBoundingClientRect();
@@ -202,7 +202,7 @@ try {
 		await page.screenshot({ path: outputPath, type: 'png', clip });
 		console.log(`wrote ${outputPath} (${clip.width * 2}x${clip.height * 2})`);
 	} else {
-		// The whole scene, shared with the loop that films it — see
+		// The whole scene, shared with the loop that films it; see
 		// `prepareHeroScene`. The still is now this setup plus a shutter.
 		await prepareHeroScene(page, editor);
 

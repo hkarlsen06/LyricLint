@@ -1,7 +1,7 @@
 /**
  * The catalog's lookup tables, flattened into replacement pairs.
  *
- * Seven rules are a table rather than a predicate — the reviewed spellings, the
+ * Seven rules are a table rather than a predicate: the reviewed spellings, the
  * common English misspellings, the texting-shorthand expansions, the two
  * contraction maps, the digits, the curly quotes, and the Norwegian header
  * preferences. What the rule reference publishes about each of them is *one*
@@ -12,8 +12,8 @@
  *
  * That is a hole the moment anything but the workbench has to answer for the
  * catalog, and the rules assistant is that thing. Asked "what are the
- * standardized spellings?" it could see exactly one pair — `Imma` → `I'ma`, the
- * `spelling.standardized` policy example — so it answered with one pair:
+ * standardized spellings?" it could see exactly one pair, `Imma` → `I'ma`, the
+ * `spelling.standardized` policy example, so it answered with one pair:
  * correctly, and uselessly. This module is the whole table, derived from the
  * same constants the rules check against, so a spelling added to
  * `data/spelling.ts` reaches the assistant's corpus without anybody remembering
@@ -35,8 +35,8 @@
  *   reviewed spelling needs confirming, when most of them do not.
  * - **An entry with no `pattern` is flagged by nothing**, and omits `fix`
  *   entirely rather than claiming a repair. `shawty`/`shorty` and
- *   `alright`/`all right` are there to record that both forms are accepted —
- *   and to seed Harper — not because anything reports them.
+ *   `alright`/`all right` are there to record that both forms are accepted,
+ *   and to seed Harper, not because anything reports them.
  *
  * Pure data, no CodeMirror and no rule execution, so unlike `reference.ts` it
  * runs anywhere. `assistant-corpus.ts` is its one consumer today.
@@ -58,7 +58,7 @@ interface RuleLookupEntry {
 	instead: string[];
 	/**
 	 * Transcription mistakes LyricLint curates itself. Detected like an
-	 * alternate, but named by no reviewed guideline — never present these as
+	 * alternate, but named by no reviewed guideline. Never present these as
 	 * Genius policy.
 	 */
 	curatedMisspellings?: string[];
@@ -68,7 +68,7 @@ interface RuleLookupEntry {
 	 * listed forms are safe.
 	 *
 	 * A flag rather than the sentence it used to be. Carried as prose it was the
-	 * same sentence on 14 of the 29 reviewed spellings — the most repeated string
+	 * same sentence on 14 of the 29 reviewed spellings, the most repeated string
 	 * on the rule's page, saying the least important thing on each row, which is
 	 * the repetition that made the diagnostic card drop its severity word. The
 	 * wording belongs to the table's `description`, which says it once.
@@ -93,7 +93,7 @@ export interface RuleLookupTable {
 /**
  * The gate in words. `exceptionDescription` says the same thing more precisely
  * wherever a spelling carries one, so this is the fallback rather than the
- * first answer — printing both puts one sentence on the row twice.
+ * first answer, because printing both puts one sentence on the row twice.
  */
 const GATE_CONDITIONS = {
 	general: undefined,
@@ -126,7 +126,7 @@ function spellingTable(): RuleLookupTable {
 			"The reviewed Genius spelling guide's preferred lyric forms. Case is preserved from " +
 			'the text being corrected, so a line-initial occurrence keeps its capital. Where an ' +
 			'entry is marked fuzzy, any one-character typo of the preferred form is caught as ' +
-			'well — always as a previewed fix, even where the entry’s own listed forms are safe.',
+			'well, always as a previewed fix, even where the entry’s own listed forms are safe.',
 		entries: standardizedSpellings.map((spelling) => {
 			const appliesWhen = spelling.exceptionDescription ?? GATE_CONDITIONS[spelling.contextGate];
 			const entry: RuleLookupEntry = {
@@ -173,7 +173,7 @@ function pairTable(
  * haystack: what the table is, every condition written on a row, and every form
  * in it.
  *
- * The whole table is far too much to put in the index's payload — it is served
+ * The whole table is far too much to put in the index's payload, and it is served
  * by a layout, so it would be copied into all 60 prerendered pages for content
  * six of every seven of them never draw. This is 6.0% of that payload against
  * 16.2%, and it is all a search needs: a reader who types `tryna` wants the row
@@ -181,9 +181,9 @@ function pairTable(
  *
  * The forms alone were the first version of this and they left a hole of
  * exactly the shape this function exists to close. For these eight rules the
- * table *is* the page, so its prose is most of what the reader is looking at —
+ * table *is* the page, so its prose is most of what the reader is looking at:
  * `Not where the word means cousin`, `American English only`, `The right single
- * quotation mark` — and none of it was reachable by typing the words in it. A
+ * quotation mark`, and none of it was reachable by typing the words in it. A
  * search that answers for a page's headings and not for its body is a search
  * the reader learns to distrust.
  *
@@ -240,8 +240,8 @@ export function ruleLookupTables(): RuleLookupTable[] {
 		),
 		pairTable(
 			'numbers.spell-out',
-			'Digits a lyric spells out. Numbers reading as data rather than as words — times, ' +
-				'money, percentages, and anything joined by a separator — are exempt, as is a ' +
+			'Digits a lyric spells out. Numbers reading as data rather than as words (times, ' +
+				'money, percentages, and anything joined by a separator) are exempt, as is a ' +
 				'digit inside a written-out song part label.',
 			'preview',
 			numberWords.map((word, digit) => [String(digit), word] as const)

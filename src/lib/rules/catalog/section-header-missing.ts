@@ -44,7 +44,7 @@ export const sectionHeaderMissingRule: RuleDefinition = {
 				this,
 				{ from: section.from, to: section.from },
 				'This lyric section has no header.',
-				'Every blank-line lyric section needs a song-part header. If these lines continue the previous song part, remove the blank line instead—Genius does not allow blank lines to split one part into smaller stanzas. Otherwise, choose a reviewed localized term or enter a custom header; the source text remains unchanged until confirmation.',
+				'Every blank-line lyric section needs a song-part header. If these lines continue the previous song part, remove the blank line instead, because Genius does not allow blank lines to split one part into smaller stanzas. Otherwise, choose a reviewed localized term or enter a custom header; the source text remains unchanged until confirmation.',
 				blankLineRange
 					? [replacementFix(context, 'preview', 'Remove blank line', blankLineRange, '')]
 					: undefined,

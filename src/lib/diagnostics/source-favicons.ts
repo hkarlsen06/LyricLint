@@ -13,7 +13,7 @@
  * gains or loses the prefix keeps its mark. A host with no entry draws
  * nothing: an unknown favicon is not an error, it is a citation exactly as it
  * was before favicons existed. `source-favicons.test.ts` pins the other
- * direction — every source in the registry resolves one — so a new source
+ * direction, that every source in the registry resolves one, so a new source
  * arrives with its mark or fails there rather than shipping a bare link
  * among decorated ones.
  */

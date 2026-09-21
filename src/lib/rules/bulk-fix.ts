@@ -8,8 +8,8 @@ import { collectSafeFixes } from './results.js';
  * the user's whole evidence for pressing anything beside it. So a batch reached
  * from a card may only contain edits the preview honestly stands in for: same
  * rule, same label. Batching by rule alone would sweep up `til` → `'til` from a
- * card showing `Imma` → `I'ma` — both `spelling.standardized`, neither one the
- * change on screen.
+ * card showing `Imma` → `I'ma`, and both are `spelling.standardized` while
+ * neither one is the change on screen.
  *
  * The label is the right key rather than a lucky one: fix labels are written to
  * name the change ("Replace with I'ma", "Remove markup"), so two fixes share a
@@ -51,7 +51,7 @@ export function collectMatchingFixes(
 export interface BulkFixPlan {
 	/** The safe fixes to dispatch, already arbitrated against each other. */
 	fixes: readonly DiagnosticFix[];
-	/** Diagnostics the batch resolves — the number the button offers to fix. */
+	/** Diagnostics the batch resolves, the number the button offers to fix. */
 	automatic: number;
 	/** Diagnostics it does not touch, which the user has to decide about. */
 	manual: number;

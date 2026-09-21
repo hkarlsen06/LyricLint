@@ -30,8 +30,8 @@ async function renderWorkspace(
 	assistant?: AssistantState
 ) {
 	const props = { controller, editorComponent: MockEditorPane, harperProvider };
-	// With an assistant, mount through the host that provides the real context —
-	// the same door the app layout uses — rather than mocking the module.
+	// With an assistant, mount through the host that provides the real context,
+	// the same door the app layout uses, rather than mocking the module.
 	const view = assistant
 		? await render(WorkspaceWithAssistant, { assistant, ...props })
 		: await render(Workspace, props);
@@ -66,8 +66,8 @@ describe('Workspace and toolbar', () => {
 		);
 	});
 
-	// The confirmation is the button itself — same slot, same tier, label
-	// following the state — and it only says so when the clipboard took it.
+	// The confirmation is the button itself: same slot, same tier, label
+	// following the state, and it only says so when the clipboard took it.
 	test('confirms a copy in the button, and stays silent when the clipboard refuses', async () => {
 		const writeText = vi.fn(async () => {});
 		vi.stubGlobal('navigator', { clipboard: { writeText } });
@@ -103,7 +103,7 @@ describe('Workspace and toolbar', () => {
 
 	// The contrast tier is the loudest thing on the screen, and on an empty
 	// document `Copy lyrics` spends it pointing at the exit. Same slot, same
-	// tier, label following the state — and never both at once.
+	// tier, label following the state, and never both at once.
 	test('offers the paste end of the work while the document is empty', async () => {
 		const { controller } = createTestWorkbench({ text: '' });
 		await render(DocumentToolbar, { controller });
@@ -256,7 +256,7 @@ describe('Workspace and toolbar', () => {
 		expect(identity).toBeTruthy();
 		expect([...identity!.children].filter((child) => child.tagName !== 'LABEL')).toEqual([
 			screen.getByRole('link', { name: 'LyricLint home' }),
-			// The name is a control now — the field and its drafts disclosure — so
+			// The name is a control now (the field and its drafts disclosure) so
 			// the middle of the strip is the switcher rather than a bare input.
 			screen.getByLabelText("'Scribe title").closest('.draft-switcher'),
 			// Creation sits with the draft it creates, in the slot the save glyph
@@ -288,7 +288,7 @@ describe('Workspace and toolbar', () => {
 		await render(DocumentToolbar, { controller });
 
 		const status = screen.getByRole('img', { name: /^Autosave status/ });
-		// The healthy states draw nothing at all — no glyph, no words — but stay in
+		// The healthy states draw nothing at all, no glyph and no words, but stay in
 		// the accessible tree through the name and the tooltip.
 		expect(status.textContent?.trim()).toBe('');
 		expect(status.querySelector('svg')).toBeNull();
@@ -319,7 +319,7 @@ describe('Workspace and toolbar', () => {
 		const redo = screen.getByRole('button', { name: 'Redo' });
 		const language = screen.getByRole('button', { name: 'Lyric language: English' });
 		// Comparing acts on the whole document, so its trigger belongs to this
-		// strip — beside the contrast action whose press it is the review before.
+		// strip, beside the contrast action whose press it is the review before.
 		const compare = screen.getByRole('button', { name: 'Compare' });
 		const copy = screen.getByRole('button', { name: 'Copy lyrics' });
 		expect([
@@ -328,7 +328,7 @@ describe('Workspace and toolbar', () => {
 			)
 		]).toEqual([undo, redo, language, compare, copy]);
 		// Navigation between drafts left the strip for the draft's own name, and
-		// creation followed it — neither acts on the document this strip commands.
+		// creation followed it; neither acts on the document this strip commands.
 		expect(commands!.contains(screen.getByRole('button', { name: "'Scribes" }))).toBe(false);
 		expect(commands!.contains(screen.getByRole('button', { name: "New 'scribe" }))).toBe(false);
 		expect(commands!.lastElementChild).toBe(copy);
@@ -391,8 +391,8 @@ describe('Workspace and toolbar', () => {
 		expect(getComputedStyle(toolbar).gridColumnStart).toBe('1');
 		expect(getComputedStyle(toolbar).gridColumnEnd).toBe('-1');
 
-		// The tab strip then hangs under it: in the row the two columns share, or —
-		// once the columns have folded into one — in the row directly below the
+		// The tab strip then hangs under it: in the row the two columns share, or,
+		// once the columns have folded into one, in the row directly below the
 		// editor's. Either way both halves are rows of the same viewport-height
 		// grid and neither half scrolls the window. The test runner's own viewport
 		// decides which shape is live. There is no third row and no status bar:
@@ -463,7 +463,7 @@ describe('Workspace and toolbar', () => {
 
 	/*
 	 * A link changes no text, so the editor emits no snapshot when the draft's
-	 * links are re-seated onto it at boot — and the suppression that hides an
+	 * links are re-seated onto it at boot, and the suppression that hides an
 	 * answered `section.unlinked-repeat` runs on snapshots. It worked by accident
 	 * while the only way to make a link was the card, which collapses the
 	 * selection on the way out and emits one; a reload came back with the
@@ -732,7 +732,7 @@ describe('Workspace and toolbar', () => {
 	test('puts the way out of the workbench in Preferences, not the toolbar', async () => {
 		// The toolbar holds commands that act on the document; this acts on nothing,
 		// so it lives in the tab about the application instead. Anyone already in the
-		// app has found the product — what they occasionally need is a URL to hand
+		// app has found the product; what they occasionally need is a URL to hand
 		// to someone else.
 		const { controller } = createTestWorkbench();
 		await renderWorkspace(controller);
@@ -758,7 +758,7 @@ describe('Workspace and toolbar', () => {
 		expect(bar.closest('.editor-region')).toBeTruthy();
 		expect(bar.closest('.document-toolbar')).toBeNull();
 
-		// The control is a glyph, and the whole label is its accessible name — which
+		// The control is a glyph, and the whole label is its accessible name, which
 		// is what keeps the trade this shape makes off the screen reader: a tooltip
 		// is a thing only a pointer can produce, an accessible name is not.
 		const unknown = screen.getByRole('button', { name: 'Unknown lyric [?]' });
@@ -766,7 +766,7 @@ describe('Workspace and toolbar', () => {
 		expect(unknown.getAttribute('aria-keyshortcuts')).toContain('U');
 		expect(unknown.textContent?.trim()).toBe('[?]');
 
-		// Nothing is spelled out at rest — the labels and the keystrokes were 243px
+		// Nothing is spelled out at rest: the labels and the keystrokes were 243px
 		// of the document's own top row for two commands.
 		expect(bar.querySelectorAll('kbd')).toHaveLength(0);
 		expect(bar.textContent).not.toContain('Section header');
@@ -827,7 +827,7 @@ describe('Workspace and toolbar', () => {
 		).toBe(true);
 		expect(dispatchAtomicOnlyHere).toHaveBeenCalledWith(localEdit, { from: 8, to: 17 });
 
-		// A hovered proposal selects its span — which is what moves the wash —
+		// A hovered proposal selects its span, which is what moves the wash,
 		// and then scrolls it into view, against the handle the editor has
 		// published rather than the one the workspace started with. The reveal
 		// comes last so the selection's own nudge cannot replace it, and neither
@@ -918,7 +918,7 @@ describe('Workspace and toolbar', () => {
 	});
 
 	// It is a tray hanging off the toolbar at the right of the column, against the
-	// panel — not a band across the column. Drawn full width the row becomes the
+	// panel, not a band across the column. Drawn full width the row becomes the
 	// object and is then mostly empty gutter with two words at one end, so the
 	// width is measured rather than trusted to a rule: `width: 100%` or a lost
 	// `justify-self` restores the band silently. The right edge is the other half
@@ -938,7 +938,7 @@ describe('Workspace and toolbar', () => {
 		expect(barBox.left).toBeGreaterThan(regionBox.left);
 	});
 
-	// `Mod-F` opens a whole find-and-replace panel and nothing on screen said so —
+	// `Mod-F` opens a whole find-and-replace panel and nothing on screen said so,
 	// the same folklore the section-header shortcut was, which is what this tray
 	// exists to end. It is the one command here that writes nothing, so it is the
 	// one drawn as a pictogram: the other two show the mark they put in the
@@ -960,7 +960,7 @@ describe('Workspace and toolbar', () => {
 
 		// The bar runs *under* the tray, so the glyph sitting over its way out has to
 		// be one: it is a toggle, and the state is reported by the editor rather than
-		// assumed from the press — `Escape` and the bar's own control close it too.
+		// assumed from the press; `Escape` and the bar's own control close it too.
 		expect(find.getAttribute('aria-pressed')).toBe('false');
 		controller.noteSearchOpen(true);
 		await waitFor(() =>
@@ -976,7 +976,7 @@ describe('Workspace and toolbar', () => {
 	// name asked for just as plainly as one under a pointer.
 	//
 	// It is one box for the whole workbench, rendered by `ControlTooltip` rather
-	// than by the surface — which is why it is queried off the document and not off
+	// than by the surface, which is why it is queried off the document and not off
 	// the tray.
 	test('names the action and its keystroke on hover and on focus', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
@@ -991,7 +991,7 @@ describe('Workspace and toolbar', () => {
 		expect(tooltip.textContent).toMatch(/U$/u);
 		// The same two facts are already the button's own name and shortcut, so the
 		// box is drawn for the pointer and hidden from anything that cannot produce
-		// one — otherwise a screen reader hears both twice.
+		// one, because otherwise a screen reader hears both twice.
 		expect(tooltip.getAttribute('aria-hidden')).toBe('true');
 
 		await fireEvent.pointerLeave(unknown);
@@ -1008,7 +1008,7 @@ describe('Workspace and toolbar', () => {
 	});
 
 	// A band that appeared on the first keystroke would shove the editor down at
-	// the moment somebody started typing — and someone looking at an empty
+	// the moment somebody started typing, and someone looking at an empty
 	// document is exactly the reader who has never met `[?]`.
 	test('draws the action bar over an empty document', async () => {
 		const { controller } = createTestWorkbench();
@@ -1049,7 +1049,7 @@ describe('Workspace and toolbar', () => {
 		const { container } = await renderWorkspace(controller);
 
 		// The tray's optional audio glyph, drawn only while there is nothing
-		// for the strip to show — a pictogram like the magnifier, because
+		// for the strip to show: a pictogram like the magnifier, because
 		// attaching writes nothing to the document.
 		const bar = screen.getByRole('group', { name: 'Document actions' });
 		expect(bar.querySelectorAll('button')).toHaveLength(5);
@@ -1129,7 +1129,7 @@ describe('Workspace and toolbar', () => {
 		recovery.resolve();
 		await screen.findByRole('button', { name: 'Add audio source' });
 
-		// While nothing is attached the tray holds the only way in — the Song
+		// While nothing is attached the tray holds the only way in; the Song
 		// tab names no second one.
 		await fireEvent.click(screen.getByRole('tab', { name: 'Song' }));
 		const songPane = screen.getByRole('tabpanel', { name: 'Song' });

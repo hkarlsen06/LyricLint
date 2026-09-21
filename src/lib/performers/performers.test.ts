@@ -168,7 +168,7 @@ describe('performer import extraction', () => {
 		});
 	});
 
-	// An inline style with no header mapping is an unknown voice — the text's
+	// An inline style with no header mapping is an unknown voice, the text's
 	// own fact, derived by `unaccountedStyledSlots` where it is needed. This
 	// path used to answer it by minting an `Unresolved voice 2` roster record,
 	// which gave an identity to a voice whose whole point is having none.
@@ -445,8 +445,8 @@ describe('performer assignment transforms', () => {
 
 		// Slots follow the order the voices are heard. Selecting a section's
 		// opening lines and answering both of the picker's questions used to
-		// write `[Verse: Rest & <i>Selected</i>]` — the first-heard voice in
-		// italics — because the selection was always the passage that got
+		// write `[Verse: Rest & <i>Selected</i>]`, with the first-heard voice in
+		// italics, because the selection was always the passage that got
 		// wrapped. When the selection opens the section, the selected voice
 		// keeps the plain slot untouched and the rest is wrapped instead.
 		it('keeps the first-heard voice plain when the selection opens the section', () => {
@@ -474,8 +474,8 @@ describe('performer assignment transforms', () => {
 		});
 
 		// Skipping step two on a leading selection writes the legend and nothing
-		// else. Skip is the user declining to make a claim about the rest —
-		// often because several voices sing it in different parts — so no
+		// else. Skip is the user declining to make a claim about the rest,
+		// often because several voices sing it in different parts, so no
 		// wrapper is written for a voice nobody named: the plain legend is
 		// incomplete rather than wrong, and it raises no finding.
 		it('names the leading voice alone and touches no lyric when the rest is skipped', () => {
@@ -503,7 +503,7 @@ describe('performer assignment transforms', () => {
 
 		// Punctuation before the selection is not somebody singing first: the
 		// `(` of an ad-lib line stands ahead of its first phrase, and reading it
-		// as a preceding voice demoted the selection to italics — an
+		// as a preceding voice demoted the selection to italics: an
 		// italic-only legend and a wrapped selection, from a Skip that meant
 		// "this voice leads".
 		it('still leads past unsung punctuation ahead of the selection', () => {
@@ -580,7 +580,7 @@ describe('performer assignment transforms', () => {
 
 		// A selection that ends mid-line hands the rest a wrapper that opens
 		// mid-line, and the multi-line combine used to fail its own boundary
-		// check against exactly that shape — quietly wrapping every remaining
+		// check against exactly that shape, quietly wrapping every remaining
 		// line on its own and raising a merge finding per line.
 		it('wraps a rest that starts mid-line as one span', () => {
 			const song = '[Refreng]\nAlpha beta\nGamma\nDelta';
@@ -604,7 +604,7 @@ describe('performer assignment transforms', () => {
 			}
 		});
 
-		// `[Chorus: Frikk & <i>Frikk</i>]` — two legend groups, one singer, and a
+		// `[Chorus: Frikk & <i>Frikk</i>]` is two legend groups, one singer, and a
 		// passage wrapped to distinguish someone from themselves.
 		it('writes one plain group when the same voice sings the selection and the rest', () => {
 			const records = roster(['A', 'B']);
@@ -997,7 +997,7 @@ describe('performer assignment transforms', () => {
 		// The parser does not promise one group per slot: a legend written in two
 		// italic parts is two groups on slot 2, and the retained groups are keyed
 		// by slot on their way into the rewrite. Keyed, the second overwrites the
-		// first — the header comes back naming one of the two voices, with no
+		// first, so the header comes back naming one of the two voices, with no
 		// edit anywhere saying the other was dropped. A header this cannot
 		// rewrite losslessly is one it must not rewrite.
 		const input = '[Verse: <i>Avery</i>, <i>Blair</i>]\nA plain line\n<i>A styled line</i>';
@@ -1017,7 +1017,7 @@ describe('performer assignment transforms', () => {
 	it('promotes a styled-only section to plain by unwrapping it in the same edit', () => {
 		// The section has no plain lyrics, so its single voice belongs in slot 1.
 		// Keeping the wrappers would leave an italic legend group with no plain
-		// group before it — `performer.style-order` right after the assignment.
+		// group before it, which is `performer.style-order` right after the assignment.
 		const input = '[Verse]\n<i>Blair sings\nBlair wakes the pines</i>';
 		const records = roster(['Avery', 'Blair']);
 		const result = assignVoiceLegend({

@@ -155,7 +155,7 @@ describe('quotes.typewriter', () => {
 	});
 
 	// The label is what `Fix all N` batches on, and replacing either half of a
-	// pair with `"` is the same command — so the messages differ and the labels
+	// pair with `"` is the same command, so the messages differ and the labels
 	// deliberately do not.
 	it('keeps one fix label per replacement, so a pair batches together', () => {
 		expect(

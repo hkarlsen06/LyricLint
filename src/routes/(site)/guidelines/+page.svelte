@@ -23,8 +23,8 @@
 
 	/*
 	 * The legend for the authority ladder, ascending as the ladder fills. The
-	 * labels come off `authorityLabels` and the bars off `AuthorityLadder` —
-	 * the same map and the same component every entry's meta line draws — so
+	 * labels come off `authorityLabels` and the bars off `AuthorityLadder` (the
+	 * same map and the same component every entry's meta line draws), so
 	 * the legend cannot come to state a tier differently than the entries it
 	 * explains. The descriptions paraphrase `docs/guidelines.md`, which owns
 	 * the ladder's full argument.
@@ -33,7 +33,7 @@
 		{
 			authority: 'lyriclint',
 			description:
-				"LyricLint's own preference, on a convention no Genius source states — the blank line between song parts, the text-hygiene checks. It shares the bottom step with community guidance, because our preference claims no more standing than unreviewed community writing."
+				"LyricLint's own preference, on a convention no Genius source states: the blank line between song parts, the text-hygiene checks. It shares the bottom step with community guidance, because our preference claims no more standing than unreviewed community writing."
 		},
 		{
 			authority: 'community',
@@ -43,7 +43,7 @@
 		{
 			authority: 'external',
 			description:
-				"An authority outside Genius — a dictionary, a language academy, a platform's own documentation. It ranks below a reviewed annotation because it is authoritative about language, not about Genius."
+				"An authority outside Genius: a dictionary, a language academy, a platform's own documentation. It ranks below a reviewed annotation because it is authoritative about language, not about Genius."
 		},
 		{
 			authority: 'editorial',
@@ -145,11 +145,11 @@
 		<p>
 			The ascending bars ahead of each entry's tier label are its standing drawn as a ladder: four
 			steps for the four source tiers, filled up to the tier the entry's sources establish. Climbing
-			it is evidence, never an edit — an entry rises only when a higher-tier source confirming it
+			it is evidence, never an edit: an entry rises only when a higher-tier source confirming it
 			joins its citations.
 		</p>
-		<!-- The term is the entries' own pairing — the ladder and the label the meta
-	     lines draw — so a reader can carry the mark from here to any entry. The
+		<!-- The term is the entries' own pairing (the ladder and the label the meta
+	     lines draw), so a reader can carry the mark from here to any entry. The
 	     ladder stays `aria-hidden` as it is everywhere: the label is the fact. -->
 		<dl class="guidelines__tiers">
 			{#each tiers as { authority, description } (authority)}

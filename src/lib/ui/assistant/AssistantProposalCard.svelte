@@ -12,7 +12,7 @@
 	}: {
 		proposal: AssistantProposalRecord;
 		assistant: AssistantState;
-		/** Whether this turn still holds the live tool session — see the same
+		/** Whether this turn still holds the live tool session. See the same
 		 * prop on `AssistantToolTurn`. A pending record whose session is gone is
 		 * an offer nobody can take, and `pendingProposal` refuses it. */
 		decidable: boolean;

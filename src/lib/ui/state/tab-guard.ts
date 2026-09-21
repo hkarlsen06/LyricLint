@@ -5,7 +5,7 @@
  * records into the same database, so the last write wins and neither tab knows
  * the other exists. The tab that loses is not the one being typed in: an idle
  * tab flushes on the way to hidden, and that flush carries the text as it stood
- * when that tab last read it — an afternoon of edits made in the other tab,
+ * when that tab last read it: an afternoon of edits made in the other tab,
  * overwritten by a copy the user had stopped looking at. The session-scoped
  * ignore mirror and the assistant's stored conversation are written the same
  * way and lose the same way.
@@ -18,7 +18,7 @@
  * **Web Locks rather than a `localStorage` heartbeat**, and that is the whole
  * reason this module is short. The browser releases the lock when the tab is
  * closed, crashed, or navigated away, so there is no claim to expire, no
- * interval to tune, and no state left behind by a tab that died — which is the
+ * interval to tune, and no state left behind by a tab that died, which is the
  * failure every heartbeat scheme eventually ships, as a workbench that refuses
  * to open because a tab crashed yesterday.
  *
@@ -44,8 +44,8 @@ export const WORKBENCH_LOCK_NAME = 'lyriclint-workbench';
 interface TabGuardOptions {
 	/**
 	 * The lock manager to hold the workbench in. Injectable so the guard can be
-	 * driven by a stub — a real `LockManager` cannot be made to say "held
-	 * elsewhere" from inside one page — and defaulting to the browser's own.
+	 * driven by a stub (a real `LockManager` cannot be made to say "held
+	 * elsewhere" from inside one page), and defaulting to the browser's own.
 	 * Passing `null` turns the guard off, which is what a missing API resolves
 	 * to.
 	 */
@@ -62,7 +62,7 @@ interface TabGuardOptions {
 
 export interface TabGuard {
 	/**
-	 * Resolves once this tab holds the workbench. Never rejects — see the module
+	 * Resolves once this tab holds the workbench. Never rejects. See the module
 	 * note on failing open.
 	 */
 	readonly held: Promise<void>;
@@ -83,7 +83,7 @@ function browserLocks(): LockManager | null {
 /**
  * Take the workbench for this tab, or wait for the tab that has it.
  *
- * The probe comes first (`ifAvailable`), so the ordinary case — no other tab —
+ * The probe comes first (`ifAvailable`), so the ordinary case, no other tab,
  * costs one already-resolved round trip and draws nothing. Only where the probe
  * comes back empty is a *blocking* request issued, and that one settles when the
  * holding tab closes, which is what makes this page take over on its own rather
@@ -161,7 +161,7 @@ export function guardWorkbenchTab(options: TabGuardOptions = {}): TabGuard {
 		} catch {
 			// A refused lock manager is not a reason to keep the workbench off the
 			// screen, so it fails open like a missing one. A guard that has been
-			// released is the other way this is reached — teardown's own abort — and
+			// released is the other way this is reached (teardown's own abort), and
 			// there `held` has to stay unsettled: a tab that gave the workbench up
 			// must never go on to report that it has it.
 			if (!released) signalHeld();

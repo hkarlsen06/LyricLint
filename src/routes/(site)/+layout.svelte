@@ -14,8 +14,8 @@
 	const socialImageUrl = siteUrl('/social-preview.png');
 
 	// The masthead's hairline arrives with the first scroll (see `.site-header`
-	// in site.css). Read off the window, so the rule reference — whose shell
-	// scrolls internally and never moves the document — simply never draws it.
+	// in site.css). Read off the window, so the rule reference, whose shell
+	// scrolls internally and never moves the document, simply never draws it.
 	let scrollY = $state(0);
 
 	// Trailing slashes and the index route both have to match, so compare the
@@ -29,7 +29,7 @@
 			: undefined;
 	}
 
-	// The unified reference uses the window shell — and the window shell has
+	// The unified reference uses the window shell, and the window shell has
 	// no footer. Its columns own the viewport's height, so a footer there is a
 	// permanent band of colophon pinned under content somebody is reading, on
 	// every screen, saying nothing about either column. The colophon belongs to
@@ -71,7 +71,7 @@
 </svelte:head>
 
 <!-- The chrome the landing page and the rule reference share. It is deliberately
-     the app's chrome — the same band, the same lockup, the same tokens — so the
+     the app's chrome (the same band, the same lockup, the same tokens), so the
      reference does not read as a different product from the workbench it
      documents.
 
@@ -86,7 +86,7 @@
      ordinary case and the landing page's: one column of prose that scrolls the
      viewport, header and footer travelling with it. `window` is the rule
      reference and the guidance catalog, which are a master and a detail rather
-     than an article — two runs of different lengths, each of which has to be
+     than an article: two runs of different lengths, each of which has to be
      scrolled without moving the other or taking the header off the top of the
      screen. There the shell is the workbench's own: exactly the viewport tall,
      and the scrolling happens inside it. `site.css` drops back to `document` on
@@ -99,7 +99,7 @@
 	<!-- The first tab stop on every page in this section, drawn only while it
 	     holds focus. Every page's `<main>` answers to `#main` and carries
 	     `tabindex="-1"`, because a fragment jump moves the scroll on its own and
-	     not reliably the focus — which is the half a keyboard reader needs. -->
+	     not reliably the focus, which is the half a keyboard reader needs. -->
 	<a class="button button--contrast site-skip" href="#main">Skip to content</a>
 	<header class="site-header" data-scrolled={scrollY > 8 ? true : undefined}>
 		<!-- The band spans the window; its contents align with the page container,
@@ -108,14 +108,14 @@
 		<div class="site-header__inner">
 			<!-- The wordmark already carries `LyricLint` as its own accessible name
 			     (`role="img"`), so the sr-only text adds only the word the lockup
-			     cannot say — spelled `LyricLint home` here, the link announced as
+			     cannot say, spelled `LyricLint home` here, the link announced as
 			     `LyricLint LyricLint home`. -->
 			<a class="site-home" href={resolve('/')}>
 				<AppWordmark animated={!current('/')} />
 				<span class="sr-only">home</span>
 			</a>
 			{#if sectionTitle}
-				<!-- The brand, then what it is a masthead over — the workbench's own
+				<!-- The brand, then what it is a masthead over: the workbench's own
 				     toolbar arrangement, where the lockup is followed by the name of
 				     the thing on screen. Not a heading: the page under it owns the
 				     document's outline, and this says where the reader is rather than
@@ -128,7 +128,7 @@
 			<!-- The three destinations that are not already the brand. There is no
 			     `About`: the wordmark beside this nav links the same landing page
 			     from every page, and two controls for one press on one band is the
-			     duplication the toolbar's own rules remove — a command is offered
+			     duplication the toolbar's own rules remove, since a command is offered
 			     once. What that gives up is a *labeled* way to the answer of "what
 			     is this product", carried now by the logo-is-home convention
 			     alone. -->
@@ -143,10 +143,10 @@
 				<!-- Drawn at every width. A comment here used to claim it was dropped
 				     on a phone, from the era of a whole-phone gate that no longer
 				     exists: the workbench supports a phone held upright (only
-				     landscape is refused, by height and pointer — see
+				     landscape is refused, by height and pointer; see
 				     `responsive.css`), so the link leads somewhere on every device
 				     this masthead draws on. `App` rather than `Workbench` for the
-				     row's width — the product's own name for the surface stays
+				     row's width, since the product's own name for the surface stays
 				     `workbench` everywhere prose has room for it. -->
 				<a href={resolve('/workbench/')}>App</a>
 			</nav>

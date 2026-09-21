@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * A cited rule: its title as the way to the full reference, and one meta
-	 * line of facts — severity, fix behavior, the reviewed source it stands on.
+	 * line of facts: severity, fix behavior, the reviewed source it stands on.
 	 * The raw rule id and the corpus explanation are deliberately absent: both
 	 * are the linter's voice, written for the rule reference, and in a chat
 	 * answer they repeated internals the prose had already covered. Everything

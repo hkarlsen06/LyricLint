@@ -372,7 +372,7 @@ describe('EditorPane', () => {
 		});
 		// Single diagnostics render as an underlined range (count badges only
 		// appear for lines with two or more diagnostics). The underline carries no
-		// native tooltip — the hover popover is the tooltip — so it is found by the
+		// native tooltip (the hover popover is the tooltip), so it is found by the
 		// label it exposes instead.
 		await expect.element(page.getByLabelText('warning: Stale issue')).toBeVisible();
 		if (!handle) {
@@ -654,7 +654,7 @@ describe('EditorPane', () => {
 	});
 
 	// The card opened itself; nobody asked it for anything, and what it would
-	// have taken the focus away from is the word the user just double-clicked —
+	// have taken the focus away from is the word the user just double-clicked,
 	// which is very often a word they are about to type over. Taking the caret
 	// out of the document sent that keystroke to the roster, where it did
 	// nothing at all, and the way back was a second double-click that only
@@ -808,7 +808,7 @@ describe('EditorPane', () => {
 	});
 
 	// Assigning part of an unlabelled section used to write `[Verse: <i>Blair</i>]`
-	// on its own — a legend that does not begin at plain, which the linter flags
+	// on its own, a legend that does not begin at plain, which the linter flags
 	// the next tick and cannot fix, because nothing in the document says who sings
 	// the lines left behind. The picker asks before it writes.
 	it('asks who sings the rest before opening a legend at italic', async () => {
@@ -868,7 +868,7 @@ describe('EditorPane', () => {
 	});
 
 	// A distinct voice with nobody to name it yet: the unknown chips are whole
-	// answers, so one press wraps the selection and skips the two-voice flow —
+	// answers, so one press wraps the selection and skips the two-voice flow:
 	// nothing is written to the header, so there is no second question to ask.
 	it('applies an unknown voice in one press, existing slot or a fresh one', async () => {
 		const text = '[Verse]\n<i>Ayy</i> hello\nSecond line';
@@ -885,7 +885,7 @@ describe('EditorPane', () => {
 		handle.focus();
 		await userEvent.keyboard('{Alt>}p{/Alt}');
 
-		// The two-voice flow is armed for a named answer — and the unknown chip
+		// The two-voice flow is armed for a named answer, and the unknown chip
 		// steps past it, because an unknown writes no legend.
 		await expect.element(page.getByText('Who sings this?')).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Use new unknown voice' })).toBeVisible();
@@ -1328,7 +1328,7 @@ describe('EditorPane', () => {
 
 	it('makes the count badge serve the same wait as the underline', async () => {
 		// Two diagnostics on one line earn the circled count at the end of it, the
-		// other pointer route to a card — and so the same wait.
+		// other pointer route to a card, and so the same wait.
 		const warning = testDiagnostic({ from: 0, to: 5, message: 'The quieter issue' });
 		const error = testDiagnostic({
 			from: 6,
@@ -1360,8 +1360,8 @@ describe('EditorPane', () => {
 		await expect.element(led).toBeVisible();
 	});
 
-	// Bare focus previews and a press opens. Focus alone must not take the caret —
-	// that is the loop a card opening on `focus` puts the keyboard in — but the
+	// Bare focus previews and a press opens. Focus alone must not take the caret
+	// (that is the loop a card opening on `focus` puts the keyboard in), but the
 	// previewing card withholds `Close` and keeps the pointer-leave watcher armed,
 	// so it is not somewhere the keyboard can be left either.
 	it('gives the keyboard a card it can answer, and a preview a stray mouse cannot take away', async () => {
@@ -1492,7 +1492,7 @@ describe('EditorPane', () => {
 		// The shell moves the selection onto whatever finding it leads with next,
 		// so the wash marks that finding rather than the caret. Pulling focus back
 		// into the editor here would put a live caret on text the pointer user
-		// never chose — the same reason a merely-hovered card does not return
+		// never chose, the same reason a merely-hovered card does not return
 		// focus when it closes.
 		const issue = testDiagnostic({
 			from: 0,
@@ -1998,8 +1998,8 @@ describe('EditorPane', () => {
 
 	// Also the landing page's demo: a pane in an article rather than a column to
 	// fill, so it is as tall as its verse and grows when one is typed into it. The
-	// assertions are computed styles because that is where the whole feature lives
-	// — a theme mounted over `editorTheme`, which it has to outrank.
+	// assertions are computed styles because that is where the whole feature lives:
+	// a theme mounted over `editorTheme`, which it has to outrank.
 	it('sizes an auto-height pane to its document instead of filling its host', async () => {
 		await mountEditor({ text: 'A lyric line', autoHeight: true });
 
@@ -2061,7 +2061,7 @@ describe('EditorPane', () => {
 
 	// The landing page's demo mounts this way: a fixed box a few lines tall, where
 	// the row costs a quarter of what there is to show. Absent from the document,
-	// not painted over — a hidden control is still a control.
+	// not painted over: a hidden control is still a control.
 	it('omits the ghost row when the pane does not offer section ghosts', async () => {
 		const { handle } = await mountEditor({ text: 'A lyric line', sectionGhosts: false });
 
@@ -2280,7 +2280,7 @@ describe('PerformerPicker keyboard flow', () => {
 	});
 
 	// A `toolbar`'s whole convention is that Tab leaves it, and this card holds
-	// the keyboard until it is answered — so the role promised an exit that does
+	// the keyboard until it is answered, so the role promised an exit that does
 	// not exist. A dialog is what a surface that contains Tab actually is.
 	it('keeps Tab inside the card instead of dropping focus onto the page behind it', async () => {
 		const focusTarget = document.createElement('button');
@@ -2446,7 +2446,7 @@ describe('DiagnosticPopover fix flow', () => {
 		// panel's card, because it is the same control.
 		await expect.element(page.getByRole('button', { name: 'Ignore' })).toBeVisible();
 
-		// Each fix is its own label and nothing else — no "Apply" in front of a
+		// Each fix is its own label and nothing else, no "Apply" in front of a
 		// phrase that already reads as the command.
 		const apply = page.getByRole('button', { name: 'Replace word' });
 		await expect.element(apply).not.toHaveTextContent('Apply');

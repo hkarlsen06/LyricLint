@@ -34,7 +34,7 @@ export const unknownMarkerRule: RuleDefinition = {
  * A bare run of question marks standing where words would stand.
  *
  * `unknown.marker` deliberately does not claim this, and that is a reviewed
- * decision rather than an oversight — `[Verse]\nI heard ???` is its `ambiguous`
+ * decision rather than an oversight: `[Verse]\nI heard ???` is its `ambiguous`
  * policy case, which `catalog-policy.test.ts` pins at zero findings. The reason
  * is in that rule's own explanation: its one-press fix is justified by the
  * marker being an *exact recognized* form, and `???` is a transcriber's
@@ -43,7 +43,7 @@ export const unknownMarkerRule: RuleDefinition = {
  *
  * So this is its own rule at its own tier: a suggestion with a `preview` fix,
  * which is what every judgment call in this catalog uses. The reviewed decision
- * survives intact — nothing rewrites `???` mechanically — and the transcriber
+ * survives intact, nothing rewrites `???` mechanically, and the transcriber
  * who typed it is still told what the marker actually is, which is the whole
  * point of having the rule at all.
  *
@@ -52,7 +52,7 @@ export const unknownMarkerRule: RuleDefinition = {
  * transcriber could not make out would have stood; emphatic question marks
  * attach to the word they punctuate, so `Are you serious???` is left alone. That
  * is also why `censored.mask`'s standalone-run precedent does not carry over: a
- * lone `***` is ambiguous about *what it is* — a mask, a divider, a redaction —
+ * lone `***` is ambiguous about *what it is* (a mask, a divider, a redaction)
  * while a lone `???` has exactly one thing it can be steering toward, and `[?]`
  * is it.
  */
@@ -82,7 +82,7 @@ export const unknownImprovisedMarkerRule: RuleDefinition = {
 							this,
 							match,
 							`Genius marks an unclear lyric with [?], not «${match.text}».`,
-							'Bare question marks are an improvised placeholder rather than a recognized marker, and the same characters can be deliberate punctuation — so the replacement is offered for review instead of applied mechanically.',
+							'Bare question marks are an improvised placeholder rather than a recognized marker, and the same characters can be deliberate punctuation, so the replacement is offered for review instead of applied mechanically.',
 							[replacementFix(context, 'preview', 'Replace with [?]', match, '[?]')]
 						)
 					);
@@ -94,7 +94,7 @@ export const unknownImprovisedMarkerRule: RuleDefinition = {
 /**
  * One card per document, not one per marker.
  *
- * Every `[?]` in a song is the same request — go back and listen again — and a
+ * Every `[?]` in a song is the same request (go back and listen again), and a
  * transcription with three of them was three identical cards saying it, which
  * is the repetition-that-never-varies the severity word was dropped for. The
  * count travels in the message instead, so the panel still says how much
@@ -104,7 +104,7 @@ export const unknownImprovisedMarkerRule: RuleDefinition = {
  * Coalescing is also what makes `It really is unintelligible` mean what it
  * says: pressed once, it answers for the whole 'scribe as it stands, and a
  * *new* `[?]` does not re-ask it. The card carries the count, but the ignore
- * identity treats every count as the same occurrence — a fresh unknown is
+ * identity treats every count as the same occurrence: a fresh unknown is
  * still the same answered question, not a fresh one.
  *
  * `document` tier, for `capitalization.title-case`'s reason: a marker typed on

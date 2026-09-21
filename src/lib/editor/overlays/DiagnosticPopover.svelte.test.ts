@@ -71,7 +71,7 @@ describe('DiagnosticPopover button tiers', () => {
 		expect(fix!.classList.contains('button')).toBe(true);
 		expect(fix!.classList.contains('button--contrast')).toBe(true);
 
-		// Exactly the controls.css recipe — the scoped `button.apply` copy is gone.
+		// Exactly the controls.css recipe. The scoped `button.apply` copy is gone.
 		const fixStyle = getComputedStyle(fix!);
 		withContrastProbe((probe) => {
 			expect(fixStyle.backgroundColor).toBe(probe.backgroundColor);
@@ -103,8 +103,8 @@ describe('DiagnosticPopover button tiers', () => {
 			expect(acceptStyle.borderTopColor).toBe(probe.borderTopColor);
 		});
 
-		// Close is a reversible dismissal: quiet tier, so no border and no fill —
-		// the old hand-rolled bordered box is gone.
+		// Close is a reversible dismissal: quiet tier, so no border and no fill.
+		// The old hand-rolled bordered box is gone.
 		const close = document.querySelector<HTMLElement>('.diagnostic-actions__close');
 		expect(close).not.toBeNull();
 		expect(close!.textContent?.trim()).toBe('Close');
@@ -137,7 +137,7 @@ describe('DiagnosticPopover button tiers', () => {
 	});
 
 	it('gives the hovered card no Close: leaving it is what closes it', async () => {
-		// Nothing is pending here, so closing is not a decision — the pointer-leave
+		// Nothing is pending here, so closing is not a decision: the pointer-leave
 		// watcher already ends the card, and a second quiet button beside Ignore
 		// would only make the one that silences a rule easier to hit by mistake.
 		await renderPopover(fixableDiagnostic());

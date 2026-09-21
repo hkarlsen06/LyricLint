@@ -34,7 +34,7 @@ interface ExistingCorpusStamp {
 
 const rulesMd = await readFile(join(root, 'docs/rules.md'), 'utf8');
 // SAFETY: this file is written by this script alone, a few lines below, from a
-// corpus that always carries both fields — and both are read as optional here,
+// corpus that always carries both fields, and both are read as optional here,
 // so an artifact from an older generator is treated as having no stamp and
 // regenerates rather than being trusted.
 const existing = await readFile(target, 'utf8')

@@ -11,7 +11,7 @@
 	 *
 	 * The rule reference searches its citations along with everything else on the
 	 * page, so the page a search opens has to be able to mark the words that
-	 * matched — and a citation reading `Song Headers in Different Languages`
+	 * matched, and a citation reading `Song Headers in Different Languages`
 	 * against a query of `languages` with nothing marked on it is the failure that
 	 * widening the search was supposed to remove, arriving from the other side.
 	 *
@@ -19,7 +19,7 @@
 	 * `src/lib/diagnostics/` sits outside `src/lib/ui/` on purpose: the editor may
 	 * not depend on the shell, and the linter's popover draws this same block. So
 	 * the surface that knows about a query passes one in, and the two that do not
-	 * — the popover and the tools panel — get the text.
+	 * (the popover and the tools panel) get the text.
 	 */
 	let { source, text }: { source: SourceReference; text?: Snippet<[string]> | undefined } =
 		$props();
@@ -45,7 +45,7 @@
 					size={11}
 					strokeWidth={2.2}
 				/><!-- The mark is aria-hidden, so this note is the whole of what says the
-				     press opens a tab — the convention every external link on the site
+				     press opens a tab, the convention every external link on the site
 				     pages already follows. -->
 				<span class="sr-only">(opens in a new tab)</span>
 			</a>

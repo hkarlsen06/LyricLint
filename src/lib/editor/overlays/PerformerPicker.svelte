@@ -26,7 +26,7 @@
 		stepCount?: number;
 		applyLabel?: string;
 		/**
-		 * What applying with nobody selected does, when that is a real answer —
+		 * What applying with nobody selected does, when that is a real answer:
 		 * "who sings the rest of this section?" is answerable with "I will name
 		 * them later". Omitted, an empty selection leaves Apply disabled.
 		 */
@@ -40,7 +40,7 @@
 		 *
 		 * The card that opens itself off a pointer selection must not. It has been
 		 * asked for nothing, and what it would take the focus away from is a live
-		 * selection the user is in the middle of a gesture on — a double-clicked
+		 * selection the user is in the middle of a gesture on: a double-clicked
 		 * word is most often a word about to be typed over, and pulling the caret
 		 * out of the document meant the replacement keystroke landed on the roster
 		 * and did nothing at all. The card sits beside the selection instead and
@@ -52,7 +52,7 @@
 		allowRemoval?: boolean;
 		removalAvailable?: boolean;
 		/**
-		 * Unaccounted styled slots the selection could join — the section's
+		 * Unaccounted styled slots the selection could join, the section's
 		 * *unknown voices*, derived from styling the legend does not name. Each
 		 * draws as an act-on-press chip in its own styling, because pressing one
 		 * is a whole answer: "the same unknown voice as those passages". They
@@ -61,7 +61,7 @@
 		unknownSlots?: readonly StyleSlot[];
 		/**
 		 * Whether a fresh styled slot is free for a voice nobody has marked yet.
-		 * Drawn only when true — an offer the transform would refuse must not draw.
+		 * Drawn only when true: an offer the transform would refuse must not draw.
 		 */
 		canAddUnknown?: boolean;
 		/** Pressed with a slot to join it, without one to allocate the next free slot. */
@@ -124,7 +124,7 @@
 	 * The action's label and its tier are one decision read once, rather than the
 	 * same three-branch ternary written out in the markup and again in a class.
 	 * Two copies of this would disagree the first time a branch moved, and the
-	 * one that drifted would be the tier — which is invisible in a diff.
+	 * one that drifted would be the tier, which is invisible in a diff.
 	 */
 	const showsRemoval = $derived(removalSelected && allowRemoval);
 	const showsEmptyAnswer = $derived(
@@ -198,13 +198,13 @@
 	}
 
 	// Roving tabindex leaves a single tab stop in the roster, so a plain Tab
-	// would land on the workbench behind this card while it stays open — the
+	// would land on the workbench behind this card while it stays open. The
 	// keyboard would then drive the page, not the picker. Cycle within instead;
 	// Escape and Apply remain the ways out.
 	//
 	// That containment is why the card is a `dialog` and not the `toolbar` it was
 	// announced as. A toolbar's whole convention is that Tab leaves it, so the
-	// keyboard was promised an exit this card does not give — and nothing else
+	// keyboard was promised an exit this card does not give, and nothing else
 	// named the two it does, since the `↵` glyph is `aria-hidden`. A dialog is
 	// what a surface that holds the keyboard until it is answered actually is.
 	function tabStops(): HTMLElement[] {
@@ -238,7 +238,7 @@
 	}
 
 	// Applying is what closes this card, so by the time the `finally` runs the
-	// component is usually destroyed — and a prop read there is a read of a
+	// component is usually destroyed, and a prop read there is a read of a
 	// derived belonging to a torn-down effect. The hand-off is therefore decided
 	// and held *before* the await, while there is still a component to ask.
 	async function apply(): Promise<void> {
@@ -272,8 +272,8 @@
 
 	/**
 	 * A whole answer on one press, exactly as the named-voice action acts on press:
-	 * an unknown voice cannot be combined with a named one — a joint group with
-	 * an unidentified member has no legend to be written into — so there is no
+	 * an unknown voice cannot be combined with a named one (a joint group with
+	 * an unidentified member has no legend to be written into), so there is no
 	 * selection state to accumulate and nothing for Apply to add.
 	 */
 	async function assignUnknown(styleSlot?: StyleSlot): Promise<void> {
@@ -414,7 +414,7 @@
 			focusActive();
 		}
 		// The picker grabs focus the moment it opens, so :focus-visible would ring
-		// the first chip before anyone navigated to it — that reads as a highlight
+		// the first chip before anyone navigated to it. That reads as a highlight
 		// pointing at something rather than as a focus indicator. Reveal it on the
 		// first Tab or arrow key instead, including a Tab arriving from outside.
 		const revealFocusRing = (event: KeyboardEvent): void => {
@@ -456,7 +456,7 @@
 					<!-- The bar is the picture; the sentence beside it is the whole of
 					     what a screen reader gets, since a run of empty spans says
 					     nothing. `aria-hidden` on the bar keeps the two from being
-					     announced twice — the same split the citation tooltip makes. -->
+					     announced twice, the same split the citation tooltip makes. -->
 					<span class="sr-only">Step {step} of {stepCount}</span>
 					<span class="picker__steps" aria-hidden="true">
 						{#each stepStops as stop (stop)}
@@ -537,8 +537,8 @@
 		</div>
 		<div class="actions">
 			<!--
-				The empty answer steps down a tier. `Skip` is a real answer — the
-				rest of the section can be named later — but it is not the one this
+				The empty answer steps down a tier. `Skip` is a real answer (the
+				rest of the section can be named later), but it is not the one this
 				card is asking for, and the contrast tier is how a surface says
 				"this is what you came to press". Left contrast, the loudest control
 				on the card was advertising *not* answering the question. Bordered
@@ -558,7 +558,7 @@
 				<!-- The glyph is a promise about Enter, and Enter only reaches this
 				     card while it holds the focus. Opened uninvited off a pointer
 				     selection the caret is still in the document, where Enter breaks
-				     the line — so the promise comes off with the focus rather than
+				     the line, so the promise comes off with the focus rather than
 				     naming a key that does something else. -->
 				{#if takesFocus}
 					<span aria-hidden="true" class="apply__key">↵</span>
@@ -620,7 +620,7 @@
 	   contrast, and the step counter rides along in it. */
 	/*
 	 * The question, centred over the bar that says how far through this flow it
-	 * is. The step used to be four words appended to the question — `· 1 of 2` —
+	 * is. The step used to be four words appended to the question (`· 1 of 2`),
 	 * which spent the one line of this card that asks something on chrome, and
 	 * changed the question's width at every step.
 	 *
@@ -629,7 +629,7 @@
 	 * roster beside them does not slide as the flow advances. That is also what
 	 * makes the bar honest: it spans the block rather than the text, so both
 	 * steps draw the same bar in the same place and only the fill moves. Centring
-	 * is what the floor buys — a shorter question left-aligned in a wider box
+	 * is what the floor buys: a shorter question left-aligned in a wider box
 	 * would read as indented rather than as centred.
 	 */
 	.picker__prompt {
@@ -652,7 +652,7 @@
 	/*
 	 * Each stop is an equal share of the bar. `--color-border` against
 	 * `--color-accent` is a lightness step as well as a hue one, so which stop is
-	 * reached survives a greyscale print — and the `sr-only` sentence beside it is
+	 * reached survives a greyscale print, and the `sr-only` sentence beside it is
 	 * what carries the same fact where neither colour nor shape reaches.
 	 */
 	.picker__step {
@@ -678,7 +678,7 @@
 
 	/* Every chip is always on screen. The roster used to be a scrollable track
 	   with a hidden bar and an edge fade, and a pre-selected chip scrolled past
-	   the edge was still part of what Apply would write — a joint assignment
+	   the edge was still part of what Apply would write, a joint assignment
 	   decided by state the card was not showing. This row is a ballot over a
 	   small closed set, not content to browse, so it wraps instead of scrolling
 	   and the card grows a line when the roster outgrows it. No overflow also
@@ -693,7 +693,7 @@
 	}
 
 	/* Roster chips are categorical elements, not action buttons, so the pill
-	   radius is theirs alone — the apply action uses the global button tiers. */
+	   radius is theirs alone: the apply action uses the global button tiers. */
 	button.chip {
 		flex: none;
 		display: inline-flex;
@@ -716,7 +716,7 @@
 	 * Selection is the chip's own colour, drawn as a border and a light fill.
 	 *
 	 * It used to be a check glyph appended after the name, which made a chip
-	 * change *width* when it was pressed — so choosing one performer shifted
+	 * change *width* when it was pressed, so choosing one performer shifted
 	 * every chip after it sideways, in a row the pointer is in the middle of
 	 * working along. The state is the whole control now rather than something
 	 * added to the end of it, and nothing in the row moves.
@@ -791,7 +791,7 @@
 	}
 
 	/* The shortcut glyph reads as secondary through weight and a mix against the
-	   button's own fill, not through opacity — the label beside it has to keep
+	   button's own fill, not through opacity: the label beside it has to keep
 	   its full contrast on the inverted surface. */
 	.apply__key {
 		color: color-mix(in oklch, var(--color-canvas) 78%, var(--color-text));
@@ -830,7 +830,7 @@
 	 * The two-voice flow rewrites this button three times without the user going
 	 * anywhere: `Next` on step one, then `Skip` while step two has nobody picked,
 	 * then `Apply` the moment somebody is. Each is a different width, and the
-	 * button is the last thing in the row — so the card's whole right edge stepped
+	 * button is the last thing in the row, so the card's whole right edge stepped
 	 * in and out while the reader was working along the roster, and the target
 	 * moved between deciding to press it and pressing it.
 	 *

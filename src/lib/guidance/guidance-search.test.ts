@@ -29,7 +29,7 @@ describe('guidance search', () => {
 	it('returns everything for an empty query', () => {
 		expect(filterGuidanceSections(sections, '')).toEqual(sections);
 		// Entries and landmarks are the conventions; the readout counts nothing
-		// else — the linter rows the index used to draw are gone, and counting
+		// else. The linter rows the index used to draw are gone, and counting
 		// rules as conventions was the double-count that went with them.
 		expect(countGuidanceLookups(sections)).toBe(
 			guidanceEntries.length +
@@ -62,7 +62,7 @@ describe('guidance search', () => {
 		expect(filterGuidanceSections(sections, 'zzz-no-such-lookup')).toEqual([]);
 	});
 
-	// The topic's own name — the heading over the rows, and the most obvious
+	// The topic's own name is the heading over the rows, and the most obvious
 	// query a newcomer types. Measured before it was in the haystack: it
 	// dropped every guidance entry under the heading that said it.
 	it('keeps everything under a topic whose own title is the query', () => {
@@ -75,7 +75,7 @@ describe('guidance search', () => {
 
 	// A symptom query still answers here now that the index draws no rule
 	// rows: an entry's haystack folds in the search terms of the rules it
-	// names — the rule's failure-naming title, and a table-shaped rule's own
+	// names: the rule's failure-naming title, and a table-shaped rule's own
 	// forms. `whoa` reaches the quotation entry through `quotes.typewriter`'s
 	// terms, exactly as it reaches the rule at /rules/.
 	it("matches an entry through its related rules' titles and lookup terms", () => {
@@ -102,7 +102,7 @@ describe('guidance search', () => {
 	});
 
 	// A landmark states its tier and cites its source on the page exactly as an
-	// entry does, so both have to answer a search here too — the same rule, met
+	// entry does, so both have to answer a search here too. The same rule, met
 	// on the one section of the catalog that draws no entry.
 	it('matches a landmark by its tier label and its citation title', () => {
 		const landmark = guidanceTopicLandmarks.spelling![0]!;
@@ -115,7 +115,7 @@ describe('guidance search', () => {
 		expect(landmarkIds(getSource(landmark.sourceIds[0]!)!.pageTitle)).toContain(landmark.id);
 	});
 
-	// What is searchable is what the page says — and the page says the citation
+	// What is searchable is what the page says, and the page says the citation
 	// and the `Checked by` rule ids, so both have to answer a search.
 	// The rule reference learned this the long way about its own citations.
 	it('matches an entry by its citation title and its related rule ids', () => {

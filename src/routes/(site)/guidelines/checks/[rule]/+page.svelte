@@ -23,11 +23,11 @@
 	let { data }: PageProps = $props();
 
 	// A constant rather than a literal in the mustache, because a bare `{', '}`
-	// is `svelte/no-useless-mustaches` — the guidelines topic page's own trade.
+	// is `svelte/no-useless-mustaches`, the guidelines topic page's own trade.
 	const guidelineSeparator = ', ';
 
 	// Seven rules are a lookup table rather than a judgment, and for those the
-	// table is the rule — the reviewed example below only demonstrates one row of
+	// table is the rule; the reviewed example below only demonstrates one row of
 	// it. Loaded by this page rather than carried on the reference, because the
 	// reference travels in the section layout's data; `+page.server.ts` has the
 	// arithmetic.
@@ -36,9 +36,9 @@
 	/**
 	 * Whether the fix behavior is worth stating on every row.
 	 *
-	 * It varies inside `spelling.standardized` alone — most reviewed spellings are
+	 * It varies inside `spelling.standardized` alone: most reviewed spellings are
 	 * a one-press fix, the context-gated ones are previewed, and the two
-	 * accepted-variant records are flagged by nothing — so there it is the fact a
+	 * accepted-variant records are flagged by nothing, so there it is the fact a
 	 * reader most wants beside the pair. In the other six it is the same words on
 	 * every row, which is the repetition that made the diagnostic card drop its
 	 * severity word: a label that never varies stops being read by the second row,
@@ -52,8 +52,8 @@
 	/**
 	 * What LyricLint catches beyond the forms the guideline names, as one phrase.
 	 *
-	 * Two facts, and they are the same fact — this is our own detection rather
-	 * than reviewed guidance — so they share one "Also catches" rather than
+	 * Two facts, and they are the same fact (this is our own detection rather
+	 * than reviewed guidance), so they share one "Also catches" rather than
 	 * repeating the words either side of an interpunct. What that phrase means is
 	 * said once under the run.
 	 */
@@ -116,7 +116,7 @@
 	<!-- The diagnostic's facts in the diagnostic's idiom: one meta line under the
 	     message. The line number a card would carry is meaningless here, so its
 	     slot states the one fact a reader scanning the reference wants next to
-	     the severity — whether the linter can fix this for them. -->
+	     the severity: whether the linter can fix this for them. -->
 	<div class="site-meta">
 		<SeverityTag severity={reference.severity} labelled />
 		<span class="site-meta__separator" aria-hidden="true">·</span>
@@ -144,7 +144,7 @@
 	{/if}
 
 	<!-- The table, above the example rather than below it, because for these
-	     seven rules it is the thing the reader came to look up — the example
+	     seven rules it is the thing the reader came to look up; the example
 	     demonstrates one of its rows. One bordered object with hairlines between
 	     the rows, exactly as the linter draws a run of diagnostics: the run is
 	     what is separated from the page, and the members from each other by the
@@ -189,13 +189,13 @@
 			{/each}
 		</ul>
 		<!-- Said once, under the run, rather than on every row it applies to. The
-		     distinction has to be on the page — the guideline does not name any of
-		     this — but the sentence carrying it was on 14 of 29 rows verbatim,
+		     distinction has to be on the page (the guideline does not name any of
+		     this), but the sentence carrying it was on 14 of 29 rows verbatim,
 		     which is the repetition that stops being read by the second row. -->
 		{#if hasCurated}
 			<p class="site-aside">
 				“Also catches” is LyricLint's own work rather than reviewed guidance: curated transcription
-				mistakes, and — where an entry says so — any one-character typo of the preferred form. The
+				mistakes, and, where an entry says so, any one-character typo of the preferred form. The
 				reviewed guideline names the forms before the arrow and does not name these, and a typo
 				caught this way is always previewed rather than fixed in one press.
 			</p>
@@ -214,7 +214,7 @@
 	</figure>
 	<!-- The linter's own wording, beside the text that produces it. A message is
 	     written about the occurrence in front of the reader, so this is the one
-	     place on the page where it is true without qualification — and quoting it
+	     place on the page where it is true without qualification, and quoting it
 	     here is what makes the page and the workbench verifiably the same thing.
 	     It is derived by running the rule on the sample directly above. -->
 	<p class="site-aside">
@@ -236,7 +236,7 @@
 			<p>
 				In the workbench this finding carries one control, labelled
 				<strong><RuleSearchHighlight text={reference.fix.label} /></strong>. The fix is classified
-				as safe, so pressing it applies the edit directly — one press, one undo step.
+				as safe, so pressing it applies the edit directly: one press, one undo step.
 			</p>
 		{:else}
 			<p>
@@ -248,8 +248,8 @@
 		{/if}
 	{:else}
 		<p>
-			This finding has no automatic fix — resolving it is a judgment call, so the workbench points
-			at the exact range and leaves the edit to you.
+			This finding has no automatic fix. Resolving it is a judgment call, so the workbench points at
+			the exact range and leaves the edit to you.
 		</p>
 	{/if}
 
@@ -267,14 +267,14 @@
 	</p>
 	<!-- The citations are searched with everything else on this page, so they mark
 	     what matched with everything else on it. The snippet is how that reaches a
-	     component the editor also draws — see `SourceLink.svelte`. -->
+	     component the editor also draws; see `SourceLink.svelte`. -->
 	{#each reference.sources as source (source.id)}
 		<SourceLink {source} text={sourceText} />
 	{/each}
 
 	<!-- No "all rules" link. The list is standing beside this column on a wide
 	     screen, and on a narrow one the layout's own control at the top of the
-	     page is the way back — one of them would always be the second control for
+	     page is the way back, and one of them would always be the second control for
 	     a move the reader already has. -->
 	<div class="site-actions">
 		<a class="button" href={resolve('/workbench/')}>Check a transcription in the workbench</a>

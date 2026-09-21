@@ -31,7 +31,7 @@ const otherTrackId = '1301WleyT98MSxVHPZCA6M';
  * The load that never answers, and what it costs three surfaces away.
  *
  * An ad blocker, a content policy or a stalled CDN leaves the script tag in the
- * document and the callback uncalled — and with no timeout that promise is
+ * document and the callback uncalled, and with no timeout that promise is
  * pending for the life of the page, so `attachSpotifyTrack`'s `finally` never
  * runs and `busy` stays true, which disables the whole picker. This is the same
  * assertion the YouTube loader carries in `media-player.test.ts`.
@@ -200,7 +200,7 @@ async function settle(): Promise<void> {
 /**
  * A source whose metadata read for `trackId` hangs until the test answers it.
  *
- * Every other read answers at once, so a second `load` can overtake the first —
+ * Every other read answers at once, so a second `load` can overtake the first,
  * which is the whole shape of the staleness this is for.
  */
 interface TrackReadHarness {
@@ -468,7 +468,7 @@ describe('createSpotifySource', () => {
 	 * arriving late for the wrong track would rename the strip. The failure path
 	 * did not, so a read that was still in flight when the user picked another
 	 * track put `Spotify could not be reached.` on a strip that had just attached
-	 * something else — an error about an attachment that no longer exists,
+	 * something else, an error about an attachment that no longer exists,
 	 * arriving after the one that replaced it had succeeded.
 	 */
 	it('reports a failed track read only while that track is still the one attached', async () => {
@@ -484,7 +484,7 @@ describe('createSpotifySource', () => {
 
 		expect(stale.failed).not.toHaveBeenCalled();
 
-		// And the same read, unsuperseded, still reports — or the guard above would
+		// And the same read, unsuperseded, still reports, or the guard above would
 		// be silence rather than staleness.
 		const live = spyEvents();
 		const liveSource = trackReadHarness(live);
@@ -538,7 +538,7 @@ describe('createSpotifySource', () => {
  *
  * The SDK asks for a token whenever it needs one, and a refused refresh answered
  * by simply not calling the callback: no error event, no timeout of its own, and
- * — once the device had already arrived — nothing left in this module armed
+ * (once the device had already arrived) nothing left in this module armed
  * either. The transport went quiet and stayed quiet, with the glyphs answering
  * every press. Every Web API path already reports the same case in words.
  */
@@ -686,7 +686,7 @@ describe('the Spotify session', () => {
 	/**
 	 * `JSON.parse` answers more than an object, and one of those answers is `null`.
 	 *
-	 * A stored `null` — or `{}`, or anything else that ever reached this key —
+	 * A stored `null` (or `{}`, or anything else that ever reached this key)
 	 * parsed without throwing, so the module held it as a session: `spotifySignedIn()`
 	 * said yes over nothing at all, the picker offered a search that needed no
 	 * sign-in, and the request went out as `Bearer undefined`. The shape is what
@@ -715,7 +715,7 @@ describe('the Spotify session', () => {
 
 	// A reload used to send the user back to Spotify's authorize screen for a
 	// session the browser still considered open. Module memory dies on reload;
-	// a browser session does not, and ends with the tab — which is what
+	// a browser session does not, and ends with the tab, which is what
 	// "session-scoped" meant all along.
 	it('survives a reload and does not outlive the tab', () => {
 		const store = new Map<string, string>();

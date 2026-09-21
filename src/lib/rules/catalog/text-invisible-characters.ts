@@ -35,7 +35,7 @@ export const textInvisibleCharactersRule: RuleDefinition = {
 					[replacementFix(context, 'safe', 'Remove trailing whitespace', range, '')]
 				),
 				// Every space between two words is trailing whitespace for as long as
-				// it takes to type the next word — and the pause in the middle of that
+				// it takes to type the next word, and the pause in the middle of that
 				// is a transcriber listening, not a line they have finished.
 				settlesOn: 'caret'
 			});
@@ -59,7 +59,7 @@ export const textInvisibleCharactersRule: RuleDefinition = {
 					this,
 					range,
 					`This is ${invisible.description}, not the character it looks like.`,
-					`Pasted text carries ${invisible.description} that is indistinguishable from an ordinary space — or from nothing at all — while editing, but it is a different character in the copied markup. LyricLint marks it in the editor so the finding has something visible to point at.`,
+					`Pasted text carries ${invisible.description} that is indistinguishable from an ordinary space, or from nothing at all, while editing, but it is a different character in the copied markup. LyricLint marks it in the editor so the finding has something visible to point at.`,
 					[replacementFix(context, 'safe', invisible.fixLabel, range, invisible.replacement)]
 				)
 			);

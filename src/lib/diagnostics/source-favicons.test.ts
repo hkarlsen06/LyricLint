@@ -20,7 +20,7 @@ describe('source favicons', () => {
 	});
 
 	// A citation whose URL is not a web address is not a link, and it gets no
-	// mark either — the favicon says where a link goes, and there is no link.
+	// mark either: the favicon says where a link goes, and there is no link.
 	it('answers nothing for an unparseable or unknown URL', () => {
 		expect(sourceFavicon('not a url')).toBeUndefined();
 		expect(sourceFavicon('https://example.com/page')).toBeUndefined();

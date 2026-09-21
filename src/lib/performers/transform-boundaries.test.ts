@@ -53,7 +53,7 @@ interface BoundaryCase {
 	expected: string;
 	selectedText: string;
 	/**
-	 * The exact text each edit replaces — which is what changed and not the line
+	 * The exact text each edit replaces, which is what changed and not the line
 	 * it was computed over.
 	 *
 	 * An edit's range is read downstream as a claim about what the user wrote
@@ -62,7 +62,7 @@ interface BoundaryCase {
 	 * anchors map the same way. A whole-line claim for two inserted tags
 	 * therefore mirrored a one-copy ad-lib into every linked chorus. These are
 	 * the seeds `narrowEdit` leaves, and each is clamped so the selection stays
-	 * inside its own edit — which is why case three keeps the tail it does.
+	 * inside its own edit, which is why case three keeps the tail it does.
 	 */
 	undoSeeds: string[];
 }
@@ -293,9 +293,9 @@ describe('destructive performer transform boundaries', () => {
 });
 
 // The cases above run through the transform, which only ever hands `narrowEdit`
-// a pair of strings that agree about their surrogates. A caller that does not —
-// the section-link mirror writes a peer's whole shared run against another
-// copy's text — can put the boundary between the halves of a pair in *one* of
+// a pair of strings that agree about their surrogates. A caller that does not
+// (the section-link mirror writes a peer's whole shared run against another
+// copy's text) can put the boundary between the halves of a pair in *one* of
 // them, and the guards used to read `insert` alone.
 describe('narrowEdit surrogate boundaries', () => {
 	/** Every index a pair straddles in a string, for the assertion below. */

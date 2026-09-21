@@ -50,7 +50,7 @@ describe('PerformersPanel', () => {
 		// stepping aside while the removal is its only question.
 		await fireEvent.click(within(blairRow!).getByRole('button', { name: 'Remove Blair' }));
 		expect(within(blairRow!).queryByRole('button', { name: /^Rename/ })).toBeNull();
-		// The confirm keeps the performer in its accessible name — focus lands on
+		// The confirm keeps the performer in its accessible name: focus lands on
 		// it, and a bare "Remove" read out on arrival names nobody.
 		const confirm = within(blairRow!).getByRole('button', { name: 'Remove Blair' });
 		expect(confirm.classList.contains('remove-button__confirm')).toBe(true);
@@ -131,7 +131,7 @@ describe('PerformersPanel', () => {
 	});
 
 	// The field was seeded once, at mount, and the row survives a rename made in
-	// a header — that is what `adoptHeaderRename` is, and it is the commonest way
+	// a header, which is what `adoptHeaderRename` is, and it is the commonest way
 	// a performer's spelling changes. So the row said the new name, the field
 	// opened on the old one, and one Enter ran the rename backwards over every
 	// header in the document.
@@ -220,7 +220,7 @@ describe('PerformersPanel', () => {
 		expect(guidance).toBeVisible();
 	});
 
-	// A styled slot the header does not name is an unknown voice — reported once
+	// A styled slot the header does not name is an unknown voice, reported once
 	// by `performer.inline-mismatch` and offered in the picker, never a roster
 	// identity. The panel used to grow an "Unresolved voices" section for it,
 	// fed by placeholder performers the import minted; both are retired, and the

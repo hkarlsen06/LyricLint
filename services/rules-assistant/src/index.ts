@@ -140,8 +140,8 @@ async function quotaCall<T>(env: Env, name: string, path: string, body: QuotaReq
 		body: JSON.stringify(body)
 	});
 	// SAFETY: a Durable Object stub reaches only QuotaCounter.fetch, which answers each
-	// of its paths with the one result shape declared in quota-do.ts — `/begin` with
-	// `BeginResult`, the rest with `{ ok: true }` — which is what `T` names here.
+	// of its paths with the one result shape declared in quota-do.ts: `/begin` with
+	// `BeginResult`, the rest with `{ ok: true }`, which is what `T` names here.
 	return (await response.json()) as T;
 }
 
@@ -156,8 +156,8 @@ function acceptedOrigin(env: Env, origin: string | null): string | undefined {
 }
 
 function corsHeaders(env: Env, origin = allowedOrigins(env)[0]): HeadersInit {
-	// An origin the allowlist did not match gets no `allow-origin` header at all —
-	// an empty or wildcard one would be a weaker refusal than saying nothing.
+	// An origin the allowlist did not match gets no `allow-origin` header at all,
+	// since an empty or wildcard one would be a weaker refusal than saying nothing.
 	const headers: Record<string, string> = {};
 	if (origin) headers['access-control-allow-origin'] = origin;
 	headers['access-control-allow-credentials'] = 'true';
@@ -344,8 +344,8 @@ export function createHandler(options: HandlerOptions = {}) {
 					await signSession(state, env.SESSION_SIGNING_SECRET),
 					new URL(request.url).protocol === 'https:'
 				);
-			// A passed challenge survives every refusal below — the session
-			// throttle, a quota the Durable Object declines, a failed answer — so
+			// A passed challenge survives every refusal below (the session
+			// throttle, a quota the Durable Object declines, a failed answer), so
 			// the retry never costs the user a second Turnstile pass.
 			if (needsChallenge) rescueCookie = setCookie;
 
@@ -423,7 +423,7 @@ export function createHandler(options: HandlerOptions = {}) {
 				const providerSafetyIdentifier = await safetyIdentifier(state.sid, env.ABUSE_HMAC_SECRET);
 				// The tool budget is spent by withholding the tools, not by refusing
 				// the call that asks for one. A model offered tools with no rounds
-				// left will use them — it has no way to know the budget exists — and
+				// left will use them, having no way to know the budget exists, and
 				// the turn then died on a gate the visitor reads as "the answer
 				// failed validation", losing everything the earlier rounds
 				// established. Withheld, the last call can only answer, which is what
@@ -501,7 +501,7 @@ export function createHandler(options: HandlerOptions = {}) {
 								try {
 									// One line per streamed answer: how long the model thought before
 									// its first visible token, and how many deltas followed. This is
-									// the number to look at before believing "streaming is broken" —
+									// the number to look at before believing "streaming is broken":
 									// a late first delta with a fast tail is reasoning time, not a
 									// buffer (that diagnosis has been paid for once already).
 									let deltaCount = 0;

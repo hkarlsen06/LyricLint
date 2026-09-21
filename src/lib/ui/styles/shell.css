@@ -17,7 +17,7 @@
    `dvh` and not `vh`, because `vh` is the *large* viewport: the height the page
    would have if the browser's own chrome were retracted. On a phone that is
    taller than what is actually on screen by exactly the URL bar, so the shell
-   overflowed the window and the document itself scrolled — the one scroll this
+   overflowed the window and the document itself scrolled, the one scroll this
    application has no use for, since every region inside the shell scrolls in
    its own port. `dvh` is the visible height at this moment, so the shell spans
    the window and there is nothing for the page to scroll.
@@ -61,12 +61,12 @@
  * is the whole reason it can exist without disturbing anything: a workspace row
  * would run under both columns and shorten the right panel, whose linter pane is
  * a full-height column with its recent drafts pinned to the foot. Here it hangs
- * under the document only, which is also the honest reading — it controls what
+ * under the document only, which is also the honest reading: it controls what
  * the document is transcribed from, not the window.
  *
  * The row is `auto`, so it costs exactly nothing while no audio is attached.
  *
- * The action tray takes no row at all — it is positioned over the document, which
+ * The action tray takes no row at all. It is positioned over the document, which
  * is what `position: relative` here is for. See `.editor-actions`.
  */
 .editor-region {
@@ -100,12 +100,12 @@
  * document.
  *
  * **It costs the document no height, and that is the third shape this took.**
- * Drawn full width across the column it made the row the object — a strip of
+ * Drawn full width across the column it made the row the object: a strip of
  * chrome as wide as the document with two words at one end and a hand of empty
  * gutter after them. Hugged to its contents it was the right size and, at the
  * left of the column, belonged to nothing. Given a grid row of its own at the
  * right it belonged to the tab strip, and charged 44px of the document for the
- * privilege — every pixel of it beside the text rather than above it, because
+ * privilege, every pixel of it beside the text rather than above it, because
  * the lyric column is capped at `--measure-editor` and left-aligned. So the row
  * went and the tray is `position: absolute` over the space that was already
  * empty.
@@ -119,7 +119,7 @@
  *
  * `--color-chrome`, like the toolbar above it. The bulk-fix strip learned the
  * alternative the long way: drawn as bare canvas it took the tone of whatever it
- * touched and its controls read as loose inside the surface below — which is a
+ * touched and its controls read as loose inside the surface below, which is a
  * live hazard here rather than a remembered one, since this tray floats directly
  * over the document.
  */
@@ -167,7 +167,7 @@
  * Find and replace is showing.
  *
  * The accent is on the glyph and not on the button, because a filled or ringed
- * control here would be a second box inside a tray that is already one — and
+ * control here would be a second box inside a tray that is already one, and
  * because what is being reported is the state of a panel, not a control being
  * hovered. `aria-pressed` is what carries it to anything that cannot see a
  * color, which is why the state is a toggle button rather than a class.
@@ -249,7 +249,7 @@
 
 /* The draft's name and the way into the other drafts are one control, so they
    share one surface: the border and fill are drawn on the group, and hovering
-   either half — or opening the menu — lights the whole thing rather than the
+   either half (or opening the menu) lights the whole thing rather than the
    half the pointer happens to be over. It is also what the popover hangs from,
    so the list of drafts opens under the name it would replace. */
 .draft-switcher {
@@ -271,7 +271,7 @@
    being pushed out by a fixed-width field. `size` covers browsers without
    `field-sizing`. It sits below the wordmark's weight so the brand and the
    document name stay distinguishable side by side. The field draws no box
-   of its own at any point — a border inside the group's border is two rectangles
+   of its own at any point: a border inside the group's border is two rectangles
    for one control. */
 .draft-title {
 	text-overflow: ellipsis;
@@ -322,8 +322,8 @@
 	}
 }
 
-/* The healthy states draw nothing at all — the readout is `sr-only` until it has
-   something to report — so everything here is for the failed state. */
+/* The healthy states draw nothing at all (the readout is `sr-only` until it has
+   something to report), so everything here is for the failed state. */
 .save-status {
 	display: inline-flex;
 	gap: var(--space-1-5);

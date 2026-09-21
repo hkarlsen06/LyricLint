@@ -103,18 +103,18 @@
 		},
 		// The real editor owns the mode and reports it back, which is what the
 		// shell reacts to. The mock owes it the same shape: a `setLyricSync` that
-		// swallowed the call would leave the shell's half of the feature — rewind
-		// the song, focus the editor — with no way to be exercised at all. The 0
+		// swallowed the call would leave the shell's half of the feature (rewind
+		// the song, focus the editor) with no way to be exercised at all. The 0
 		// is load-bearing: the mock holds no anchors and models no scope, so a run
 		// it starts is always a fresh pass from the top, and an absent `startAt`
-		// now means the opposite — leave the tape where it is.
+		// now means the opposite: leave the tape where it is.
 		setLyricSync(active) {
 			callbacks.onLyricSyncChange?.(active, active ? 0 : undefined);
 		},
 		// The draft's links are re-seated onto whichever editor mounts, and the
 		// shell reads them straight back to decide whether a `section.unlinked-repeat`
 		// has already been answered. A mock that swallowed them would leave that
-		// hand-off — the whole of what a reload exercises — untestable. It emits no
+		// hand-off, the whole of what a reload exercises, untestable. It emits no
 		// snapshot, exactly as the real editor does not: this is the draft being
 		// read back rather than changed.
 		getSectionLinks: () => sectionLinks,
@@ -124,7 +124,7 @@
 	};
 
 	// Published a microtask after mount, not at init, because the real pane awaits
-	// a dynamic import of CodeMirror before it has anything to hand over — so the
+	// a dynamic import of CodeMirror before it has anything to hand over, so the
 	// shell's first lint runs *before* the draft's links and anchors are re-seated
 	// onto the editor. Publishing in the mount flush reversed that order and hid
 	// the whole class of bug that lives in it.
@@ -183,7 +183,7 @@
 		resize: none;
 		background: transparent;
 		color: var(--color-text-reading);
-		/* The lyric face, matching the real editor's base — a plain textarea
+		/* The lyric face, matching the real editor's base. A plain textarea
 		   cannot split markup from words, so it takes the words' face whole. */
 		font-family: var(--font-lyrics);
 		font-size: var(--font-size-lg);

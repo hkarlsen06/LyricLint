@@ -8,7 +8,7 @@
 	list-style: none;
 }
 
-/* `.icon-button` centres with `place-items`, which a flex box ignores — and the
+/* `.icon-button` centres with `place-items`, which a flex box ignores, and the
    flex display is what strips the summary's default disclosure triangle layout,
    so restate the centring here rather than dropping back to grid. */
 .draft-menu__trigger {
@@ -23,7 +23,7 @@
 
 /* Hangs from the draft switcher rather than from the chevron inside it, so the
    list opens under the name it is offering to replace and lines up with its left
-   edge — the `<details>` goes static for exactly this. */
+   edge. The `<details>` goes static for exactly this. */
 .draft-menu__popover {
 	position: absolute;
 	z-index: var(--layer-menu);
@@ -58,7 +58,7 @@
 /*
  * A draft is one `.list-row` (rows.css): its name, when it was last touched, and
  * the commands that act on it, all on one line. What is here is only what the
- * drafts list adds to that — the row is a way into the draft, so its name and
+ * drafts list adds to that: the row is a way into the draft, so its name and
  * date are one pressable control.
  */
 .draft-menu__search {
@@ -85,7 +85,7 @@
    fly transition owns `transform` while a toast enters or leaves.
 
    The transport stands between the two whenever audio is attached, and a toast
-   drawn over it covers the row a transcriber is operating — the loop is listen,
+   drawn over it covers the row a transcriber is operating. The loop is listen,
    pause, type, and nearly everything that raises a toast happens in the middle
    of it. So the strip's height joins the offset while the strip is drawn.
    `--media-strip-height` is published by the row itself (`MediaStrip.svelte`),
@@ -162,8 +162,8 @@
 }
 
 /* Measure only. The message is the whole page, so it has nothing to be
-   separated from and gets no border or fill — see "A card has to earn its
-   border" in AGENTS.md. */
+   separated from and gets no border or fill (see "A card has to earn its
+   border" in AGENTS.md). */
 .error-page > div {
 	max-width: 34rem;
 }
@@ -186,7 +186,7 @@
  * together at the one moment either is being asked for.
  *
  * One box for the whole workbench (`ControlTooltip.svelte`), filled by whichever
- * control `describeControl` is attached to — the editor's action tray, the
+ * control `describeControl` is attached to: the editor's action tray, the
  * section-link picker, and the three transport buttons in the strip and again
  * on the artwork band. It
  * replaced a `title` on every one of them, which is slow, unstyled, and says the

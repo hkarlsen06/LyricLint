@@ -1,7 +1,7 @@
 /*
  * A list whose entries are one line each: a name, and the commands that act on
  * it. The drafts menu and the performer roster are both this, and both were two
- * rows per entry before — a name, then `Rename Duplicate Export Delete` (or
+ * rows per entry before: a name, then `Rename Duplicate Export Delete` (or
  * `Rename Remove`) spelled out underneath, the same words repeated down the page
  * until they were the loudest thing in the list.
  *
@@ -109,7 +109,7 @@
  * (`primitives/RemoveButton.svelte`), so they share its look.
  *
  * The trigger is muted, not red. A list of seven rows drew seven red words down
- * its right edge, which is a warning about nothing — the row is not dangerous,
+ * its right edge, which is a warning about nothing. The row is not dangerous,
  * the press is. So the glyph earns its color under the pointer, and the fill is
  * spent on the confirm that follows it.
  */

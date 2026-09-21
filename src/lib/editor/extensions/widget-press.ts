@@ -1,7 +1,7 @@
 /**
  * Enter and Space on a control a widget draws inside the document.
  *
- * A `<button>` turns both keys into a click on its own — everywhere except
+ * A `<button>` turns both keys into a click on its own, everywhere except
  * here. The widgets that carry controls sit inside `.cm-content`, which is
  * `contenteditable`, and CodeMirror answers Enter and Space against the
  * document the press bubbles into: the line breaks, the activation never
@@ -12,8 +12,8 @@
  * So the press is claimed at the element: prevented, and **stopped**, or Enter
  * still splits the line under the control that just answered it.
  *
- * Only Enter and Space, and only bare. A modifier here belongs to a command —
- * the editor's own keymap is full of `Ctrl-Alt` pairs — and swallowing one at a
+ * Only Enter and Space, and only bare. A modifier here belongs to a command
+ * (the editor's own keymap is full of `Ctrl-Alt` pairs), and swallowing one at a
  * control that happens to hold the focus is how a shortcut comes to work
  * everywhere but the one place the user was standing.
  */

@@ -3,8 +3,8 @@ import type { Attachment } from 'svelte/attachments';
 /**
  * Close a transient surface when a pointer press lands outside it.
  *
- * Every floating surface in the workbench — pickers, popovers, the drafts menu
- * — is dismissed the same three ways: Escape, its own closing control, and a
+ * Every floating surface in the workbench (pickers, popovers, the drafts menu)
+ * is dismissed the same three ways: Escape, its own closing control, and a
  * press anywhere else. The last one is the one users reach for without being
  * told, so it is a shared attachment rather than a per-component handler.
  *
@@ -18,7 +18,7 @@ import type { Attachment } from 'svelte/attachments';
  *   whatever they just pressed. Escape and Cancel are the paths that return it.
  *
  * Attach it to the outermost node of the surface, which for a `<details>` menu
- * is the `<details>` itself — that keeps a press on the summary inside the
+ * is the `<details>` itself. That keeps a press on the summary inside the
  * surface, where the native toggle can do its job.
  */
 export function dismissOnOutside(onDismiss: () => void): Attachment<Element> {

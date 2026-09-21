@@ -41,7 +41,7 @@ describe('parseAppleMusicSongId', () => {
 
 	// The album link carries a perfectly valid id in its path, so a parser that
 	// read the path first would attach the album's opening track for every share
-	// link Apple produces — silently, and only for songs that are not track one.
+	// link Apple produces: silently, and only for songs that are not track one.
 	it('prefers the song hanging off an album link to the album itself', () => {
 		expect(
 			parseAppleMusicSongId(`https://music.apple.com/no/album/x/${albumId}?i=${songId}`)
@@ -67,7 +67,7 @@ describe('parseAppleMusicSongId', () => {
  * MusicKit announces itself with a `musickitloaded` event, and an ad blocker, a
  * content policy or a stalled CDN leaves the script tag in the document and that
  * event unfired. With no timeout the promise is pending for the life of the page,
- * so `attachAppleMusicSong`'s `finally` never runs and `busy` stays true — which
+ * so `attachAppleMusicSong`'s `finally` never runs and `busy` stays true, which
  * is the same three-unrelated-faults presentation a blocked sign-in pop-up had,
  * arriving one step earlier.
  */
@@ -93,7 +93,7 @@ describe('loading MusicKit', () => {
 
 describe('appleMusicConfigured', () => {
 	// The suite pins a token expiring in 2100 in `vite.config.ts`, so the feature
-	// is on by default here — which is what every other Apple Music test rests on.
+	// is on by default here, which is what every other Apple Music test rests on.
 	it('is on for a token that is in date', () => {
 		expect(appleMusicConfigured()).toBe(true);
 	});
@@ -102,7 +102,7 @@ describe('appleMusicConfigured', () => {
 	 * The rule this function exists for, and the one that will actually fire.
 	 *
 	 * A developer token lasts at most six months, so the failure this application
-	 * meets in production is not a missing token but a stale one — and a stale one
+	 * meets in production is not a missing token but a stale one, and a stale one
 	 * otherwise fails as a 401 under a press, several steps after the point where
 	 * anything could have said so.
 	 */
@@ -189,7 +189,7 @@ function recorder(): MediaSourceEvents & { readonly log: string[] } {
 
 /**
  * The stub's own view of MusicKit: the same surface, with the two things a test
- * needs that the real instance does not offer — a playhead it can move, and
+ * needs that the real instance does not offer: a playhead it can move, and
  * spies on the commands whose absence is what the assertions are about.
  */
 type StubbedMusic = Omit<AppleMusicInstance, 'currentPlaybackTime'> & {
@@ -232,8 +232,8 @@ function stubMusic(overrides: Partial<AppleMusicInstance> = {}) {
 	 * `currentPlaybackTime` is a live property and `playbackTimeDidChange` is a
 	 * periodic announcement about it, so between two events the property moves and
 	 * nothing fires. That gap is the whole reason `time` reads the property: a
-	 * source answering from the last event hands `liveTime()` — which is what a
-	 * sync tap stamps — the same stale number the mirror already holds.
+	 * source answering from the last event hands `liveTime()`, which is what a
+	 * sync tap stamps, the same stale number the mirror already holds.
 	 */
 	const advance = (seconds: number) => {
 		instance.currentPlaybackTime = seconds;
@@ -263,7 +263,7 @@ async function settle(): Promise<void> {
  * A `setQueue` the test answers by hand, one call at a time.
  *
  * The queue is the longest await in `load`, so it is where a second load
- * overtakes the first — and answering the two out of order is the whole of what
+ * overtakes the first, and answering the two out of order is the whole of what
  * a staleness guard has to survive.
  */
 function deferredQueues() {
@@ -340,7 +340,7 @@ describe('createAppleMusicSource', () => {
 	 * The whole reason this source is worth having over Spotify's.
 	 *
 	 * Spotify exposes no rate at any layer, so its source narrows the workbench's
-	 * offer to `[1]` and announces it. This one keeps the offer — and has to claim
+	 * offer to `[1]` and announces it. This one keeps the offer, and has to claim
 	 * it back explicitly, because the transport does not reset `availableRates`
 	 * between attachments and a song attached after a Spotify track would
 	 * otherwise inherit that narrowing.
@@ -377,7 +377,7 @@ describe('createAppleMusicSource', () => {
 	 * Apple hands back a URL with `{w}` and `{h}` still in it.
 	 *
 	 * Passed through unresolved it is not an address at all, and the panel draws a
-	 * broken image — so the substitution is the whole of what this reports, and a
+	 * broken image, so the substitution is the whole of what this reports, and a
 	 * size has to be chosen somewhere. Here, because the CDN renders whatever is
 	 * asked for and the alternative is every surface picking its own.
 	 */
@@ -413,7 +413,7 @@ describe('createAppleMusicSource', () => {
 
 	/*
 	 * The facts a song page somewhere else asks for, from the read that was
-	 * already paying for the name — including the label, which is why that read
+	 * already paying for the name, including the label, which is why that read
 	 * asks for `include=albums` rather than making a second request for one
 	 * string. Producers are not among them and never will be: Apple's public
 	 * catalogue has no credits resource at all.
@@ -461,7 +461,7 @@ describe('createAppleMusicSource', () => {
 	});
 
 	// A field the catalogue does not carry is left out rather than emptied, so a
-	// list of these is a list of things that are actually known — and a song with
+	// list of these is a list of things that are actually known, and a song with
 	// nothing at all reports nothing rather than an empty list.
 	it('leaves out what it does not know', async () => {
 		const { instance } = stubMusic();
@@ -491,7 +491,7 @@ describe('createAppleMusicSource', () => {
 	 * The one asymmetry this source does share with Spotify.
 	 *
 	 * `seekToTime` needs a `nowPlayingItem`, which does not exist until playback
-	 * has started — so a restored position is spent as the queue's `startTime`
+	 * has started, so a restored position is spent as the queue's `startTime`
 	 * rather than as a seek, and a seek issued before the first press is only
 	 * remembered.
 	 */
@@ -515,7 +515,7 @@ describe('createAppleMusicSource', () => {
 	 * actually meets: the reconnect press builds the queue around the restored
 	 * position, and a lyric line tapped while that load settles is a seek with
 	 * nowhere to land. Remembered but never spent, the readout said the tapped
-	 * line while the audio started wherever the queue pointed — so the first
+	 * line while the audio started wherever the queue pointed, so the first
 	 * play rebuilds the queue around the remembered position before starting.
 	 */
 	it('spends a pre-start seek on the first play by rebuilding the queue', async () => {
@@ -597,7 +597,7 @@ describe('createAppleMusicSource', () => {
 		await source.load(songId);
 		emit('playbackStateDidChange', { state: playbackStates.playing });
 
-		// A real playback position — where the skip starts from.
+		// A real playback position, where the skip starts from.
 		emit('playbackTimeDidChange', { currentPlaybackTime: 50 });
 		expect(source.time).toBe(50);
 		const settledLog = events.log.length;
@@ -606,7 +606,7 @@ describe('createAppleMusicSource', () => {
 		source.seek(70);
 		expect(source.time).toBe(70);
 
-		// The stale burst — more events than the give-up backstop — all carrying
+		// The stale burst, more events than the give-up backstop, all carrying
 		// the position the skip started from. The readout must not drop back to it.
 		for (let index = 0; index < settleMaxEvents + 3; index += 1) {
 			emit('playbackTimeDidChange', { currentPlaybackTime: 50 });
@@ -651,12 +651,12 @@ describe('createAppleMusicSource', () => {
 	});
 
 	/**
-	 * `time` is a reading, not a memory — and `liveTime()` is what a sync tap
+	 * `time` is a reading, not a memory, and `liveTime()` is what a sync tap
 	 * stamps.
 	 *
 	 * Answered from the last `playbackTimeDidChange`, it was the same stale number
 	 * the mirror already held, so every anchor a run wrote was early by however
-	 * long had passed since that event — a different amount on every tap. On
+	 * long had passed since that event, a different amount on every tap. On
 	 * playback that is a wash leading the vocal by a distance that changes line to
 	 * line, which is how it was reported.
 	 */
@@ -677,7 +677,7 @@ describe('createAppleMusicSource', () => {
 	/**
 	 * Before the first press there is no `nowPlayingItem` for the property to
 	 * describe, so it reads 0 while the restored position is what the queue was
-	 * built around — the same distinction `seek` makes, which is why the live read
+	 * built around, the same distinction `seek` makes, which is why the live read
 	 * sits behind `started` too. Without that guard a reopened draft reports 0:00
 	 * until something presses play.
 	 */
@@ -724,7 +724,7 @@ describe('createAppleMusicSource', () => {
 	});
 
 	// A subscriber who is already signed in from a previous session must not be
-	// sent through Apple's window again — MusicKit keeps its own user token, and
+	// sent through Apple's window again: MusicKit keeps its own user token, and
 	// this is the same trade the file source makes with an already-granted
 	// permission.
 	it('does not ask for a sign-in it already has', async () => {
@@ -756,7 +756,7 @@ describe('createAppleMusicSource', () => {
 	 * claims nothing.
 	 *
 	 * `load` checks staleness after the instance and after the sign-in, and did
-	 * not after the queue — which is the longest await of the three. So a refused
+	 * not after the queue, which is the longest await of the three. So a refused
 	 * queue for the outgoing song put `Apple Music would not queue that song.` on
 	 * a strip that had just attached a different one, and a queue that *succeeded*
 	 * late stamped `queuedAt` with the outgoing song's start time. That second one
@@ -829,7 +829,7 @@ describe('createAppleMusicSource', () => {
 	 * The regression this whole wrapper exists for, at the level that matters.
 	 *
 	 * A blocked pop-up leaves MusicKit's own `authorize()` unsettled forever, so
-	 * before this `load` never returned — and `load` not returning is what left
+	 * before this `load` never returned, and `load` not returning is what left
 	 * `busy` true, the picker's search button dead, no artwork, and a play control
 	 * spinning. What is asserted here is simply that it *resolves*.
 	 */
@@ -862,7 +862,7 @@ describe('authorizeAppleMusic', () => {
 	 * A scope standing in for `window`, so nothing here touches a real one.
 	 *
 	 * What the wrapper reads is whether a window came back at all, so a stub
-	 * answers with the one property that stands for one — or with `null`, which
+	 * answers with the one property that stands for one, or with `null`, which
 	 * is the blocked pop-up this whole path exists for.
 	 */
 	type StubOpen = (...args: Parameters<(typeof globalThis)['open']>) => { closed: boolean } | null;
@@ -873,7 +873,7 @@ describe('authorizeAppleMusic', () => {
 	/**
 	 * The blocked window is *observed*, not waited out.
 	 *
-	 * MusicKit answers a blocked pop-up with silence — `_startPollingForWindowClosed`
+	 * MusicKit answers a blocked pop-up with silence: `_startPollingForWindowClosed`
 	 * is guarded on the window existing, and that interval is the only thing that
 	 * ever settles the promise. So the `null` return from `window.open` is the
 	 * signal, and it has to resolve the race while `authorize()` is still pending
@@ -913,8 +913,8 @@ describe('authorizeAppleMusic', () => {
 	/**
 	 * The patch is a watcher, not a replacement.
 	 *
-	 * It hands MusicKit back whatever the real `window.open` returned — including
-	 * the `null` — and puts the original back on every path, so a blocked sign-in
+	 * It hands MusicKit back whatever the real `window.open` returned, including
+	 * the `null`, and puts the original back on every path, so a blocked sign-in
 	 * cannot leave the page with a wrapped `open` for everything that comes after.
 	 */
 	it('passes the window through unchanged and restores open afterwards', async () => {
@@ -940,7 +940,7 @@ describe('authorizeAppleMusic', () => {
 	/**
 	 * The backstop, for a MusicKit that stops using `window.open`.
 	 *
-	 * It is five minutes in production and deliberately useless as a timeout — a
+	 * It is five minutes in production and deliberately useless as a timeout: a
 	 * sign-in is a person typing a password and a code from another device, and
 	 * cutting that off partway would be a worse bug than the hang. This only
 	 * guarantees the wait is bounded.

@@ -58,7 +58,7 @@ describe('the panel reading order', () => {
 	 * Harper answers about 250ms behind the rule engine, so every edit publishes
 	 * twice and the second publish re-sorts the union. Ranked below every native
 	 * finding, a late arrival can only ever be appended under the card the reader
-	 * is on — never inserted above the one `leadAfterFix` has just expanded, which
+	 * is on, never inserted above the one `leadAfterFix` has just expanded, which
 	 * is what used to slide the open card down a row under the pointer.
 	 */
 	it('puts every Harper finding under every reviewed one, whatever it says or where', () => {

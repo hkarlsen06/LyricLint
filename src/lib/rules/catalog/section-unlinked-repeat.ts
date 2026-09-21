@@ -17,7 +17,7 @@ let retainedGroupCharacters = 0;
  * Whether these copies have enough in common to be worth keeping in step.
  *
  * Linking stopped being destructive, so this rule was widened to point at every
- * repeat of a song part — which went one step too far. Two pre-choruses with
+ * repeat of a song part, which went one step too far. Two pre-choruses with
  * *completely different* words share nothing, so linking them ties no text
  * together at all: every word is a difference, the mirror can never carry an
  * edit, and the finding is an offer to do nothing.
@@ -67,7 +67,7 @@ function bodiesWorthLinking(bodies: readonly string[]): boolean {
 	}
 	// **Some pair**, not all of them together. A song whose first and last chorus
 	// match while the middle one is sung differently shares almost nothing across
-	// all three — and it is still two choruses worth linking. Asking of the whole
+	// all three, and it is still two choruses worth linking. Asking of the whole
 	// set is how this rule went quiet on that shape once already.
 	for (let left = 0; left < bodies.length; left += 1) {
 		for (let right = left + 1; right < bodies.length; right += 1) {
@@ -91,12 +91,12 @@ function sharesEnough(left: string, right: string): boolean {
  * reason was sound: linking overwrote every copy from the one the picker was
  * opened on, so pointing at a chorus that genuinely differed was an invitation
  * to destroy the difference. Two rounds of narrowing went into keeping that
- * offer honest — first the whole song part had to match, then the
+ * offer honest: first the whole song part had to match, then the
  * most-repeated wording had to.
  *
  * All of it is gone, because the hazard is. Linking now keeps every word the
  * copies disagree on and ties together the rest, so there is no wording left
- * for a suggestion to endanger — and the song this rule was quietest about is
+ * for a suggestion to endanger, and the song this rule was quietest about is
  * exactly the one the whole rebuild was for: two choruses that differ by a line.
  * The narrowing was silence on the common case, bought against a risk that no
  * longer exists.
@@ -119,7 +119,7 @@ function linkableRepeatGroups(
 		// An exact repeat of the part immediately before it is
 		// `section.immediate-repeat-spacing`'s finding: Genius wants those two
 		// copies under one header, not two headers tied together. Only the pair
-		// itself steps aside — the rest of the kind is still linkable, and the two
+		// itself steps aside. The rest of the kind is still linkable, and the two
 		// repairs touch different sections.
 		if (isImmediateRepeat(document, index) || isImmediateRepeat(document, index + 1)) {
 			continue;
@@ -173,7 +173,7 @@ export const sectionUnlinkedRepeatRule: RuleDefinition = {
 			const explanation =
 				matching.length === members.length
 					? `This song part appears ${members.length} times, and every copy already matches or is still empty. Linked, editing one edits them all, so a correction can never land in just one copy.`
-					: `This song part appears ${members.length} times, and ${differing} of the copies ${differing === 1 ? 'is' : 'are'} sung a little differently. Linking ties only the words they share — the differences are kept exactly as they are.`;
+					: `This song part appears ${members.length} times, and ${differing} of the copies ${differing === 1 ? 'is' : 'are'} sung a little differently. Linking ties only the words they share, and the differences are kept exactly as they are.`;
 			diagnostics.push({
 				...diagnostic(
 					this,

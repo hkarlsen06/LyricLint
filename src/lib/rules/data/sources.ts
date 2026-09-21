@@ -239,10 +239,10 @@ const sources: SourceReference[] = [
 		retrievedAt: reviewedAt,
 		// Re-read in full on 2026-08-12, seeding the guidance catalog's
 		// never-copy sourcing entry; the rest of the page is the index of the
-		// annotations mined individually, plus page-cataloging policy —
-		// unreleased music, AI-song admission — outside a transcription
+		// annotations mined individually, plus page-cataloging policy
+		// (unreleased music, AI-song admission) outside a transcription
 		// catalog's scope. Full text supplied and re-read on 2026-08-17 for the
-		// rule↔guideline linking pass — its "double-check all spelling" and
+		// rule↔guideline linking pass; its "double-check all spelling" and
 		// "clean and concise" asks are the context the standard-orthography and
 		// clean-text advisories read from. Staff tier reconfirmed.
 		lastVerifiedAt: '2026-08-17',
@@ -250,8 +250,8 @@ const sources: SourceReference[] = [
 		authority: 'staff'
 	},
 	// Screenshot 2026-08-10: no unreviewed banner, and Genius staff in the
-	// contributor roster (accepted by streetlights; Gary, KST, Yessirre) —
-	// staff among an annotation's contributors is what lifts it to staff.
+	// contributor roster (accepted by streetlights; Gary, KST, Yessirre).
+	// Staff among an annotation's contributors is what lifts it to staff.
 	// Re-read in full on 2026-08-12, seeding the guidance catalog's
 	// English-variant entry; the preferred-spellings table itself is
 	// `spelling.standardized`'s data. Staff tier reconfirmed.
@@ -267,8 +267,8 @@ const sources: SourceReference[] = [
 	},
 	{
 		// Re-read in full on 2026-08-08, correcting `performer.parenthetical-boundary`:
-		// the guide's own examples keep parentheses outside performer formatting —
-		// `(<i>If Young Metro don't trust you…</i>)` — never inside it. Re-read
+		// the guide's own examples keep parentheses outside performer formatting,
+		// as in `(<i>If Young Metro don't trust you…</i>)`, never inside it. Re-read
 		// again on 2026-08-11, seeding the guidance catalog's section-headers
 		// entries; staff tier reconfirmed. Full text supplied and re-read on
 		// 2026-08-17 for the rule↔guideline linking pass, seeding the
@@ -286,7 +286,7 @@ const sources: SourceReference[] = [
 	{
 		// A Genius editorial reference image supplied by the maintainer on
 		// 2026-08-17: performer formatting sits inside a parenthetical's own
-		// parentheses, so the parentheses stay plain — which G-SECTIONS' worked
+		// parentheses, so the parentheses stay plain, which G-SECTIONS' worked
 		// examples second (`(<i>If Young Metro don't trust you…</i>)`). An
 		// image rather than an annotation, so an object literal, with the
 		// author's standing carried by the tier.
@@ -308,7 +308,7 @@ const sources: SourceReference[] = [
 		// Re-read in full on 2026-08-12: the staff answer also restates the
 		// too-many-vocalists recourse (omit the names, annotate over the
 		// header), so it seconds the guidance catalog's crowded-headers entry.
-		// Staff tier reconfirmed — Gary's reply, in a community discussion.
+		// Staff tier reconfirmed: Gary's reply, in a community discussion.
 		id: 'G-HEADER-COLLECTIVE',
 		url: 'https://genius.com/discussions/459032-Two-correct-methods-for-identifying-artists-in-section-headers',
 		pageTitle: 'Two "Correct" Methods for Identifying Artists in Section Headers',
@@ -347,8 +347,8 @@ const sources: SourceReference[] = [
 	},
 	{
 		// Re-read on 2026-08-12 for the guidance catalog sourcing pass: the page
-		// is still only the inventory — one annotation per language, each already
-		// registered as its own `G-LANG-*` source feeding a language pack — so it
+		// is still only the inventory (one annotation per language, each already
+		// registered as its own `G-LANG-*` source feeding a language pack), so it
 		// seeds no entries of its own. Its guidance value is being the place to
 		// check a language the packs do not cover, which the hook-by-language
 		// entry cites it for. Community tier stands: the track is unbadged, and
@@ -364,7 +364,7 @@ const sources: SourceReference[] = [
 	},
 	{
 		// Promoted editorial → staff on 2026-08-12: the guidance sourcing pass
-		// re-read the annotation — it is the page's own about section — and the
+		// re-read the annotation, which is the page's own about section, and the
 		// maintainer re-checked its roster and ranked it staff. Seeds the
 		// foreign-language-headers entry alongside G-LANG-HEADERS.
 		...annotation(
@@ -434,7 +434,7 @@ const sources: SourceReference[] = [
 	),
 	{
 		// Re-read in full on 2026-08-12, seeding the guidance catalog's numbers
-		// topic — the spelled-out default, the digit exemptions, and the times
+		// topic: the spelled-out default, the digit exemptions, and the times
 		// format; staff tier reconfirmed.
 		...annotation(
 			'G-NUMBERS',
@@ -459,10 +459,10 @@ const sources: SourceReference[] = [
 		// Re-verified 2026-08-10 against a full screenshot of the annotation while
 		// seeding the guidance catalog's punctuation entries; the same screenshot
 		// shows no "This annotation is unreviewed" banner, which is the
-		// editor-reviewed state — every annotation's box reads "Genius
+		// editor-reviewed state, since every annotation's box reads "Genius
 		// Annotation" regardless. Its contributor roster is unexpanded in the
-		// screenshot, so whether staff are among its 5 contributors — which is
-		// what would lift it to staff — is still unrecorded.
+		// screenshot, so whether staff are among its 5 contributors, which is
+		// what would lift it to staff, is still unrecorded.
 		...annotation(
 			'G-QE-MARKS',
 			15593987,
@@ -498,8 +498,8 @@ const sources: SourceReference[] = [
 		lastVerifiedAt: '2026-08-12'
 	},
 	{
-		// Re-read in full on 2026-08-12: the whole claim — [?] for a missing
-		// lyric, brackets never parentheses — is checked outright by
+		// Re-read in full on 2026-08-12: the whole claim ([?] for a missing
+		// lyric, brackets never parentheses) is checked outright by
 		// `unknown.marker` and `unknown.improvised-marker`. Full text supplied
 		// and re-read on 2026-08-17 for the rule↔guideline linking pass, which
 		// reversed the seeds-no-entry call: the catalog states conventions the
@@ -583,7 +583,7 @@ const sources: SourceReference[] = [
 	},
 	{
 		// Re-read in full on 2026-08-12, seeding the guidance catalog's
-		// censored-word entries — the explicit-version preference included;
+		// censored-word entries, the explicit-version preference included;
 		// staff tier reconfirmed.
 		...annotation(
 			'G-CENSORED',

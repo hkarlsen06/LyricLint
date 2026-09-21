@@ -11,9 +11,9 @@ import type { SpotifyPlaybackState, SpotifyPlayerLike, SpotifySdk } from './medi
 /**
  * Stores with a catalogue song attached, and nothing reaching a catalogue.
  *
- * Shared because the song's name and its attribution are drawn by two surfaces —
+ * Shared because the song's name and its attribution are drawn by two surfaces:
  * the transport strip where there is no cover band, the band's own bar where
- * there is — so both of their test files need the same attached song. A copy per
+ * there is. So both of their test files need the same attached song. A copy per
  * file is how the two would drift into testing different songs.
  */
 
@@ -23,7 +23,7 @@ import type { SpotifyPlaybackState, SpotifyPlayerLike, SpotifySdk } from './medi
  * Deliberately not a working double. A player that answered `connect()` honestly
  * would make every one of these stores wait out the twenty-second device
  * registration, and one that answered it with `false` would report a failure
- * that never happened — so this throws instead, which is what the source already
+ * that never happened, so this throws instead, which is what the source already
  * treats as no player being here: `connect()` rejects, `load` tears down, and
  * nothing is reported. Attaching is silent by design, so the name and the mark
  * are in place before a device would have been either way.

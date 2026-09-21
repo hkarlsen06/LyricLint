@@ -82,7 +82,7 @@
 	/**
 	 * Escape belongs to the card, not to the field inside it.
 	 *
-	 * Bound to the `<input>` alone it was dead the moment Tab reached Cancel —
+	 * Bound to the `<input>` alone it was dead the moment Tab reached Cancel,
 	 * the one place in the card where somebody is most likely to reach for it.
 	 * The list keys stay with the field, because they are about the field's own
 	 * `aria-activedescendant`, and so does Enter, or Enter on Cancel would choose

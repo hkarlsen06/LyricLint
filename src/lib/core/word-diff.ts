@@ -3,8 +3,8 @@ import type { TextEdit } from './types.js';
 
 /*
  * The chorus-link aligner's word-and-newline LCS, exposed as replacement
- * edits. Rendering diffs live in `char-diff.ts` — one flat character
- * comparison is what the Compare dialog and the assistant's cards draw — but
+ * edits. Rendering diffs live in `char-diff.ts` (one flat character
+ * comparison is what the Compare dialog and the assistant's cards draw), but
  * the assistant's applied edits stay word-run shaped: the aligner already
  * owns "which words changed", and an edit does not need to be minimal to be
  * correct, only value-equal after applying.

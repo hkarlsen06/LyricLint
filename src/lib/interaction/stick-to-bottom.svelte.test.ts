@@ -97,7 +97,7 @@ describe('stickToBottom', () => {
 	 * The race this exists for: the wheel updates `scrollTop` at once but its
 	 * `scroll` event is dispatched at the top of the next frame, so a chunk
 	 * landing in between used to be followed while the module still believed it
-	 * was pinned — eating the reader's scroll with nothing to show for it.
+	 * was pinned, eating the reader's scroll with nothing to show for it.
 	 */
 	it('gives up the pin on the wheel itself, before the scroll event arrives', async () => {
 		const { node, follow } = await pinnedPort();
@@ -129,7 +129,7 @@ describe('stickToBottom', () => {
 
 	/**
 	 * Growth never moves `scrollTop`, so it can only ever look like the reader
-	 * standing still — which is what lets a pinned transcript be unpinned by an
+	 * standing still, which is what lets a pinned transcript be unpinned by an
 	 * upward move alone. Read as a distance instead, the first chunk taller than
 	 * the threshold would unpin the follow in the middle of its own answer.
 	 */

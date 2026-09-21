@@ -10,7 +10,7 @@ const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
 export default defineConfig(
 	includeIgnoreFile(gitignorePath),
-	// Vendored oxlint plugin (anti-slop) — linted by its own upstream, not part of this app.
+	// Vendored oxlint plugin (anti-slop), linted by its own upstream, not part of this app.
 	{ ignores: ['tools/oxlint/anti-slop/'] },
 	js.configs.recommended,
 	ts.configs.recommended,

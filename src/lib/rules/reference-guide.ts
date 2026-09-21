@@ -5,7 +5,7 @@
  * rule page says: a hand-written copy of an explanation drifts from the rule
  * inside a release. It is wrong for the one question the index could not
  * answer. A reader arriving from the landing page wants to know what the
- * conventions *are*, and what the index gave them was 60 checks — the shape a
+ * conventions *are*, and what the index gave them was 60 checks, the shape a
  * linter decomposes into, which is one rule per thing that can be detected,
  * ignored, fixed and cited independently. Eleven separate header rules is
  * correct for an engine and useless to somebody who has one question: how do I
@@ -20,16 +20,16 @@
  * wrong.
  *
  * **Where LyricLint goes beyond what the reviewed sources state, it says so.**
- * Three families carry a check the Genius guidance does not actually mandate —
+ * Three families carry a check the Genius guidance does not actually mandate:
  * the blank line above a header, one space between words, and the period at the
- * end of a line — and each of those sentences hedges here for the same reason
+ * end of a line. Each of those sentences hedges here for the same reason
  * the rule's own explanation hedges on its page. A guide that presented our
  * preferences as somebody else's policy would be worth less than no guide.
  *
  * A module of its own, with no imports, for the reason `+layout.server.ts`
  * gives at length: `reference.ts` pulls the parser, all 60 rules and the
  * ~330KB language-detection corpus, so the index page cannot import it. This is
- * a `Record` of strings — the page imports it directly and it costs the other
+ * a `Record` of strings: the page imports it directly and it costs the other
  * 59 other prerendered payloads nothing, because it never rides on a group.
  *
  * Exhaustive, and `reference.test.ts` fails for a family with no entry, exactly
@@ -40,7 +40,7 @@
  * The guide, keyed by rule-family prefix. A named contract rather than a
  * `Record` because the key is a prefix computed off a rule ID at runtime, so
  * the readers of this table index it with an ordinary string and answer a miss
- * themselves — `reference.test.ts` by failing, the index page by drawing
+ * themselves: `reference.test.ts` by failing, the index page by drawing
  * nothing.
  */
 export interface GroupGuidance {
@@ -49,18 +49,18 @@ export interface GroupGuidance {
 
 export const groupGuidance: GroupGuidance = {
 	section:
-		'Every distinct song part carries a header of its own line, in square brackets — ' +
-		'`[Verse 1]`, `[Chorus]`, `[Bridge]` — naming a part from the reviewed catalog for the ' +
+		'Every distinct song part carries a header of its own line, in square brackets ' +
+		'(`[Verse 1]`, `[Chorus]`, `[Bridge]`), naming a part from the reviewed catalog for the ' +
 		'language you are transcribing in. Distinct verses are numbered in order, a part repeated ' +
 		'word for word stays under one header rather than being written twice, and blank lines ' +
 		'separate parts rather than splitting one part into stanzas. LyricLint also suggests one ' +
-		'blank line above each header — no fewer and no more — which makes a long transcription ' +
+		'blank line above each header, no fewer and no more, which makes a long transcription ' +
 		'easier to scan but is not something the Genius guidance requires.',
 	spelling:
 		'Lyrics are written in standardized spelling rather than in the spelling of a text ' +
 		'message. Where a word has a reviewed preferred lyric form Genius uses it, and each ' +
 		'transcription language has its own reviewed source naming the misspellings that language ' +
-		'sees most. A deliberate pronunciation — a word sung differently from how it is written — ' +
+		'sees most. A deliberate pronunciation, a word sung differently from how it is written, ' +
 		'is a separate matter and is transcribed as it is sung.',
 	syntax:
 		'Two marks carry structure and nothing else does: square brackets around a section header, ' +
@@ -68,8 +68,8 @@ export const groupGuidance: GroupGuidance = {
 		'a stray bracket or a half-open wrapper is text the parser cannot read as either, so the ' +
 		'section it was meant to open never exists.',
 	performer:
-		'Where more than one voice sings a section, the header carries a legend naming them — ' +
-		'`[Chorus: Avery & Blair]` — and each voice takes one of four style slots: plain, italic, ' +
+		'Where more than one voice sings a section, the header carries a legend naming them, as in ' +
+		'`[Chorus: Avery & Blair]`, and each voice takes one of four style slots: plain, italic, ' +
 		'bold, and bold-italic. The legend and the lyrics have to agree in both directions: every ' +
 		'style used in the lines is named in the legend, and every slot in the legend is used by ' +
 		'the lines. Performer names never appear on individual lyric lines.',
@@ -80,19 +80,19 @@ export const groupGuidance: GroupGuidance = {
 		'to a linter.',
 	punctuation:
 		'Lyrics carry the punctuation that changes how a line is read rather than the punctuation ' +
-		'that ends a sentence — a question mark on a question, an exclamation mark for delivery. ' +
+		'that ends a sentence: a question mark on a question, an exclamation mark for delivery. ' +
 		'A period closing a line is one LyricLint suggests removing without the Genius guide ' +
-		'stating a ban, so it is always offered for review rather than applied — and spacing a ' +
+		'stating a ban, so it is always offered for review rather than applied. Spacing a ' +
 		'parenthesis apart from the letter it touches is likewise LyricLint’s own reading of how ' +
 		'the reviewed ad-lib examples are set.',
 	unknown:
-		'A lyric nobody can make out is marked `[?]` — that exact form, brackets included, rather ' +
+		'A lyric nobody can make out is marked `[?]`, that exact form, brackets included, rather ' +
 		'than `(?)` or a run of question marks. It is a last resort and not a shortcut: ' +
 		'transcribe everything audible first, and resolve the markers you can before submitting.',
 	contraction:
 		'A contraction keeps its apostrophe. `Dont` and `wont` are how a contraction looks when it ' +
 		'is typed quickly, and the apostrophe is what makes the word read as the one that was ' +
-		'sung. Forms that are also ordinary words — `ill`, `well`, `were` — are left alone, ' +
+		'sung. Forms that are also ordinary words (`ill`, `well`, `were`) are left alone, ' +
 		'because only the singer knows which was meant.',
 	quotes:
 		'Quotation marks and apostrophes are the straight typewriter kind. The curly ones arrive ' +
@@ -102,8 +102,8 @@ export const groupGuidance: GroupGuidance = {
 		'possible apostrophe typo and offers a replacement for review.',
 	adlib:
 		'A vocal sitting behind the lead goes in parentheses, and what is inside them is ' +
-		'capitalized like any other line. Consecutive ad-libs are separated — a comma where they ' +
-		'are distinct calls, a hyphen where they run together as one — and which of the two fits ' +
+		'capitalized like any other line. Consecutive ad-libs are separated: a comma where they ' +
+		'are distinct calls, a hyphen where they run together as one. Which of the two fits ' +
 		'is a judgment about the phrasing rather than something a linter can hear.',
 	text:
 		'Nothing invisible belongs in a transcription. Trailing spaces and zero-width characters ' +
@@ -119,19 +119,19 @@ export const groupGuidance: GroupGuidance = {
 		'the transcriber rather than a lyric, and a reader who came for the words finds a ' +
 		'placeholder instead of them.',
 	symbols:
-		'A symbol standing in for a word is spelled out — `&` is written `and` — because it is ' +
+		'A symbol standing in for a word is spelled out (`&` is written `and`) because it is ' +
 		'sung as a word. A symbol inside a brand or an artist’s name is part of the name and stays ' +
 		'exactly as it is.',
 	numbers:
 		'Small numbers are spelled out, because they are sung as words. Numbers that read as data ' +
-		'rather than as words — times, money, percentages, years, anything joined by a separator — ' +
+		'rather than as words (times, money, percentages, years, anything joined by a separator) ' +
 		'stay in digits.',
 	censored:
 		'A censored word is masked with exactly four asterisks, and the mask replaces the whole ' +
 		'word rather than some of its letters. A partly masked word leaves enough spelling to read ' +
 		'and is neither one thing nor the other.',
 	'sound-effect':
-		'A sound effect is wrapped in asterisks — `*gunshot*` — which is what tells a reader it is ' +
+		'A sound effect is wrapped in asterisks, as in `*gunshot*`, which is what tells a reader it is ' +
 		'a noise on the recording rather than a word somebody sang.',
 	line:
 		'A lyric line is a line as sung. There is no character limit, but a line carrying several ' +

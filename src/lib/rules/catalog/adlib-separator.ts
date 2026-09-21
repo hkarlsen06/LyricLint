@@ -6,7 +6,7 @@ import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
  * That rule reads a single word out of running lyric, where a false positive
  * rewrites an ordinary line; here two of these have to sit side by side with
  * nothing between them, which is a shape running lyric does not take. Every
- * entry is one word, so a run splits on whitespace — `let's go` is left to the
+ * entry is one word, so a run splits on whitespace, and `let's go` is left to the
  * other rule rather than paying for a tokenizer here.
  *
  * Longest first within each group, so `ohh` is not read as `oh` with a letter
@@ -15,7 +15,7 @@ import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 const strong = 'yeah|yah|yuh|ayy|ooh|ohh|oh|wooh|woo|woah|whoa|hoo|hey|huh|mmm|mm|brr|skrrt';
 
 /**
- * Ad-libs that are also ordinary words in a language this product accepts —
+ * Ad-libs that are also ordinary words in a language this product accepts:
  * `la` is a Spanish and French article, `ha` is Spanish "has" and Norwegian
  * "have", `da` is German and Norwegian, `ye` is archaic English. A run of these
  * alone is a phrase until there are three of them: `La ha visto en el espejo`

@@ -2,7 +2,7 @@ import type { Diagnostic, DiagnosticFix } from './types.js';
 
 /**
  * The fix a selected diagnostic shows in the editor. Every fix that carries an
- * edit is previewable — safe and preview fixes alike — so the diff in the
+ * edit is previewable (safe and preview fixes alike), so the diff in the
  * document is what explains the change and `Apply` is the only decision left.
  */
 export function previewableFix(diagnostic: Diagnostic): DiagnosticFix | undefined {

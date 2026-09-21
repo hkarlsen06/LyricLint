@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/media-apple.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/media-apple.md. Read it before changing this file, and update it with any behavior change.
 import type { MediaSource, MediaSourceEvents, SongDetails } from './media-player.svelte.js';
 import { remoteLoadTimeoutMs, remoteSearchLimit } from './media-remote-policy.js';
 
@@ -7,14 +7,14 @@ import { remoteLoadTimeoutMs, remoteSearchLimit } from './media-remote-policy.js
  *
  * It clears both of the things that make Spotify a local-only experiment. There
  * is no allowlist and no quota review: an Apple Developer Program membership
- * signs the token, and any Apple Music subscriber can then use it — so this is
+ * signs the token, and any Apple Music subscriber can then use it, so this is
  * the one remote source the deployed build can actually offer. And it has a
  * **playback rate**, which Spotify has at no layer, which makes it the better
  * source than YouTube for the job this application exists for.
  *
  * What it costs instead is a signature. The developer token is a JWT signed with
  * a Media Services private key and it expires within six months, which is a real
- * constraint on a folder of static files with no server behind it — see
+ * constraint on a folder of static files with no server behind it. See
  * `appleMusicConfigured`.
  */
 
@@ -26,7 +26,7 @@ const settleToleranceSeconds = 1;
  * How many time events a held seek target survives.
  *
  * The other two bridges count polls at 250ms; this one counts MusicKit's own
- * `playbackTimeDidChange`, which is why the number is smaller — it is a backstop
+ * `playbackTimeDidChange`, which is why the number is smaller: it is a backstop
  * for a `seekToTime` that never lands, not the ordinary path.
  */
 export const settleMaxEvents = 4;
@@ -48,7 +48,7 @@ export interface AppleMusicTimeEvent {
  * Hand-written for the same reason `AppleMusicInstance` is, and it is what keeps
  * a listener from having to be cast on its way in. `mediaPlaybackError` is
  * `unknown` because this module reports the failure and reads no field of the
- * payload — naming fields nobody has verified would be a claim about Apple's
+ * payload. Naming fields nobody has verified would be a claim about Apple's
  * shape rather than a record of what is actually read.
  */
 export interface AppleMusicEventMap {
@@ -61,7 +61,7 @@ export interface AppleMusicEventMap {
  * Whether MusicKit filled a field of an event with a number.
  *
  * The interfaces above are hand-written rather than imported, so what is in a
- * payload is a claim this module makes and only a runtime check establishes —
+ * payload is a claim this module makes and only a runtime check establishes,
  * and a field that arrived as something else must be skipped rather than passed
  * on as a duration or a playhead.
  */
@@ -81,7 +81,7 @@ export interface AppleMusicQueueRequest {
  *
  * Written out rather than imported because Apple ships no types for the web SDK,
  * and a hand-written interface is also the one place the surface this depends on
- * is documented — a stub in a test implements this and nothing else.
+ * is documented: a stub in a test implements this and nothing else.
  *
  * The four commands are `Promise<void>` because that is the whole of the
  * contract this module holds MusicKit to: it awaits them and reads nothing back.
@@ -133,7 +133,7 @@ interface MusicKitWindow {
 let injected: Promise<MusicKitGlobal> | undefined;
 
 /**
- * Fetch MusicKit — once, and never before something asks.
+ * Fetch MusicKit once, and never before something asks.
  *
  * The whole of this source's page-load network surface, and nothing calls it at
  * module scope. MusicKit announces itself with a `musickitloaded` event on the
@@ -145,7 +145,7 @@ export function loadMusicKit(): Promise<MusicKitGlobal> {
 
 	const attempt = new Promise<MusicKitGlobal>((resolve, reject) => {
 		// SAFETY: MusicKit installs itself as a property of the global object, which
-		// is all this claims — the property is optional, so the branch below is what
+		// is all this claims. The property is optional, so the branch below is what
 		// establishes it is there.
 		const scope = globalThis as MusicKitWindow;
 		if (scope.MusicKit) {
@@ -184,7 +184,7 @@ export function loadMusicKit(): Promise<MusicKitGlobal> {
 	// A failed load forgets itself, so a second attempt is a second attempt rather
 	// than the first one's rejection handed back forever. It is a wrapper around
 	// `attempt` rather than the promise itself, so that a rejection raised while
-	// this function is still running — a document that cannot be written to — is
+	// this function is still running (a document that cannot be written to) is
 	// forgotten too, by which time the assignment below has happened.
 	injected = (async () => {
 		try {
@@ -200,14 +200,14 @@ export function loadMusicKit(): Promise<MusicKitGlobal> {
 /**
  * The signed token this build carries, and **off unless a build sets one**.
  *
- * Unlike Spotify's client id, this is meant to be set in production — that is
+ * Unlike Spotify's client id, this is meant to be set in production, and that is
  * the whole reason Apple Music is worth having. It is not a secret either: a
  * developer token is handed to every browser that loads the page, which is what
  * makes it safe to inline. The `.p8` private key that signs it never leaves the
  * machine that mints it.
  *
  * Vite resolves this at **build** time, so it has to be set where the build
- * runs — a Cloudflare Pages *build* variable, not a runtime one and not a
+ * runs: a Cloudflare Pages *build* variable, not a runtime one and not a
  * `wrangler secret`, neither of which reaches the bundle.
  */
 function appleMusicDeveloperToken(): string | undefined {
@@ -219,7 +219,7 @@ function appleMusicDeveloperToken(): string | undefined {
  * When the token in this build stops working, in epoch milliseconds.
  *
  * Undefined for anything that is not a JWT with an `exp`, which is treated as
- * unusable rather than as unlimited — a token this module cannot read is one it
+ * unusable rather than as unlimited. A token this module cannot read is one it
  * cannot vouch for. No signature check: the payload is public, the browser is
  * not the party being protected here, and Apple is the one that verifies it.
  */
@@ -251,7 +251,7 @@ function hasNumericExpiry(claims: unknown): claims is { exp: number } {
  * The expiry is checked rather than trusted, and that is the whole reason this
  * function is not just a presence test. A developer token lasts at most six
  * months, so the failure this application will actually meet is not a missing
- * token but a stale one — and a stale one fails as a 401 at the moment the user
+ * token but a stale one, and a stale one fails as a 401 at the moment the user
  * presses something, several steps after the point where anything could have
  * said so. Checking `exp` here turns that into the picker simply not drawing an
  * answer it cannot carry out, which is the same rule `availableRates` and
@@ -269,13 +269,13 @@ export function appleMusicConfigured(now = Date.now()): boolean {
 /**
  * Load MusicKit and hand back the configured instance for a given loader.
  *
- * Memoized because MusicKit is a singleton on the page — configuring it twice
+ * Memoized because MusicKit is a singleton on the page: configuring it twice
  * returns the same object anyway, and holding the promise means a search and the
  * attach that follows it share one script load rather than racing two.
  *
  * **Keyed on the loader, not held in one module-level slot**, and that is a
  * correction rather than caution. A single slot is right for the page, where
- * `loadMusicKit` is the only loader there will ever be — and wrong everywhere
+ * `loadMusicKit` is the only loader there will ever be, and wrong everywhere
  * two players exist in one process, because the second silently inherits the
  * first one's instance. That is a test double answering for a stub it was never
  * given, which is exactly the kind of agreement between a suite and a bug this
@@ -346,7 +346,7 @@ function appleSignInMessage(outcome: AppleAuthorizationOutcome): string | undefi
  *
  * A sign-in is a person typing an Apple ID, a password and a code from another
  * device, so any duration short enough to feel like a timeout is short enough to
- * cut off somebody halfway through their two-factor prompt — and cancelling a
+ * cut off somebody halfway through their two-factor prompt, and cancelling a
  * sign-in the user is *in the middle of* is a worse bug than the hang this
  * replaces. The blocked-window detection below is what actually answers quickly;
  * this only exists so that a MusicKit which stops using `window.open` cannot
@@ -360,7 +360,7 @@ type WindowOpen = (typeof globalThis)['open'];
  * Whether this scope has a `window.open` to watch at all.
  *
  * The DOM's own typing says it always does, and outside a browser there is no
- * such function — which is a fact only a runtime check establishes, and the one
+ * such function, which is a fact only a runtime check establishes, and the one
  * that keeps this wrapper safe to call anywhere.
  */
 function isWindowOpen(value: unknown): value is WindowOpen {
@@ -379,17 +379,17 @@ function isWindowOpen(value: unknown): value is WindowOpen {
  * ```
  *
  * The interval is the only thing that ever settles the promise, and it is guarded
- * on the window existing — so a blocked pop-up is not a rejection, it is silence
+ * on the window existing, so a blocked pop-up is not a rejection, it is silence
  * for the rest of the page's life. Everything downstream inherits that silence:
  * `load` never returns, `reconnect`'s `finally` never runs, `busy` stays true,
- * and the picker's search button — disabled on `busy` — reads as a dead dialog in
+ * and the picker's search button, disabled on `busy`, reads as a dead dialog in
  * a completely different part of the workbench. One unsettled promise presenting
  * as three unrelated faults is the whole reason this wrapper exists.
  *
  * So the block is **observed rather than waited out**: `window.open` is patched
  * for the length of the call, and a `null` return resolves the race at once. That
  * is the exact condition MusicKit cannot recover from, which is what makes it a
- * better signal than any duration — the user is told about their pop-up blocker
+ * better signal than any duration: the user is told about their pop-up blocker
  * while the sign-in they asked for is still the thing on their mind.
  *
  * The patch is restored in a `finally`, including on the success path, and a
@@ -458,7 +458,7 @@ export function isAppleMusicSongId(id: string): boolean {
 }
 
 const notALink = 'That is not an Apple Music link.';
-const noSong = 'That link is not a song — albums and playlists cannot be transcribed against.';
+const noSong = 'That link is not a song. Albums and playlists cannot be transcribed against.';
 
 /**
  * Turn whatever the user pasted into a song id.
@@ -535,7 +535,7 @@ interface CatalogSong {
  * How wide a cover the panel asks Apple for.
  *
  * Their artwork `url` is a template with `{w}` and `{h}` in it rather than a
- * finished address, so a size has to be chosen here — the CDN renders whatever
+ * finished address, so a size has to be chosen here, and the CDN renders whatever
  * is asked for. The panel is 21rem at its narrowest, so this is roughly twice
  * that: enough for a retina screen without fetching a 3000px master to draw a
  * few hundred pixels wide.
@@ -553,7 +553,7 @@ function artworkUrl(attributes: CatalogSong['attributes']): string | undefined {
  *
  * Every field is dropped rather than emptied when the catalogue does not carry
  * it, so a list of these is a list of things that are actually known. The label
- * comes from the album relationship because a song carries none of its own —
+ * comes from the album relationship because a song carries none of its own,
  * which is why the read asks for `include=albums` rather than making a second
  * request for one string.
  *
@@ -598,7 +598,7 @@ async function catalog(
  * Find a song by name, so nobody has to go and fetch a link.
  *
  * The catalogue is public data and the developer token is all it needs, so this
- * runs *before* any sign-in — which is one better than Spotify, where searching
+ * runs *before* any sign-in, which is one better than Spotify, where searching
  * is what triggers the OAuth redirect. What it does need is a storefront, and
  * that is why it takes the configured instance rather than a bare token: a
  * search against the wrong storefront returns songs the user's subscription
@@ -648,7 +648,7 @@ export async function searchAppleMusicSongs(
 	}
 
 	// Annotated rather than asserted: `Response.json()` answers `any`, so the shape
-	// is a claim either way — and every field of it is optional and read through an
+	// is a claim either way, and every field of it is optional and read through an
 	// optional chain, with the one field that is spent re-checked below.
 	const payload: { results?: { songs?: { data?: CatalogSong[] } } } | undefined = await response
 		.json()
@@ -706,8 +706,8 @@ export interface AppleMusicSource extends MediaSource {
  * What it does share with Spotify is that a seek before the first press has
  * nowhere to land: `seekToTime` needs a `nowPlayingItem`, which does not exist
  * until playback has started. So a restored position is spent as `startTime` on
- * the queue rather than as a seek, and `started` is what tells the two apart —
- * and a seek made in that window is remembered and spent on the first play, by
+ * the queue rather than as a seek, and `started` is what tells the two apart.
+ * A seek made in that window is remembered and spent on the first play, by
  * rebuilding the queue around it, which is the same debt Spotify settles as
  * `position_ms`.
  */
@@ -721,7 +721,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	let started = false;
 	let known = 0;
 	// Where the queue was built to start. A seek before the first press has no
-	// `nowPlayingItem` to land in, so `known` is all it can move — and the first
+	// `nowPlayingItem` to land in, so `known` is all it can move, and the first
 	// play compares the two to know whether the queue still points at the right
 	// moment or has to be rebuilt around the seek.
 	let queuedAt = 0;
@@ -731,7 +731,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	// The position the player has been told to go to, held until it agrees.
 	// MusicKit answers a `seekToTime` with one or more `playbackTimeDidChange`
 	// events still carrying the position the user just left, so without this the
-	// readout goes target, back to where it was, and only then to the new time —
+	// readout goes target, back to where it was, and only then to the new time,
 	// which is the async gap the YouTube and Spotify bridges already hide.
 	let target: number | undefined;
 	// Where that seek started from. The stale burst above all carries this
@@ -739,7 +739,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	// at the origin is the burst and is held through, while one that has moved
 	// somewhere that is neither the origin nor the target is a seek the player
 	// redirected or ignored, and only those count toward giving the hold up.
-	// Counting the burst instead — which is what an event tally alone did — spent
+	// Counting the burst instead, which is what an event tally alone did, spent
 	// the whole budget before the seek landed and dropped the readout back to the
 	// origin for a tick, the "flash to the previous line" a skip was reported to
 	// show.
@@ -751,19 +751,19 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	 *
 	 * `known` is written by `playbackTimeDidChange` and by nothing else, so a
 	 * source answering `time` from it hands the *same* stale number to the mirror
-	 * and to `liveTime()` — and `liveTime()` is what a sync tap stamps. Every
+	 * and to `liveTime()`, and `liveTime()` is what a sync tap stamps. Every
 	 * anchor was therefore written early by however long had passed since the last
 	 * event, by a different amount each tap, which is the one thing the
 	 * live-versus-mirror split exists to prevent: on playback the wash led the
 	 * vocal, and it led it by a different distance on every line.
 	 *
 	 * `currentPlaybackTime` is the live property, exactly as YouTube's
-	 * `getCurrentTime()` is, and it is read the same defensive way — the two
+	 * `getCurrentTime()` is, and it is read the same defensive way: the two
 	 * bridges front third-party players that are entitled to throw.
 	 *
 	 * Only once playback has started. Before the first press there is no
 	 * `nowPlayingItem` for the property to describe, and `known` is the restored
-	 * position the queue was built around — the same distinction `seek` makes one
+	 * position the queue was built around, the same distinction `seek` makes one
 	 * screen down, and reading live through it would report a reopened draft at
 	 * 0:00 until something pressed play.
 	 */
@@ -771,7 +771,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		if (!music || !started) return known;
 		try {
 			// `Number.isFinite` coerces nothing, so it is also the check that this is
-			// a number at all — MusicKit is untyped and entitled to answer anything.
+			// a number at all: MusicKit is untyped and entitled to answer anything.
 			const value = music.currentPlaybackTime;
 			return Number.isFinite(value) ? value : known;
 		} catch {
@@ -806,7 +806,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 				targetEvents = 0;
 			} else if (origin === undefined || Math.abs(known - origin) > settleToleranceSeconds) {
 				// The player has moved off the position it was seeked from but not
-				// onto the target — a seek it redirected or ignored, so count it
+				// onto the target: a seek it redirected or ignored, so count it
 				// toward giving the hold up rather than stranding the readout on a
 				// moment nothing is playing from. The events still carrying the origin
 				// are the stale burst and are deliberately not counted, or the burst
@@ -861,7 +861,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			{ token, request }
 		);
 		// Quiet for the reason the Spotify read is: a refused catalogue read costs a
-		// title and a cover, and the queue is already built — reporting it through
+		// title and a cover, and the queue is already built, so reporting it through
 		// `failed` would put an error on the strip about a song that plays. The
 		// label stays the provisional one the attach carried, and the cover band
 		// draws it rather than waiting on a picture that is not coming.
@@ -922,7 +922,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 
 			// A sign-in is only asked for where there is not one already. MusicKit
 			// keeps its own user token between sessions, so a returning subscriber
-			// usually passes straight through — the same trade the file source makes
+			// usually passes straight through, the same trade the file source makes
 			// with a permission already granted for this origin.
 			//
 			// **Per origin**, which is why this branch is so rarely exercised and was
@@ -931,7 +931,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			//
 			// It goes through `authorizeAppleMusic` rather than calling `authorize`
 			// directly because a blocked pop-up leaves MusicKit's own promise
-			// unsettled forever — see that function. Every outcome but `authorized`
+			// unsettled forever. See that function. Every outcome but `authorized`
 			// reports and returns, so this can no longer be the step the whole
 			// workbench waits behind.
 			if (!instance.isAuthorized) {
@@ -947,12 +947,12 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			// the queue is the thing the user is actually waiting on, and running them
 			// one after the other put a whole network round trip in front of the first
 			// press. They are independent, so the wait is the slower of the two rather
-			// than the sum — and `load` still resolves with both in, which is what
+			// than the sum, and `load` still resolves with both in, which is what
 			// lets the transport treat "attached" as "ready to play".
 			const naming = fetchSong(instance, nextSongId);
 
-			// `known`, not `startAt`: a seek made while this load was settling — a
-			// lyric line tapped during the reconnect press — has already moved it,
+			// `known`, not `startAt`: a seek made while this load was settling (a
+			// lyric line tapped during the reconnect press) has already moved it,
 			// and the queue may as well be built where the first play will start.
 			const startTime = known;
 			// Built a field at a time rather than spread conditionally: the top of a
@@ -982,7 +982,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			const instance = music;
 			const id = songId;
 			// A first start plays from wherever the queue points, and a seek made
-			// before it — a lyric line tapped while the song was still loading —
+			// before it (a lyric line tapped while the song was still loading)
 			// only moved `known`, because there was no `nowPlayingItem` to land in.
 			// Rebuilding the queue around it is MusicKit's one pre-start
 			// positioning, so that is how the remembered press is spent; dropped,
@@ -1009,13 +1009,13 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		},
 
 		seek(seconds) {
-			// Where the seek starts from, read before `known` is overwritten — the
+			// Where the seek starts from, read before `known` is overwritten. The
 			// stale events MusicKit is about to emit all carry this, and the hold
 			// uses it to tell them from the event that means the seek has landed.
 			const from = rawTime();
 			known = seconds;
 			// Before the first press there is no `nowPlayingItem` to seek within, so
-			// the position is only remembered — and the first play compares it with
+			// the position is only remembered, and the first play compares it with
 			// where the queue points, rebuilding the queue where the two disagree.
 			// Nothing is reporting a playhead yet either, so there is no gap to
 			// hold open.
@@ -1045,8 +1045,8 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 
 		destroy() {
 			source.clear();
-			// The listeners outlive one song on purpose — the instance is a page
-			// singleton — so they are only given up when the source itself is.
+			// The listeners outlive one song on purpose (the instance is a page
+			// singleton), so they are only given up when the source itself is.
 			music?.removeEventListener('playbackTimeDidChange', onTime);
 			music?.removeEventListener('playbackStateDidChange', onState);
 			music?.removeEventListener('mediaPlaybackError', onError);

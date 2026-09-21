@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/section-links.md — passage correspondence is stored intent.
+// Decision record: docs/subsystems/section-links.md. Passage correspondence is stored intent.
 import { scanAnnotations } from './annotations.js';
 import { extractLineStyleSpans } from './lines.js';
 import type { TextRange } from './types.js';

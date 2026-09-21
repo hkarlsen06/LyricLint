@@ -4,8 +4,8 @@
  * The chat database is shared by every tab on the profile, and a conversation
  * is the one record two tabs can be inside at the same time: the modal on a
  * `/rules/` page and the workbench panel are the same transcript, so two sends
- * interleave a chat's message rows, its `updatedAt`, and — because each request
- * carries the history as that tab last read it — the context the model answers
+ * interleave a chat's message rows, its `updatedAt`, and, because each request
+ * carries the history as that tab last read it, the context the model answers
  * from. The second tab is refused rather than queued, since a question waiting
  * behind somebody else's stream is a question answered against a transcript
  * that has moved under it.
@@ -40,7 +40,7 @@ const HELD_ELSEWHERE = Symbol('held-elsewhere');
  *
  * Handed to the state rather than reached for from inside it, and that is the
  * difference between "another tab" and "another state object in this process".
- * Chat ids are unique per database, so only a second tab can collide over one —
+ * Chat ids are unique per database, so only a second tab can collide over one,
  * but an in-process caller that mints its own conversations shares this origin
  * and would collide with itself. The one production wiring passes this; every
  * other construction writes unguarded, which is also what a browser with no Web
@@ -59,8 +59,8 @@ export function browserChatLocks(): LockManager | null {
  *
  * The request is `ifAvailable`, never blocking: the whole point is an answer
  * the caller can word, and a queued send would land in a transcript the user
- * has since watched change. The lock is given up when `work` settles — resolved
- * or rejected — because the callback's own promise is what holds it, so a
+ * has since watched change. The lock is given up when `work` settles (resolved
+ * or rejected), because the callback's own promise is what holds it, so a
  * stream that fails, times out, or throws cannot leak the conversation.
  */
 export async function withChatLock<T>(

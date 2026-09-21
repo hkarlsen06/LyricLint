@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/section-links.md — membership changes preserve existing intent.
+// Decision record: docs/subsystems/section-links.md. Membership changes preserve existing intent.
 import { coalescePassages, type PassageMember, type SharedPassage } from './link-passages.js';
 
 function slice(passage: SharedPassage, from: number, to: number): SharedPassage {

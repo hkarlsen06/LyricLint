@@ -48,9 +48,9 @@ interface PerformerSegmentStyle {
 	label: string;
 	/**
 	 * One solid and one tint per group, always a single palette entry. A joint
-	 * group takes an entry of its own rather than a blend of its members' —
-	 * a mixed hue cannot be decoded back into the members and reads as a third
-	 * performer — and never an entry a member already wears.
+	 * group takes an entry of its own rather than a blend of its members'
+	 * (a mixed hue cannot be decoded back into the members and reads as a third
+	 * performer), and never an entry a member already wears.
 	 */
 	indicator: string;
 	background: string;
@@ -111,7 +111,7 @@ function paletteIndex(colorId: string): number {
  * names are what performer colors are already derived from while ids are
  * minted per draft, and each name is hashed on its own with the hashes sorted,
  * so member order cannot move the entry and no separator is needed. The walk
- * then skips every entry a member wears — the joint voice must never be
+ * then skips every entry a member wears: the joint voice must never be
  * dressed as one of the people inside it.
  */
 function groupPaletteEntry(members: readonly PerformerRecord[]): (typeof performerPalette)[number] {

@@ -108,8 +108,8 @@ describe('text anchors', () => {
 		// The failure this exists for: three verses opening on the same line, and
 		// a batch of proposals that put a header above each. Applying the first
 		// moves every line below it, so the second proposal's line number
-		// narrows to nothing and its context — the identical neighbours of a
-		// repeat — cannot separate the copies.
+		// narrows to nothing and its context (the identical neighbours of a
+		// repeat) cannot separate the copies.
 		const song = [
 			'Sweep me under the rug',
 			'',

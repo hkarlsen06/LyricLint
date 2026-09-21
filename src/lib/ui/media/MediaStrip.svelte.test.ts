@@ -51,7 +51,7 @@ function store(
  * Fonts settled, before a box is measured.
  *
  * `vitest-setup-client.ts` loads `global.css`, which declares the Plex faces
- * `font-display: swap` — so a row drawn here is laid out in the fallback face
+ * `font-display: swap`, so a row drawn here is laid out in the fallback face
  * and laid out again when Plex decodes. The two assertions below take a
  * measurement and compare a later one against it, which a swap landing between
  * them turns into a comparison across two typefaces. It holds on a quiet
@@ -71,7 +71,7 @@ describe('MediaStrip', () => {
 	 * The way back in sits after the song name and stays quiet:
 	 * swapping tracks is a decision about the draft's song, so it opens the
 	 * shared dialog rather than acting here. It draws wherever the strip draws
-	 * — attached or remembered — and only where the shell hands the opener down,
+	 * (attached or remembered) and only where the shell hands the opener down,
 	 * so a strip without one names no way in at all.
 	 */
 	it('places the audio pencil after the pending name, or nothing without its opener', async () => {
@@ -96,7 +96,7 @@ describe('MediaStrip', () => {
 		expect(pencil.element().getAttribute('aria-haspopup')).toBe('dialog');
 
 		// Synthetic: userEvent's hover would show the shared tooltip box, which is
-		// module state that outlives the render — this press is about the
+		// module state that outlives the render. This press is about the
 		// wiring, not the hover.
 		pencil.element().dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		expect(opened).toEqual([pencil.element()]);
@@ -108,7 +108,7 @@ describe('MediaStrip', () => {
 
 	/*
 	 * The three transport controls name themselves through the same box the
-	 * editor's action tray uses — one `describeControl` and one `ControlTooltip`,
+	 * editor's action tray uses: one `describeControl` and one `ControlTooltip`,
 	 * rather than the native `title` each of them carried, which is slow, unstyled,
 	 * and worded differently on every platform.
 	 *
@@ -149,7 +149,7 @@ describe('MediaStrip', () => {
 		// disagreeing in front of the user.
 		expect(play.element().hasAttribute('title')).toBe(false);
 
-		// An attachment, not a wrapper — this row's height is budgeted to the pixel.
+		// An attachment, not a wrapper: this row's height is budgeted to the pixel.
 		expect(play.element().getBoundingClientRect().height).toBe(before);
 
 		play.element().dispatchEvent(new PointerEvent('pointerleave', { bubbles: false }));
@@ -254,8 +254,8 @@ describe('MediaStrip', () => {
 
 	// A reopened draft reports its position before the metadata that says how long
 	// the song is, so the value is handed to a range still spanning one second. The
-	// browser clamps it, and Svelte will not push it again — `currentTime` has not
-	// changed since the value it cached — so the thumb stays at the clamp beside a
+	// browser clamps it, and Svelte will not push it again, because `currentTime`
+	// has not changed since the value it cached, so the thumb stays at the clamp beside a
 	// readout printing the truth.
 	it('moves the thumb to a restored position once the duration arrives', async () => {
 		const { audio, media, player } = store();
@@ -276,7 +276,7 @@ describe('MediaStrip', () => {
 
 	/*
 	 * What the raw value pair says out loud is `112.35 of 241.4`, several times a
-	 * second while the track runs — the step is a hundredth of a second and the
+	 * second while the track runs: the step is a hundredth of a second and the
 	 * range is the song's length in seconds. The readouts either side of the
 	 * control already say the two facts in `m:ss`; this says the same.
 	 */
@@ -317,7 +317,7 @@ describe('MediaStrip', () => {
 				await expect.element(reconnect).toBeVisible();
 				expect(reconnect.element().textContent?.trim()).toBe('Reconnect audio');
 				// Forgetting a remembered source lives in the audio dialog beside every
-				// other answer to what the draft's song is — re-adding it here is the
+				// other answer to what the draft's song is; re-adding it here is the
 				// regression. The song holds the row's start while the Load control keeps
 				// the far end, so the action sits still whatever the name measures.
 				expect(page.getByRole('button', { name: 'Forget sensommer.mp3' }).elements()).toHaveLength(
@@ -346,7 +346,7 @@ describe('MediaStrip', () => {
 				// of the strip's own top edge.
 				expect(load.top - strip.top).toBeGreaterThanOrEqual(1);
 
-				// A bare Escape loads the pending source — the fallback under the
+				// A bare Escape loads the pending source, the fallback under the
 				// transport's toggle. The keystroke used to live in `aria-keyshortcuts`
 				// alone, which made it the one binding in the workbench nothing on screen
 				// could teach; the shared box is where every other named control says it.
@@ -435,8 +435,8 @@ describe('MediaStrip', () => {
 
 	/*
 	 * And it gives the scrubber back when the source recovers. The error was only
-	 * ever cleared by an attach or a detach, so one transient failure — a refused
-	 * token since refreshed, a device that came back — left this sentence standing
+	 * ever cleared by an attach or a detach, so one transient failure (a refused
+	 * token since refreshed, a device that came back) left this sentence standing
 	 * in the scrubber's place for the rest of the attachment, over a track the
 	 * user could hear playing.
 	 */
@@ -472,8 +472,8 @@ describe('MediaStrip', () => {
 		expect(document.querySelectorAll('.media-video')).toHaveLength(0);
 	});
 
-	// `loadVideoById` autoplays by design, so reusing an existing player — a draft
-	// switch, a reconnect, an HMR reload — started the song on its own.
+	// `loadVideoById` autoplays by design, so reusing an existing player (a draft
+	// switch, a reconnect, an HMR reload) started the song on its own.
 	it('does not start playing when an existing player is reused', async () => {
 		const { media, player, youtube } = store();
 		await media.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
@@ -542,7 +542,7 @@ describe('MediaStrip', () => {
 
 	// Timing the whole lyric is a transport activity, so its control is in the
 	// transport. While a run is under way the strip stops naming the file and
-	// offers the tap instead — the document has quietly stopped taking typing, and
+	// offers the tap instead. The document has quietly stopped taking typing, and
 	// `Stop syncing` explains that only to someone who already knows what syncing
 	// is. The tap is a real control on every pointer, not one that appears under a
 	// coarse one: a button that exists only on some devices is one nobody tests.
@@ -581,7 +581,7 @@ describe('MediaStrip', () => {
 		expect(taps).toBe(1);
 	});
 
-	// A standing selection renames the press before it is made — the run it
+	// A standing selection renames the press before it is made: the run it
 	// starts covers the selection and nothing else, and a label that only changed
 	// afterwards would be a control doing something it never offered. It outranks
 	// the finished state, because selected lines over a fully timed song are a
@@ -611,7 +611,7 @@ describe('MediaStrip', () => {
 	// The skip past already-timed lines is contextual twice over: it exists only
 	// while a run is under way, and only while the run has timed lines between it
 	// and the next untimed one. Offered the rest of the time it would be a press
-	// that does nothing — the failure `availableRates` exists to prevent — and
+	// that does nothing, the failure `availableRates` exists to prevent, and
 	// its own disappearance after the last gap is the one sign the run gives
 	// that nothing ahead still wants a time.
 	it('offers the skip only while a run has timed lines to skip past', async () => {
@@ -640,7 +640,7 @@ describe('MediaStrip', () => {
 
 		await page.getByRole('button', { name: 'Sync lyrics' }).click();
 
-		// A run with no gap ahead draws no skip — absent, not disabled.
+		// A run with no gap ahead draws no skip: absent, not disabled.
 		await expect.element(page.getByRole('button', { name: 'Tap each line' })).toBeVisible();
 		expect(page.getByRole('button', { name: 'Skip timed lines' }).elements()).toHaveLength(0);
 
@@ -694,7 +694,7 @@ describe('MediaStrip', () => {
 	});
 
 	/**
-	 * The loop is listen, pause, type — so a press on the transport must not take
+	 * The loop is listen, pause, type, so a press on the transport must not take
 	 * focus off the document. On a phone that is the whole difference between
 	 * pausing to fix a word and pausing, losing the keyboard, and tapping back into
 	 * the line to get it again.
@@ -725,7 +725,7 @@ describe('MediaStrip', () => {
 
 	/**
 	 * The scrubber and the rate control are the exception. Both need their own
-	 * press — one to drag, one to open — and both are aimed rather than tapped, so
+	 * press (one to drag, one to open) and both are aimed rather than tapped, so
 	 * a lost keyboard is the cheaper of the two costs.
 	 */
 	it('leaves the scrubber and the rate control their own press', async () => {
@@ -746,7 +746,7 @@ describe('MediaStrip', () => {
 
 	// The X sat at the end of the most-operated row in the window and was hit by
 	// accident more often than on purpose. Detaching lives in the audio dialog
-	// now, behind a deliberate press — for a remembered source no less than an
+	// now, behind a deliberate press, for a remembered source no less than an
 	// attached one; re-adding a control for it here is the regression.
 	it('offers no detach control while audio is attached', async () => {
 		const { media } = store();
@@ -831,7 +831,7 @@ describe('MediaStrip attribution', () => {
 	 * The bug this pins is a flash rather than a missing element: keyed on
 	 * `player.artwork`, the strip drew the name and the badge for as long as the
 	 * catalogue read took and then handed both to the band. So the assertion is
-	 * made on a song whose cover has *not* arrived — which is exactly the moment
+	 * made on a song whose cover has *not* arrived, which is exactly the moment
 	 * the old condition was true.
 	 */
 	it.each([

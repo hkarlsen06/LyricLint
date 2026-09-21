@@ -9,20 +9,20 @@ import { type CatalogLookup, diagnostic, matchesOutsideMarkup, replacementFix } 
  * growing into "every initialism": **does anybody sing the letters?** A vocal
  * that performs "I don't know" has been transcribed as `Idk` by somebody
  * writing the way they text, so the words are recoverable and the shorthand is
- * a spelling of them. `ASAP`, `OK`, `VIP`, `DJ` and `TV` are the other kind —
+ * a spelling of them. `ASAP`, `OK`, `VIP`, `DJ` and `TV` are the other kind:
  * the letters *are* the performance, they are what the reviewed spelling guide
  * already lists as preferred, and expanding one would put words in a singer's
  * mouth. `LOL`, `OMG` and `WTF` sit on that side too: they are said aloud often
  * enough that "laughing out loud" is a guess rather than a reading.
  *
- * Two neighbouring sets are deliberately absent for a different reason —
+ * Two neighbouring sets are deliberately absent for a different reason, since
  * another rule owns them, and two diagnostics over one span are two cards
  * arguing about it:
  *
  * - Pronunciation spellings (`gonna`, `wanna`, `outta`, `'til`, `tho`) are how
  *   the word is *sung*, which is exactly what `G-AS-SPOKEN` asks for. `tho` and
  *   `cuz` are already reviewed entries in `data/spelling.ts`, so
- *   `spelling.standardized` answers for both — and `cuz` has a cousin-meaning
+ *   `spelling.standardized` answers for both, and `cuz` has a cousin-meaning
  *   gate this rule has no way to reproduce.
  * - Contractions missing an apostrophe (`dont`, `im`, `youre`) belong to
  *   `contraction.apostrophe`.
@@ -84,7 +84,7 @@ const shorthandPattern = new RegExp(
  *
  * This is the same accommodation `dictionaryWords` makes on Harper's behalf in
  * `harper.ts`; the difference is that Harper is handed the names and this rule
- * has to ask. Exact match only — a name that merely contains the token is a
+ * has to ask. Exact match only: a name that merely contains the token is a
  * different word.
  */
 function rosterNames(performers: readonly PerformerRecord[]): Set<string> {
@@ -98,8 +98,8 @@ function rosterNames(performers: readonly PerformerRecord[]): Set<string> {
 /**
  * The case the expansion is written in, which is never the case of the token.
  *
- * Shorthand is conventionally capitalized as an initialism — `IDK` and `TBH`
- * are how these are written in a lowercase line — so the token's own case says
+ * Shorthand is conventionally capitalized as an initialism, and `IDK` and `TBH`
+ * are how these are written in a lowercase line, so the token's own case says
  * nothing about the line it sits in, and mirroring it would shout `I DON'T
  * KNOW` at a document over a lyric that was never shouted. A wording that
  * already opens on a capital keeps it; anything else takes a leading capital
@@ -139,7 +139,7 @@ export const spellingTextingShorthandRule: RuleDefinition = {
 							this,
 							match,
 							`Use ${wordings.map((wording) => `“${wording}”`).join(' or ')} instead of “${match.text}”.`,
-							'Texting shorthand is a way of writing rather than a way of singing: the letters stand in for words the vocal performs in full, and Genius wants the sung words in standardized spelling. Initialisms that are themselves said aloud — ASAP, OK, VIP — are left alone. Check the delivery before replacing this, since an artist who spells the letters out is transcribed as they sing them.',
+							'Texting shorthand is a way of writing rather than a way of singing: the letters stand in for words the vocal performs in full, and Genius wants the sung words in standardized spelling. Initialisms that are themselves said aloud (ASAP, OK, VIP) are left alone. Check the delivery before replacing this, since an artist who spells the letters out is transcribed as they sing them.',
 							wordings.map((wording) =>
 								replacementFix(context, 'preview', `Replace with ${wording}`, match, wording)
 							)

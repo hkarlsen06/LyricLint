@@ -123,7 +123,7 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		await render(LinterPanel, { controller });
 
 		const row = document.querySelector('.linter-panel__bulk')!;
-		// Command at one end, remainder at the other — which is also what keeps a
+		// Command at one end, remainder at the other, which is also what keeps a
 		// lone button from sitting in half a row of empty gutter.
 		expect(row.textContent?.replace(/\s+/gu, ' ').trim()).toBe(
 			'Fix 1 issue automatically 2 need a decision'
@@ -202,7 +202,7 @@ describe('the severity chips are on screen, and only for the kinds that are ther
 
 		// The row used to be revealed by pressing the Linter tab a second time from
 		// inside the linter, which is a gesture nothing advertises and nobody
-		// performs — so the filters read as a feature the workbench did not have.
+		// performs, so the filters read as a feature the workbench did not have.
 		expect(screen.getByRole('group', { name: 'Filter diagnostics by severity' })).toBeTruthy();
 	});
 

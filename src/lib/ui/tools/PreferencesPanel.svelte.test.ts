@@ -16,7 +16,7 @@ import type { WorkbenchController } from '../state/workbench.svelte.js';
  * A CSS colour's sRGB bytes, whatever space it was written in.
  *
  * `color-mix(in oklch, …)` serializes as `oklch(…)`, so the computed value
- * cannot be read as three numbers — a canvas resolves it the way the compositor
+ * cannot be read as three numbers; a canvas resolves it the way the compositor
  * does and hands back the pixels.
  */
 function srgb(color: string): [number, number, number] {
@@ -159,8 +159,8 @@ describe('PreferencesPanel skimmability', () => {
 });
 
 /*
- * The one toggle in the workbench. Default on — the feedback called the
- * corrections nice and only wanted a way out — persisted through the repository,
+ * The one toggle in the workbench. Default on (the feedback called the
+ * corrections nice and only wanted a way out), persisted through the repository,
  * so it survives a reload and is covered by the backup and by delete-all.
  */
 describe('PreferencesPanel grammar toggle', () => {
@@ -171,7 +171,7 @@ describe('PreferencesPanel grammar toggle', () => {
 		const setPreference = vi.spyOn(repository, 'setPreference');
 		await render(PreferencesPanel, { controller });
 
-		// A switch, not a checkbox — the state is carried by `aria-checked`.
+		// A switch, not a checkbox; the state is carried by `aria-checked`.
 		const toggle = screen.getByRole('switch', { name: 'Grammar checking' });
 		expect(toggle.getAttribute('aria-checked')).toBe('true');
 
@@ -185,8 +185,8 @@ describe('PreferencesPanel grammar toggle', () => {
 		expect(setPreference).toHaveBeenLastCalledWith('grammarCheck', 'true');
 	});
 
-	// Harper never runs for a non-English document — the request gate in
-	// harper.ts refuses before the download — so the section drawing under
+	// Harper never runs for a non-English document (the request gate in
+	// harper.ts refuses before the download), so the section drawing under
 	// Norwegian would offer a switch that changes nothing on screen.
 	test('draws only while the document language is English', async () => {
 		const { controller } = createTestWorkbench();
@@ -201,7 +201,7 @@ describe('PreferencesPanel grammar toggle', () => {
 			'Reviewed rules'
 		]);
 
-		// The toolbar picker can bring it straight back — the preference itself
+		// The toolbar picker can bring it straight back; the preference itself
 		// never left, only the control.
 		controller.setLanguage('en-GB');
 		await waitFor(() =>
@@ -260,7 +260,7 @@ describe('PreferencesPanel destructive confirm', () => {
 /*
  * The Local data section states whether "stays in this browser" is actually
  * durable, and only where the browser can answer. The module state is shared
- * with the boot page, so every test here resets it — one test's outcome must
+ * with the boot page, so every test here resets it; one test's outcome must
  * not become the next test's boot state.
  */
 describe('PreferencesPanel storage persistence', () => {
@@ -316,8 +316,8 @@ describe('PreferencesPanel storage persistence', () => {
 	 * Measured, because the failure looks like working CSS. `--color-warning` is a
 	 * severity mark's colour and reads here as a sentence on the panel's own
 	 * canvas: bare, that is 4.21:1 in light, which is under AA at this size. The
-	 * token is not retuned for it — every other surface spends it on a glyph or a
-	 * fill — so the text is pulled toward the body colour, and this is what says
+	 * token is not retuned for it (every other surface spends it on a glyph or a
+	 * fill), so the text is pulled toward the body colour, and this is what says
 	 * the pull is still there and still enough.
 	 */
 	test('states the refusal at a readable contrast against the panel', async () => {

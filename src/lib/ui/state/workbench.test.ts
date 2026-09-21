@@ -133,7 +133,7 @@ function setup(options: {
 			lineAnchors = anchors.map((anchor) => ({ ...anchor }));
 		},
 		// Through the real copier, not a hand-written one. A stub that listed the
-		// fields it kept would hide exactly the bug this file exists to catch —
+		// fields it kept would hide exactly the bug this file exists to catch,
 		// which is what happened: a *fourth* copier in `draft-store` rebuilt every
 		// link as `{ lines }` on every save and dropped the differences in silence.
 		getSectionLinks: () => copySectionLinks(sectionLinks),
@@ -260,8 +260,8 @@ describe('workbench draft safety', () => {
 	 * The bug this pins lost a whole synced song on every reload, and it lost it
 	 * to `?.`.
 	 *
-	 * The page builds the controller with a *headless* handle — no document, no
-	 * anchors — and only later does CodeMirror mount and publish a real one. The
+	 * The page builds the controller with a *headless* handle (no document, no
+	 * anchors), and only later does CodeMirror mount and publish a real one. The
 	 * headless handle is therefore the first thing `setEditorHandle` ever sees, and
 	 * `handle.setLineAnchors?.(pending)` dropped the draft's timings into a no-op
 	 * and cleared the pending list on the way past.
@@ -320,7 +320,7 @@ describe('workbench draft safety', () => {
 	// get the same pair of guards. A link changes no text at all, which makes the
 	// blank-editor window strictly more dangerous for it than for the anchors.
 	// The differences are half of what a link is now, and they are written down on
-	// the same record — so a copier that keeps the lines and drops them loses the
+	// the same record, so a copier that keeps the lines and drops them loses the
 	// work while leaving every sign that it was saved.
 	test('saves a link’s differences along with its lines', async () => {
 		const link: SectionLink = {
@@ -390,7 +390,7 @@ describe('workbench draft safety', () => {
 		expect(controlled.scheduled.at(-1)?.draft.lineAnchors).toEqual([{ line: 2, time: 61 }]);
 	});
 
-	// Every editor remount starts blank — a keyed rebuild, or HMR in dev — and a
+	// Every editor remount starts blank (a keyed rebuild, or HMR in dev), and a
 	// blank editor's `getLineAnchors()` is `[]`, which the next save writes straight
 	// over the draft. The anchors are re-seated onto any capable handle that has
 	// none, not just the first one.
@@ -459,7 +459,7 @@ describe('workbench draft safety', () => {
 
 	/*
 	 * Against the *real* autosave controller, because the thing under test is its
-	 * revision guard and a stub has none — driven by one, this test agreed with
+	 * revision guard and a stub has none. Driven by one, this test agreed with
 	 * the bug for as long as it existed.
 	 *
 	 * Reopening a draft mounts a fresh editor, whose revisions start again at
@@ -548,8 +548,8 @@ describe('workbench draft safety', () => {
 	 * A song attached to an untouched draft says what the transcription is *of*,
 	 * which is nearly always what it should be called.
 	 *
-	 * `Untitled transcription` is the whole of the condition. A title the user typed — or
-	 * one an earlier source already supplied — is a decision, and a later
+	 * `Untitled transcription` is the whole of the condition. A title the user typed, or
+	 * one an earlier source already supplied, is a decision, and a later
 	 * attachment must not overwrite it.
 	 */
 	test('lets a named source title a draft nobody has named', async () => {
@@ -585,7 +585,7 @@ describe('workbench draft safety', () => {
 	 *
 	 * `01 Track.mp3` is a fine one; a rip's bookkeeping is not, and there is no
 	 * way to tell them apart except by how much of it there is. The long ones are
-	 * left alone rather than guessed at — an `Untitled transcription` the user renames
+	 * left alone rather than guessed at: an `Untitled transcription` the user renames
 	 * beats a title they have to clear first. The extension always goes: that is a
 	 * fact about a file on a disk, not the name of a transcription.
 	 */
@@ -628,7 +628,7 @@ describe('workbench draft safety', () => {
 	});
 
 	// record. Without this the media row was written against a transient id, the
-	// draft was never persisted, and the next load invented a new id — so the
+	// draft was never persisted, and the next load invented a new id, so the
 	// attachment came back as nothing at all, not even the pending bar.
 	test('writes a wordless draft once audio is attached to it', async () => {
 		const first = draft('draft-a');
@@ -950,7 +950,7 @@ describe('workbench diagnostic navigation', () => {
 	});
 
 	// The panel's way into linking. The card carries the finding but not the
-	// group, so it selects the diagnostic's range — the header — and asks the
+	// group, so it selects the diagnostic's range, the header, and asks the
 	// editor the same question `Ctrl-Shift-L` does, over the same predicate.
 	test('opens the link picker on the repeated section from the linter panel', () => {
 		const { controller, editor } = setup({});
@@ -988,7 +988,7 @@ describe('workbench diagnostic navigation', () => {
 
 	test('hands the editor to the diagnostic the panel leads with after a fix', () => {
 		// Applying a fix empties the card the user was reading, so the panel leads
-		// with another one — and the editor's active-line wash, which is all that
+		// with another one, and the editor's active-line wash, which is all that
 		// marks where a finding sits, has to travel with it instead of staying on
 		// the line the fix landed in.
 		const text = '[Verse]\nfirst line\nsecond line';
@@ -1004,7 +1004,7 @@ describe('workbench diagnostic navigation', () => {
 			fixes: [{ kind: 'safe', label: 'Capitalize', edit: { baseRevision: 1, edits: [] } }]
 		};
 		const warning: Diagnostic = { ...diagnostic, from: 19, to: 25 };
-		// Later in the document but worse, so it leads the panel — the same order
+		// Later in the document but worse, so it leads the panel, in the same order
 		// the list reads in, which is why both share one sort.
 		const worse: Diagnostic = { ...diagnostic, severity: 'error', from: 26, to: 30 };
 		// The dispatch is what triggers the re-lint, and the editor emits the
@@ -1168,7 +1168,7 @@ describe('workbench diagnostic navigation', () => {
 	 * *change*, which misses the other way the store empties: `clearDraft`, run
 	 * from the draft store when an emptied 'scribe is discarded or one is
 	 * deleted. Discarding and undoing never changes which draft is open, so the
-	 * panel went on hiding findings whose ignores no longer existed anywhere —
+	 * panel went on hiding findings whose ignores no longer existed anywhere,
 	 * and a reload brought them all back, since the rows had gone with the
 	 * record.
 	 */
@@ -1185,7 +1185,7 @@ describe('workbench diagnostic navigation', () => {
 		ignoreStore.clearDraft('draft-a');
 
 		// The same draft throughout, and the edit that puts the text back is what
-		// republishes — exactly the shape of a discard the user undoes.
+		// republishes, which is exactly the shape of a discard the user undoes.
 		controller.onSnapshot({ ...snapshot(record, 2, text), diagnostics: [finding] });
 		expect(controller.ignoredDiagnosticKeys).toEqual([]);
 		expect(controller.visibleDiagnostics).toEqual([finding]);
@@ -1193,7 +1193,7 @@ describe('workbench diagnostic navigation', () => {
 
 	/**
 	 * The picker's unknown-voice chip is the answer `The performer is unknown`,
-	 * so the finding the wrap creates has to arrive already accepted — and the
+	 * so the finding the wrap creates has to arrive already accepted, and the
 	 * acceptance keys on the voice rather than on the words it sings, so editing
 	 * the lyrics inside the tags cannot resurrect the card. Both halves broke
 	 * before this was pinned: the card asked the question the picker had just
@@ -1317,7 +1317,7 @@ describe('workbench performer imports', () => {
 		expect(controller.performers).toEqual([]);
 	});
 
-	// A styled slot with no header entry is an unknown voice — the text's own
+	// A styled slot with no header entry is an unknown voice, the text's own
 	// fact, derived where needed and never a roster identity. Import used to
 	// answer it by minting an `Unresolved voice 2` performer, which put a
 	// pressable stranger with a color in every picker.
@@ -1342,7 +1342,7 @@ describe('workbench performer imports', () => {
 	});
 
 	// Drafts saved while the minting ran still carry the records, so the same
-	// import that created them retires them — except one a header genuinely
+	// import that created them retires them, except one a header genuinely
 	// names, which is a real reference the roster must keep resolving.
 	test('retires stored placeholder voices on import unless a header names them', async () => {
 		const first = draft('draft-a', '');
@@ -1457,8 +1457,8 @@ describe('workbench performer renames', () => {
 		};
 	}
 
-	// The mirror already runs the other way — editing a name inside one header
-	// rewrites the others and the roster adopts it — so a roster rename that
+	// The mirror already runs the other way (editing a name inside one header
+	// rewrites the others and the roster adopts it), so a roster rename that
 	// stopped at the record left the legend reading the old name, which is the
 	// one job a roster rename exists for.
 	test('renaming a performer in the roster rewrites every header that names them', () => {
@@ -1485,7 +1485,7 @@ describe('workbench performer renames', () => {
 			}
 		]);
 		// The old spelling stays resolvable, so an editor undo of the rewrite
-		// does not import a duplicate performer — and the color is re-derived,
+		// does not import a duplicate performer, and the color is re-derived,
 		// because it was derived from a name the performer no longer has.
 		// `Avery` ranks olive and `Avery Stone` ranks plum, so the pair proves
 		// the reallocation actually ran.

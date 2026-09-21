@@ -12,7 +12,7 @@ export interface AnswerBlockDoneEvent {
 	ruleIds: string[];
 	sourceIds: string[];
 	/** The validated text, present only where validation did not merely
-	 * extend what was streamed — a stripped trailing citation is the one
+	 * extend what was streamed, and a stripped trailing citation is the one
 	 * thing that does this. The client replaces its assembled text with it. */
 	text?: string;
 }
@@ -174,8 +174,8 @@ export class IncrementalAnswerStream {
 				this.emit({ type: 'block_start', kind: block.kind });
 			}
 			// Text already sent can only be appended to, so a validated text that
-			// is not an extension of it — validation strips a trailing citation
-			// run, which shortens it — rides the completion as a replacement
+			// is not an extension of it (validation strips a trailing citation
+			// run, which shortens it) rides the completion as a replacement
 			// rather than going undelivered.
 			const appendsOnly = block.text.startsWith(emitted.text);
 			if (appendsOnly) {

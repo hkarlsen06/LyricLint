@@ -2,7 +2,7 @@
 	/*
 	 * An entry's standing drawn as the ladder it sits on: four steps for the
 	 * four source tiers, ascending, filled up to the tier the entry's sources
-	 * establish. It is `aria-hidden` — the tier label beside it is the fact,
+	 * establish. It is `aria-hidden`, because the tier label beside it is the fact,
 	 * and the two are drawn together wherever an entry states its standing:
 	 * the guidance topic pages, and the landing page's reproduction of them.
 	 *

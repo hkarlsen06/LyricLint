@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/editor.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/editor.md. Read it before changing this file, and update it with any behavior change.
 import type { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { isSectionHeaderLine } from '$lib/core/parser.js';
@@ -18,7 +18,7 @@ import { pastedSectionMetadata, sectionLinksFor, setSectionLinkEffect } from './
 
 /**
  * What a copy of `[from, to)` carries beside its text, or `undefined` for a
- * copy that is only text — which is most of them, and which is deliberately
+ * copy that is only text, which is most of them, and which is deliberately
  * left to CodeMirror's own handler so this extension cannot drift from the
  * default copy by so much as a line separator.
  *
@@ -27,8 +27,8 @@ import { pastedSectionMetadata, sectionLinksFor, setSectionLinkEffect } from './
  * start inside the fragment and its whole body has to end there, because a
  * link is re-seated by line arithmetic on the other side and a section the
  * paste only has half of has no lines to seat it on. Members outside the copy
- * are dropped and the survivors carry on — the same rule deleting a linked
- * section follows — and fewer than two survivors is not a link.
+ * are dropped and the survivors carry on (the same rule deleting a linked
+ * section follows), and fewer than two survivors is not a link.
  */
 function metadataForRange(
 	state: EditorState,
@@ -39,7 +39,7 @@ function metadataForRange(
 	const firstLine = doc.lineAt(from).number;
 	const lastLine = doc.lineAt(to).number;
 	// A copy ending exactly at a line's start carries the newline before it and
-	// an empty final fragment line — which the count states, and which no anchor
+	// an empty final fragment line, which the count states, and which no anchor
 	// below may claim, because none of that line's text came along.
 	const includesLine = (line: number): boolean => line < lastLine || to > doc.line(lastLine).from;
 
@@ -106,7 +106,7 @@ function metadataForRange(
  *
  * A page-wide selection that reaches into the editor bubbles its copy event
  * through `.cm-content`, and CodeMirror's own handler steps aside for it by
- * exactly this test — the anchor of the live DOM selection — so this one has
+ * exactly this test (the anchor of the live DOM selection), so this one has
  * to as well, or it would overwrite a copy of half the page with whatever the
  * editor's internal selection happened to be.
  */
@@ -123,7 +123,7 @@ function copiedSelectionIsOurs(view: EditorView): boolean {
  * Owning it outright rather than adding a flavor beside CodeMirror's, because
  * the built-in handler opens with `clearData()` and would wipe anything set
  * before it ran. The plain flavor is the selection's own slice, which for the
- * one shape this claims — a single non-empty range — is byte for byte what the
+ * one shape this claims (a single non-empty range) is byte for byte what the
  * built-in writes; every other selection shape, and every copy with nothing to
  * carry, is left to CodeMirror untouched.
  */
@@ -135,7 +135,7 @@ function claimCopy(event: ClipboardEvent, view: EditorView, cut: boolean): boole
 	const metadata = metadataForRange(state, range.from, range.to);
 	if (!metadata) return false;
 
-	// The source rides only where the copy already carries something — it
+	// The source rides only where the copy already carries something: it
 	// qualifies the timings, and a copy that is only words stays an ordinary
 	// copy. The shell answers for remote sources alone; a local file is a handle
 	// only this browser can redeem.
@@ -160,8 +160,8 @@ function claimCopy(event: ClipboardEvent, view: EditorView, cut: boolean): boole
 /**
  * Re-seat the carried links on the lines the paste just landed.
  *
- * Through `setSectionLinkEffect`, one per group, exactly as the picker links —
- * a real change the history records and `onSectionLinksChanged` reports — and
+ * Through `setSectionLinkEffect`, one per group, exactly as the picker links
+ * (a real change the history records and `onSectionLinksChanged` reports), and
  * never the restore effect, which is the draft being read back and is
  * deliberately invisible to the shell's save.
  *
@@ -171,7 +171,7 @@ function claimCopy(event: ClipboardEvent, view: EditorView, cut: boolean): boole
  * creating is not reachable from the old document by any mapping.
  *
  * A header pasted into the middle of an existing line is not a header any
- * more, and the whole group stands down rather than one member at a time —
+ * more, and the whole group stands down rather than one member at a time:
  * the members' runs correspond by ordinal, and a partial group would carry
  * another member's differences under the wrong words.
  *
@@ -179,8 +179,8 @@ function claimCopy(event: ClipboardEvent, view: EditorView, cut: boolean): boole
  * and one that does not fit them is dropped rather than clamped. Clamping to the
  * landed line is wrong in both directions: a paste into the middle of a line
  * leaves the document line longer than the fragment's at both ends, so an
- * overshooting column — which is only ever a payload lying about text it never
- * carried — would claim words that were already in the draft as a difference the
+ * overshooting column (which is only ever a payload lying about text it never
+ * carried) would claim words that were already in the draft as a difference the
  * copy set aside. Dropping one is `readHole`'s own trade: the link is still good,
  * and a re-tick costs less than a difference drawn over somebody else's words.
  */
@@ -241,7 +241,7 @@ function applyLinks(
 			if (startLength === undefined || endLength === undefined) continue;
 			if (hole.column > startLength || hole.endColumn > endLength) continue;
 			// Fragment coordinates land through `base` and the fragment's own line
-			// starts, exactly as the anchors above do — a document line is a different
+			// starts, exactly as the anchors above do: a document line is a different
 			// length from the fragment line inside it whenever a paste lands mid-line.
 			const from = base + (starts[hole.line] ?? 0) + hole.column;
 			const holeTo = base + (starts[hole.endLine] ?? 0) + hole.endColumn;
@@ -273,7 +273,7 @@ function applyLinks(
  * they stay ordered where they land: after the nearest anchor on a line wholly
  * before the pasted range and before the nearest anchor on a line wholly after
  * it, and strictly increasing among themselves. Anchors on lines the paste
- * overlaps are left out of both bounds — a replaced range's own timings go
+ * overlaps are left out of both bounds: a replaced range's own timings go
  * with it, and an insertion splitting a line collides with that line's anchor
  * rather than ordering against it. Anything else is dropped while the words
  * still land; a re-tap costs less than a jump into the wrong verse.
@@ -310,7 +310,7 @@ function chronologicalAnchors(
  * A paste carrying our own flavor lands the text and its metadata; anything
  * else is handed back to CodeMirror untouched.
  *
- * The plain flavor is what is inserted — the HTML never reaches the document —
+ * The plain flavor is what is inserted (the HTML never reaches the document),
  * and the fragment's line count is checked against it first: a clipboard
  * manager that merged flavors from two copies would otherwise land timings
  * measured against somebody else's lines, and the honest answer to that is the
@@ -320,7 +320,7 @@ function chronologicalAnchors(
  * lines later into their own section would otherwise re-plant their earlier
  * moments behind a later anchor, and everything downstream reads anchors as
  * ordered. Timings that would arrive before the anchor above the paste or at
- * or past the anchor below it — or behind a carried timing before them — are
+ * or past the anchor below it (or behind a carried timing before them) are
  * dropped while the words still land.
  */
 function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
@@ -336,7 +336,7 @@ function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
 
 	const { from, to } = view.state.selection.main;
 	// Positions are stated in the new document's coordinates, which is what the
-	// anchor field reads its effect against — `from` plus an offset into the
+	// anchor field reads its effect against: `from` plus an offset into the
 	// insert is that position whether or not the paste landed mid-line.
 	const anchors = chronologicalAnchors(view.state, metadata, from, to).map((anchor) =>
 		anchorLineEffect.of({ pos: from + (starts[anchor.line] ?? 0), time: anchor.time })
@@ -362,8 +362,8 @@ function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
 
 /**
  * A copy carries its timings and links in a second flavor the plain text never
- * learns about; a paste of that flavor puts them back. Everything else — other
- * selection shapes, foreign clipboards, mismatched flavors — falls through to
+ * learns about; a paste of that flavor puts them back. Everything else (other
+ * selection shapes, foreign clipboards, mismatched flavors) falls through to
  * CodeMirror's own handlers, because a clipboard this extension has no whole
  * answer for is one it must not stand in front of.
  */

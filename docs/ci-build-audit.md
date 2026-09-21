@@ -1,4 +1,4 @@
-# CI and build performance audit — 6 September 2026
+# CI and build performance audit, 6 September 2026
 
 The audit below records the original findings against `8fd9028`; its descriptions of current code refer to that baseline. The audit initially changed only this report. The subsequently requested implementation and validation are recorded at the end.
 

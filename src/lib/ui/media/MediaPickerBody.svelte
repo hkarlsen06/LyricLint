@@ -27,7 +27,7 @@
 	/**
 	 * What this song is called, in the order the names are worth searching for.
 	 *
-	 * The draft's own title leads because it is the one a person chose — and for
+	 * The draft's own title leads because it is the one a person chose, and for
 	 * a file it is *already* the cleaned filename, since attaching names an
 	 * untitled draft after its source. The placeholder title is not a name, so it
 	 * is skipped rather than searched for; a remembered attachment counts, because
@@ -58,7 +58,7 @@
 	 * Two waits with nothing on screen, and they are the two slowest things here.
 	 *
 	 * A search is a round trip to a catalogue and an attach is a script, a
-	 * sign-in and a queue — and both used to leave the dialog looking exactly as
+	 * sign-in and a queue, and both used to leave the dialog looking exactly as
 	 * it did before the press. `media.busy` covers the attach but is not enough on
 	 * its own: it disables controls, which reads as the dialog having gone dead
 	 * rather than as work being done, and it says nothing about *which* row was
@@ -122,7 +122,7 @@
 			outcome = await media.searchSpotify(queries.spotify);
 		} finally {
 			// `finally`, because a refusal has to give the field back as surely as an
-			// answer does — a loading mark left moving over a dead request is worse than
+			// answer does: a loading mark left moving over a dead request is worse than
 			// the silence this replaced.
 			searching = false;
 		}
@@ -149,8 +149,8 @@
 		} finally {
 			attachingId = undefined;
 		}
-		// A refusal keeps the dialog open and says so. Closing on one — which is
-		// what a method answering `undefined` for both outcomes bought — is the
+		// A refusal keeps the dialog open and says so. Closing on one, which is
+		// what a method answering `undefined` for both outcomes bought, is the
 		// dialog reporting an attachment it did not make.
 		if (message !== undefined) {
 			trackError = message;
@@ -319,7 +319,7 @@
 							>
 								<span class="media-dialog__result-name">{song.name}</span>
 								<!-- The wait takes the duration's slot rather than adding
-										     anything, so the row keeps its shape — and it is on the
+										     anything, so the row keeps its shape, and it is on the
 										     row the user aimed at, which is the thing `media.busy`
 										     alone could never say. -->
 								<span class="media-dialog__result-time">
@@ -338,7 +338,7 @@
 						Every outcome of a search, in one region and one at a time.
 
 						The results are an ordinary list and `No matches` was ordinary
-						prose, so the only thing this section ever announced was an error —
+						prose, so the only thing this section ever announced was an error:
 						a search that answered, or answered with nothing, was silent to a
 						screen reader and the field simply sat there. Both are now what the
 						region says, and the count is `sr-only` because the rows underneath
@@ -363,10 +363,10 @@
 				{/if}
 			</div>
 			<!-- Two facts, and no third about the speed control: this source keeps
-					     it, so there is nothing to warn about — the same reason the file
+					     it, so there is nothing to warn about, for the same reason the file
 					     row says nothing about rates either. -->
 			<!-- Not "Signs in with Apple", which is the name of a different Apple
-					     technology with its own branding rules — MusicKit's `authorize()`
+					     technology with its own branding rules. MusicKit's `authorize()`
 					     is an Apple Music authorization and nothing to do with it. -->
 			<p class="media-dialog__meta">Needs an Apple Music subscription · Sign-in required</p>
 		</section>
@@ -378,7 +378,7 @@
 						One field for two gestures. Typing a title searches; pasting a link
 						attaches. They are the same aim at the same box, and splitting them
 						into two controls would put a second row in a section that has room
-						for one — and make the user classify their own input before they
+						for one, and make the user classify their own input before they
 						could start.
 					-->
 			<form
@@ -413,8 +413,8 @@
 						Results are rows on the dialog, not a boxed list inside it: the
 						dialog is already the surface, and a bordered panel here would be
 						the card-inside-a-card the design rules exist to prevent. Each row
-						carries something at both ends — the track at one, its length at the
-						other — so no row is a label alone in half a gutter.
+						carries something at both ends, the track at one and its length at
+						the other, so no row is a label alone in half a gutter.
 					-->
 			{#if results.length > 0}
 				<ul class="media-dialog__results">
@@ -473,7 +473,7 @@
 	<!--
 				The way out, offered where the question is asked. This press used to be
 				an X at the end of the transport row, where it was hit by accident more
-				often than on purpose — a detach is a decision about what the draft's
+				often than on purpose. A detach is a decision about what the draft's
 				song is, so it belongs behind the same deliberate press every other
 				answer here is. It draws only while there is something to detach, the
 				rule every conditional answer above follows, and the facts under it say
@@ -586,7 +586,7 @@
 	 * The search control, which is a word and sometimes a loading mark beside it.
 	 *
 	 * The label does not change under the press. `Search` becoming `Searching…` is
-	 * the obvious version and it reflows the row every time — this one sits
+	 * the obvious version and it reflows the row every time. This one sits
 	 * directly beside a field the user may still be typing into, and a control
 	 * that resizes under the caret is worse than one that says less.
 	 */

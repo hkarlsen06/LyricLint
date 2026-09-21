@@ -796,7 +796,7 @@ describe('the answers endpoint', () => {
 
 		it('hands a passed challenge back on a refusal raised before the model', async () => {
 			// The rescue lived in the inner catch, which these refusals are thrown
-			// above — so a user who had just solved a Turnstile was asked to solve
+			// above, so a user who had just solved a Turnstile was asked to solve
 			// another one on the retry.
 			let throttled = true;
 			const env = makeEnv({
@@ -1222,7 +1222,7 @@ describe('the answers endpoint', () => {
 	it('withholds the tools on the reply after the last round and asks for the answer', async () => {
 		// The turn this repairs used its four rounds, asked for a fifth tool,
 		// and died on a gate the visitor reads as "the answer failed
-		// validation" — losing everything the four rounds had established. A
+		// validation", losing everything the four rounds had established. A
 		// model with no tools in front of it can only answer, which is what is
 		// owed at that point.
 		const env = makeEnv();
@@ -1268,7 +1268,7 @@ describe('the answers endpoint', () => {
 	});
 
 	it('assembles that instruction after the tool rounds it is about', () => {
-		// Grouped by kind — every settled message, then every tool item — the
+		// Grouped by kind, with every settled message and then every tool item, the
 		// instruction announcing that the rounds are spent arrived above the
 		// rounds themselves, which is the opposite of what it says.
 		const messages: WireMessageV2[] = [

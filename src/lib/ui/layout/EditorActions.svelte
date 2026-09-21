@@ -34,13 +34,13 @@
 	// are printed as they are actually pressed.
 	const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
 
-	// Commands that are always available — never a selection, a chorus, or an
+	// Commands that are always available, never a selection, a chorus, or an
 	// attachment away from working. `Ctrl-Alt-P` and `Mod-Shift-L` are
 	// absent from the permanent desktop row: each needs a selection or shared linked lyrics and
 	// refuses out loud the rest of the time, and a tray that spends most of its
 	// life offering answers it cannot give is the thing `availableRates` and
 	// `spotifyAvailable` both exist to prevent. Bold and italic are absent for
-	// the other reason — the performer picker and the roster are how a voice is
+	// the other reason: the performer picker and the roster are how a voice is
 	// marked here, and a command is offered once.
 	//
 	// Up to four editing/source commands, followed by the workspace toggle.
@@ -129,7 +129,7 @@
 		<!-- The note is the tray's optional audio glyph: attaching audio writes
 		     nothing to the document, so like the magnifier it is a pictogram
 		     rather than a mark. It carries no keystroke, so its tooltip carries
-		     the name alone — a glyph with no box at all is a control nothing
+		     the name alone, and a glyph with no box at all is a control nothing
 		     but a screen reader can name. -->
 		<button
 			type="button"

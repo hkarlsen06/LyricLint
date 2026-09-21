@@ -4,16 +4,16 @@ import { render } from 'vitest-browser-svelte';
 import RuleSearchHighlight from './RuleSearchHighlight.svelte';
 import { setRuleSearchQuery } from './rule-search.svelte.js';
 
-// The query is module state — it has to be, because the rule the reader opens
+// The query is module state. It has to be, because the rule the reader opens
 // and the list they opened it from are sibling columns with nothing to hand
-// each other — so it survives a render the way it survives a navigation. Every
+// each other, so it survives a render the way it survives a navigation. Every
 // test here starts from a field nobody has typed in.
 beforeEach(() => setRuleSearchQuery(''));
 
 /**
- * The component renders text and `<mark>`s and no wrapper of its own — that is
+ * The component renders text and `<mark>`s and no wrapper of its own (that is
  * the whole point of it, since it has to stand inside a heading, a `<pre>` and
- * a run of code segments alike — so the render container is the only box that
+ * a run of code segments alike), so the render container is the only box that
  * holds exactly what it drew and nothing the harness put in the page. Read as
  * text, which is what makes the whitespace assertions below mean anything.
  */
@@ -56,7 +56,7 @@ describe('RuleSearchHighlight', () => {
 		// This is the assertion the whole component is written around. The
 		// examples on a rule page are set in a `<pre>`, so a newline the template
 		// introduced between two segments is a line of a transcription nobody
-		// typed — and a formatter is what will introduce it. Nothing else here
+		// typed, and a formatter is what will introduce it. Nothing else here
 		// would catch it, because it looks exactly like working markup.
 		const lyric = '[Verse 1]\nI heard you say\n  it twice  ';
 		setRuleSearchQuery('verse say');
@@ -80,7 +80,7 @@ describe('RuleSearchHighlight', () => {
 		expect(marks()).toEqual(['head']);
 
 		// Two words are two terms, both of which had to match for the rule to be
-		// listed, so both are marked — and the space between them is part of
+		// listed, so both are marked, and the space between them is part of
 		// neither, which is why this is two marks rather than one.
 		setRuleSearchQuery('song part');
 		await tick();

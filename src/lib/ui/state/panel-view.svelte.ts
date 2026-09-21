@@ -108,7 +108,7 @@ interface PanelView {
 	ignoreDiagnostic(diagnostic: Diagnostic): void;
 	/**
 	 * Store an acceptance the user has already given somewhere other than the
-	 * card — the picker's unknown-voice chip is the answer `The performer is
+	 * card. The picker's unknown-voice chip is the answer `The performer is
 	 * unknown`, so the finding it creates arrives answered. Silent, because the
 	 * press it rides on already announced; the acceptance still lists among the
 	 * ignored findings, restorable like any other.
@@ -143,7 +143,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	 * it. A cached list only had to be re-read on a draft *change*, which is one
 	 * of two ways the store's own contents move: `clearDraft` runs from the draft
 	 * store when a 'scribe is discarded or deleted, and discarding an emptied
-	 * draft and undoing it never changes which draft is open — so the panel went
+	 * draft and undoing it never changes which draft is open, so the panel went
 	 * on filtering findings against ignores that no longer existed anywhere,
 	 * until something else happened to refresh them.
 	 *
@@ -184,11 +184,11 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	}
 
 	// A fix whose diff the editor could not draw yet. Previewing is no longer a
-	// step the user takes — selecting a diagnostic shows its fix as a diff — so
+	// step the user takes (selecting a diagnostic shows its fix as a diff), so
 	// it stays silent, which means a dropped preview would go unnoticed. The
 	// bootstrap handle has no `previewAtomic`, so the card that starts expanded
 	// asks for its diff before CodeMirror exists; the request waits here until
-	// the real handle arrives. A stale fix is discarded rather than announced —
+	// the real handle arrives. A stale fix is discarded rather than announced:
 	// applying it is what has to report the problem.
 	let deferredPreview: DiagnosticFix | undefined;
 
@@ -250,12 +250,12 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	}
 
 	/**
-	 * Mark a diagnostic's card and put the editor's selection — and with it the
-	 * active-line wash — on its text, without scrolling deliberately: the
+	 * Mark a diagnostic's card and put the editor's selection, and with it the
+	 * active-line wash, on its text, without scrolling deliberately: the
 	 * selection's own nearest-edge scroll is enough to keep it on screen.
 	 *
 	 * It does not clear the preview. Selecting a diagnostic is what *shows* a
-	 * diff, and the card mounting is what asks for it — so clearing here undid
+	 * diff, and the card mounting is what asks for it, so clearing here undid
 	 * the request whenever the card was already open on this diagnostic, which is
 	 * every press on an expanded card's own row. The outgoing card's own unmount
 	 * is what retires a diff that nothing wants any more.
@@ -285,7 +285,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	// A fix has been dispatched and the panel is waiting for its re-lint, so it
 	// can hand the user to whatever finding comes next. Applying a fix empties
 	// the card the user was reading and the panel leads with another one, but
-	// nothing in the document said where that one sits — the wash stayed on the
+	// nothing in the document said where that one sits, so the wash stayed on the
 	// line the fix had landed in. It is armed before the dispatch because the
 	// editor emits the re-linted snapshot from inside it.
 	let leadPending = false;
@@ -302,7 +302,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 
 	/**
 	 * The one path from a decided edit to the document. Everything that applies
-	 * a fix — one, a batch of identical ones, or the whole safe set — arrives
+	 * a fix (one, a batch of identical ones, or the whole safe set) arrives
 	 * here, so the staleness guard, the abandoned preview, and the hand-off to
 	 * the next finding cannot be got right in one place and forgotten in another.
 	 */
@@ -429,7 +429,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		// along, but the editor stays put: the reveal in `revealDiagnostic` lifts
 		// the line to the upper third, which under a hovering pointer would pull
 		// the very text being pointed at out from under it. Whichever tab is
-		// showing also stays — a pointer crossing the lyrics may not reach over
+		// showing also stays: a pointer crossing the lyrics may not reach over
 		// and change what panel the user chose.
 		highlightDiagnostic(diagnostic) {
 			activeDiagnosticKey = diagnosticKey(diagnostic);
@@ -483,7 +483,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		},
 		applyFixBatch(diagnostic, fix) {
 			const fixes = matchingFixes(diagnostic, fix);
-			// The batch collapsed to the fix it started from — a re-lint can remove
+			// The batch collapsed to the fix it started from, because a re-lint can remove
 			// its siblings between the render and the press. Applying it alone is
 			// what the user asked for either way.
 			if (fixes.length <= 1) {

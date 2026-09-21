@@ -3,9 +3,9 @@
 /* The toolbar scrolls sideways rather than wrapping, for the reason the transport
    strip does: wrapped, it became a two-line band across the top of the window,
    which is a second header's worth of chrome taken off the document for a row
-   whose contents never grew. Both groups stop absorbing slack — a growing
+   whose contents never grew. Both groups stop absorbing slack (a growing
    identity strip has nothing to push the commands against once the row is wider
-   than the window — and the bar is hidden, like the strip's, so a permanent grey
+   than the window), and the bar is hidden, like the strip's, so a permanent grey
    rule is not drawn under the toolbar at every narrow width. */
 @media (max-width: 78rem) {
 	.document-toolbar {
@@ -23,14 +23,14 @@
    one window: the same grid with the second column folded into a third row, so
    each half scrolls inside itself and the page never grows. Laid out as blocks
    the page grew with the document instead, which put the status bar halfway up a
-   long draft and pushed the panel — the reason the app exists — below the fold.
+   long draft and pushed the panel (the reason the app exists) below the fold.
 
    The editor takes the larger share because it is the half being typed into.
    What changes for the panel is where its scroll port is: in the column layout
    the list scrolls between two pinned bands, which is right for a full-height
    column and wrong for a row two fifths of a short viewport, where the video is
    most of what the pinning leaves. So the whole panel scrolls
-   instead — tab strip pinned because it is how the user changes what is under
+   instead: tab strip pinned because it is how the user changes what is under
    it, and everything else, the findings, the player, and the ignored-rules
    footer, reached by scrolling to the bottom of it. */
 @media (max-width: 68rem) {
@@ -78,8 +78,8 @@
 	}
 
 	/* The body gives up its own scroll port to the column above it, and grows
-	   instead: `1 0 auto` is what puts the trailing bands — the footer, the
-	   player, the status bar — on the floor of the panel when the findings are
+	   instead: `1 0 auto` is what puts the trailing bands (the footer, the
+	   player, the status bar) on the floor of the panel when the findings are
 	   short of filling it, and leaves them exactly where the content ends when
 	   they are not. It never shrinks, or a long list would be squeezed to fit
 	   rather than scrolled through. */
@@ -90,12 +90,12 @@
 
 	/* The assistant is the exception to the panel scrolling as one column, and it
 	   is the same exception it makes on a wide screen: a conversation is driven
-	   from the two controls at its ends — the chat tray above, the composer below
-	   — so scrolling the column to read it takes both away, and the composer is
+	   from the two controls at its ends (the chat tray above, the composer below),
+	   so scrolling the column to read it takes both away, and the composer is
 	   the one thing a reader wants at the moment they have finished reading. The
 	   column keeps its own overflow while such a pane is active and the body takes
 	   what is left rather than growing past it, so the transcript is the scroll
-	   port and everything under it — the player, the status bar — stays on the
+	   port and everything under it (the player, the status bar) stays on the
 	   floor of the panel where a fitted column puts it. */
 	.right-panel__tabs-root:has(.right-panel__pane--fit:not([hidden])) {
 		overflow: hidden;
@@ -170,8 +170,8 @@
 /*
  * The transport rides the top of the software keyboard.
  *
- * A keyboard does not shrink the page — the layout viewport is unchanged and
- * only the visible part of it gets shorter — so the foot of the workbench, the
+ * A keyboard does not shrink the page (the layout viewport is unchanged and
+ * only the visible part of it gets shorter), so the foot of the workbench, the
  * transport included, ends up under the keys. That is the row a transcriber
  * needs *most* while typing: the loop is listen, pause, type, back up, replay.
  *
@@ -183,14 +183,14 @@
  * **A translate, not `bottom` and not `top`.** `--keyboard-top` is the bottom edge
  * of what the user can see, taken from the visual viewport's own offset and
  * height. Written as `bottom: <keyboard height>`, the rule would have to know
- * what the layout viewport did when the keyboard opened — the assumption that
+ * what the layout viewport did when the keyboard opened, the assumption that
  * shipped once and did nothing at all on a real phone. Written as `top`, it
  * would relayout on every one of the events the keyboard fires as it slides in;
  * a transform moves the same distance on the compositor.
  *
  * The `- 100%` is why no JavaScript here measures the strip. A percentage in a
  * translate resolves against the element's own size, so the bottom edge lands on
- * `--keyboard-top` whatever the row currently is — one control tall, or two
+ * `--keyboard-top` whatever the row currently is: one control tall, or two
  * lines when an error is showing. Computing the same offset in JS means reading
  * the height back, which means a `ResizeObserver` to catch it changing.
  *
@@ -200,7 +200,7 @@
  *
  * Above `--layer-panel`, because the panel is what it now hangs over. It keeps
  * its own `--color-chrome` fill and gains a hairline on the side it did not have
- * one — floating, it borders the keyboard below as well as the document above.
+ * one. Floating, it borders the keyboard below as well as the document above.
  */
 :root[data-keyboard-inset] .media-strip {
 	position: fixed;
@@ -215,7 +215,7 @@
  * The toasts ride above the strip, wherever the strip is.
  *
  * `.toast-region` clears the transport by adding the row's own published height
- * to the status bar's — which is the right sum only while the strip is in the
+ * to the status bar's, which is the right sum only while the strip is in the
  * flow above that bar. Here it has left it, so the same offset would put a toast
  * under the keyboard, invisible, on the one device where the notice is most
  * likely the only thing reporting what just happened.
@@ -223,7 +223,7 @@
  * `--keyboard-top` is the strip's *bottom* edge, so the row's height is added
  * again to clear its top. The percentage resolves against the layout viewport,
  * which is what a fixed element's offsets are measured from and what
- * `--keyboard-top` is expressed in — the same coordinate space `.workspace::after`
+ * `--keyboard-top` is expressed in, the same coordinate space `.workspace::after`
  * pins its own top to.
  */
 :root[data-keyboard-inset] .toast-region {
@@ -233,8 +233,8 @@
 /*
  * The floor the strip stands on.
  *
- * Below the visible viewport there is a band the browser owns — Safari's address
- * pill, the keyboard's own accessory row — and the page keeps drawing behind it.
+ * Below the visible viewport there is a band the browser owns (Safari's address
+ * pill, the keyboard's own accessory row), and the page keeps drawing behind it.
  * So the tab strip and the top of the findings showed through the gaps around
  * that chrome, in pieces, under a row that had just been pinned above them. The
  * fill ends it: from the strip's bottom edge to the foot of the layout viewport,
@@ -245,8 +245,8 @@
  * strip is a horizontal scroller: `overflow-x: auto` computes `overflow-y` to
  * `auto` as well, so anything absolutely positioned below the strip inside it
  * would be clipped and would give the shortest row in the window a vertical
- * scroll port. `.workspace` is not a containing block for fixed descendants —
- * no transform, no filter, no containment — so this escapes its `overflow: clip`
+ * scroll port. `.workspace` is not a containing block for fixed descendants
+ * (no transform, no filter, no containment), so this escapes its `overflow: clip`
  * exactly as the strip does.
  *
  * One layer under the strip and above the panel: it hides the panel, and the
@@ -270,12 +270,12 @@
 @media (pointer: coarse) {
 	/* The three most-pressed controls in the workbench, at a size a finger can
 	   aim. They are `.button`s, so below 46rem they already step up with every
-	   other control — but that rule is keyed on width, and a tablet in landscape
+	   other control, but that rule is keyed on width, and a tablet in landscape
 	   is a coarse pointer at a wide layout: 28px transport glyphs, on the row this
 	   application exists to operate. The key on this one is the pointer, like
 	   everything else in this block.
 
-	   It costs the strip the height the phone layout already spends — the row is
+	   It costs the strip the height the phone layout already spends: the row is
 	   `--control-height-lg` plus its own padding under a finger, which is what
 	   `publishStripHeight` measures and republishes rather than assuming. The
 	   desktop measurement `MediaStrip.svelte.test.ts` makes is untouched: that
@@ -286,7 +286,7 @@
 
 	/* The one control in the window that is pressed in rhythm, on the one pointer
 	   that cannot use the key it stands in for. It takes the row's slack so it can
-	   be found without looking away from the lyric — which is also why the hint
+	   be found without looking away from the lyric, which is also why the hint
 	   beside it goes: a target this wide has nothing to share the slot with, and
 	   `Esc` is not a key this device has. */
 	.media-strip__tap {

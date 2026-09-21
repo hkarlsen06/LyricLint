@@ -1,4 +1,4 @@
-# Loading and responsiveness audit — September 6, 2026
+# Loading and responsiveness audit, September 6, 2026
 
 This audit compares the working tree at the start of this task (the changes subsequently
 committed as `ced4eb3`) with the implementation described below. The earlier lint CPU and

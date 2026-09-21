@@ -254,8 +254,8 @@ describe('the assistant state', () => {
 	});
 
 	// The rule reference's prompt is not in a conversation, so a question asked
-	// from it may not land at the foot of whichever chat `initialize()` re-seated
-	// — the reader would not see that history, and the model would answer with it
+	// from it may not land at the foot of whichever chat `initialize()` re-seated:
+	// the reader would not see that history, and the model would answer with it
 	// as context.
 	it('starts a new chat for every question asked from the rules prompt', async () => {
 		const { state, deps } = makeState();
@@ -470,7 +470,7 @@ describe('the assistant state', () => {
 		expect((await repository.messagesFor(streaming.id))[0]!.status).toBe('pending');
 
 		// Opening it is when a genuinely orphaned turn is about to be drawn, so
-		// that is when it is marked — crash recovery is unchanged.
+		// that is when it is marked, and crash recovery is unchanged.
 		await state.selectChat(streaming.id);
 		expect(state.messages.find((message) => message.id === live.id)!.status).toBe('interrupted');
 	});
@@ -536,7 +536,7 @@ describe('the assistant state', () => {
 		state.registerDraftBridge(draftBridge('[Verse]\nA line').bridge);
 		await state.open();
 
-		// Nothing was in flight — the prompt was waiting on a person — so the
+		// Nothing was in flight (the prompt was waiting on a person), so the
 		// turn keeps its status and gets its session back.
 		expect(state.messages[1]!.status).toBe('pending');
 		expect(state.toolSession).toEqual({
@@ -1193,9 +1193,9 @@ describe('the assistant state', () => {
 	it('keeps a batch resolvable as its own earlier proposals are applied', async () => {
 		// The failure this pins: three verses opening on the same line, one
 		// proposal per verse putting a header above it. Approving the first
-		// moves every line below it, so the second and third anchors — whose
+		// moves every line below it, so the second and third anchors, whose
 		// line numbers were measured against the 'scribe the model read, and
-		// whose neighbours are identical in every copy — used to be refused as
+		// whose neighbours are identical in every copy, used to be refused as
 		// ambiguous. They are the model's own correct proposals, invalidated by
 		// the linter applying the ones before them.
 		const line = 'Sweep me under the rug';
@@ -1364,7 +1364,7 @@ describe('the assistant state', () => {
 		await state.approveProposal('one');
 
 		const [edit] = draft.apply.mock.calls[0]!;
-		// Offsets into the second copy, which starts at 28 — not the first at 9.
+		// Offsets into the second copy, which starts at 28, not the first at 9.
 		expect(edit.edits.length).toBeGreaterThan(0);
 		expect(edit.edits.every((one) => one.from >= 28 && one.to <= 36)).toBe(true);
 		expect(vi.mocked(ask).mock.calls[1]![0].messages.at(-1)).toMatchObject({
@@ -1399,7 +1399,7 @@ describe('the assistant state', () => {
 		await state.send('Fix it.');
 
 		// A proposal quotes a line the user never navigated to, so the diff has
-		// to be brought on screen — unlike a diagnostic's, which is already there.
+		// to be brought on screen, unlike a diagnostic's, which is already there.
 		expect(state.previewProposal('one')).toBe(true);
 		expect(draft.reveal).toHaveBeenCalledWith({ from: 6, to: 11 });
 
@@ -1456,7 +1456,7 @@ describe('the assistant conversation lock', () => {
 
 		await state.send('Second?');
 
-		// Worded, not silent and not queued — and the question is untouched on the
+		// Worded, not silent and not queued, and the question is untouched on the
 		// way past, so nothing of it is left half-written in a transcript the other
 		// tab is still moving: no row, no placeholder, no request.
 		expect(state.failure?.message).toBe('This conversation is answering in another tab.');

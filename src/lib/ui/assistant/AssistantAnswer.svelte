@@ -1,12 +1,12 @@
 <script lang="ts">
 	/**
 	 * One assistant answer, structured for reading: the typed blocks flow
-	 * uninterrupted — a card after every paragraph chopped the answer into
-	 * fragments — and every citation is collected once at the foot, deduplicated,
+	 * uninterrupted (a card after every paragraph chopped the answer into
+	 * fragments), and every citation is collected once at the foot, deduplicated,
 	 * under one label. Each passage carries superscript citation numbers, and
 	 * the foot's cards answer to them, so the tie between a claim and its rule
 	 * survives the citations moving out of the prose. A rule id the local
-	 * corpus cannot resolve renders nothing — canonical facts come from the
+	 * corpus cannot resolve renders nothing: canonical facts come from the
 	 * corpus or not at all.
 	 */
 	import type { StructuredAssistantAnswer } from '$lib/assistant/types.js';
@@ -57,8 +57,8 @@
 	);
 
 	/** The numbers a block cites, deduplicated and in reading order. An id the
-	 * numbering does not know — an unresolved rule, a source already covered by
-	 * a card — simply contributes no mark. */
+	 * numbering does not know (an unresolved rule, a source already covered by
+	 * a card) simply contributes no mark. */
 	function blockRefs(block: StructuredAssistantAnswer['blocks'][number]): number[] {
 		const numbers = [...block.ruleIds, ...block.sourceIds].flatMap((id) => {
 			const number = citationNumbers.get(id);
@@ -78,7 +78,7 @@
 	{/if}
 	{#if block.kind === 'example'}
 		<!-- An example cites rules too, and its marks must not go inside the
-		     `pre` — they ride the block's own corner instead. Dropping them was
+		     `pre`; they ride the block's own corner instead. Dropping them was
 		     how a cited rule's number went missing from a real answer. -->
 		<div class="assistant-example">
 			<pre class="assistant-block assistant-block--example" dir="auto"><code>{block.text}</code
@@ -116,8 +116,8 @@
 					<li>
 						<span class="assistant-citation-number">{citationNumbers.get(source.id)}</span>
 						{#if url}
-							<!-- The tab is what a citation always opens here — the answer is
-							     the thing being read, and a source is a lookup beside it — so
+							<!-- The tab is what a citation always opens here. The answer is
+							     the thing being read, and a source is a lookup beside it, so
 							     the note joins the link's name, as it does on every other
 							     external link in the application. -->
 							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- safeExternalUrl has validated this external citation. -->

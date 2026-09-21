@@ -3,7 +3,7 @@ import type { AnnotationSpan } from './types.js';
 /**
  * The annotation link shape Genius embeds in editable lyrics: a bracketed
  * fragment followed immediately by a parenthesized numeric id. The fragment
- * excludes brackets — an annotation cannot nest — and the character class
+ * excludes brackets (an annotation cannot nest), and the character class
  * deliberately admits line breaks, because a referent may span lines. The id
  * is digits only: a bracketed run followed by any other parenthetical is a
  * lyric with punctuation, not an annotation.

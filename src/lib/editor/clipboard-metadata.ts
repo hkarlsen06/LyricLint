@@ -7,13 +7,13 @@ import type { LinkPassageRecord, LinkPassageOccurrence } from '../core/types.js'
  * A clipboard entry is a set of representations and the paste target picks the
  * one it understands, which is what lets a copy carry its line timings and its
  * section links without the plain text ever learning: `text/plain` stays byte
- * for byte the lyrics — clean lyrics on the clipboard are this application's
- * entire output — and `text/html` carries the same lyrics with the metadata in
+ * for byte the lyrics (clean lyrics on the clipboard are this application's
+ * entire output), and `text/html` carries the same lyrics with the metadata in
  * one attribute, where only a reader that asks for that flavor ever sees it.
  * An ordinary text field pastes the plain flavor and nothing else.
  *
- * Everything in the payload is relative to the copied fragment — 0-based line
- * indices into its own text — because the paste has no idea where in which
+ * Everything in the payload is relative to the copied fragment (0-based line
+ * indices into its own text), because the paste has no idea where in which
  * document the copy was made, and absolute numbers would be a claim about a
  * document that is no longer in front of anyone. The fragment's own line count
  * rides along as the guard: a `text/plain` that no longer splits into that many
@@ -22,7 +22,7 @@ import type { LinkPassageRecord, LinkPassageOccurrence } from '../core/types.js'
  *
  * Pure arithmetic and strings, no CodeMirror and no DOM: the parse is a regex
  * over our own format rather than a document parser, because the one producer
- * of this attribute is the serializer beside it — anything else's HTML simply
+ * of this attribute is the serializer beside it: anything else's HTML simply
  * has no `data-lyriclint` and reads as no metadata at all.
  */
 
@@ -32,7 +32,7 @@ type JsonObject = { [key: string]: Json };
 /**
  * Anything `JSON.parse` can hand back, and what every read below takes.
  *
- * The string came off a clipboard, so nothing about its contents is promised —
+ * The string came off a clipboard, so nothing about its contents is promised,
  * but it did come through `JSON.parse`, so the grammar is known, and saying so
  * is what lets each check below be a predicate about a value rather than a
  * guess about a representation.
@@ -51,8 +51,8 @@ interface ClipboardAnchor {
  * One divergent run a carried link keeps its own, in fragment coordinates.
  *
  * The same shape as the draft record's `LinkHole` with the lines re-based,
- * because the fragment's lines are split exactly as the document's were — the
- * plain flavor is a byte-identical slice — so a column into a line means the
+ * because the fragment's lines are split exactly as the document's were (the
+ * plain flavor is a byte-identical slice), so a column into a line means the
  * same characters on both sides of the trip.
  */
 interface ClipboardHole {
@@ -72,8 +72,8 @@ interface ClipboardHole {
  * A remote source is nothing but an id in a known alphabet, which is exactly
  * what a clipboard can carry; a local file is a handle only this browser can
  * redeem, so it never travels and its absence here is the design rather than a
- * gap. The name rides along so the paste can label the pending press — and,
- * where the target draft is still untitled, offer the song's own name — without
+ * gap. The name rides along so the paste can label the pending press and,
+ * where the target draft is still untitled, offer the song's own name, without
  * contacting anyone.
  */
 export interface ClipboardMediaSource {
@@ -94,7 +94,7 @@ export interface ClipboardLink {
 }
 
 export interface ClipboardMetadata {
-	/** How many lines the copied text splits into — the guard against a foreign `text/plain`. */
+	/** How many lines the copied text splits into, the guard against a foreign `text/plain`. */
 	lines: number;
 	anchors: ClipboardAnchor[];
 	links: ClipboardLink[];
@@ -119,8 +119,8 @@ const payloadVersion = 1;
  * Nothing here was asked for: every paste into the editor reaches this function
  * with whatever the clipboard is holding, so the work has to be bounded before
  * it starts rather than by what turns out to be readable. A megabyte is orders
- * of magnitude past anything the serializer beside it writes — a song timed line
- * by line with every difference recorded runs to a few kilobytes — so the cap
+ * of magnitude past anything the serializer beside it writes (a song timed line
+ * by line with every difference recorded runs to a few kilobytes), so the cap
  * refuses only payloads that were never ours.
  */
 const maximumPayloadLength = 1_000_000;
@@ -149,7 +149,7 @@ function escapeText(value: string): string {
  * The `text/html` flavor for one copy.
  *
  * The lyrics are in the markup as well as the attribute, escaped, so a
- * rich-text surface that picks this flavor still pastes the words — the
+ * rich-text surface that picks this flavor still pastes the words. The
  * metadata is invisible there because an attribute nobody recognises is
  * dropped, not because the flavor hides the text.
  */
@@ -189,7 +189,7 @@ function readAnchor(value: Json, lines: number): ClipboardAnchor | undefined {
 }
 
 /**
- * A hole that cannot be read is dropped rather than sinking anything larger —
+ * A hole that cannot be read is dropped rather than sinking anything larger,
  * the same trade `backup.ts` makes: the link itself is still good, and losing
  * a difference costs one re-tick while refusing the whole payload costs the
  * timings beside it.
@@ -225,7 +225,7 @@ function isMediaName(value: Json): value is string {
 }
 
 /**
- * A name that cannot be read costs only itself — the source is still worth
+ * A name that cannot be read costs only itself: the source is still worth
  * carrying under its provisional label.
  */
 function readMedia(value: Json): ClipboardMediaSource | undefined {
@@ -264,8 +264,8 @@ function readLink(value: Json, lines: number): ClipboardLink | undefined {
  * else's HTML.
  *
  * Tolerant of the wrappers browsers and clipboard managers put around a stored
- * fragment — it looks for the one attribute rather than expecting the document
- * to start where the serializer's did — and strict about everything inside it:
+ * fragment (it looks for the one attribute rather than expecting the document
+ * to start where the serializer's did), and strict about everything inside it:
  * an entry that cannot be read in full is dropped, and a payload carrying
  * nothing readable is no metadata at all.
  */

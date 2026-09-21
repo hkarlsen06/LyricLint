@@ -17,7 +17,7 @@ function supportedSpans(section: Section): { line: number; spans: SupportedStyle
  * A section is only eligible for legend pruning when every part of it parses
  * cleanly: a closed header with a legend, no malformed or unsupported markup
  * anywhere in the body, and at least one non-blank lyric line. A header whose
- * body is still empty is never pruned — the user has likely just typed the
+ * body is still empty is never pruned, since the user has likely just typed the
  * legend and not written the lyrics yet.
  */
 function sectionIsSafeToPrune(section: Section): boolean {
@@ -68,7 +68,7 @@ export function usedStyleSlots(section: Section): Set<StyleSlot> {
  * lyrics is a claim that a distinct voice sings there, and a slot the legend
  * has no group for is a voice nobody has identified yet. One owner, consumed
  * by `performer.inline-mismatch` (one finding per unaccounted slot) and by the
- * picker's unknown-voice offers (`unknownVoiceOffers` in `transform.ts`) — a
+ * picker's unknown-voice offers (`unknownVoiceOffers` in `transform.ts`). A
  * second derivation would let the two surfaces disagree about which voices
  * are unknown.
  */
@@ -98,7 +98,7 @@ export function unaccountedStyledSlots(
  * One owner beside the predicate that finds them: the picker's chips say it to
  * the screen reader, `performer.inline-mismatch` keys its findings' ignores on
  * it, and the acceptance the picker writes at mint time has to produce the
- * very string the rule will key — two wordings would quietly unmatch them.
+ * very string the rule will key, since two wordings would quietly unmatch them.
  */
 export function unknownVoiceName(slot: StyleSlot): string {
 	return slot === 4

@@ -7,8 +7,8 @@
 
 	/**
 	 * One `show_lyrics` reference: the assistant pointing at a place in the
-	 * 'scribe without proposing anything. Hovering the card — or pressing or
-	 * focusing its quote, which is the finger's and the keyboard's path — reveals
+	 * 'scribe without proposing anything. Hovering the card, or pressing or
+	 * focusing its quote, which is the finger's and the keyboard's path, reveals
 	 * the quoted lines in the editor, exactly as hovering a proposal card
 	 * previews its diff. Nothing is pending and nothing is asked, so the card
 	 * carries no actions and outlives its turn.
@@ -43,7 +43,7 @@
 
 	// Re-resolved on every gesture rather than trusted from the record: a
 	// reference outlives its turn, and the draft may have moved on. A quote that
-	// no longer resolves reveals nothing, silently — the card asked no question,
+	// no longer resolves reveals nothing, silently: the card asked no question,
 	// so it owes no refusal.
 	function reveal(): void {
 		assistant.revealReference(reference.anchor, reference.occurrence);

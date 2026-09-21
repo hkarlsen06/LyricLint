@@ -1,11 +1,11 @@
 /**
  * Finding a lookup in the guidance catalog, as plain functions so the index
- * page holds no logic of its own — the rule reference's own arrangement. The
+ * page holds no logic of its own, matching the rule reference's own arrangement. The
  * search reuses `foldForSearch`/`searchTokens`, so accents, curly quotes and
  * case fold here exactly as they fold at `/rules/`: a reader who learned the
  * finder there has learned this one.
  *
- * The haystack per entry — and per landmark, which draws the same meta line —
+ * The haystack per entry, and per landmark, which draws the same meta line,
  * is what its topic page says about it: title, statement, example, note, tier
  * label, cited source titles, the rule ids on its meta line, plus
  * the search terms of the rules it names, so a symptom query still answers
@@ -31,9 +31,9 @@ export interface GuidanceTopicSection {
 	entries: GuidanceEntry[];
 	landmarks?: readonly GuidanceTopicLandmark[];
 	/**
-	 * Search terms for the rules this topic's entries and landmarks name —
+	 * Search terms for the rules this topic's entries and landmarks name:
 	 * each rule's reader-facing title and, for a table-shaped rule, every form
-	 * in its table — keyed by rule id. Derived from the server-only rule
+	 * in its table, keyed by rule id. Derived from the server-only rule
 	 * reference by the section layout's load, which is why it rides the
 	 * section rather than being computed here.
 	 */
@@ -45,7 +45,7 @@ export interface GuidanceTopicSection {
  * the citations' titles were left out of the first version, and both omissions
  * were the lesson the rule reference already recorded about its own haystack:
  * a reader looking at the heading `Punctuation` typed it and lost every
- * guidance entry under that heading — only the linter rows survived, because
+ * guidance entry under that heading, and only the linter rows survived, because
  * only their ids happened to carry the word. A claim about what a query would
  * or would not distinguish is a measurement, not a judgment.
  */
@@ -80,7 +80,7 @@ function entryHaystack(entry: GuidanceEntry, ruleTerms?: Record<string, string>)
  * The same haystack for a landmark, which draws the same facts: a landmark
  * states its tier and cites its source on the topic page exactly as an entry
  * does, so a query for either has to reach it. Left out, the tier and the
- * citation would be text on the page that the finder beside it cannot see —
+ * citation would be text on the page that the finder beside it cannot see,
  * the omission this module already records for the topic title.
  */
 function landmarkHaystack(

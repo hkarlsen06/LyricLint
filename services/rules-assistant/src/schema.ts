@@ -1,5 +1,5 @@
 /**
- * Request and answer schemas. The request schema is what clients may send —
+ * Request and answer schemas. The request schema is what clients may send,
  * deliberately nothing that supplies a model, effort, prompt, or corpus. The
  * client version and hash identify only a corpus approved by the release. The
  * answer schema is the strict structured output the model must produce, and
@@ -27,8 +27,8 @@ export const toolNames = ['read_scribe', 'propose_edits', 'manage_links', 'show_
 export type ToolName = (typeof toolNames)[number];
 
 /** Anything `JSON.parse` yields and `JSON.stringify` accepts. What crosses this
- * service's two opaque seams — the provider's replay items and the tolerant
- * partial parse of a half-written answer — is this and nothing narrower until a
+ * service's two opaque seams (the provider's replay items and the tolerant
+ * partial parse of a half-written answer) is this and nothing narrower until a
  * schema here has run over it. */
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
@@ -244,7 +244,7 @@ const providerReasoningContentSchema = z
  * could put a developer- or system-role message into the model's own input.
  *
  * A field is required here exactly where the provider SDK declares it required
- * on the item type — that mirroring is what lets a parsed replay item assign to
+ * on the item type, and that mirroring is what lets a parsed replay item assign to
  * `ResponseInputItem` without a cast, and it means a provider response missing
  * one fails validation as `invalid_answer` at serialization time rather than as
  * an opaque 400 when the continuation is replayed.
@@ -524,7 +524,7 @@ export function validateAnswer(
 	let answer = parsed.data;
 
 	// The interface draws the footnote number after each cited block, and the
-	// model — prompted about that presentation — sometimes types the superscript
+	// model, prompted about that presentation, sometimes types the superscript
 	// or rule id itself, so the block rendered "…sjekker.¹ ¹" or drew the same
 	// citation as both "[syntax.unsupported-voice-markup]" and a chip. A trailing
 	// citation run is that mistake, never content; strip it rather than retract
@@ -552,7 +552,7 @@ export function validateAnswer(
 	// bookkeeping. Citations are the ground truth: a cited block is substance
 	// ('prose'), an uncited block ahead of any support is broader guidance
 	// ('general'), and the scope is whatever the normalized blocks add up to.
-	// The invariant checks below still run — after this, as a backstop — and
+	// The invariant checks below still run, after this, as a backstop, and
 	// the real gates (unknown or duplicate rule ids, the rule ceiling,
 	// draft-work without tools) are untouched.
 	if (answer.scope !== 'draft-work') {
@@ -608,7 +608,7 @@ export function validateAnswer(
 				throw new ApiError('invalid_answer', 'General guidance may not carry citations.');
 			}
 			// A repeat of an already-attached rule is the model continuing its
-			// explanation, not new support — the canonical attachment renders
+			// explanation, not new support: the canonical attachment renders
 			// once, and an uncited continuation is a shape the ordering rule
 			// already blesses. The first attachment wins; unknown ids and the
 			// rule ceiling stay fatal because those guard substance.
@@ -642,7 +642,7 @@ export function validateAnswer(
 			reviewedSupportSeen = true;
 			return false;
 		}
-		// An uncited example is an illustration, not a reviewed claim — the
+		// An uncited example is an illustration, not a reviewed claim, since the
 		// prose beside it carries the citation. Binding it to the ordering rule
 		// retracted whole streamed answers that led with a short example before
 		// their cited explanation, which is an ordinary answer shape.

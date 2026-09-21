@@ -75,7 +75,7 @@ describe('CompareDialog', () => {
 		const added = openDialog().querySelector('ins');
 		expect(dropped?.textContent).toBe('y');
 		expect(added?.textContent).toBe('i');
-		// The number rides the row it is true of — no "Line N" heading, which
+		// The number rides the row it is true of, with no "Line N" heading, which
 		// named the first changed line over a card that starts at the header.
 		const changedRow = dropped?.closest('button');
 		expect(changedRow?.querySelector('.compare-diff__num')?.textContent).toBe('2');
@@ -91,8 +91,8 @@ describe('CompareDialog', () => {
 		await fireEvent.click(openDialog().querySelector('del')!.closest('button')!);
 		expect(openDialog().open).toBe(false);
 		// The hand-off is a frame behind the close, so the browser's own focus
-		// restoration cannot trample it — hence the wait.
-		// '[Verse]\nLine' — line 2 starts at offset 8, and the caret is collapsed
+		// restoration cannot trample it, hence the wait.
+		// '[Verse]\nLine': line 2 starts at offset 8, and the caret is collapsed
 		// there rather than selecting: the press aimed at a line to edit.
 		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 }));
 		expect(calls.revealed.at(-1)).toEqual({ from: 8, to: 8 });
@@ -107,7 +107,7 @@ describe('CompareDialog', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
-		// Aim at the inserted character — the `i` the diff adds after the shared
+		// Aim at the inserted character, the `i` the diff adds after the shared
 		// `L`. The caret must land within line 2 (offsets 8–12), not at its start.
 		const inserted = openDialog().querySelector('ins')!;
 		const rect = inserted.getBoundingClientRect();
@@ -128,7 +128,7 @@ describe('CompareDialog', () => {
 		await pasteBaseline('[Verse]\nLyne');
 
 		// The struck-through character is not in the document, so no character
-		// under the tap exists to land on — the boundary is the honest answer.
+		// under the tap exists to land on, so the boundary is the honest answer.
 		// The deletion sits after the shared `L`, so its boundary is offset 9.
 		const dropped = openDialog().querySelector('del')!;
 		const rect = dropped.getBoundingClientRect();
@@ -169,7 +169,7 @@ describe('CompareDialog', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
-		// Setting a baseline changes no text, so the set schedules its own save —
+		// Setting a baseline changes no text, so the set schedules its own save;
 		// the record on disk is what a reload comes back to.
 		await waitFor(async () => {
 			const record = await repository.get(controller.draftId);
@@ -185,7 +185,7 @@ describe('CompareDialog', () => {
 		await pasteBaseline('[Verse]\nLyne');
 
 		// The test workbench stamps `now()` in July 2026, which is long past by
-		// the real clock this component reads — so the stale wording must show.
+		// the real clock this component reads, so the stale wording must show.
 		expect(screen.getByText(/Baseline from/)).toBeTruthy();
 		expect(screen.getByText(/the page may have changed since/)).toBeTruthy();
 	});
@@ -224,7 +224,7 @@ describe('CompareDialog', () => {
 
 	test('rows that collapse to the same offset and line label both render', async () => {
 		// Several struck rows share one collapse point (offset 0 here). Keyed
-		// on that point, the each block threw each_key_duplicate mid-flush —
+		// on that point, the each block threw each_key_duplicate mid-flush:
 		// the first Show changes press appeared to do nothing while the
 		// baseline was already stored, and the press after it stored the
 		// emptied paste area as the baseline.

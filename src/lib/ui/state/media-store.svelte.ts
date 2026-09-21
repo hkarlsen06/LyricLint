@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/media.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/media.md. Read it before changing this file, and update it with any behavior change.
 import type { ClipboardMediaSource } from '$lib/editor/contracts.js';
 import type { MediaRepository } from '$lib/persistence/media-repository.js';
 import type { FeedbackState } from './feedback.svelte.js';
@@ -31,7 +31,7 @@ import {
  *
  * Declared locally because TypeScript's DOM library ships `FileSystemFileHandle`
  * but neither `showOpenFilePicker` nor the permission methods, and the whole
- * point of the handle is that it survives a reload — which is exactly what those
+ * point of the handle is that it survives a reload, which is exactly what those
  * two methods govern.
  */
 type PermissionState = 'granted' | 'denied' | 'prompt';
@@ -58,7 +58,7 @@ const audioExtensions = ['.mp3', '.m4a', '.aac', '.wav', '.flac', '.ogg', '.opus
  * How often a moving playhead is written down, in milliseconds.
  *
  * `timeupdate` fires several times a second, and the position only has to be
- * right to within the last few seconds of listening — anything more precise is
+ * right to within the last few seconds of listening. Anything more precise is
  * an IndexedDB write per frame for a number nobody will notice being stale. A
  * pause, the end of the track, and a nudge all bypass this and write at once, so
  * the interval only ever governs audio that is still running.
@@ -68,11 +68,11 @@ const positionWriteIntervalMs = 5000;
 /**
  * The longest filename worth calling a draft.
  *
- * A search result is `Artist — Title` and is always worth having. A filename is
+ * A search result names the artist and title and is always worth having. A filename is
  * not reliably anything: `01 Track.mp3` is a fine title, and
  * `Artist - Album (2011 Remaster) [FLAC 24-96] - 07 - Title.mp3` is a rip's
  * bookkeeping. There is no way to tell them apart except by how much of it there
- * is, so the long ones are left alone rather than guessed at — an `Untitled
+ * is, so the long ones are left alone rather than guessed at. An `Untitled
  * draft` the user renames beats a title they have to clear first.
  */
 const longestFilenameTitle = 60;
@@ -90,7 +90,7 @@ const stillAttaching = 'Something else is still being attached. Try that again i
  * And what a sign-in that could not even leave the page says.
  *
  * `sessionStorage` is where the PKCE verifier and the intent ride across the
- * redirect, so a browser refusing it — a private window, storage full — cannot
+ * redirect, so a browser refusing it (a private window, storage full) cannot
  * begin the flow at all. Silent, that came back to the picker as an empty result
  * set: `No matches on Spotify` over a valid track link.
  */
@@ -113,8 +113,8 @@ function titleFromFilename(name: string): string | undefined {
 /**
  * The slice of `spotify-auth.js` that reads or leaves through `location`.
  *
- * `beginSpotifySignIn` ends in `location.assign` — in a test that is the runner
- * navigating away — and `spotifyRedirectAllowed` reads a `location` the node
+ * `beginSpotifySignIn` ends in `location.assign` (in a test that is the runner
+ * navigating away), and `spotifyRedirectAllowed` reads a `location` the node
  * half of the suite does not have. Everything else in that module stays real
  * wherever this store runs.
  */
@@ -139,8 +139,8 @@ interface MediaStoreDependencies {
 	 * Tell the draft it now has something worth a record.
 	 *
 	 * A draft with no text is never written, so audio attached before the first
-	 * keystroke was written against an id no reload would ever produce again —
-	 * the record survived and the draft that owned it did not. The same shape of
+	 * keystroke was written against an id no reload would ever produce again.
+	 * The record survived and the draft that owned it did not. The same shape of
 	 * call `onLineAnchorsChanged` makes, and for the same reason: this changes
 	 * nothing about the document, so nothing else will schedule the save.
 	 */
@@ -150,8 +150,8 @@ interface MediaStoreDependencies {
 	/**
 	 * A name worth calling the draft, when the source has one.
 	 *
-	 * Only ever a *real* name. The provisional labels a link paste starts with —
-	 * `youtu.be/dQw4w9WgXcQ`, `music.apple.com/song/1091453645` — are exactly what
+	 * Only ever a *real* name. The provisional labels a link paste starts with,
+	 * `youtu.be/dQw4w9WgXcQ` and `music.apple.com/song/1091453645`, are exactly what
 	 * a draft must not be called, and this is the one place that can tell them
 	 * apart, because it is where they are minted. A late `named` from the source
 	 * arrives here too, so a link paste still gets its title once the catalogue
@@ -195,7 +195,7 @@ export interface MediaStore {
 	/**
 	 * Whether this build carries a live Apple Music developer token.
 	 *
-	 * False when `PUBLIC_APPLE_MUSIC_TOKEN` is unset *or has expired* — the
+	 * False when `PUBLIC_APPLE_MUSIC_TOKEN` is unset *or has expired*, and the
 	 * second is the one that matters, because a developer token lasts at most six
 	 * months and the honest failure of a stale one is the picker not offering
 	 * Apple Music rather than a 401 under a press.
@@ -205,7 +205,7 @@ export interface MediaStore {
 	 * Whether this build has a Spotify app registered behind it.
 	 *
 	 * False when `PUBLIC_SPOTIFY_CLIENT_ID` is unset, which is the honest state of
-	 * a feature whose credential is missing — the picker then does not offer an
+	 * a feature whose credential is missing: the picker then does not offer an
 	 * answer it cannot carry out, rather than offering one that fails on press.
 	 */
 	readonly spotifyAvailable: boolean;
@@ -216,7 +216,7 @@ export interface MediaStore {
 	 * This is the gate, and it is the only thing standing between a page load and
 	 * a request to Google: nothing loads the IFrame API until it is true, and it
 	 * only becomes true inside a call the user's own press made. It is
-	 * deliberately **not** persisted — a stored "yes" would load Google's script
+	 * deliberately **not** persisted, because a stored "yes" would load Google's script
 	 * on a page the user has not touched, which is the whole thing the opt-in
 	 * exists to prevent. A remembered video therefore comes back waiting to be
 	 * asked, exactly as a remembered file handle does.
@@ -224,7 +224,7 @@ export interface MediaStore {
 	readonly youtubeAllowed: boolean;
 	/**
 	 * Open the file picker. True when a file was taken, false when the user
-	 * dismissed it — the surface that opened this needs to know which, so it can
+	 * dismissed it. The surface that opened this needs to know which, so it can
 	 * close on an answer and stay open on a cancel.
 	 */
 	attach(): Promise<boolean>;
@@ -239,7 +239,7 @@ export interface MediaStore {
 	 * Take a pasted Spotify link, signing in first if this session has not.
 	 *
 	 * Resolves to a message when the link is not a track link, and to nothing
-	 * otherwise — including when "otherwise" means the page is about to navigate
+	 * otherwise, including when "otherwise" means the page is about to navigate
 	 * to Spotify's authorize screen. The link is carried across that redirect and
 	 * this method is called again with it on the way back, so a caller writes one
 	 * path and not two.
@@ -248,7 +248,7 @@ export interface MediaStore {
 	/**
 	 * Find a track by name, signing in first if this session has not.
 	 *
-	 * The way in that does not require the user to go and fetch a link — which is
+	 * The way in that does not require the user to go and fetch a link, which is
 	 * a trip to another application to answer a question this one can ask. A query
 	 * that happens to *be* a link is attached rather than searched, so the paste
 	 * still works and costs no second control.
@@ -281,11 +281,11 @@ export interface MediaStore {
 	 * still see: Safari counts the activation from the press *itself*, so anything
 	 * awaited in front of `authorize()` spends it. Attaching used to await Apple's
 	 * ~600KB SDK and its `configure()` round trips first, which is several seconds
-	 * on a cold load — so by the time the sign-in was asked for, the press it
+	 * on a cold load, so by the time the sign-in was asked for, the press it
 	 * belonged to was long gone and the window was blocked every time.
 	 *
 	 * So the script is bought with an *earlier* press than the one that needs it.
-	 * Opening the audio dialog is that press, and it is still a press — this is
+	 * Opening the audio dialog is that press, and it is still a press: this is
 	 * not the module-scope load that `youtubeAllowed` exists to prevent, and it is
 	 * not on a page the user has not touched. By the time a result is pressed the
 	 * instance is already there, `authorize()` runs in the same tick, and the
@@ -312,8 +312,8 @@ export interface MediaStore {
 	/**
 	 * What a metadata-carrying copy says about this draft's song.
 	 *
-	 * The remote source's id and name — attached or still pending, because a
-	 * pending song is no less what the draft is *of* — and `undefined` for a
+	 * The remote source's id and name (attached or still pending, because a
+	 * pending song is no less what the draft is *of*), and `undefined` for a
 	 * local file, which is a handle only this browser can redeem, exactly as for
 	 * no audio at all.
 	 */
@@ -321,11 +321,11 @@ export interface MediaStore {
 	/**
 	 * Take a source that arrived on a pasted fragment, where this draft has none.
 	 *
-	 * A draft with audio — attached or pending — keeps it: an attachment is
+	 * A draft with audio (attached or pending) keeps it: an attachment is
 	 * deliberate work, and a paste must not overwrite it. Where the draft has
-	 * none, the pasted source lands in exactly a restored record's state —
+	 * none, the pasted source lands in exactly a restored record's state:
 	 * persisted, named, and waiting on the press that pays for its script or its
-	 * sign-in — except where this session has already said yes, which is the
+	 * sign-in, except where this session has already said yes, which is the
 	 * same shortcut a reload takes. Nothing here contacts anyone a reload would
 	 * not. True when the source was taken.
 	 */
@@ -349,7 +349,7 @@ export interface MediaStore {
  * What the media repository takes when a draft's audio is written down.
  *
  * Read off the repository rather than restated, so a field added there cannot
- * be quietly dropped by the calls here — the same rule the draft record's
+ * be quietly dropped by the calls here, the same rule the draft record's
  * hand-written copiers are held to.
  */
 type MediaAttachInput = Parameters<MediaRepository['attach']>[0];
@@ -384,7 +384,7 @@ async function defaultPickFile(): Promise<
 	{ file: File; handle?: FileSystemFileHandle } | undefined
 > {
 	// SAFETY: `FilePickerWindow` is `typeof globalThis` plus one *optional*
-	// method, so every global object is one — the assertion only makes the
+	// method, so every global object is one. The assertion only makes the
 	// undeclared entry point visible, and its presence is checked below.
 	const picker = globalThis as FilePickerWindow;
 
@@ -420,7 +420,7 @@ async function defaultPickFile(): Promise<
  * Audio attachment, and its one durable fact: what a draft is transcribed from.
  *
  * The song *is* the draft, so the attachment belongs to the draft rather than to
- * the session — open a draft tomorrow and the same track is one press away. What
+ * the session: open a draft tomorrow and the same track is one press away. What
  * is stored is a pointer, never bytes: a 60MB blob per draft would spend the
  * origin's entire quota on one song and make "Delete all local data" a much
  * larger promise than it looks. For a local file that pointer is a handle and a
@@ -450,7 +450,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	 * moved were all reported to a screen reader and to nobody else: the press
 	 * landed, the row did not change, and there was no sign anywhere that the
 	 * workbench had answered. The toast region is not a live region, so it is the
-	 * other half rather than a replacement — either alone loses an audience, which
+	 * other half rather than a replacement, and either alone loses an audience, which
 	 * is the split `report` in `editor-session.svelte.ts` already makes.
 	 *
 	 * `NOTICE_TOAST_DURATION` because every one of these is a sentence the user has
@@ -464,7 +464,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	const clock = deps.clock ?? (() => Date.now());
 	let openGeneration = 0;
 	// Anything that changes what this draft is attached to supersedes a reconnect
-	// still waiting on a prompt, a picker or a sign-in — see `reconnect`.
+	// still waiting on a prompt, a picker or a sign-in. See `reconnect`.
 	let attachGeneration = 0;
 
 	let restoring = $state(false);
@@ -516,7 +516,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	// so it is written against the draft the audio belongs to, like the position.
 	player.setNameListener((name) => {
 		// A source only reports a name once it actually knows one, so this is always
-		// worth offering — it is how a pasted link gets a title at all.
+		// worth offering: it is how a pasted link gets a title at all.
 		deps.onTitleSuggestion?.(name);
 		const draftId = ownerDraftId;
 		if (draftId === undefined) return;
@@ -530,8 +530,8 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	 *
 	 * The position is a **parameter** rather than a read of `pendingPosition`, and
 	 * that is the whole of a data-loss bug rather than a preference. Every caller
-	 * runs `adopt()` first — which claims the attachment and clears the pending
-	 * fields — so by the time this ran, the position a restored record had just
+	 * runs `adopt()` first, which claims the attachment and clears the pending
+	 * fields, so by the time this ran, the position a restored record had just
 	 * handed over was already gone and the record was rewritten without it. The
 	 * dedup in `flushPosition` then made sure nothing put it back, because `claim`
 	 * had recorded that number as the last one written. On Firefox and Safari
@@ -564,7 +564,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	 * Drop every trace of what this draft was pointing at.
 	 *
 	 * One function rather than the same run of assignments written out at each of
-	 * the three call sites, because a source added later is a field added here —
+	 * the three call sites, because a source added later is a field added here,
 	 * and a field added to one of three hand-written copies and missed by the
 	 * other two is the failure mode that cost this codebase a whole synced song
 	 * once already.
@@ -589,7 +589,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		ownerDraftId = deps.draftId();
 		lastWriteAt = clock();
 		lastWritten = startAt;
-		// Every attachment path lands here — file, video and track — so this is the
+		// Every attachment path lands here (file, video and track), so this is the
 		// one place the draft has to be told, rather than three that each have to
 		// remember.
 		deps.onAttached?.();
@@ -649,12 +649,12 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	 * sign-in round trip, which comes back through `attachSpotify` with only the
 	 * link in hand; the same link pasted into the picker over a pending row; and a
 	 * search result that happens to be the pending song. Each rewrote the record
-	 * with the provisional URL name and no position at all — so a sign-in that
+	 * with the provisional URL name and no position at all, so a sign-in that
 	 * landed cost the draft its title and its playhead, silently, and the next
 	 * session opened `open.spotify.com/track/…` at 0:00.
 	 *
 	 * Read **before** `adopt*`, which claims the attachment and clears both. That
-	 * is the same order — and the same data loss — `remember`'s position parameter
+	 * is the same order (and the same data loss) `remember`'s position parameter
 	 * is documented for.
 	 *
 	 * Gated on the id rather than on the pending source alone: a pending file's
@@ -731,7 +731,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				const picked = await pickFile();
 				if (!picked) return false;
 				// Read before `adopt`, which clears it. The picked file is usually a
-				// different song and carries no position — but a re-pick of the one
+				// different song and carries no position, but a re-pick of the one
 				// the draft was already on is exactly how Firefox and Safari reconnect.
 				const restored = pendingPosition;
 				adopt(picked.file, picked.handle);
@@ -752,7 +752,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		 * The press that is both the link and the consent.
 		 *
 		 * Nothing has contacted Google before this runs, and this only runs from a
-		 * control the user pressed after reading what it costs — so granting here
+		 * control the user pressed after reading what it costs, so granting here
 		 * is the opt-in, not a record of one made elsewhere. A link that is not one
 		 * is answered with a message and grants nothing.
 		 */
@@ -793,7 +793,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		 * the track attaches, or the page leaves for Spotify's authorize screen
 		 * carrying this same link and comes back through `resumeSignIn` to run this
 		 * again. A surface therefore closes on `undefined` without having to know
-		 * which of the two it got — on the redirect branch there is no surface left
+		 * which of the two it got: on the redirect branch there is no surface left
 		 * to close.
 		 *
 		 * The parse happens *before* the sign-in, so a typo costs a message rather
@@ -817,8 +817,8 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			}
 
 			// The provisional name is the floor, not the answer: where this draft was
-			// already pending on this same track — which is every sign-in coming back
-			// — `attachSpotifyTrack` prefers the title the record already carries.
+			// already pending on this same track, which is every sign-in coming back,
+			// `attachSpotifyTrack` prefers the title the record already carries.
 			return await store.attachSpotifyTrack(parsed.trackId, provisionalTrackName(parsed.trackId));
 		},
 
@@ -971,7 +971,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			if (returned.intent === undefined) return;
 
 			// The intent is whatever the user was in the middle of, and it is one of
-			// two things. A link attaches straight away — that is `reconnect`'s path
+			// two things. A link attaches straight away, which is `reconnect`'s path
 			// and the paste's. A search term cannot attach anything on its own, so it
 			// is handed back for the picker to reopen on, because a user who typed a
 			// title, got sent to Spotify and came back to an untouched workbench has
@@ -1006,7 +1006,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 		async adoptPastedSource(source) {
 			if (busy) return false;
-			// An attachment — loaded or pending — is deliberate work, and a paste
+			// An attachment (loaded or pending) is deliberate work, and a paste
 			// must not overwrite it.
 			if (player.attached || pendingSource !== undefined) return false;
 			// The picker's rule, kept here too: never adopt an answer this build
@@ -1038,7 +1038,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 						name,
 						source: source.kind
 					};
-					// One id field, named for the source's own alphabet — a record that
+					// One id field, named for the source's own alphabet. A record that
 					// confused them would fail as a 404 a long way from here.
 					if (source.kind === 'youtube') input.videoId = source.id;
 					if (source.kind === 'spotify') input.trackId = source.id;
@@ -1091,8 +1091,8 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		async reconnect() {
 			if (busy) return;
 			busy = true;
-			// A reconnect waits on things that take as long as a person does — a
-			// permission prompt, a file picker, a sign-in — and the row it was
+			// A reconnect waits on things that take as long as a person does (a
+			// permission prompt, a file picker, a sign-in), and the row it was
 			// pressed from keeps its Forget control the whole time. Detaching in that
 			// window has to win: the handle was read before the await, so a
 			// continuation that carried on would resurrect the attachment the user
@@ -1101,7 +1101,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			const superseded = () => generation !== attachGeneration;
 			try {
 				// A remembered video is the same shape of question as a remembered
-				// file handle — the browser will not act on either without a gesture,
+				// file handle: the browser will not act on either without a gesture,
 				// and here the gesture is also the session's consent to load Google's
 				// player. So it is one press in the same slot, and nothing before it.
 				if (pendingSource === 'youtube') {
@@ -1245,7 +1245,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				currentSongId = record.songId;
 
 				// A video is loaded without a press only where the user has already said
-				// yes to Google in this session — the same trade the file path makes with
+				// yes to Google in this session, the same trade the file path makes with
 				// an already-granted permission, and for the same reason: a page nobody
 				// has touched must not reach out on its own.
 				if (pendingSource === 'youtube') {
@@ -1255,7 +1255,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				}
 
 				// And a track comes back without a press only where this session has
-				// already signed in — the same trade, with the sign-in standing where
+				// already signed in, the same trade, with the sign-in standing where
 				// the granted permission and the YouTube consent stand.
 				if (pendingSource === 'spotify') {
 					if (!spotifyAuth.signedIn() || pendingTrackId === undefined) return;
@@ -1265,7 +1265,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 				// A song always waits to be asked. Whether Apple still has a session for
 				// this user is a question only MusicKit can answer, and asking it means
-				// loading Apple's script — so the honest thing is to draw the press and
+				// loading Apple's script, so the honest thing is to draw the press and
 				// let it pay for both. It falls through to the file branch harmlessly
 				// (there is no handle), but only by accident, and an accident is not what
 				// this should rest on.
@@ -1273,7 +1273,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 				// A permission already granted for this origin needs no gesture, so the
 				// track simply comes back where it was left. Anything else waits to be
-				// asked — `adopt` carries the position through either path.
+				// asked. `adopt` carries the position through either path.
 				if (!pendingHandle?.queryPermission) return;
 				try {
 					if ((await pendingHandle.queryPermission({ mode: 'read' })) !== 'granted') return;

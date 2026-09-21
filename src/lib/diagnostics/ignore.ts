@@ -10,7 +10,7 @@ const CONTEXT_LENGTH = 32;
  *
  * Suppression is one mechanism: the same store, the same matching, the same
  * Restore. What the reader was asked differs, so the key records which question
- * they answered — and it records it *after* the identity rather than inside it,
+ * they answered, and it records it *after* the identity rather than inside it,
  * because a bit that moved a match would make an acceptance and an ignore two
  * different occurrences of the same finding.
  */
@@ -33,7 +33,7 @@ function identity(diagnostic: Diagnostic, text: string): IgnoreIdentity {
 		// `identityText`, where a rule declares one, is what the finding is about;
 		// the flagged text is only where it stands. Matching demands this part
 		// exact, so a finding about a voice keyed on the voice's lyrics came apart
-		// on the first edit inside the tags — the context parts below rank, they
+		// on the first edit inside the tags. The context parts below rank, they
 		// do not gate, which is what lets the same answer follow the finding.
 		diagnostic.identityText ?? text.slice(diagnostic.from, diagnostic.to),
 		text.slice(Math.max(0, diagnostic.from - CONTEXT_LENGTH), diagnostic.from),
@@ -46,7 +46,7 @@ function identity(diagnostic: Diagnostic, text: string): IgnoreIdentity {
  * Whether answering this finding's own control accepts the text rather than
  * setting the finding aside. Two shapes of the same answer: the affirmative
  * that leads the row (`It's correct`) and the one that stands in the ignore
- * slot — for a lyric nobody could make out (`It really is unintelligible`),
+ * slot: for a lyric nobody could make out (`It really is unintelligible`),
  * and for a styled voice nobody can name yet (`The performer is unknown`).
  *
  * A custom header is the whole of its rule, an unresolved marker the whole of
@@ -97,8 +97,8 @@ function parse(key: string): IgnoreIdentity | undefined {
  *
  * Pressing that chip *is* the answer `The performer is unknown`, so the card
  * that would ask it again must find the question already answered. The key is
- * written against the pre-edit document — the finding it will match does not
- * exist yet — which only works because matching gates on the first three
+ * written against the pre-edit document, where the finding it will match does
+ * not exist yet, which only works because matching gates on the first three
  * parts, all knowable here, while the context and offset merely rank: they are
  * taken from the selection being wrapped, which is where the finding will
  * land. The marker is hardcoded because this rule is one of the ids
@@ -148,7 +148,7 @@ export function ignoredDiagnosticRuleId(key: string): string {
 /**
  * The flagged text an ignore was keyed on, where the key still carries one.
  *
- * An ignore is per occurrence, so a rule set aside twice lists twice — and the
+ * An ignore is per occurrence, so a rule set aside twice lists twice, and the
  * rule's name is the same on both rows. The text is already in the key; it is
  * the only thing that tells the two apart. An old rule-level key has none, and
  * a whitespace finding's is not worth printing, so both answer nothing.

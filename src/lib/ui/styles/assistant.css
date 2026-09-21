@@ -3,8 +3,8 @@
  * workbench panel.
  *
  * The transcript reads as a conversation, not a log: the user's words are a
- * compact filled bubble on the right — the one familiar mark every chat reader
- * already knows — and the assistant answers as plain prose on the surface, so
+ * compact filled bubble on the right (the one familiar mark every chat reader
+ * already knows), and the assistant answers as plain prose on the surface, so
  * neither turn needs a "You"/"Assistant" caption or a hairline to say whose it
  * is. Those captions stay in the accessible tree (`sr-only`), because position
  * and fill reach nobody who cannot see them. The whole run sits in one centered
@@ -65,7 +65,7 @@
 }
 
 /* The header splits on what a control acts on: the identity at one end, the
- * commands at the other — no icon tile, because a decorated box beside a title
+ * commands at the other. No icon tile, because a decorated box beside a title
  * separates nothing. */
 .assistant-dialog__header {
 	display: flex;
@@ -119,7 +119,7 @@
 	padding: var(--space-1) var(--space-3) 0;
 }
 
-/* The conversations popover: the drafts menu's shape — a quiet disclosure, one
+/* The conversations popover: the drafts menu's shape, a quiet disclosure, one
  * line per chat, commands as glyphs on the name's own line. */
 .assistant-chats {
 	position: relative;
@@ -238,7 +238,7 @@
 }
 
 /* A resolved tool turn is a record of what the workbench did, not something the
- * assistant said — set in the answer's own type it read as the whole reply to
+ * assistant said. Set in the answer's own type it read as the whole reply to
  * the question, at the size and weight the prose above it uses. It is the meta
  * idiom instead: the tool's glyph, muted, small, and mono, so a reader scanning
  * the transcript tells an action from an answer without reading either. */
@@ -332,8 +332,8 @@
 
 /* A reference's quote is the card's one control: the whole card reveals under
  * the pointer, and the quote is the press a finger or the keyboard makes. It
- * draws as the proposal diff's quiet mono line — the button is a reset, not a
- * silhouette — and the exact text underlines under the pointer the way the
+ * draws as the proposal diff's quiet mono line (the button is a reset, not a
+ * silhouette), and the exact text underlines under the pointer the way the
  * tools panel's copyable facts do, so the press is discoverable without a
  * second control beside it. */
 .assistant-reference__quote {
@@ -353,7 +353,7 @@ button.assistant-reference__quote {
 	cursor: pointer;
 }
 
-/* Scoped through the button so a failed card — whose quote is inert prose —
+/* Scoped through the button so a failed card, whose quote is inert prose,
  * promises nothing under the pointer. */
 .assistant-reference:hover button.assistant-reference__quote .assistant-reference__exact,
 button.assistant-reference__quote:focus-visible .assistant-reference__exact {
@@ -373,7 +373,7 @@ button.assistant-reference__quote:focus-visible .assistant-reference__exact {
 	color: var(--color-text);
 }
 
-/* The empty state is prose on the surface — a question, one sentence, the
+/* The empty state is prose on the surface: a question, one sentence, the
  * suggestions as quiet rows, then the privacy boundary while the reader is
  * deciding whether to begin. */
 .assistant-empty {
@@ -488,7 +488,7 @@ button.assistant-reference__quote:focus-visible .assistant-reference__exact {
 	font-size: var(--font-size-xs);
 }
 
-/* The answer's citations, collected once at its foot — cards after every
+/* The answer's citations, collected once at its foot. Cards after every
  * paragraph chopped the answer into fragments, and the same source was cited
  * three times down one reply. The references form a quiet run separated
  * by space, matching the review list, and each is a title over one meta
@@ -512,7 +512,7 @@ button.assistant-reference__quote:focus-visible .assistant-reference__exact {
 
 /* One mark for a citation everywhere it appears: superscript in the prose, the
  * rail of a card, the head of a direct-source line. A plain footnote number,
- * not a boxed chip — a filled box around a digit is a keycap drawn for nothing,
+ * not a boxed chip: a filled box around a digit is a keycap drawn for nothing,
  * and it read as a control. Never pressable. */
 .assistant-citation-number {
 	color: var(--color-text-muted);
@@ -529,7 +529,7 @@ button.assistant-reference__quote:focus-visible .assistant-reference__exact {
 	vertical-align: 0.35em;
 }
 
-/* The example's marks ride the block's own corner — inside the `pre` they
+/* The example's marks ride the block's own corner: inside the `pre` they
  * would read as part of the quoted document. */
 .assistant-example {
 	position: relative;
@@ -564,7 +564,7 @@ button.assistant-reference__quote:focus-visible .assistant-reference__exact {
 	grid-column: 2;
 }
 
-/* The card was three shades of accent blue per row — title, arrow, source —
+/* The card was three shades of accent blue per row (title, arrow, source),
  * and a run of three cards was a wall of it. The title rests in the text
  * color and earns its underline under the pointer; the muted arrow is the
  * mark that says the press leaves. */
@@ -602,7 +602,7 @@ a.assistant-rule__source:hover {
 }
 
 /* `center`, not `baseline`: the severity tag is an inline-flex led by its
- * glyph, which has no text baseline, so a baseline row seats it high — the
+ * glyph, which has no text baseline, so a baseline row seats it high. The
  * diagnostic meta row makes the same choice for the same reason. */
 .assistant-rule__meta {
 	display: flex;
@@ -694,8 +694,8 @@ a.assistant-rule__source:hover {
 	box-shadow: 0 0 0 var(--focus-ring-width) var(--color-focus-soft);
 }
 
-/* Sizing only. Everything the control *is* — the silhouette, the contrast
-   tier's inversion, and the muted-surface disabled state — comes from
+/* Sizing only. Everything the control *is* (the silhouette, the contrast
+   tier's inversion, and the muted-surface disabled state) comes from
    `controls.css`, so this cannot drift into a fourth tier again. */
 .assistant-composer__send {
 	flex: none;

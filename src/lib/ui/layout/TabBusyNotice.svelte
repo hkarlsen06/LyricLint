@@ -7,11 +7,11 @@
 	// workbench over on its own the moment that happens. A "use this tab instead"
 	// button would be a control for a decision the user has already made by
 	// walking over here, and it would have to steal a lock from a tab that may be
-	// mid-save — which is the loss this guard exists to prevent, offered as a
+	// mid-save, which is the loss this guard exists to prevent, offered as a
 	// press.
 	//
 	// Prose on the canvas: no border, no fill, no card. The message is the whole
-	// page, so it has nothing to be separated from — see "A card has to earn its
+	// page, so it has nothing to be separated from. See "A card has to earn its
 	// border" in AGENTS.md, and `.error-page` in `overlays.css`, which is the same
 	// shape for the same reason.
 	import AppWordmark from './AppWordmark.svelte';
@@ -22,7 +22,7 @@
 		<h1><AppWordmark /> is open in another tab</h1>
 		<p>
 			Your 'scribes are saved in this browser, and two tabs saving them at once would write over
-			each other — so the tab that opened the workbench first keeps it.
+			each other, so the tab that opened the workbench first keeps it.
 		</p>
 		<p>Close that tab and this page picks the workbench up on its own.</p>
 	</div>
@@ -60,7 +60,7 @@
 	/* The same baseline correction `.landscape-notice h1 .app-wordmark` makes, for
 	   the same reason: the lockup is inline-flex whose first item holds only
 	   absolutely positioned letters, so it has no baseline of its own and the
-	   browser synthesises one from the bottom of its margin box — which rides the
+	   browser synthesises one from the bottom of its margin box, which rides the
 	   brand above the sentence it is the first word of. Stable in `em` because the
 	   wordmark and the body copy are the mono and sans cuts of one family. */
 	.tab-busy-notice h1 :global(.app-wordmark) {

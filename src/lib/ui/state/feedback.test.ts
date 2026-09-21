@@ -137,7 +137,7 @@ describe('feedback toast lifecycle', () => {
 		expect(feedback.toasts).toHaveLength(1);
 		expect(feedback.toasts[0]?.count).toBe(2);
 
-		// The second occurrence restarts the countdown — a toast the user has not
+		// The second occurrence restarts the countdown: a toast the user has not
 		// finished reading must not expire because an earlier copy was about to.
 		vi.advanceTimersByTime(ACTION_TOAST_DURATION - 1);
 		expect(feedback.toasts).toHaveLength(1);

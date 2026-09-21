@@ -19,8 +19,8 @@ export interface AssistantDraftBridge {
 	preview(edit: AtomicDocumentEdit): boolean;
 	clearPreview(): void;
 	/**
-	 * Say where a change is: the editor's selection — and with it the full-width
-	 * active-line wash — moves onto the span, and the viewport scrolls to it.
+	 * Say where a change is: the editor's selection (and with it the full-width
+	 * active-line wash) moves onto the span, and the viewport scrolls to it.
 	 * It never focuses, so no caret is armed over text the user did not choose.
 	 */
 	reveal(range: TextRange): void;

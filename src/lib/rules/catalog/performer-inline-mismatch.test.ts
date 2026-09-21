@@ -22,7 +22,7 @@ describe('performer.inline-mismatch', () => {
 	});
 
 	it('is silent in a section with no legend at all', () => {
-		// That state is performer.header-required's one header-anchored finding —
+		// That state is performer.header-required's one header-anchored finding
 		// and, below its roster gate, the formatting-first workflow left in peace.
 		expect(checkRule(rule, '[Verse]\n<i>Second voice</i>', { performers: ['A', 'B'] })).toEqual([]);
 	});

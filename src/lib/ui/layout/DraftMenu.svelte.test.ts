@@ -144,7 +144,7 @@ describe('DraftMenu', () => {
 
 		// Two presses in one place: the confirm takes the trigger's slot, and the
 		// press that armed it carries focus across the swap. It keeps the draft in
-		// its accessible name, because focus lands on it — a bare "Delete" read out
+		// its accessible name, because focus lands on it: a bare "Delete" read out
 		// on arrival names nothing.
 		const confirm = within(renamedRow!).getByRole('button', { name: 'Delete Bridge notes' });
 		expect(confirm.classList.contains('remove-button__confirm')).toBe(true);
@@ -158,9 +158,9 @@ describe('DraftMenu', () => {
 	});
 
 	// The menu deletes one 'scribe at a time and offers no way to delete
-	// everything. That footer was the whole menu on a fresh install — a sentence
-	// saying there is nothing saved yet, under a red button offering to delete it
-	// — so the command lives in the tools panel, beside the paragraph that says
+	// everything. That footer was the whole menu on a fresh install: a sentence
+	// saying there is nothing saved yet, under a red button offering to delete it.
+	// So the command lives in the tools panel, beside the paragraph that says
 	// what local data is. Re-adding it here is the specific regression.
 	test('offers no way to delete everything, and a fresh install is one sentence', async () => {
 		const { controller } = createTestWorkbench({ drafts: [] });
@@ -255,7 +255,7 @@ describe('DraftMenu', () => {
 
 	// A `<details>` closes on its summary and on an outside press and on nothing
 	// else, so this menu had two of the three exits every transient surface here
-	// owes — and an armed delete could not be abandoned from the keyboard at all.
+	// owes, and an armed delete could not be abandoned from the keyboard at all.
 	test('closes on Escape, abandoning any pending confirm and returning focus', async () => {
 		const base = createTestWorkbench();
 		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
@@ -286,7 +286,7 @@ describe('DraftMenu', () => {
 	});
 
 	// The armed row used to be a template branch of its own, mounting a *new*
-	// `RemoveButton` with `pending` already true — so its live region was born
+	// `RemoveButton` with `pending` already true, so its live region was born
 	// holding the question, which is not an update and is therefore not
 	// announced, and focus landed on a confirm named a bare "Delete".
 	test('arms the confirm in place, so its live region and its name both land', async () => {

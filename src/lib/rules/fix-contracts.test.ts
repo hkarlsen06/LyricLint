@@ -597,7 +597,7 @@ describe('cross-rule safe fixes', () => {
 
 	it('converges a split parenthetical on the guide’s form, parentheses outside', () => {
 		// Two wrappers filling one parenthetical are redundant-markup's finding
-		// alone — the parentheses are already outside the formatting, which is the
+		// alone; the parentheses are already outside the formatting, which is the
 		// form the guide's own examples write, so the boundary rule has nothing to
 		// say before the merge or after it.
 		const source = '[Verse: A & <i>B</i>]\n(<i>Call</i> <i>back</i>)';

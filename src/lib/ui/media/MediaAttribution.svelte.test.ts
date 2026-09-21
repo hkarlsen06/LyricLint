@@ -10,7 +10,7 @@ import MediaAttribution from './MediaAttribution.svelte';
  * half, pinned in `MediaStrip.svelte.test.ts` and `MediaArtwork.svelte.test.ts`.
  *
  * Spotify's Design Guidelines require the mark, the track and artist beside it,
- * and a way back to the track — and a missing one of those is the most common
+ * and a way back to the track, and a missing one of those is the most common
  * reason a quota-extension request is refused.
  */
 describe('MediaAttribution', () => {
@@ -28,7 +28,7 @@ describe('MediaAttribution', () => {
 	});
 
 	// It is a brand asset, so it takes Spotify's green rather than the accent
-	// every other link on the page inherits — and their stated 21px floor.
+	// every other link on the page inherits, and their stated 21px floor.
 	it('draws the mark in Spotify green at their minimum size', async () => {
 		const { media } = await spotifyStore();
 		await render(MediaAttribution, { props: { media } });
@@ -62,13 +62,13 @@ describe('MediaAttribution', () => {
 	 *
 	 * The ratio is measured rather than assumed, because the obvious way to write
 	 * this markup gets it wrong: `width`/`height` attributes are parsed as
-	 * integers, so 125 × 28 squeezes the badge by 0.9% — invisible, and still the
+	 * integers, so 125 × 28 squeezes the badge by 0.9%: invisible, and still the
 	 * thing the guidelines name.
 	 *
 	 * The data URI is the third rule and a fix in its own right. Apple's lockups
 	 * are ~7.5KB, over Vite's 4096-byte inline threshold, so they shipped as
 	 * separate files and the badge visibly popped in a moment after a song
-	 * attached — a request that only starts when the element mounts, which is
+	 * attached, because a request only starts when the element mounts, which is
 	 * exactly when the user is looking at that row. Inlining is also byte-for-byte
 	 * their file, where minifying it to fit would not have been.
 	 */

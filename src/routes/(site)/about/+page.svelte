@@ -59,20 +59,20 @@
 	<h2>Project links</h2>
 	<ul>
 		<li>
-			<a href={repositoryUrl} rel="external">Source repository</a> — inspect the application, its tests,
-			and its documentation.
+			<a href={repositoryUrl} rel="external">Source repository</a>: inspect the application, its
+			tests, and its documentation.
 		</li>
 		<li>
-			<a href={`${repositoryUrl}/issues`} rel="external">Issue tracker</a> — report a bug or suggest a
-			rule or feature.
+			<a href={`${repositoryUrl}/issues`} rel="external">Issue tracker</a>: report a bug or suggest
+			a rule or feature.
 		</li>
 		<li>
-			<a href={`${repositoryUrl}/commits/main/`} rel="external">Development history</a> — follow the changes
-			made to the project.
+			<a href={`${repositoryUrl}/commits/main/`} rel="external">Development history</a>: follow the
+			changes made to the project.
 		</li>
 		<li>
-			<a href={`${repositoryUrl}/blob/main/SECURITY.md`} rel="external">Security policy</a> — report a
-			vulnerability through the appropriate private channel.
+			<a href={`${repositoryUrl}/blob/main/SECURITY.md`} rel="external">Security policy</a>: report
+			a vulnerability through the appropriate private channel.
 		</li>
 	</ul>
 </main>

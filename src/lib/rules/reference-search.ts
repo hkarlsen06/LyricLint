@@ -7,7 +7,7 @@ import type { RuleReference, RuleReferenceGroup } from './reference.js';
  *
  * Fifty-two rules in nineteen groups is past what anyone reads down, and the
  * reader arriving here almost never knows the rule's name: they know the
- * symptom — a bracket, an apostrophe, a word the linter underlined. So the
+ * symptom: a bracket, an apostrophe, a word the linter underlined. So the
  * query is matched against everything a page says, the reviewed examples and
  * the lookup tables included, which is what makes searching “definately”,
  * “Imma” or “tryna” land on the rule that flagged it.
@@ -29,7 +29,7 @@ export const severityOrder: readonly Severity[] = [
 export const fixabilityOrder: readonly Fixability[] = ['safe', 'preview', 'none'];
 
 /**
- * Dots cannot appear in a static-adapter path segment — the adapter writes the
+ * Dots cannot appear in a static-adapter path segment: the adapter writes the
  * page to disk and `adlib.parentheses` reads as a file named `adlib` with the
  * extension `parentheses`. Hyphens also match the catalog filenames, so a slug
  * doubles as the name of the module implementing it. Here rather than in
@@ -52,13 +52,13 @@ export function ruleFixability(reference: RuleReference): Fixability {
  * `groupOrder` in `reference.ts` gets the right family onto the first screen;
  * this gets the right *rows* onto it. Section headers is eleven rules deep, so
  * ranking it first still opens the page on eleven headings' worth of scrolling
- * before the reader meets a spelling — and the two conventions a first-time
+ * before the reader meets a spelling, and the two conventions a first-time
  * transcriber actually has to be told are one rule from each end of that.
  *
  * Curated, not counted, exactly as `groupOrder` is and for the same reason:
  * nothing here measures anything. What these six have in common is that each is
- * a Genius convention somebody has to be *told* — brackets around a song part,
- * a legend before a styled voice, `[?]` for a lyric nobody could make out — as
+ * a Genius convention somebody has to be *told* (brackets around a song part,
+ * a legend before a styled voice, `[?]` for a lyric nobody could make out), as
  * opposed to a rule whose own message is the whole of what there is to know
  * about it. `capitalization.line-start` is deliberately absent for that reason,
  * and it would otherwise be an obvious member.
@@ -69,7 +69,7 @@ export function ruleFixability(reference: RuleReference): Fixability {
  *
  * It is drawn only while nothing is narrowing the list. A search is the reader
  * saying what they are looking for, and a duplicated shortcut standing over
- * their answer is noise — it would also put six rows in front of a readout that
+ * their answer is noise. It would also put six rows in front of a readout that
  * counts a different number.
  */
 export const popularRuleIds: readonly string[] = [
@@ -83,7 +83,7 @@ export const popularRuleIds: readonly string[] = [
 
 /**
  * `popularRuleIds` resolved against the index, in the order declared there. A
- * rule that has left the catalog is skipped rather than thrown for — losing a
+ * rule that has left the catalog is skipped rather than thrown for: losing a
  * shortcut is not worth failing a page render over, and `reference-search.test.ts`
  * is what turns a stale ID into a failure where somebody can see it.
  */
@@ -98,7 +98,7 @@ export function popularRules(groups: readonly RuleReferenceGroup[]): RuleReferen
 /**
  * Everything the query is matched against, folded once per rule.
  *
- * The list is the rule's own page read top to bottom — its name, the linter's
+ * The list is the rule's own page read top to bottom: its name, the linter's
  * wording, the explanation, both reviewed examples, the fix's label, the
  * citations under them, and for a table-shaped rule the table's prose and every
  * form in it. That is the whole of what the reader can see, which is the only
@@ -114,7 +114,7 @@ export function popularRules(groups: readonly RuleReferenceGroup[]): RuleReferen
  * three or fewer, and the 47 distinct section titles are as specific as
  * `Reviewed Norwegian section-header vocabulary`. What it actually cost was a
  * reader typing `languages` at a page whose citation reads `Song Headers in
- * Different Languages` and being told no rule matches — the exact distrust that
+ * Different Languages` and being told no rule matches, the exact distrust that
  * widening this list exists to prevent.
  *
  * What stays out is **severity and fixability**, which the chips own. A row
@@ -141,15 +141,15 @@ function haystack(reference: RuleReference): string {
 			reference.invalid,
 			reference.valid,
 			// What the rule cites, in both the words the block draws: the page and
-			// the part of it that was reviewed. Already on the reference — every
-			// page lists them — so this costs the payload nothing.
+			// the part of it that was reviewed. Already on the reference (every
+			// page lists them), so this costs the payload nothing.
 			...reference.sources.flatMap((source) => [source.pageTitle, source.sectionTitle]),
 			// Every form in the rule's table, where it has one. Without this the
 			// example is all a table-shaped rule is searchable by, so `Imma` found
-			// `spelling.standardized` while `tryna` — one of its other 28 entries —
+			// `spelling.standardized` while `tryna` (one of its other 28 entries)
 			// found nothing at all, which reads as the reference not covering it.
 			reference.lookupTerms ?? '',
-			// The guideline titles the page links under its explanation — what is
+			// The guideline titles the page links under its explanation: what is
 			// searchable is what the page says, and these are on it.
 			...(reference.guidelines ?? []).map((guideline) => guideline.title)
 		].join('\n')
@@ -181,7 +181,7 @@ function haystackFor(reference: RuleReference): string {
  *   and nobody types the cedilla to look it up. Under NFD the mark is a
  *   separate character, so stripping `\p{M}` leaves `ca va` on both sides of
  *   the comparison. Hangul decomposes to jamo rather than to marks, so Korean
- *   survives this as its own decomposed form — which the query decomposes to as
+ *   survives this as its own decomposed form, which the query decomposes to as
  *   well, and the two still meet.
  * - **Typographic punctuation folds to the typewriter kind.** Half the messages
  *   here quote a word in curly quotes and several rules are *about* the
@@ -194,7 +194,7 @@ function haystackFor(reference: RuleReference): string {
  *   place `toLowerCase` is not a per-character operation: it implements
  *   `Final_Sigma`, so `ΛΟΓΟΣ` lowercases to `λογος` as a whole string and to
  *   `λογοσ` a character at a time. `foldWithOffsets` below runs it a character
- *   at a time by construction, so without this the two folds disagree — the
+ *   at a time by construction, so without this the two folds disagree: the
  *   query matches the filter and the page it opens draws no `<mark>`, which is
  *   the failure marking the query exists to prevent. It runs after the case
  *   fold, where both spellings have arrived, and costs the offsets nothing:
@@ -216,7 +216,7 @@ export function foldForSearch(value: string): string {
 
 /**
  * The query as terms, all of which have to match. A reader typing two words
- * means both — `chorus link` is a request for the linking rule, not for every
+ * means both: `chorus link` is a request for the linking rule, not for every
  * rule that mentions a chorus.
  */
 export function searchTokens(query: string): readonly string[] {
@@ -229,9 +229,9 @@ export function searchTokens(query: string): readonly string[] {
  * The same fold, kept alongside where each of its characters came from.
  *
  * Marking the query inside the page it opened is the one job the plain fold
- * cannot do: it changes the string's length in three separate ways — NFD splits
+ * cannot do: it changes the string's length in three separate ways: NFD splits
  * a letter into a letter and a mark, the mark is then dropped, and a few
- * characters lowercase to more than one — so an offset found in the folded text
+ * characters lowercase to more than one. An offset found in the folded text
  * names nothing in the text on screen. `ça` folds to `ca`, and a match at
  * folded 0..2 is two characters of a three-character string.
  *
@@ -291,7 +291,7 @@ type RuleIndexEntry = { kind: 'rule'; rule: RuleReference } | RuleIndexFamily;
  * Eight of the eleven rules in the Spelling family are one rule per language
  * pack, and they look alike in the index because they are alike. A transcriber
  * works in one language, so seven of those eight rows are noise to every reader
- * who ever sees them — and it is the second group on the page, which means the
+ * who ever sees them, and it is the second group on the page, which means the
  * repetition lands on the first screen of a reader who came to find out what
  * the conventions are.
  *
@@ -306,7 +306,7 @@ type RuleIndexEntry = { kind: 'rule'; rule: RuleReference } | RuleIndexFamily;
  *   registry's order for the same reason.
  * - **A family of one draws as an ordinary rule row.** Under a query that keeps
  *   only the Norwegian rule, a family row would be a heading over a single
- *   link — one press wearing two rows — which is the same complaint `Fix all 1`
+ *   link (one press wearing two rows), which is the same complaint `Fix all 1`
  *   answers in the workbench. The rule's own row says more, because it carries
  *   the message and the severity.
  */
@@ -314,7 +314,7 @@ export function ruleIndexEntries(rules: readonly RuleReference[]): RuleIndexEntr
 	const entries: RuleIndexEntry[] = [];
 	// The row itself is what the map holds, so a later member of the same family
 	// is appended to the row already standing in `entries` at its first member's
-	// position — no second lookup, and nothing to assert about what sits there.
+	// position: no second lookup, and nothing to assert about what sits there.
 	const rows = new Map<string, RuleIndexFamily>();
 	for (const rule of rules) {
 		const family = rule.variant?.family;
@@ -348,7 +348,7 @@ export interface TextRange {
  * Where the query's terms sit in a piece of the page, merged.
  *
  * Every term is marked rather than only the first, because every term had to
- * match for the rule to be listed at all — showing one of them would answer
+ * match for the rule to be listed at all. Showing one of them would answer
  * half the question the reader is asking by having the page open. Overlapping
  * and touching runs are merged so two terms that met in the middle of a word
  * are one mark rather than two abutting ones with a seam between them.
@@ -475,7 +475,7 @@ export interface RuleFacetCounts {
 
 /**
  * What each chip would show, counted over the *query's* result and blind to the
- * chips themselves — the linter panel counts its severities the same way, and
+ * chips themselves. The linter panel counts its severities the same way, and
  * for the same reason. A count that also obeyed the chips would read as the
  * number of rows the chip is currently contributing, so pressing a chip back on
  * would be a press towards a zero, and the two rows of chips would chase each
@@ -509,7 +509,7 @@ export interface PresentRuleFacets {
 
 /**
  * Which severities and fixabilities the rule set contains at all, so the chip
- * row offers no answer it cannot carry out — the same rule `availableRates` and
+ * row offers no answer it cannot carry out, the same rule `availableRates` and
  * `spotifyAvailable` follow. This is counted over the whole set rather than
  * over the query: a chip that vanished as the reader typed would take the axis
  * with it, and a chip reading zero is what says their query excluded it.

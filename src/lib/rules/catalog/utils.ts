@@ -11,7 +11,7 @@ import type {
  * A catalog lookup keyed by the lyric text as matched.
  *
  * The key is whatever the rule's own pattern found in the document, so these
- * tables are genuinely open rather than a closed set of known forms — a
+ * tables are genuinely open rather than a closed set of known forms, because a
  * transcription can hold anything. The name is the contract the value type
  * cannot state on its own: every entry is one wording the reviewed guidance
  * names, and a miss is the ordinary case each rule already answers for.

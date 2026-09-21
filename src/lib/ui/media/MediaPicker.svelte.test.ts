@@ -49,8 +49,8 @@ async function setup(
 	const props: ComponentProps<typeof MediaPicker> = { media };
 	if (options.draftTitle !== undefined) props.draftTitle = options.draftTitle;
 	const view = await render(MediaPicker, { props });
-	// The triggers live where they act now — the tray's note glyph, the strip's
-	// pencil — so the suite opens the dialog the way they do, through the one
+	// The triggers live where they act now (the tray's note glyph, the strip's
+	// pencil) so the suite opens the dialog the way they do, through the one
 	// shared `open` they all call.
 	return {
 		media,
@@ -122,7 +122,7 @@ describe('MediaPicker', () => {
 	});
 
 	// The trade is stated where the decision is made, not an hour earlier in a
-	// panel the reader has since scrolled past — and as a line of facts rather
+	// panel the reader has since scrolled past, and as a line of facts rather
 	// than a paragraph of prose, which read as a warning about the button under it.
 	it('states what YouTube costs before the press that spends it, having loaded nothing', async () => {
 		const { youtube, openDialog } = await setup();
@@ -135,7 +135,7 @@ describe('MediaPicker', () => {
 	});
 
 	// The answer most transcribers have is the one they meet first, and the local
-	// file — the answer that always works and needs nothing — anchors the end.
+	// file, the answer that always works and needs nothing, anchors the end.
 	// Between them the two subscription sources sit in the order the deployed
 	// build will actually show them: Apple Music ships, Spotify is a local-only
 	// experiment, so the one a stranger can use comes first.
@@ -267,7 +267,7 @@ describe('MediaPicker', () => {
 	});
 
 	// A draft already on a video opens the field holding that video's link,
-	// selected — copying it out and typing over it are both one gesture from here.
+	// selected, so copying it out and typing over it are both one gesture from here.
 	it('prefills and selects the link of the video already attached', async () => {
 		const { media, openDialog } = await setup();
 		await media.attachYouTube('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=90s');
@@ -296,7 +296,7 @@ describe('MediaPicker', () => {
 	 *
 	 * A search is a round trip to Apple's catalogue and an attach is a script, a
 	 * sign-in and a queue. `media.busy` disables controls during the second, which
-	 * reads as the dialog having gone dead rather than as work being done — and
+	 * reads as the dialog having gone dead rather than as work being done, and
 	 * says nothing about which row was pressed.
 	 */
 	it('shows the search is running, and gives the control back on a refusal', async () => {
@@ -346,8 +346,8 @@ describe('MediaPicker', () => {
 	 * Every outcome of a search, in the region that speaks.
 	 *
 	 * Only the error strings were ever in one: the result rows are an ordinary
-	 * list and `No matches` was ordinary prose, so a search that answered — or
-	 * answered with nothing — was silent to a screen reader and the field simply
+	 * list and `No matches` was ordinary prose, so a search that answered, or
+	 * answered with nothing, was silent to a screen reader and the field simply
 	 * sat there. The count is `sr-only` because the rows underneath are the
 	 * sighted answer to it.
 	 */
@@ -382,7 +382,7 @@ describe('MediaPicker', () => {
 	 * A sign-in opens a pop-up, and a browser only allows one out of an activation
 	 * it can still see. Attaching used to await Apple's ~600KB script and its
 	 * `configure()` round trips *first*, so on a cold load the press had been spent
-	 * long before `authorize()` was reached and the window was blocked every time —
+	 * long before `authorize()` was reached and the window was blocked every time,
 	 * which, because MusicKit never settles a blocked sign-in, hung the whole
 	 * workbench rather than failing.
 	 *
@@ -406,7 +406,7 @@ describe('MediaPicker', () => {
 	/*
 	 * The way in for somebody who has the song and not its link. It is a search
 	 * the user runs on Google's own page rather than a lookup this build pays a
-	 * quota for — and it must not be offered when there is nothing to search for,
+	 * quota for, and it must not be offered when there is nothing to search for,
 	 * which is the same rule `availableRates` and `spotifyAvailable` follow.
 	 */
 	it('offers a prefilled YouTube search named after the draft', async () => {
@@ -434,7 +434,7 @@ describe('MediaPicker', () => {
 	/*
 	 * The way out, which used to be an X at the end of the transport row and was
 	 * hit by accident more often than on purpose. It lives here now, behind the
-	 * same deliberate press every other answer to "where is the song?" is — and
+	 * same deliberate press every other answer to "where is the song?" is, and
 	 * it draws only while there is something to detach, the rule every
 	 * conditional answer in this dialog follows.
 	 */

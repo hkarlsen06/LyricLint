@@ -2,7 +2,7 @@ import { defineConfig } from 'oxlint';
 
 // Oxlint runs only the vendored anti-slop plugin (tools/oxlint/anti-slop, copied from
 // https://github.com/dmmulroy/anti-slop and ours to maintain). ESLint stays the host for
-// everything else — the Svelte rules have no oxlint counterpart — so `bun run lint` runs both.
+// everything else, since the Svelte rules have no oxlint counterpart, so `bun run lint` runs both.
 export default defineConfig({
 	ignorePatterns: [
 		'**/node_modules/**',

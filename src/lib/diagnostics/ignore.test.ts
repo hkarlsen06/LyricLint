@@ -100,7 +100,7 @@ describe('an accepted occurrence', () => {
 
 /**
  * `performer.inline-mismatch` is about the voice, not the words it sings, and
- * an acceptance keyed on those words died on the first edit inside the tags —
+ * an acceptance keyed on those words died on the first edit inside the tags:
  * the card asked `The performer is unknown` again after every rewrite.
  */
 describe('a finding with its own identity text', () => {

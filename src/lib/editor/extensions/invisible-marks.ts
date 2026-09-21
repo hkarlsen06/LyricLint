@@ -17,7 +17,7 @@ import { invisibleCharacterAt, invisibleCharacterPattern } from '$lib/core/invis
  *
  * This replaces the editor's previously unconfigured `highlightSpecialChars`,
  * so it is also asked to draw the control characters that extension handles by
- * default. Those keep CodeMirror's own placeholder — only the characters in the
+ * default. Those keep CodeMirror's own placeholder: only the characters in the
  * shared table get the lyric-specific treatment.
  */
 function renderInvisible(

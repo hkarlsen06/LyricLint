@@ -4,8 +4,8 @@ import type { AssistantCorpus } from './rules-context';
 export const corpus = {
 	formatVersion: 5,
 	ruleSetVersion: '2026.09.18.0',
-	generatedAt: '2026-09-21T10:34:06.214Z',
-	contentHash: '8ec3b35d362f98d988739c820bab65bd4c34ff4dfc7597b3227dfd20c8f58172',
+	generatedAt: '2026-09-21T11:11:34.573Z',
+	contentHash: 'f75d0cbd78ff6b06acc236912922f56cb91fb6530b515e91a942ba9d4aaff977',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -33,7 +33,7 @@ export const corpus = {
 			severity: 'warning',
 			message: 'This parenthesis is never closed.',
 			explanation:
-				'Parentheses wrap a vocal sitting behind the lead, so every opening mark needs its closing half on the same line. Detecting the imbalance is a product-safety check derived from that convention, not an explicit Genius catalog of every malformed case — and where the mark should close is a judgment about the vocal, so no automatic repair is offered.',
+				'Parentheses wrap a vocal sitting behind the lead, so every opening mark needs its closing half on the same line. Detecting the imbalance is a product-safety check derived from that convention, not an explicit Genius catalog of every malformed case. Where the mark should close is a judgment about the vocal, so no automatic repair is offered.',
 			fix: 'none',
 			language: 'en',
 			flaggedExample: '[Verse]\nHold me close (Yeah',
@@ -84,7 +84,7 @@ export const corpus = {
 			severity: 'warning',
 			message: 'This lyric section has no header.',
 			explanation:
-				'Every blank-line lyric section needs a song-part header. If these lines continue the previous song part, remove the blank line instead—Genius does not allow blank lines to split one part into smaller stanzas. Otherwise, choose a reviewed localized term or enter a custom header; the source text remains unchanged until confirmation.',
+				'Every blank-line lyric section needs a song-part header. If these lines continue the previous song part, remove the blank line instead, because Genius does not allow blank lines to split one part into smaller stanzas. Otherwise, choose a reviewed localized term or enter a custom header; the source text remains unchanged until confirmation.',
 			fix: 'none',
 			language: 'en',
 			flaggedExample: 'A lyric',
@@ -100,7 +100,7 @@ export const corpus = {
 			severity: 'warning',
 			message: 'This section header is empty.',
 			explanation:
-				'The brackets are here, but the song part they open is not named, so this line marks nothing. Choose a reviewed header for the language you are transcribing in — LyricLint writes the name between the brackets you already typed and leaves the rest of the line, a performer legend included, exactly as it is.',
+				'The brackets are here, but the song part they open is not named, so this line marks nothing. Choose a reviewed header for the language you are transcribing in; LyricLint writes the name between the brackets you already typed and leaves the rest of the line, a performer legend included, exactly as it is.',
 			fix: 'none',
 			language: 'en',
 			flaggedExample: '[]\nA lyric',
@@ -294,7 +294,7 @@ export const corpus = {
 			severity: 'suggestion',
 			message: 'Styled vocals are not yet named in a performer legend.',
 			explanation:
-				'This section differentiates inline voices, but its header does not yet say who they are. The formatting is worth keeping until the voices are known — it tells the next transcriber a distinct voice sings here. Add a performer legend when the voices are identified, or remove the formatting only if the section no longer needs differentiation.',
+				'This section differentiates inline voices, but its header does not yet say who they are. The formatting is worth keeping until the voices are known, since it tells the next transcriber a distinct voice sings here. Add a performer legend when the voices are identified, or remove the formatting only if the section no longer needs differentiation.',
 			fix: 'safe',
 			fixLabel: 'Remove performer formatting',
 			language: 'en',
@@ -328,7 +328,7 @@ export const corpus = {
 			severity: 'suggestion',
 			message: 'A styled voice is not yet named in the section legend.',
 			explanation:
-				'The styled lyrics mark a distinct voice the header does not identify. The formatting itself is worth keeping — it tells the reader, and the next transcriber, that a separate voice sings here. When the voice is known, choose the section voice and this styled voice to add the missing performer legend without changing the lyrics.',
+				'The styled lyrics mark a distinct voice the header does not identify. The formatting itself is worth keeping, since it tells the reader, and the next transcriber, that a separate voice sings here. When the voice is known, choose the section voice and this styled voice to add the missing performer legend without changing the lyrics.',
 			fix: 'none',
 			language: 'en',
 			flaggedExample: '[Verse: A]\n<i>Voice</i>',
@@ -344,7 +344,7 @@ export const corpus = {
 			severity: 'warning',
 			message: 'Keep the parentheses outside this performer formatting.',
 			explanation:
-				'The reviewed guide styles only the words of a parenthetical and leaves both parentheses plain — the performer’s italics or bold sit just inside them. This wrapper carries the parentheses along with the words.',
+				'The reviewed guide styles only the words of a parenthetical and leaves both parentheses plain, and the performer’s italics or bold sit just inside them. This wrapper carries the parentheses along with the words.',
 			fix: 'safe',
 			fixLabel: 'Move formatting inside the parentheses',
 			language: 'en',
@@ -477,7 +477,7 @@ export const corpus = {
 			severity: 'suggestion',
 			message: "Use “I don't know” instead of “Idk”.",
 			explanation:
-				'Texting shorthand is a way of writing rather than a way of singing: the letters stand in for words the vocal performs in full, and Genius wants the sung words in standardized spelling. Initialisms that are themselves said aloud — ASAP, OK, VIP — are left alone. Check the delivery before replacing this, since an artist who spells the letters out is transcribed as they sing them.',
+				'Texting shorthand is a way of writing rather than a way of singing: the letters stand in for words the vocal performs in full, and Genius wants the sung words in standardized spelling. Initialisms that are themselves said aloud (ASAP, OK, VIP) are left alone. Check the delivery before replacing this, since an artist who spells the letters out is transcribed as they sing them.',
 			fix: 'preview',
 			fixLabel: "Replace with I don't know",
 			language: 'en',
@@ -762,7 +762,7 @@ export const corpus = {
 			severity: 'suggestion',
 			message: 'Genius marks an unclear lyric with [?], not «???».',
 			explanation:
-				'Bare question marks are an improvised placeholder rather than a recognized marker, and the same characters can be deliberate punctuation — so the replacement is offered for review instead of applied mechanically.',
+				'Bare question marks are an improvised placeholder rather than a recognized marker, and the same characters can be deliberate punctuation, so the replacement is offered for review instead of applied mechanically.',
 			fix: 'preview',
 			fixLabel: 'Replace with [?]',
 			language: 'en',
@@ -1027,7 +1027,7 @@ export const corpus = {
 		{
 			ruleId: 'spelling.standardized',
 			description:
-				"The reviewed Genius spelling guide's preferred lyric forms. Case is preserved from the text being corrected, so a line-initial occurrence keeps its capital. Where an entry is marked fuzzy, any one-character typo of the preferred form is caught as well — always as a previewed fix, even where the entry’s own listed forms are safe.",
+				"The reviewed Genius spelling guide's preferred lyric forms. Case is preserved from the text being corrected, so a line-initial occurrence keeps its capital. Where an entry is marked fuzzy, any one-character typo of the preferred form is caught as well, always as a previewed fix, even where the entry’s own listed forms are safe.",
 			entries: [
 				{
 					preferred: ["I'ma"],
@@ -1287,7 +1287,7 @@ export const corpus = {
 		{
 			ruleId: 'numbers.spell-out',
 			description:
-				'Digits a lyric spells out. Numbers reading as data rather than as words — times, money, percentages, and anything joined by a separator — are exempt, as is a digit inside a written-out song part label.',
+				'Digits a lyric spells out. Numbers reading as data rather than as words (times, money, percentages, and anything joined by a separator) are exempt, as is a digit inside a written-out song part label.',
 			entries: [
 				{ preferred: ['zero'], instead: ['0'], fix: 'preview' },
 				{ preferred: ['one'], instead: ['1'], fix: 'preview' },
@@ -1356,7 +1356,7 @@ export const corpus = {
 			topicTitle: 'Section headers',
 			title: 'Song parts open with bracketed headers',
 			statement:
-				"Each part of a song stands under its own header — the part's name in square brackets on a line of its own — with `Intro`, `Verse`, `Refrain`, `Pre-Chorus`, `Chorus`, `Bridge`, and `Outro` the most common names, and further parts documented in the reviewed sections guide.",
+				"Each part of a song stands under its own header, the part's name in square brackets on a line of its own, with `Intro`, `Verse`, `Refrain`, `Pre-Chorus`, `Chorus`, `Bridge`, and `Outro` the most common names, and further parts documented in the reviewed sections guide.",
 			example: { correct: '[Verse 1]', incorrect: 'Verse 1:' },
 			authority: 'staff',
 			sourceIds: ['G-SECTIONS'],
@@ -1375,12 +1375,12 @@ export const corpus = {
 			topicTitle: 'Section headers',
 			title: 'Name artists in headers when voices differ',
 			statement:
-				"Every header carries artist identifiers when a solo artist's song gives parts to other artists, or when a band or group has multiple vocalists — and none when one voice performs everything: a band with one lead singer, or a solo artist singing every part.",
+				"Every header carries artist identifiers when a solo artist's song gives parts to other artists, or when a band or group has multiple vocalists, and none when one voice performs everything: a band with one lead singer, or a solo artist singing every part.",
 			example: { correct: '[Verse 1: Avery]' },
 			authority: 'staff',
 			sourceIds: ['G-SECTIONS'],
 			relatedRuleIds: ['performer.header-required'],
-			note: 'In between, identifiers are allowed but not required: songs by several primary artists or an artist-and-producer duo, and one-singer songs whose intro, outro, or interludes are sampled. The linter checks the mechanical half — a section with styled voices in its lyrics and no legend in its header; whether a song needs identifiers at all is a judgment about the release.'
+			note: 'In between, identifiers are allowed but not required: songs by several primary artists or an artist-and-producer duo, and one-singer songs whose intro, outro, or interludes are sampled. The linter checks the mechanical half: a section with styled voices in its lyrics and no legend in its header; whether a song needs identifiers at all is a judgment about the release.'
 		},
 		{
 			id: 'guidance.section-headers.voice-order',
@@ -1399,7 +1399,7 @@ export const corpus = {
 				'performer.unused-legend-slot',
 				'performer.redundant-markup'
 			],
-			note: 'The linter checks the mechanics of the four slots — their order, that only the supported italic and bold tags carry them, and that the legend and the lyrics agree about which are in use; which artist earned which slot is a count of lines only the transcriber can make.'
+			note: 'The linter checks the mechanics of the four slots: their order, that only the supported italic and bold tags carry them, and that the legend and the lyrics agree about which are in use; which artist earned which slot is a count of lines only the transcriber can make.'
 		},
 		{
 			id: 'guidance.section-headers.unison-grouping',
@@ -1420,7 +1420,7 @@ export const corpus = {
 			topicTitle: 'Section headers',
 			title: 'Parentheses sit outside voice formatting',
 			statement:
-				"Where a differentiated voice's words are parenthesized — an ad-lib or a backing line — the italic or bold tags wrap the words inside the parentheses, and the parentheses themselves stay unformatted.",
+				"Where a differentiated voice's words are parenthesized (an ad-lib or a backing line), the italic or bold tags wrap the words inside the parentheses, and the parentheses themselves stay unformatted.",
 			example: {
 				correct: 'We own the night (<i>We own it</i>)',
 				incorrect: 'We own the night <i>(We own it)</i>'
@@ -1447,7 +1447,7 @@ export const corpus = {
 			topicTitle: 'Section headers',
 			title: 'Credit performers, not their characters',
 			statement:
-				'A song performed in character is identified by the performers credited on the release — which may itself credit the characters; for a musical, or a musical-style film or television show, the transcriber may use character names where those read more appropriately.',
+				'A song performed in character is identified by the performers credited on the release, which may itself credit the characters; for a musical, or a musical-style film or television show, the transcriber may use character names where those read more appropriately.',
 			authority: 'staff',
 			sourceIds: ['G-SECTIONS']
 		},
@@ -1492,7 +1492,7 @@ export const corpus = {
 			example: { correct: '[Instrumental]' },
 			authority: 'staff',
 			sourceIds: ['G-INSTRUMENTAL'],
-			note: 'An instrumental version of an already-existing song is only added where it was released in some official capacity — on streaming, a box set, or similar.'
+			note: 'An instrumental version of an already-existing song is only added where it was released in some official capacity: on streaming, a box set, or similar.'
 		},
 		{
 			id: 'guidance.section-headers.hook-by-language',
@@ -1500,7 +1500,7 @@ export const corpus = {
 			topicTitle: 'Section headers',
 			title: 'Check whether your language kept Hook',
 			statement:
-				"Replacing the deprecated `Hook` header with `Chorus` or `Refrain` is settled for English songs only; some international communities, German among them, still use `Hook` — so a transcription in another language follows that community's own ruling, confirmed with its community lead where it is in doubt.",
+				"Replacing the deprecated `Hook` header with `Chorus` or `Refrain` is settled for English songs only; some international communities, German among them, still use `Hook`, so a transcription in another language follows that community's own ruling, confirmed with its community lead where it is in doubt.",
 			authority: 'editorial',
 			sourceIds: ['G-SECTION-HOOK', 'G-LANG-HEADERS'],
 			relatedRuleIds: ['section.deprecated-hook'],
@@ -1512,7 +1512,7 @@ export const corpus = {
 			topicTitle: 'Section headers',
 			title: 'Label a two-song track by Parts',
 			statement:
-				'A track that a segue divides into two distinct songs still never numbers its choruses, intros, or other non-verse parts; the split is carried by `Part` labels instead — `Part I`, `Part II`, and so on.',
+				'A track that a segue divides into two distinct songs still never numbers its choruses, intros, or other non-verse parts; the split is carried by `Part` labels instead: `Part I`, `Part II`, and so on.',
 			authority: 'editorial',
 			sourceIds: ['G-SECTION-NUMBERING'],
 			relatedRuleIds: ['section.verse-numbering'],
@@ -1524,7 +1524,7 @@ export const corpus = {
 			topicTitle: 'Section headers',
 			title: "Check a language's headers before editing",
 			statement:
-				'Standard section headers exist in many languages, and the reviewed inventory of them is the place to check before changing a header in a song whose language is not your own — each community settles its own vocabulary.',
+				'Standard section headers exist in many languages, and the reviewed inventory of them is the place to check before changing a header in a song whose language is not your own; each community settles its own vocabulary.',
 			authority: 'staff',
 			sourceIds: ['G-LANG-PURPOSE', 'G-LANG-HEADERS'],
 			relatedRuleIds: ['section.header-language', 'section.localized-header-preference'],
@@ -1548,7 +1548,7 @@ export const corpus = {
 			topicTitle: 'Section headers',
 			title: 'One blank line between song parts',
 			statement:
-				'A single blank line separates each song part from the header of the next — and never more than one.',
+				'A single blank line separates each song part from the header of the next, and never more than one.',
 			authority: 'lyriclint',
 			sourceIds: ['G-SECTIONS'],
 			relatedRuleIds: ['section.header-spacing', 'section.extra-blank-lines'],
@@ -1560,7 +1560,7 @@ export const corpus = {
 			topicTitle: 'Spelling',
 			title: 'Spell deliberate mispronunciations as sung',
 			statement:
-				'A word an artist mispronounces or deliberately bends — local slang, or a rhyme forced into the flow — is transcribed to reflect the pronunciation, within reason; slang built on a mispronounced word is spelled the way it is usually written online, or as it is pronounced.',
+				'A word an artist mispronounces or deliberately bends (local slang, or a rhyme forced into the flow) is transcribed to reflect the pronunciation, within reason; slang built on a mispronounced word is spelled the way it is usually written online, or as it is pronounced.',
 			authority: 'staff',
 			sourceIds: ['G-AS-SPOKEN'],
 			relatedRuleIds: ['spelling.texting-shorthand'],
@@ -1582,7 +1582,7 @@ export const corpus = {
 			topicTitle: 'Spelling',
 			title: 'An apostrophe marks the omitted side',
 			statement:
-				"When letters or a syllable are dropped from a word, the remaining characters take an apostrophe on the side of the omission — `ballin'`, `gon'` for `gonna`, `'til`, `'em` — and a contraction's apostrophe always sits on the side its letters left.",
+				"When letters or a syllable are dropped from a word, the remaining characters take an apostrophe on the side of the omission (`ballin'`, `gon'` for `gonna`, `'til`, `'em`), and a contraction's apostrophe always sits on the side its letters left.",
 			example: { correct: "Ballin' like we used to", incorrect: 'Ballin like we used to' },
 			authority: 'staff',
 			sourceIds: ['G-AS-SPOKEN', 'G-CONTRACTIONS'],
@@ -1607,7 +1607,7 @@ export const corpus = {
 			topicTitle: 'Spelling',
 			title: "Spelling follows the language's standard",
 			statement:
-				'Outside deliberate as-sung spellings, lyric text follows the standard orthography of its language — the double-checked accuracy the transcription guide asks of every lyric.',
+				'Outside deliberate as-sung spellings, lyric text follows the standard orthography of its language, the double-checked accuracy the transcription guide asks of every lyric.',
 			authority: 'lyriclint',
 			sourceIds: ['G-ADD-SONGS'],
 			relatedRuleIds: [
@@ -1621,7 +1621,7 @@ export const corpus = {
 				'spelling.japanese-common',
 				'spelling.korean-common'
 			],
-			note: "The per-language checks are LyricLint's own curation against external dictionaries and academies — each rule's page cites its sources — rather than a reviewed Genius list; Genius's own reviewed forms are the standardized-spellings table above."
+			note: "The per-language checks are LyricLint's own curation against external dictionaries and academies (each rule's page cites its sources) rather than a reviewed Genius list; Genius's own reviewed forms are the standardized-spellings table above."
 		},
 		{
 			id: 'guidance.spelling.reversed-vocals',
@@ -1668,7 +1668,7 @@ export const corpus = {
 			topicTitle: 'Capitalization',
 			title: 'Write brands conventionally, not stylized',
 			statement:
-				"A brand name takes its conventional form over its own stylization — `Chanel`, not `CHANEL`; `Adidas`, not `adidas`; `Macy's`, not `macy★s` — with no trademark marks and no decorative characters, unless the name is an acronym normally written in capitals (`GEICO`, `IMAX`); CamelCase stays where the name itself carries it (`YouTube`, `iPhone`, `eBay`), as does a symbol that is genuinely part of the name (`H&M`, `su:m37°`), and a brand that has become a generic word may be lowercased (`band-aid`, `popsicle`, `jet ski`).",
+				"A brand name takes its conventional form over its own stylization (`Chanel`, not `CHANEL`; `Adidas`, not `adidas`; `Macy's`, not `macy★s`), with no trademark marks and no decorative characters, unless the name is an acronym normally written in capitals (`GEICO`, `IMAX`); CamelCase stays where the name itself carries it (`YouTube`, `iPhone`, `eBay`), as does a symbol that is genuinely part of the name (`H&M`, `su:m37°`), and a brand that has become a generic word may be lowercased (`band-aid`, `popsicle`, `jet ski`).",
 			example: { correct: 'New Glock in my jeans', incorrect: 'New GLOCK in my jeans' },
 			authority: 'staff',
 			sourceIds: ['G-CAPS', 'G-SYMBOLS'],
@@ -1680,7 +1680,7 @@ export const corpus = {
 			topicTitle: 'Capitalization',
 			title: 'Earth is capital only as the planet',
 			statement:
-				'`Earth` takes a capital only when it names the planet; as the material — dirt, soil — it stays lowercase.',
+				'`Earth` takes a capital only when it names the planet; as the material (dirt, soil), it stays lowercase.',
 			authority: 'staff',
 			sourceIds: ['G-CAPS']
 		},
@@ -1690,7 +1690,7 @@ export const corpus = {
 			topicTitle: 'Capitalization',
 			title: 'Capitalize regions, not directions',
 			statement:
-				'`North`, `south`, `east`, and `west` take capitals where they designate a definite region or belong to a name — `the Deep South`, `the Eastern Seaboard` — and stay lowercase as mere directions, like westerly winds or a northern winter.',
+				'`North`, `south`, `east`, and `west` take capitals where they designate a definite region or belong to a name (`the Deep South`, `the Eastern Seaboard`), and stay lowercase as mere directions, like westerly winds or a northern winter.',
 			authority: 'staff',
 			sourceIds: ['G-CAPS']
 		},
@@ -1700,7 +1700,7 @@ export const corpus = {
 			topicTitle: 'Ad-libs',
 			title: 'Transcribe every ad-lib',
 			statement:
-				'Every ad-lib belongs in the transcription — the most complete lyrics possible are the goal — written in parentheses with its first letter capitalized.',
+				'Every ad-lib belongs in the transcription (the most complete lyrics possible are the goal), written in parentheses with its first letter capitalized.',
 			example: { correct: 'Racing down the boulevard (Skrrt)' },
 			authority: 'staff',
 			sourceIds: ['G-ADLIBS'],
@@ -1710,7 +1710,7 @@ export const corpus = {
 				'punctuation.parenthesis-spacing',
 				'syntax.unbalanced-parentheses'
 			],
-			note: 'The linter checks the shape once an ad-lib is written — the parentheses, the space before them, the separators between run-together ad-libs; hearing one and writing it down is the half only the transcriber can do.'
+			note: 'The linter checks the shape once an ad-lib is written: the parentheses, the space before them, the separators between run-together ad-libs; hearing one and writing it down is the half only the transcriber can do.'
 		},
 		{
 			id: 'guidance.ad-libs.echo-effects',
@@ -1728,7 +1728,7 @@ export const corpus = {
 			topicTitle: 'Ad-libs',
 			title: 'Asterisks mark produced sounds, not vocals',
 			statement:
-				'A sound effect in the production — a money counter, a gunshot — is wrapped in asterisks either side (`*beep*`); a sound the artist vocalizes with their own voice is a lyric and is written plain, without them.',
+				'A sound effect in the production (a money counter, a gunshot) is wrapped in asterisks either side (`*beep*`); a sound the artist vocalizes with their own voice is a lyric and is written plain, without them.',
 			example: { correct: "*cash register* Countin' it up all night" },
 			authority: 'staff',
 			sourceIds: ['G-SFX'],
@@ -1745,7 +1745,7 @@ export const corpus = {
 			example: { correct: 'Lay-ee-oh-del-ay-hee, oh-del-ay-hee-hoo' },
 			authority: 'editorial',
 			sourceIds: ['G-YODELING'],
-			note: 'A yodeling page also takes the `Yodel` tag. Yodels draw on a small set of recurring syllables — `dee`, `del`, `ee`, `ho`, `la`, `lay`, `oh`, `oo`, `ro`, `yo` — while scatting is free-form and has no such set, so only its segmentation is conventional. The dash itself is the hyphen convention stated with the other dash rules.'
+			note: 'A yodeling page also takes the `Yodel` tag. Yodels draw on a small set of recurring syllables (`dee`, `del`, `ee`, `ho`, `la`, `lay`, `oh`, `oo`, `ro`, `yo`), while scatting is free-form and has no such set, so only its segmentation is conventional. The dash itself is the hyphen convention stated with the other dash rules.'
 		},
 		{
 			id: 'guidance.punctuation.unmarked-question',
@@ -1780,7 +1780,7 @@ export const corpus = {
 			example: { correct: 'Turn it up!', incorrect: 'Turn it up!!' },
 			authority: 'staff',
 			sourceIds: ['G-QE-MARKS'],
-			note: 'Mechanically checkable, so a candidate for a linter rule — which this entry would then name as checking it.'
+			note: 'Mechanically checkable, so a candidate for a linter rule, which this entry would then name as checking it.'
 		},
 		{
 			id: 'guidance.punctuation.brand-name-marks',
@@ -1788,7 +1788,7 @@ export const corpus = {
 			topicTitle: 'Punctuation',
 			title: "Never double a brand name's own mark",
 			statement:
-				"A line that would take a question or exclamation mark of its own — from its grammatical structure or its apparent excitement — and ends on a brand name already carrying one (`Guess Who?`, `Yahoo!`, `Chips Ahoy!`) does not take a second: the name's single mark holds for the line.",
+				"A line that would take a question or exclamation mark of its own (from its grammatical structure or its apparent excitement) and ends on a brand name already carrying one (`Guess Who?`, `Yahoo!`, `Chips Ahoy!`) does not take a second: the name's single mark holds for the line.",
 			example: {
 				correct: 'Have you ever played Guess Who?',
 				incorrect: 'Have you ever played Guess Who??'
@@ -1807,7 +1807,7 @@ export const corpus = {
 			authority: 'staff',
 			sourceIds: ['G-QUOTES'],
 			relatedRuleIds: ['quotes.typewriter'],
-			note: "The linter checks only the glyphs — typewriter quotation marks, never curly; whether a passage is quoted speech, a named title, or a mentioned word is the transcriber's reading."
+			note: "The linter checks only the glyphs: typewriter quotation marks, never curly; whether a passage is quoted speech, a named title, or a mentioned word is the transcriber's reading."
 		},
 		{
 			id: 'guidance.punctuation.nordic-guillemets',
@@ -1820,7 +1820,7 @@ export const corpus = {
 			authority: 'lyriclint',
 			sourceIds: ['G-TYPEWRITER'],
 			relatedRuleIds: ['quotes.typewriter'],
-			note: "This is the Nordic communities' convention as reported to LyricLint, not yet backed by a registered Genius page — so the claim carries LyricLint's name. While a Nordic language is selected the linter turns every other double quote into a guillemet, previewing the straight ones because they carry no direction."
+			note: "This is the Nordic communities' convention as reported to LyricLint, not yet backed by a registered Genius page, so the claim carries LyricLint's name. While a Nordic language is selected the linter turns every other double quote into a guillemet, previewing the straight ones because they carry no direction."
 		},
 		{
 			id: 'guidance.punctuation.performance-hyphens',
@@ -1828,12 +1828,12 @@ export const corpus = {
 			topicTitle: 'Punctuation',
 			title: 'Hyphenate scatting and stutters',
 			statement:
-				'Hyphens join rapidly spoken non-lyrical vocalization — scatting — and the repeated fragments of a stuttered word; a stutter produced artificially, by effects, sampling, or scratching, may be left out.',
+				'Hyphens join rapidly spoken non-lyrical vocalization (scatting) and the repeated fragments of a stuttered word; a stutter produced artificially, by effects, sampling, or scratching, may be left out.',
 			example: { correct: "D-d-don't say it twice" },
 			authority: 'staff',
 			sourceIds: ['G-DASHES', 'G-YODELING'],
 			relatedRuleIds: ['punctuation.dropped-word-dash'],
-			note: 'The em-dash half of the dashes annotation — a dash for a dropped word or line, never followed by a comma — is checked by the linter outright.'
+			note: 'The em-dash half of the dashes annotation (a dash for a dropped word or line, never followed by a comma) is checked by the linter outright.'
 		},
 		{
 			id: 'guidance.lines.bar-per-line',
@@ -1841,7 +1841,7 @@ export const corpus = {
 			topicTitle: 'Lines and repeats',
 			title: 'Transcribe line by line, not in paragraphs',
 			statement:
-				"Lyrics are transcribed line by line, each line ending where the musical phrase does — in most songs the snare marks the count, and the words landing on it show where a bar's lines break — because a long prose-like run hides where lines stop and how the rhyme scheme runs, especially on a phone.",
+				"Lyrics are transcribed line by line, each line ending where the musical phrase does (in most songs the snare marks the count, and the words landing on it show where a bar's lines break), because a long prose-like run hides where lines stop and how the rhyme scheme runs, especially on a phone.",
 			authority: 'staff',
 			sourceIds: ['G-LINES'],
 			relatedRuleIds: ['line.prose-density'],
@@ -1853,7 +1853,7 @@ export const corpus = {
 			topicTitle: 'Lines and repeats',
 			title: 'Spoken sections break into lines too',
 			statement:
-				'A spoken intro, interlude, or outro is transcribed line by line like everything else, split where the speaker pauses and where sentences begin and end — never as one paragraph.',
+				'A spoken intro, interlude, or outro is transcribed line by line like everything else, split where the speaker pauses and where sentences begin and end, never as one paragraph.',
 			authority: 'staff',
 			sourceIds: ['G-LINES']
 		},
@@ -1863,7 +1863,7 @@ export const corpus = {
 			topicTitle: 'Lines and repeats',
 			title: 'Type repeated lyrics out in full',
 			statement:
-				'A section the song repeats — a returning chorus, a refrain — is typed out in full at every occurrence, and so are lyrics repeated inside one section: a header or a count never stands in for words the song sings again, so nobody reading along has to scroll back to find them.',
+				'A section the song repeats (a returning chorus, a refrain) is typed out in full at every occurrence, and so are lyrics repeated inside one section: a header or a count never stands in for words the song sings again, so nobody reading along has to scroll back to find them.',
 			authority: 'staff',
 			sourceIds: ['G-REPEATS'],
 			relatedRuleIds: ['repeat.placeholder', 'section.unlinked-repeat'],
@@ -1891,7 +1891,7 @@ export const corpus = {
 			topicTitle: 'Lines and repeats',
 			title: 'No doubled spaces or hidden characters',
 			statement:
-				'Lyric text keeps exactly one ordinary space between words and carries no invisible characters — the clean, concise text the transcription guide asks for.',
+				'Lyric text keeps exactly one ordinary space between words and carries no invisible characters, the clean, concise text the transcription guide asks for.',
 			example: { correct: 'Hold on tight', incorrect: 'Hold  on tight' },
 			authority: 'lyriclint',
 			sourceIds: ['G-ADD-SONGS'],
@@ -1904,7 +1904,7 @@ export const corpus = {
 			topicTitle: 'Censored and unknown words',
 			title: 'Transcribe the explicit version',
 			statement:
-				'A transcription follows the explicit version of a song, so a censor mask belongs only where the recording itself censors the word — which even explicit versions occasionally do.',
+				'A transcription follows the explicit version of a song, so a censor mask belongs only where the recording itself censors the word, which even explicit versions occasionally do.',
 			authority: 'staff',
 			sourceIds: ['G-CENSORED']
 		},
@@ -1927,7 +1927,7 @@ export const corpus = {
 			topicTitle: 'Censored and unknown words',
 			title: "A lyric you can't make out is [?]",
 			statement:
-				'A lyric nobody can decipher yet is represented by a question mark in brackets — `[?]` — and only that form: parentheses are avoided because they already mark ad-libs on Genius.',
+				'A lyric nobody can decipher yet is represented by a question mark in brackets (`[?]`) and only that form: parentheses are avoided because they already mark ad-libs on Genius.',
 			example: {
 				correct: 'Counting every [?] till the morning comes',
 				incorrect: 'Counting every (?) till the morning comes'
@@ -1943,7 +1943,7 @@ export const corpus = {
 			topicTitle: 'Numbers',
 			title: 'Spell numbers out',
 			statement:
-				'Numbers are spelled out rather than written as digits, and a multiple of 100 is spelled as it is pronounced — `a hundred`, or `hunnid` where that is what is sung.',
+				'Numbers are spelled out rather than written as digits, and a multiple of 100 is spelled as it is pronounced: `a hundred`, or `hunnid` where that is what is sung.',
 			example: {
 				correct: 'I got five of them waiting on me',
 				incorrect: 'I got 5 of them waiting on me'
@@ -1964,7 +1964,7 @@ export const corpus = {
 			authority: 'staff',
 			sourceIds: ['G-NUMBERS'],
 			relatedRuleIds: ['numbers.decade-apostrophe'],
-			note: "A decade is one of the digit-kept forms, and the linter checks its written shape: the apostrophe stands in for the century before the digits — `'90s` — never after them."
+			note: "A decade is one of the digit-kept forms, and the linter checks its written shape: the apostrophe stands in for the century before the digits (`'90s`), never after them."
 		},
 		{
 			id: 'guidance.numbers.times',
@@ -1983,7 +1983,7 @@ export const corpus = {
 			topicTitle: 'Non-English songs',
 			title: 'Non-English songs may open with a header',
 			statement:
-				"A song not in English may open with one extra bracketed header for findability — the word `lyrics` translated into the song's own language, the song's name, and any featured artists — and an English song never carries one.",
+				"A song not in English may open with one extra bracketed header for findability (the word `lyrics` translated into the song's own language, the song's name, and any featured artists), and an English song never carries one.",
 			example: { correct: '[Letra de "Golondrina" ft. Avery]' },
 			authority: 'staff',
 			sourceIds: ['G-NON-ENGLISH'],
@@ -1996,7 +1996,7 @@ export const corpus = {
 			topicTitle: 'Non-English songs',
 			title: 'Romanized lyrics live on their own page',
 			statement:
-				"Romanized lyrics never join the song's primary page: they get a separate page credited to Genius Romanizations, titled with the artist's name, the song's title, and `(Romanized)`, carrying the release date, audio links, and tags — and omitting featured artists, writers, producers, and every other role.",
+				"Romanized lyrics never join the song's primary page: they get a separate page credited to Genius Romanizations, titled with the artist's name, the song's title, and `(Romanized)`, carrying the release date, audio links, and tags, and omitting featured artists, writers, producers, and every other role.",
 			authority: 'staff',
 			sourceIds: ['G-ROMANIZED']
 		},
@@ -2016,7 +2016,7 @@ export const corpus = {
 			topicTitle: 'Sourcing lyrics',
 			title: 'Never copy lyrics from another site',
 			statement:
-				'Lyrics are transcribed, never copied from another lyric website — that is plagiarism. The one exception is lyrics the artist or their team released themselves, on Bandcamp, a video description, press notes, or liner notes; official sheets still carry mistakes, so even those are checked for completeness and accuracy and reformatted to Genius standards before they stand.',
+				'Lyrics are transcribed, never copied from another lyric website; that is plagiarism. The one exception is lyrics the artist or their team released themselves, on Bandcamp, a video description, press notes, or liner notes; official sheets still carry mistakes, so even those are checked for completeness and accuracy and reformatted to Genius standards before they stand.',
 			authority: 'staff',
 			sourceIds: ['G-ADD-SONGS']
 		},
@@ -2026,7 +2026,7 @@ export const corpus = {
 			topicTitle: 'Sourcing lyrics',
 			title: 'A page follows the streaming version',
 			statement:
-				"A song's page transcribes the streaming release, so lyrics only a video version carries go in the Q&A rather than into the words; where a video or an album cut differs substantially — different verses, say — it earns a page of its own, titled with `(Video Version)` or `(Album Version)` after the song's title.",
+				"A song's page transcribes the streaming release, so lyrics only a video version carries go in the Q&A rather than into the words; where a video or an album cut differs substantially (different verses, say), it earns a page of its own, titled with `(Video Version)` or `(Album Version)` after the song's title.",
 			example: { correct: 'Golondrina (Video Version)' },
 			authority: 'staff',
 			sourceIds: ['G-STREAMING']
@@ -2698,7 +2698,7 @@ export const corpus = {
 	harper: {
 		ruleIds: ['spelling.harper', 'style.harper', 'grammar.harper'],
 		behavior:
-			'Alongside the reviewed Genius rules, LyricLint runs Harper, a local English proofreader, in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper — always suggestions, always citing Harper itself (T-HARPER) rather than a Genius guideline, and a native reviewed rule always wins where the two overlap.',
+			'Alongside the reviewed Genius rules, LyricLint runs Harper, a local English proofreader, in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper, always suggestions, always citing Harper itself (T-HARPER) rather than a Genius guideline, and a native reviewed rule always wins where the two overlap.',
 		limitations: [
 			'English only; it does not run for the other reviewed languages.',
 			'Its suggestions are general proofreading, not reviewed Genius policy, and have no reference pages.',

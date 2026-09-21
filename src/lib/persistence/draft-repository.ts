@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/drafts.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/drafts.md. Read it before changing this file, and update it with any behavior change.
 import { createDraftSummaryReader } from './draft-summary-cache.js';
 import { randomId } from '../core/random-id.js';
 import { assistantDraftAccessKey } from '../assistant/permissions.js';
@@ -50,8 +50,8 @@ function now(): string {
  * record read back off the disk may be a partial write, a hand edit, or a
  * schema slip, and for these three the honest answer is the one `backup.ts`
  * already gives a run whose numbers cannot be read: drop what cannot be read
- * and keep the draft. An absent roster is an empty roster — which is what every
- * new draft has — and absent timings or links cost a re-sync or a re-tick,
+ * and keep the draft. An absent roster is an empty roster (which is what every
+ * new draft has), and absent timings or links cost a re-sync or a re-tick,
  * where refusing the record costs the whole transcription.
  *
  * The fields with no safe default are not answered here. `recovery.ts` decides
@@ -167,7 +167,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 
 		// A record this cannot copy is left out rather than thrown. This runs at
 		// boot, ahead of anything on screen, and a throw here reaches the lint
-		// page's single catch — which reports local storage as unavailable for the
+		// page's single catch, which reports local storage as unavailable for the
 		// entire workbench, so one bad row would cost every healthy 'scribe. The
 		// row itself is untouched on disk: a later build that can read it will
 		// find it still there.
@@ -222,7 +222,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			const timestamp = now();
 			// The copy says so in its name. Two rows carrying one title is the
 			// drafts menu offering the same word twice with no way to tell which
-			// press opens which 'scribe — and the announcement after a duplicate
+			// press opens which 'scribe, and the announcement after a duplicate
 			// already strips this suffix to name what was copied.
 			const duplicate = copyDraft({
 				...source,
@@ -261,8 +261,8 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 
 		async deleteAll() {
 			// This is the Preferences panel's "Reset LyricLint": a return to the
-			// initial state, so the whole metadata table goes — preferences, recent
-			// languages, assistant permissions and the current-draft pointer — along
+			// initial state, so the whole metadata table goes: preferences, recent
+			// languages, assistant permissions and the current-draft pointer, along
 			// with the content. It used to sweep appMetadata selectively, which left
 			// `pref:` rows standing behind a control that promised all local data.
 			// The backup link is not this table's to clear: the controller unlinks

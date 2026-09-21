@@ -122,7 +122,7 @@ export interface Section extends TextRange {
  * One Genius annotation link in the canonical text: `[fragment](id)`.
  *
  * The fragment is sung lyrics and the wrapper is Genius's own annotation
- * anchor, so the whole span is preserved verbatim — stripping it from a
+ * anchor, so the whole span is preserved verbatim, because stripping it from a
  * transcription destroys the annotation on Genius. A fragment may cross line
  * breaks (Genius allows a referent to span lines), which is why annotation
  * recognition has to sit in the parser: the opening line of a multi-line
@@ -151,27 +151,27 @@ type SourceReviewStatus = 'reviewed' | 'needs-review' | 'retired';
 
 /**
  * How much standing a source has as Genius transcription policy, highest
- * first. Three signals decide a Genius item's tier — every annotation's box
+ * first. Three signals decide a Genius item's tier. Every annotation's box
  * reads "Genius Annotation" regardless of state, so none of this is in the
  * header. An annotation is unreviewed where it carries the red "This
  * annotation is unreviewed" banner; it is staff-approved where Genius staff
  * appear in its contributor roster (the circle role badge, or an "Accepted
  * by" naming a staff member); a page's own body text carries staff standing
  * only where the track has the verified-by-staff badge. The venue never
- * decides a tier — the rank of who wrote it on Genius does. `staff` is
+ * decides a tier. The rank of who wrote it on Genius does. `staff` is
  * anything Genius staff wrote or touched: a staff-verified page's own text,
  * an annotation with staff among its contributors, or a staff reply in a
  * community discussion; `editorial` is a reviewed (no-banner) annotation with no staff
- * in its roster, wherever it sits — editors and moderators review them, and
+ * in its roster, wherever it sits, because editors and moderators review them, and
  * their act is the same on every page; `external` is an authority outside
- * Genius — dictionaries, language academies, other platforms' lyric rules,
- * tooling — ranked below editor-reviewed Genius policy because it is
+ * Genius (dictionaries, language academies, other platforms' lyric rules,
+ * tooling), ranked below editor-reviewed Genius policy because it is
  * authoritative about language rather than about Genius; `community` is the
- * floor — ordinary community voice in any venue, with no ranked author and no
+ * floor. It is ordinary community voice in any venue, with no ranked author and no
  * recorded review: an unreviewed annotation, an unbadged page's own text, an
  * ordinary forum post, or anything whose state is unrecorded. A guidance
  * entry claims the highest tier among the sources that state it, and is
- * promoted by adding the confirming higher-tier source — never by editing the
+ * promoted by adding the confirming higher-tier source, never by editing the
  * tier alone.
  */
 export type SourceAuthority = 'staff' | 'editorial' | 'external' | 'community';
@@ -239,29 +239,29 @@ interface DetectedDiagnosticLanguage {
  * When a finding's answer stops being able to change from typing.
  *
  * A rule runs against a whole parsed document on every keystroke, so a document
- * mid-composition is linted as if it were finished — and for most of what this
+ * mid-composition is linted as if it were finished, and for most of what this
  * catalog checks, that is a claim the text to the right of the caret is about to
  * refute. `[` is an unbalanced bracket for as long as it takes to type `Verse`;
  * `thoug` is one character from `though`; a song has one distinct verse until
  * the second one exists. Every one of those is a card that appears, argues with
  * the transcriber, and retracts itself.
  *
- * The axis is not time and it is not the line — it is how far to the right a
+ * The axis is not time and it is not the line. It is how far to the right a
  * change can still reach:
  *
- * - `character` — a fact about text already committed, whose *message* as well as
+ * - `character`: a fact about text already committed, whose *message* as well as
  *   whose existence is settled. Drawn at once, wherever the caret is.
- * - `caret` — provisional while the caret is on its line, typing or not. Every
+ * - `caret`: provisional while the caret is on its line, typing or not. Every
  *   space between two words is trailing whitespace for a moment, and a
  *   transcriber pausing to listen must not be told about the one they are
  *   standing in.
- * - `line` — the rule reads a whole line, so its answer is provisional while that
+ * - `line`: the rule reads a whole line, so its answer is provisional while that
  *   line is being written. This is the default, because most of the catalog
  *   matches words and line shapes. Unlike `caret` it needs live typing as well:
  *   a caret parked at the end of a finished song is not composing anything, and
  *   holding its line forever hides findings from the panel and from the bulk-fix
  *   batch that plans over what is visible.
- * - `document` — the rule is a claim about the shape of the song, which is not
+ * - `document`: the rule is a claim about the shape of the song, which is not
  *   finished until typing stops.
  *
  * `filterForEditorState` is where this is spent; `deferActiveLineTrailingWhitespace`
@@ -294,8 +294,8 @@ export interface Diagnostic extends TextRange {
 	 * The finding is a guess about intent whose likeliest answer is that the text
 	 * is already right, so a shell leads with accepting it rather than with the
 	 * change. It is carried here rather than read off the rule id because a rule
-	 * can report both kinds — a fact about the text and a question about how it
-	 * was sung — and only the rule knows which of its findings is which. No
+	 * can report both kinds (a fact about the text and a question about how it
+	 * was sung), and only the rule knows which of its findings is which. No
 	 * catalog rule sets it today; the last producer, `adlib.parentheses`'s wrap
 	 * offer, was retired because its guess was wrong about as often as it was
 	 * right even with the accepting answer leading.
@@ -304,7 +304,7 @@ export interface Diagnostic extends TextRange {
 	/**
 	 * What a per-occurrence ignore keys on in place of the flagged text.
 	 *
-	 * Set when the finding is about a thing the flagged text only evidences —
+	 * Set when the finding is about a thing the flagged text only evidences:
 	 * `performer.inline-mismatch` flags the first styled span of an unnamed
 	 * voice, but its claim is about the voice, not the words it happens to sing
 	 * there. Keyed on the lyrics, an acceptance died on the next edit inside
@@ -358,7 +358,7 @@ export interface RuleDefinition {
 	settlesOn?: SettlesOn;
 	/**
 	 * The rule is LyricLint's own reading of its sources, not a convention they
-	 * state directly — the set `docs/rules.md` names in its Policy section. Every
+	 * state directly, the set `docs/rules.md` names in its Policy section. Every
 	 * finding it reports carries the flag, so the surfaces can say whose ruling
 	 * it is without re-deriving the list from rule ids.
 	 */
@@ -411,7 +411,7 @@ export interface DraftRecord {
 	 * Lines tied to moments in the audio they were transcribed from.
 	 *
 	 * On the draft rather than beside the attached audio, because an anchor
-	 * describes a *line* — it is written by typing, it moves when the text moves,
+	 * describes a *line*: it is written by typing, it moves when the text moves,
 	 * and it is saved by the same autosave that saves the words. Keeping it here
 	 * also means a duplicated draft keeps its anchors, and detaching the audio
 	 * does not throw away work that is still correct for the same song.
@@ -429,7 +429,7 @@ export interface DraftRecord {
 	sectionLinks?: SectionLink[];
 	/**
 	 * The Genius page's lyrics as the user pasted them into the Compare dialog,
-	 * stamped with when — persisted so a review session survives a reload, and
+	 * stamped with when, persisted so a review session survives a reload, and
 	 * dated so the dialog can state the baseline's age instead of letting a
 	 * review run silently against a page that has moved on.
 	 *
@@ -464,7 +464,7 @@ export interface SectionLink {
 	 * document order.
 	 *
 	 * Flat rather than nested per member, because a run already says which member
-	 * it is in by where it sits — and what makes two runs correspond is their
+	 * it is in by where it sits, and what makes two runs correspond is their
 	 * ordinal within their own member, which nesting would have to restate. Two
 	 * choruses differing by one line have one run each, and those two are the
 	 * same difference.
@@ -484,8 +484,8 @@ export interface SectionLink {
  * One run of one section that its link leaves alone, as a line and a column at
  * each end.
  *
- * A column as well as a line, because a difference can be part of a line —
- * `there tonight` against `there again` — which is the case the whole feature
+ * A column as well as a line, because a difference can be part of a line
+ * (`there tonight` against `there again`), which is the case the whole feature
  * was rebuilt for. Zero width is meaningful and is kept: it is where one copy
  * simply has nothing, and it is where the words the other copy has go.
  */
@@ -555,7 +555,7 @@ export interface SectionLinkChoice {
 	/**
 	 * Per difference of the resulting shape, whether the copies go on keeping
 	 * their own words. Omitted keeps every one of them, which is what linking
-	 * does on its own — collapsing one is the destructive answer and has to be
+	 * does on its own. Collapsing one is the destructive answer and has to be
 	 * asked for.
 	 */
 	keepDifferent?: readonly boolean[];
@@ -650,7 +650,7 @@ export interface AssignmentRequest {
 	/**
 	 * Who sings the section's unstyled lyrics, written into the plain slot by the
 	 * same edit. Without it a first legend group landing in italic is a legend
-	 * that does not begin at plain — the state `performer.style-order` flags and
+	 * that does not begin at plain, the state `performer.style-order` flags and
 	 * cannot fix, because naming those lyrics is not in the document to be found.
 	 * See `assignmentNeedsSectionVoice`.
 	 */
@@ -660,7 +660,7 @@ export interface AssignmentRequest {
 /**
  * Inputs for wrapping a selection as an *unknown* voice: a style slot with no
  * legend entry, applied when a transcriber hears a distinct voice they cannot
- * yet name. The header is never touched — the absence of a legend group is
+ * yet name. The header is never touched. The absence of a legend group is
  * exactly what records the voice as unidentified, and
  * `performer.inline-mismatch` keeps the remaining work visible.
  */
@@ -670,7 +670,7 @@ export interface UnknownVoiceRequest {
 	document: ParsedDocument;
 	selection: SerializedSelection;
 	/**
-	 * An existing unaccounted slot to reuse — "the same unknown voice as the
+	 * An existing unaccounted slot to reuse: "the same unknown voice as the
 	 * other italic passages". Omitted, the transform allocates the first styled
 	 * slot free of both the legend and the section body outside the selection.
 	 */
@@ -696,7 +696,7 @@ export interface LegendAssignmentRequest {
 	 * the same edit, their legend groups dropped with them. This is what lets a
 	 * section styled all the way through name its single voice: the slot moves
 	 * to plain, so the legend does not start at italic with no plain group
-	 * before it. Lyric text itself is preserved — only the markers go.
+	 * before it. Lyric text itself is preserved. Only the markers go.
 	 */
 	unwrapSlots?: readonly StyleSlot[];
 }
@@ -767,7 +767,7 @@ export interface DraftRepository {
 	 * A generic pair rather than a method each, because the alternative is two more
 	 * methods on this contract every time a control learns to remember itself. It
 	 * lives in the same `appMetadata` table as the current draft and the recent
-	 * languages — which matters beyond tidiness: that table is what the workspace
+	 * languages, which matters beyond tidiness: that table is what the workspace
 	 * backup copies and what `Delete all local data` clears, and a preference kept
 	 * in `localStorage` instead would quietly escape both of those promises.
 	 */
@@ -792,8 +792,8 @@ export interface AutosaveController {
 /**
  * Draft-and-diagnostic keyed ignore operations, durable per 'scribe.
  *
- * Synchronous on purpose: every reader is synchronous — the panel filters
- * findings against this on every snapshot — so the durable implementation
+ * Synchronous on purpose: every reader is synchronous (the panel filters
+ * findings against this on every snapshot), so the durable implementation
  * keeps an in-memory mirror and writes through behind it, the way preferences
  * answer at once and persist after.
  */
@@ -827,7 +827,7 @@ export interface EditorSnapshot {
 	 * assignment, a whole document replaced.
 	 *
 	 * The shell cannot infer this and used to guess at it from how much text
-	 * changed, which is wrong in both directions — `Fix all 2 · Replace with '`
+	 * changed, which is wrong in both directions: `Fix all 2 · Replace with '`
 	 * rewrites two characters in different verses for a net delta of zero, and a
 	 * single-occurrence fix inserts one character at the caret exactly as typing
 	 * one there would. `dispatchAtomicEdit` has always annotated its transaction
@@ -885,7 +885,7 @@ export interface EditorHandle {
 	 * Show or hide find and replace, as if the user pressed `Mod-F`.
 	 *
 	 * The keystroke is bound to the *window* rather than to the editor, because
-	 * the panel it opens is worth reaching from outside the document — so this is
+	 * the panel it opens is worth reaching from outside the document, so this is
 	 * the second way in rather than the only one, and both run CodeMirror's own
 	 * `openSearchPanel`. It focuses the find field itself, which is the one place
 	 * in the workbench where a command moving focus is the whole point of it.
@@ -915,7 +915,7 @@ export interface EditorHandle {
 	linkSections?(choice: SectionLinkChoice): void;
 	/**
 	 * Every difference in the group these headers would form, with each copy's
-	 * own wording — what the picker's second list is built from.
+	 * own wording, what the picker's second list is built from.
 	 */
 	getLinkDifferences?(headerOffsets: readonly number[]): LinkDifference[];
 	getLinkConnections?(headerOffsets: readonly number[]): LinkConnectionPreview[];
@@ -948,7 +948,7 @@ export interface EditorHandle {
 	 * to make a transcription tool unusable.
 	 *
 	 * `undefined` also takes the column away entirely, which is the honest
-	 * reading — with no audio there is nothing to show a time for and nothing to
+	 * reading: with no audio there is nothing to show a time for and nothing to
 	 * anchor a line to.
 	 *
 	 * `playing` says whether the tape is running at that position. A pause that
@@ -963,7 +963,7 @@ export interface EditorHandle {
 	 *
 	 * The editor owns the mode; this only asks. What actually happened comes back
 	 * through `onLyricSyncChange`, which also fires when the editor ends it by
-	 * itself — on `Escape`, or on running out of lines.
+	 * itself, on `Escape`, or on running out of lines.
 	 */
 	setLyricSync?(active: boolean): void;
 	/**
@@ -976,7 +976,7 @@ export interface EditorHandle {
 	tapLyricSync?(): void;
 	/**
 	 * Jump a run past lines that are already timed, landing on the last timed
-	 * line before the next untimed one — with the tape rewound to that line's
+	 * line before the next untimed one, with the tape rewound to that line's
 	 * own anchor, so there is a whole line of run-up to tap against, exactly as
 	 * a resumed run gives itself.
 	 *

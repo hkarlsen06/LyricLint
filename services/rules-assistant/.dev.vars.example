@@ -1,7 +1,7 @@
 # Copy to `.dev.vars` (gitignored) for `wrangler dev`. Entries here override
 # the vars in wrangler.jsonc and stand in for the production secrets.
 
-# Match whatever origin your app dev server actually serves — the Worker
+# Match whatever origin your app dev server actually serves. The Worker
 # refuses any other Origin header outright.
 ALLOWED_ORIGIN=http://127.0.0.1:5173
 

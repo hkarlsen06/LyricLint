@@ -25,8 +25,8 @@ export class FixPreviewWidget extends WidgetType {
 	}
 
 	/**
-	 * A widget swallows every plugin handler by default — CodeMirror stops at the
-	 * first `ignoreEvent` on the way up from the target — so the pointer resting
+	 * A widget swallows every plugin handler by default (CodeMirror stops at the
+	 * first `ignoreEvent` on the way up from the target), so the pointer resting
 	 * on the replacement text reached the diagnostic hover watcher not at all.
 	 * Only pointing is let through: the diff is not text, so a press on it must
 	 * still not place a caret inside a change that has not been applied.

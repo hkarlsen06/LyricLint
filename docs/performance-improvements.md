@@ -1,4 +1,4 @@
-# Performance improvements — September 6, 2026
+# Performance improvements, September 6, 2026
 
 Implementation follow-up to [the performance audit](performance-audit.md), whose measurements
 remain the historical baseline. These changes address every verified finding and the smaller

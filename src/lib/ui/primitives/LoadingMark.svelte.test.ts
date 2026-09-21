@@ -26,7 +26,7 @@ describe('LoadingMark', () => {
 	 * `wordmark.css` opens the driver to 1, and `controls.css` is imported before it,
 	 * so a rule that merely ties on specificity would lose on order and this would
 	 * draw the whole wordmark. Asserted from the computed value rather than from
-	 * the selector, because that is the failure — the CSS is valid either way.
+	 * the selector, because that is the failure: the CSS is valid either way.
 	 */
 	it('parks the lockup closed on the mark', async () => {
 		await render(LoadingMark, { props: { label: 'Loading the catalogue' } });
@@ -48,7 +48,7 @@ describe('LoadingMark', () => {
 
 	/**
 	 * It borrows the lockup's own path rather than drawing one of its own, so it
-	 * has to give it back — a mark left mid-phase would be wrong for every later
+	 * has to give it back, since a mark left mid-phase would be wrong for every later
 	 * use of the same component instance's markup.
 	 */
 	it('gives the mark its wave back when it goes', async () => {
@@ -61,7 +61,7 @@ describe('LoadingMark', () => {
 	});
 
 	// A wait nothing can see still has to be announced, and it names what is being
-	// waited on rather than saying "Loading…" — which is why the label has no
+	// waited on rather than saying "Loading…", which is why the label has no
 	// default rather than a generic one.
 	it('announces what it is waiting for', async () => {
 		await render(LoadingMark, { props: { label: 'Loading the catalogue' } });

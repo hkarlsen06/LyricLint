@@ -18,7 +18,7 @@ interface EditorSessionDependencies {
 	 * Called immediately before a whole-document replacement is dispatched, so
 	 * the panel can arm its hand-off to the leading finding. It has to run before
 	 * the dispatch, because the editor emits the re-linted snapshot from inside
-	 * it — and it must not run on a paste that never reached the document.
+	 * it, and it must not run on a paste that never reached the document.
 	 */
 	onBeforeReplace?: () => void;
 }
@@ -53,7 +53,7 @@ interface EditorSession {
 export function createEditorSession(deps: EditorSessionDependencies): EditorSession {
 	let editor = $state(deps.editor);
 	// Reported by the editor rather than tracked here, because `Mod-F` is bound to
-	// the window and `Escape` and the panel's own `✕` close it — three ways in and
+	// the window and `Escape` and the panel's own `✕` close it: three ways in and
 	// out, only one of which is the tray's own press.
 	let searchOpen = $state(false);
 	// Snapshots are immutable replacements from the editor. Proxying every parsed
@@ -83,12 +83,12 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 	 * Say something the user is owed an answer to, where they can see it.
 	 *
 	 * `announce` alone reaches the `sr-only` live region and nothing else, which
-	 * is right for the running commentary on things that visibly happened — a
+	 * is right for the running commentary on things that visibly happened: a
 	 * draft opened, a marker inserted, a document replaced. It is wrong for the
 	 * three refusals below, because each is the toolbar's one contrast action
 	 * declining to do the thing it is labelled with, and two of them are an
 	 * *instruction*: the press did not finish the job and the user has to. Left
-	 * to the live region they were a pixel-identical screen — the caret moves
+	 * to the live region they were a pixel-identical screen. The caret moves
 	 * into an empty editor whose active-line wash was already drawn, so a sighted
 	 * user got no answer at all.
 	 *
@@ -163,7 +163,7 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 				// goes where that keystroke lands rather than a permission being
 				// explained. What changed is that the hand-off is *drawn*. Moving the
 				// caret is the whole of what this path does on screen, and into an
-				// empty document — whose active line is washed either way — that is a
+				// empty document, whose active line is washed either way, that is a
 				// blinking hairline nobody can be expected to read as an answer.
 				editor.focus();
 				report('Press the paste shortcut to paste into the editor.');
@@ -212,7 +212,7 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			// Checked rather than optionally called, for the reason `setLineAnchors`
 			// documents: the placeholder handle the page boots with implements none
 			// of these, and `editor.toggleSearch?.()` cannot tell "opened" from
-			// "silently discarded" — which on an aimed press reads as a dead button.
+			// "silently discarded", which on an aimed press reads as a dead button.
 			if (editor.toggleSearch) {
 				editor.toggleSearch();
 			} else {

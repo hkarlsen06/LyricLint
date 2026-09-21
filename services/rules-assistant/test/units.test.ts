@@ -72,7 +72,7 @@ interface SerializedInputItem {
 /**
  * The request's input as the provider actually receives it. These assertions are
  * about `prompt_cache_breakpoint`, which the API accepts and the SDK's part types
- * never declare, and about items reached by position — so the JSON is the honest
+ * never declare, and about items reached by position, so the JSON is the honest
  * thing to read rather than a walk through the SDK's own union.
  */
 function serializedInput(request: ReturnType<typeof providerRequest>): SerializedInputItem[] {
@@ -847,7 +847,7 @@ describe('provider response extraction', () => {
 	// output items, the output text and the usage, and the rest of the SDK's
 	// `Response` is what a completed one happens to carry beside them. The items
 	// stay unparsed on the way in because half of these tests hand it exactly what
-	// the declared item types forbid — SDK decorations, and malformed arguments.
+	// the declared item types forbid: SDK decorations, and malformed arguments.
 	function response(output: unknown[], outputText = ''): OpenAI.Responses.Response {
 		const settled: Partial<OpenAI.Responses.Response> = {
 			status: 'completed',
@@ -1352,8 +1352,8 @@ describe('QuotaCounter', () => {
 	});
 
 	it('holds a slot through a turn that outlasts one provider timeout', async () => {
-		// A turn may spend two full provider timeouts — the repair retry resets
-		// the clock once — so reclaiming at three minutes let the same session
+		// A turn may spend two full provider timeouts (the repair retry resets
+		// the clock once), so reclaiming at three minutes let the same session
 		// start a second request beside one that was still legitimately running.
 		vi.useFakeTimers();
 		try {

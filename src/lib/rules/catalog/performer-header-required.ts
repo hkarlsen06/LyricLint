@@ -42,7 +42,7 @@ export const performerHeaderRequiredRule: RuleDefinition = {
 					this,
 					range,
 					'Styled vocals are not yet named in a performer legend.',
-					'This section differentiates inline voices, but its header does not yet say who they are. The formatting is worth keeping until the voices are known — it tells the next transcriber a distinct voice sings here. Add a performer legend when the voices are identified, or remove the formatting only if the section no longer needs differentiation.',
+					'This section differentiates inline voices, but its header does not yet say who they are. The formatting is worth keeping until the voices are known, since it tells the next transcriber a distinct voice sings here. Add a performer legend when the voices are identified, or remove the formatting only if the section no longer needs differentiation.',
 					[
 						{
 							kind: 'safe',

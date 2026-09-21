@@ -64,8 +64,8 @@ describe('matchTransportAction', () => {
 	/**
 	 * AltGr is not a modifier this transport may read.
 	 *
-	 * Windows and X11 report AltGr as Control **and** Alt — which is the universal
-	 * fallback's own combination — so on a layout where AltGr+L types a character,
+	 * Windows and X11 report AltGr as Control **and** Alt, which is the universal
+	 * fallback's own combination, so on a layout where AltGr+L types a character,
 	 * `ł` on a Polish keyboard, this listener claimed the keystroke and prevented
 	 * it. In the capture phase, which means the letter could not be typed anywhere
 	 * in the workbench for as long as audio was attached: not into the document,
@@ -115,7 +115,7 @@ describe('matchEscapeAction', () => {
 	});
 
 	// Shift-and-Alt together is a superset of both bindings, so it answers to
-	// neither — the same discipline the triad keeps.
+	// neither, the same discipline the triad keeps.
 	it('refuses Shift and Alt together, and the browser modifiers outright', () => {
 		expect(
 			matchEscapeAction(keystroke({ key: 'Escape', shiftKey: true, altKey: true }))
@@ -229,7 +229,7 @@ describe('bindTransportShortcuts', () => {
 	});
 
 	// The bare-space toggle answers from the page at large, and a run is on the
-	// page at large the moment the user aims the scrubber — the control a scoped
+	// page at large the moment the user aims the scrubber, the control a scoped
 	// run's own design sends them to. While a run is under way the tap outranks
 	// the toggle, and it claims the scrubber the toggle defers to; declined, the
 	// space bar means exactly what it meant before.
@@ -261,7 +261,7 @@ describe('bindTransportShortcuts', () => {
 		expect(actions).toEqual(['toggle']);
 		expect(taps).toBe(0);
 
-		// A run claims both — the page, and the scrubber the toggle defers to.
+		// A run claims both: the page, and the scrubber the toggle defers to.
 		running = true;
 		const fromPage = press(target, { code: 'Space' });
 		const fromScrubber = press(scrubber, { code: 'Space' });
@@ -274,7 +274,7 @@ describe('bindTransportShortcuts', () => {
 	// The two meanings the tap must not take away: a space that types, and a
 	// space that presses. The draft's name is an input, a control activates, and
 	// the editor's own keymap stays the only handler of a space landing in the
-	// document — the run does not grow a second implementation of its own key.
+	// document. The run does not grow a second implementation of its own key.
 	it('leaves spaces that type or press to their owners, run or no run', () => {
 		const target = document.createElement('div');
 		const name = document.createElement('input');
@@ -292,7 +292,7 @@ describe('bindTransportShortcuts', () => {
 		expect(tap).not.toHaveBeenCalled();
 	});
 
-	// Held down, a repeating space would machine-gun anchors down the document —
+	// Held down, a repeating space would machine-gun anchors down the document,
 	// the same reason the toggle answers once per press.
 	it('does not repeat a held tap', () => {
 		const target = document.createElement('div');
@@ -328,7 +328,7 @@ describe('bindTransportShortcuts', () => {
 		expect(forwarded.defaultPrevented).toBe(true);
 	});
 
-	// The tape is remembered but not attached yet, so a bare Escape loads it —
+	// The tape is remembered but not attached yet, so a bare Escape loads it,
 	// the same press the strip's `Load …` control makes. Only the bare toggle
 	// does; the nudges have nothing to step through until something is loaded.
 	it('loads a pending source on a bare Escape when nothing is playing', () => {
@@ -426,7 +426,7 @@ describe('bindTransportShortcuts', () => {
 	});
 
 	// Nothing attached is nothing to control, so an unclaimed Escape is left to
-	// mean whatever else it might — the transport does not eat it.
+	// mean whatever else it might. The transport does not eat it.
 	it('leaves the Escape alone when there is nothing to transport', () => {
 		const target = document.createElement('div');
 		const transport = vi.fn(() => false);
@@ -462,7 +462,7 @@ describe('bindTransportShortcuts', () => {
 	/**
 	 * A held space pauses once and scrolls never.
 	 *
-	 * The repeat is dropped, which is right — but the repeats of a *bare space*
+	 * The repeat is dropped, which is right, but the repeats of a *bare space*
 	 * still carry their default, and that default is the page scrolling. So the
 	 * first press paused the tape and every repeat after it ran the document out
 	 * from under the reader who was still holding the key. The press that could

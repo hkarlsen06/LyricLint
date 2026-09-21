@@ -78,12 +78,12 @@
 	// One chip per kind the document actually has something in. `Errors 0` and
 	// `Manual review 0` were two thirds of this row on an ordinary draft: a count
 	// that could not have been otherwise, offering to filter out a kind that is
-	// not there — the same thing the status bar refuses to print.
+	// not there, which is the same thing the status bar refuses to print.
 	//
 	// The count is over the unignored diagnostics and blind to the filters, which
 	// is what makes this safe: a kind the user has switched off keeps its count,
 	// so it keeps its chip, which is the only way back to it. A kind with nothing
-	// in it has nothing to show and nothing to hide, so it draws nothing — and a
+	// in it has nothing to show and nothing to hide, so it draws nothing, and a
 	// document with no findings draws no row at all.
 	const chips = $derived(filters.filter((filter) => counts[filter.value] > 0));
 
@@ -98,7 +98,7 @@
 	// Only blame the filters when they are actually what is hiding something;
 	// an otherwise clean draft should read as clean.
 	const emptyState = $derived.by(() => {
-		// An untouched draft is not "clean" — it has nothing to lint yet. The
+		// An untouched draft is not "clean": it has nothing to lint yet. The
 		// editor now carries the instructions (a ghost transcription where the
 		// caret is, and Paste lyrics in the toolbar), so this line says what the
 		// panel will do rather than repeating how to feed it, and the space under
@@ -154,7 +154,7 @@
 	// the same visible diagnostics the cards are drawn from.
 	const bulk = $derived(controller.bulkFixPlan);
 
-	// A fresh open is only empty because it opened a *new* draft — the work a
+	// A fresh open is only empty because it opened a *new* draft, and the work a
 	// returning user came back for is behind the drafts menu, which they have to
 	// know to look in. The panel has the room, so it says so.
 	const recentDrafts = $derived(
@@ -194,7 +194,7 @@
 	{/if}
 	<!-- The chips are on screen whenever there is something to filter. They used
 	     to be revealed by pressing the Linter tab a second time from inside the
-	     linter, which is a gesture nobody performs and nothing advertises — the
+	     linter, which is a gesture nobody performs and nothing advertises. It is the
 	     same failure the timestamp gutter had when its control only appeared
 	     under a hovering pointer, and it is worse here because there was no
 	     column to hover: the filters read as a feature the workbench does not
@@ -229,7 +229,7 @@
 	     same material as the severity chips that hang above it. The material is
 	     the point, and it took three tries to see why: the panel already spends
 	     `--color-canvas` on the *selected* diagnostic, so a row of bare canvas
-	     here — which is what this was — is the same tone as the open card below
+	     here, which is what this was, is the same tone as the open card below
 	     it, and the two merge into one region with a button loose inside it.
 	     Chrome is what the panel means by "not the list": tab strip, chips, this,
 	     and the ignored-rules footer.
@@ -262,7 +262,7 @@
 	     stays with the sentence it answers. "Hidden by filters" and "All issues
 	     ignored" already name the chip or the footer that undid them, and "No
 	     issues found" is not a problem to solve. The drafts are not an answer to
-	     this state at all — they are somewhere else to be — so they wait at the
+	     this state at all, they are somewhere else to be, so they wait at the
 	     far end of the column instead of between the message and its offer. -->
 	{#snippet emptyActions()}
 		{#if controller.snapshot.text.length > 0 && nativeRulesStatus === 'failed'}
@@ -316,8 +316,8 @@
 	<!-- The drafts the user already has sit at the foot of the column, under
 	     whatever the panel is currently saying about this document. They are a
 	     way out of it rather than a thing to do about it, and reading order is
-	     the difference: the message, the sample that resolves it, then — after
-	     the panel has finished with this draft — the others. Prose on the canvas,
+	     the difference: the message, the sample that resolves it, then, after
+	     the panel has finished with this draft, the others. Prose on the canvas,
 	     no border: the gap above it is already the separation. -->
 	{#if controller.isEmpty && recentDrafts.length > 0}
 		<div class="linter-panel__drafts">

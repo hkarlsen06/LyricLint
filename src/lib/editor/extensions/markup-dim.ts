@@ -16,12 +16,12 @@ function pushRange(ranges: Range<Decoration>[], from: number, to: number): void 
 }
 
 /**
- * Literal markup syntax — `<i>`/`</i>`-style tags, the header brackets, and
- * the delimiters of annotation links — renders dimmer than lyric text so the
+ * Literal markup syntax (`<i>`/`</i>`-style tags, the header brackets, and
+ * the delimiters of annotation links) renders dimmer than lyric text so the
  * words stay the foreground. An annotation dims only its wrapper: the opening
  * `[` and the closing `](id)`. The fragment between them is sung lyrics and
  * keeps the lyric face, because the markup is Genius's anchor around the words
- * rather than a substitute for them — and the whole span stays plain editable
+ * rather than a substitute for them, and the whole span stays plain editable
  * text, never hidden, so a bracket can be nudged or an annotation copied to a
  * repeated line without any mode to leave first.
  */
@@ -91,7 +91,7 @@ export const markupDimField = StateField.define<DecorationSet>({
  * The mono face is stated here too, and this decoration is why the lyric/markup
  * font split works at all: the document's base face is `--font-lyrics` (prose,
  * for the words), and the spans this field marks are exactly the spans that are
- * source rather than song — so the one decoration carries both halves of what
+ * source rather than song, so the one decoration carries both halves of what
  * "this is markup" means, the tone and the type, and neither can be lost
  * without the other.
  */

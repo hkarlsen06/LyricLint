@@ -62,7 +62,7 @@ describe('capitalization.title-case', () => {
 	// `\b` is ASCII, so a word starting outside it began at its second character:
 	// `Ærlige` tokenized as `rlige` and was counted as a follower that had stayed
 	// lowercase, which held every accented language under the ratio. The accented
-	// word is deliberately not the first one here — words[0] is excluded from the
+	// word is deliberately not the first one here, since words[0] is excluded from the
 	// ratio anyway, so a leading `Ærlig` passed before this was fixed as well.
 	it('counts a word that starts outside ASCII as the word it is', () => {
 		const text = '[Vers]\nVi Er Ærlige Hver Kveld\nSå Går Vi Ut På Byen';

@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/drafts.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/drafts.md. Read it before changing this file, and update it with any behavior change.
 
 export const RECENT_LANGUAGES_KEY = 'recentLanguages';
 export const MAX_RECENT_LANGUAGES = 5;

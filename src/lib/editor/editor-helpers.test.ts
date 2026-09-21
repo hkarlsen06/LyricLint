@@ -310,7 +310,7 @@ describe('editor pure helpers', () => {
 
 	/*
 	 * The tints live in `tokens.css` now, so the contrast guarantee has to be
-	 * read from there — checking the palette table would only confirm that eight
+	 * read from there: checking the palette table would only confirm that eight
 	 * `var()` strings are still eight `var()` strings. Reading the stylesheet also
 	 * means this covers the values that actually ship, and that the roster swatch
 	 * and the editor tint can never drift back onto different hues.

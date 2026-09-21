@@ -34,7 +34,7 @@ describe('assistant corpus parity', () => {
 	});
 	it('keeps the committed JSON artifact equal to the typed data module', () => {
 		// The JSON is still read at runtime by the Worker eval harness and as
-		// fixture data, and it cannot carry a "do not edit" header — this is its
+		// fixture data, and it cannot carry a "do not edit" header, so this is its
 		// only guard against a hand-edit or a partial regeneration.
 		const json: unknown = JSON.parse(
 			readFileSync(join(root, 'services/rules-assistant/generated/rules-context.json'), 'utf8')

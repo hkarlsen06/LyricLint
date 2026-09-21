@@ -17,7 +17,7 @@ function sectionForHeader(parsed: ParsedDocument, headerFrom: number): Section |
  *
  * It starts at the *end of the header line* rather than at the first lyric, so
  * the leading line break belongs to the body. That is what lets a header with
- * no lyrics under it yet take a peer's words — replacing an empty range at the
+ * no lyrics under it yet take a peer's words: replacing an empty range at the
  * end of a header line with `"\nOoh, ooh"` needs no special case, while a body
  * measured from the first lyric of a section that has none has no position to
  * describe at all.
@@ -49,7 +49,7 @@ export interface LinkOccurrence {
 	/**
 	 * How this section's lyrics compare with the words a link would write.
 	 *
-	 * `source` is the section the card was opened from — unless it has no words,
+	 * `source` is the section the card was opened from, unless it has no words,
 	 * in which case it reports `empty` like any other empty copy, because an
 	 * empty section is not what a link is written from.
 	 */
@@ -85,8 +85,8 @@ export function linkOccurrences(
 	const sameKind = semantic
 		? headed.filter((section) => linkableSemantic(pack, section.header?.rawNamePart) === semantic)
 		: [];
-	// What a link would actually write: the opened section's words, or — where it
-	// has none — the first copy that has any, since that is where `linkSections`
+	// What a link would actually write: the opened section's words, or (where it
+	// has none) the first copy that has any, since that is where `linkSections`
 	// takes them from. Compared against an empty source every peer reads
 	// `different`, which is the card telling a user filling a new `[Chorus 3]`
 	// that the two identical choruses above it disagree.
@@ -139,7 +139,7 @@ export function linkOccurrences(
  * selection is.
  *
  * Whole, because half a header is a word being retyped and a selection spanning
- * two lines is a passage — neither is an invitation to restructure the song.
+ * two lines is a passage: neither is an invitation to restructure the song.
  * A collapsed selection resolves to the header of the section the caret is in,
  * which is what the keyboard command asks for.
  */
@@ -180,7 +180,7 @@ export function linkableHeaderAt(
  * Deliberately not `linkableHeaderAt`, which stays exactly as narrow as it was.
  * That predicate answers the *pointer* path, where a card opens uninvited on a
  * bare selection, and teaching it about lyric ranges would put the link card on
- * the most common gesture in a text editor — beside the performer picker, which
+ * the most common gesture in a text editor, beside the performer picker, which
  * is already there. An aimed press has been asked; a selection has not.
  */
 export function linkTargetAt(

@@ -20,7 +20,7 @@ describe('the severity glyph', () => {
 		// The meta line dropped the severity word, so this glyph is the whole of the
 		// severity there. Two severities drawing the same shape would leave color as
 		// the only thing separating them, which is the one thing a severity may not
-		// be carried by alone. Error was `!` in a circle and suggestion `i` in one —
+		// be carried by alone. Error was `!` in a circle and suggestion `i` in one,
 		// the same ring with the bar and the dot swapped, a coin flip at 12px.
 		const outlines: string[] = [];
 		for (const severity of SEVERITIES) outlines.push(await outline(severity));

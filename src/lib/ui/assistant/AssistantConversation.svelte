@@ -53,7 +53,7 @@
 	const quotaLow = $derived(assistant.quota !== undefined && assistant.quota.browserRemaining <= 3);
 	// The whole of what `send()` refuses on, read in one place. Both submit paths
 	// clear the composer before asking, so a state the store silently declines is
-	// a question destroyed on its way to nowhere — and a tool turn parked on a
+	// a question destroyed on its way to nowhere, and a tool turn parked on a
 	// decision is exactly that state, live for as long as the user takes to answer
 	// it. The send button knew about two of the three and the Enter key knew about
 	// none, which is why the key is what people lost their question to.
@@ -81,7 +81,7 @@
 	 *
 	 * The transcript is a `log`, and it carries its own additions: a turn
 	 * arriving, an answer filling in. What it cannot state is the *transition* a
-	 * reader watching it reads off the thinking indicator disappearing — so the
+	 * reader watching it reads off the thinking indicator disappearing, so the
 	 * moment a pending answer completed is said here, and so is a request that
 	 * failed and a quota running low, which are the two sentences below the
 	 * transcript rather than in it. Nothing that this region speaks is spoken by
@@ -123,8 +123,8 @@
 
 	// Another conversation is another transcript, and one is read from its foot:
 	// the last thing said in it is where it was left off. This is the second of
-	// the two gestures that re-pin the follow — the first is asking a question,
-	// below — and both are the user saying where they want to be looking.
+	// the two gestures that re-pin the follow (the first is asking a question,
+	// below), and both are the user saying where they want to be looking.
 	$effect(() => {
 		void assistant.activeChatId;
 		transcript.pin();
@@ -273,7 +273,7 @@
 
 	// Every decision control in a tool card runs against the live session, so a
 	// card belonging to a turn that no longer holds one draws a question nobody
-	// can answer — which is what a transcript restored from before this session
+	// can answer, which is what a transcript restored from before this session
 	// used to do, Allow and Deny included. The store's own guards read exactly
 	// this, so the card and the press cannot disagree about it.
 	function decidable(messageId: string): boolean {
@@ -340,8 +340,8 @@
 			{#each assistant.messages as message, index (message.id)}
 				{#if index === assistant.contextDividerIndex && index > 0}
 					<!-- No `role="separator"`: a non-focusable separator's children are
-					     presentational, so the sentence — which is the whole of what this
-					     divider says, and it is about what was sent — is pruned from the
+					     presentational, so the sentence, which is the whole of what this
+					     divider says, and it is about what was sent, is pruned from the
 					     accessibility tree. A styled paragraph is the honest element. -->
 					<p class="assistant-divider">
 						Messages above were not included as context for the latest answer.
@@ -408,7 +408,7 @@
 							{#if !awaitingReview(message.id)}
 								<!-- The application's one answer to a wait with no measurable end.
 								     A second indicator here was a second timing scale as well, and
-								     it froze under `prefers-reduced-motion` — where a still mark
+								     it froze under `prefers-reduced-motion`, where a still mark
 								     reads as a drawing rather than as anything happening. -->
 								<LoadingMark label="Answering" />
 							{/if}

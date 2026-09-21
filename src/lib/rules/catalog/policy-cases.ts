@@ -6,7 +6,7 @@
  * Two consumers keep each other honest. `catalog-policy.test.ts` runs every
  * case against its rule, so an example that stops tripping (or starts
  * over-tripping) fails CI. `reference.ts` derives the public rule pages from
- * the same cases — the `invalid` example is what produces each page's message,
+ * the same cases: the `invalid` example is what produces each page's message,
  * explanation, and fix label. Splitting the data would let the published
  * example drift from the tested one, which is exactly the drift the reference
  * exists to rule out.
@@ -18,7 +18,7 @@ export interface RulePolicyCase {
 	 * is written rather than derived.
 	 *
 	 * Everything else a reference page says comes from running the rule, and that
-	 * is the right default — a hand-written copy of an explanation would drift
+	 * is the right default, because a hand-written copy of an explanation would drift
 	 * from the rule inside a release. A title is the exception because there is
 	 * nothing to copy: a rule has no name of its own, and the two candidates for
 	 * standing in for one both fail. The diagnostic `message` is written about
@@ -35,21 +35,21 @@ export interface RulePolicyCase {
 	 * **It names what the rule catches, not the convention it enforces**, and
 	 * that is a correction with a measurable cause. Written as statements of the
 	 * convention, the eleven section-header titles read `Every song part has a
-	 * header`, `Name every section header`, `Song part names go in brackets` —
+	 * header`, `Name every section header`, `Song part names go in brackets`:
 	 * eleven paraphrases of one instruction, carrying the same three nouns, in
 	 * three different grammatical moods. To anybody who did not already know the
 	 * rules they were indistinguishable, which made the index unusable for the
 	 * one reader who needs it most: somebody arriving from the landing page to
 	 * find out what the conventions are.
 	 *
-	 * Named by the failure — `A section with no header`, `Brackets with no song
-	 * part in them`, `A header written as a plain line` — the same eleven are
+	 * Named by the failure (`A section with no header`, `Brackets with no song
+	 * part in them`, `A header written as a plain line`), the same eleven are
 	 * distinct at a glance, because what actually separates these rules is what
 	 * each one finds. This is the workbench's own idiom: a diagnostic card leads
 	 * with what is wrong, not with the rule's name.
 	 *
-	 * The register is the middle one of three. The `message` is too specific —
-	 * it is about the occurrence in front of the reader — and `ruleName()`'s
+	 * The register is the middle one of three. The `message` is too specific,
+	 * because it is about the occurrence in front of the reader, and `ruleName()`'s
 	 * derived form is too generic. `reference.test.ts` pins that a title is
 	 * distinct from its message, unique, and short enough to stay one line in a
 	 * column beside the rule being read.
@@ -59,19 +59,19 @@ export interface RulePolicyCase {
 	 * The convention this rule is one language's copy of, where it is one.
 	 *
 	 * Eight of the eleven rules in the Spelling family are the same rule
-	 * instantiated per language pack — `A common English misspelling`, `A common
+	 * instantiated per language pack: `A common English misspelling`, `A common
 	 * Norwegian misspelling`, and six more. They look alike in the index because
 	 * they *are* alike, and no amount of retitling fixes that: a transcriber
 	 * works in one language, so seven of those eight rows are noise to every
 	 * reader who ever sees them.
 	 *
-	 * The engine needs them separate — different data, different citations, a
-	 * different `check` — and the reader does not. Publishing the registry's
+	 * The engine needs them separate (different data, different citations, a
+	 * different `check`), and the reader does not. Publishing the registry's
 	 * decomposition one-for-one is the same mistake `groupOrder` was making when
 	 * it was registry order: an implementation detail deciding what is on the
 	 * reader's first screen. So the index draws one row per `family` with its
-	 * `language`s as the links, while `groupedRuleReferences()` stays exhaustive
-	 * — the sitemap, the prerender entries, the structured data and the search
+	 * `language`s as the links, while `groupedRuleReferences()` stays exhaustive,
+	 * so the sitemap, the prerender entries, the structured data and the search
 	 * all still see all 60.
 	 *
 	 * `family` is the collapsed row's own title and `language` is what the reader
@@ -173,7 +173,7 @@ export const policyCases: readonly RulePolicyCase[] = [
 		invalid: '[Verse]\nFirst\n\n\n[Chorus]\nSecond',
 		valid: '[Verse]\nFirst\n\n[Chorus]\nSecond',
 		// An exact repeat split apart belongs under one header, so the gap goes
-		// entirely — `section.immediate-repeat-spacing`'s finding rather than this
+		// entirely, as `section.immediate-repeat-spacing`'s finding rather than this
 		// one, however many blank lines are in it.
 		ambiguous: '[Chorus]\nAgain\n\n\n[Chorus]\nAgain'
 	},
@@ -489,7 +489,7 @@ export const policyCases: readonly RulePolicyCase[] = [
 		invalid: '[Verse]\n(yeah)',
 		valid: '[Verse]\n(Yeah)',
 		// A lowercase trailing ad-lib is the lead's own line at least as often
-		// as a backing vocal, and only the transcriber can hear which — the rule
+		// as a backing vocal, and only the transcriber can hear which, so the rule
 		// speaks up only when a stray capital proves the form wrong either way.
 		ambiguous: '[Verse]\nWe run, yeah'
 	},
@@ -567,7 +567,7 @@ export const policyCases: readonly RulePolicyCase[] = [
 		title: 'An apostrophe on the wrong side of a decade',
 		invalid: "[Verse]\nBack in the 90's we had it all",
 		valid: "[Verse]\nParty like it's the '90s",
-		// `45's` is somebody's records or somebody's jersey — the possessive is
+		// `45's` is somebody's records or somebody's jersey, so the possessive is
 		// as likely as the plural, so a non-decade number is left alone.
 		ambiguous: "[Verse]\nSpinning 45's all night"
 	}

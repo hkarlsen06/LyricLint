@@ -14,8 +14,8 @@
 		assistant: AssistantState;
 		/**
 		 * Whether this turn still holds the live tool session. An unanswered
-		 * call outlives the session that asked it — the record persists, the
-		 * session does not — and `allowDraftRead` refuses without one, so a
+		 * call outlives the session that asked it (the record persists, the
+		 * session does not) and `allowDraftRead` refuses without one, so a
 		 * prompt drawn on `call.outcome` alone is two dead buttons above a line
 		 * saying the answer was interrupted. Undecided and no longer decidable
 		 * is a third state, and it is history rather than a question.

@@ -70,8 +70,8 @@ function frames(): Promise<void> {
 }
 
 /**
- * How far the foot is, in whole pixels. Fractional layout — this transcript is
- * text at the workbench's own ramp, not round boxes — rounds `scrollHeight` and
+ * How far the foot is, in whole pixels. Fractional layout (this transcript is
+ * text at the workbench's own ramp, not round boxes) rounds `scrollHeight` and
  * `clientHeight` independently, so a transcript scrolled all the way down still
  * reports a pixel of slack. That pixel is the reason the rule has a threshold at
  * all, and it is what these read against rather than an exact zero.
@@ -218,7 +218,7 @@ describe('the assistant panel', () => {
 	/**
 	 * `stick-to-bottom.svelte.test.ts` pins the rule itself. What these two pin is
 	 * that the transcript is the element it is attached to, and that asking a
-	 * question is one of the gestures that takes the pin back — the wiring, which
+	 * question is one of the gestures that takes the pin back: the wiring, which
 	 * is what silently goes missing when this markup is rearranged.
 	 */
 	test('opens a stored transcript at its foot and follows an answer as it arrives', async () => {
@@ -268,7 +268,7 @@ describe('the assistant panel', () => {
 
 	/**
 	 * `send()` refuses while a tool turn is waiting on a decision, and both submit
-	 * paths clear the composer before asking — so a question typed during a review
+	 * paths clear the composer before asking, so a question typed during a review
 	 * was destroyed and never sent, with nothing on screen saying why. The Enter
 	 * key is where it was actually lost: the send button already refused two of
 	 * the three refusal states, and the key consulted none of them.

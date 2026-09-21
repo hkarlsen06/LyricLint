@@ -16,7 +16,7 @@ const JOINT_SEPARATOR_PATTERN = /\s+&\s+/gu;
  * One header-legend range that holds exactly one performer's name.
  *
  * A joint group such as `Avery & Blair` yields one atom per member, but only
- * when every member is already an exact roster identity — the same rule import
+ * when every member is already an exact roster identity, the same rule import
  * extraction uses, so a performer named `Echo & The Glass` is never split.
  */
 interface HeaderNameAtom extends TextRange {

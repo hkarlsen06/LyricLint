@@ -125,8 +125,8 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		]);
 	});
 
-	// A surface has one contrast action, and a diagnostic can carry several fixes
-	// — Harper offers up to three, and `ur` alone emits two. A tier each made
+	// A surface has one contrast action, and a diagnostic can carry several
+	// fixes. Harper offers up to three, and `ur` alone emits two. A tier each made
 	// three answers shout equally in the one place the reader is choosing
 	// *between* them, and erased the precedence the fix ordering had just given
 	// the lead.
@@ -164,7 +164,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 	/*
 	 * The row is where its keyboard twins are learned. This is the most-pressed
 	 * surface in the workbench and the pointer crosses a control here on every
-	 * press, so the shared box — the same one the tray and the transport use —
+	 * press, so the shared box (the same one the tray and the transport use)
 	 * arrives with the keystroke at exactly the moment it is worth knowing.
 	 * `Mod-.` reaches the *leading* fix (it selects the nearest fixable finding
 	 * and lands focus on this row), so only that button names it: an alternate
@@ -284,7 +284,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		const diagnostic = contractionDiagnostic();
 
 		// The keyboard-opened card holds focus and is exempt from the pointer-leave
-		// watcher, so it — and only it — carries a visible Close.
+		// watcher, so it, and only it, carries a visible Close.
 		const dialog = await popoverActions(diagnostic, true);
 		expect(dialog.at(-1)).toEqual({
 			label: 'Close',
@@ -330,7 +330,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 	});
 
 	it('leads with acceptance, and steps the fix down, on both surfaces', async () => {
-		// A synthetic `presumedCorrect` finding — no catalog rule sets it today
+		// A synthetic `presumedCorrect` finding: no catalog rule sets it today
 		// (the ad-lib wrap offer that did was retired), but the shell contract
 		// stays pinned: the likelier answer takes the row's one contrast tier
 		// and the fix follows it as an ordinary bordered button.
@@ -475,7 +475,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		expect(tag.querySelector('.sr-only')?.textContent).toBe('Warning');
 		expect(tag.getAttribute('title')).toBe('Warning');
 		// Styled from the shared stylesheet, not from a copy scoped to the
-		// overlay: a colored glyph with no box around it — the badge that used to
+		// overlay: a colored glyph with no box around it, where the badge that used to
 		// sit here spent a whole line on one word.
 		const style = getComputedStyle(tag);
 		expect(style.backgroundColor).toBe('rgba(0, 0, 0, 0)');

@@ -16,7 +16,7 @@ const VIEWPORT_MARGIN = 8;
 
 /**
  * Playback ticks change no selection geometry and must not delay its report.
- * A tick is one reading of the tape — its position and whether it is running —
+ * A tick is one reading of the tape (its position and whether it is running),
  * so both of the effects it rides in count as the tick.
  */
 export function transactionsHaveOnlyPlayheadEffects(transactions: readonly Transaction[]): boolean {
@@ -91,7 +91,7 @@ export function selectionAnchorForView(
 		prefer: spaceAbove > spaceBelow ? 'above' : 'below',
 		// Short-circuited on the gesture, so the parse never runs for the anchors
 		// this plugin reports on every settled scroll, geometry change and typing
-		// pause — which is nearly all of them.
+		// pause, which is nearly all of them.
 		offersAssignment:
 			pointerDriven &&
 			// Native touch selection belongs to its handles and edit menu. Opening
@@ -122,8 +122,8 @@ class SelectionAnchorReporter {
 	update(update: ViewUpdate): void {
 		if (update.selectionSet) {
 			// `select.pointer` and not `select`: a keyboard selection is nearly
-			// always a step inside an edit — Shift-arrow to retype a word,
-			// Shift-End to delete the rest of a line — and a card that opens itself
+			// always a step inside an edit (Shift-arrow to retype a word,
+			// Shift-End to delete the rest of a line), and a card that opens itself
 			// over the caret mid-edit is interrupting the very gesture it read as an
 			// invitation. A drag or a double-click is terminal: the button came up
 			// and the user is looking at what they picked. The keyboard keeps its

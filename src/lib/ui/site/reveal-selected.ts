@@ -3,14 +3,14 @@ import { prefersReducedMotion } from '$lib/interaction/motion.js';
 
 /**
  * Bring an index column's selected row into view, for a reader who did not
- * press it there. Shared by both index columns — the rule reference's and the
- * guidance catalog's — because the arithmetic is about the column, not about
+ * press it there. Shared by both index columns (the rule reference's and the
+ * guidance catalog's) because the arithmetic is about the column, not about
  * what its rows list.
  *
  * A detail page is a URL, so most arrivals are not presses on its list: a
  * shared link, a search result, a reload, a link from elsewhere on the site.
  * The row is marked `aria-current` and drawn recessed the whole time, which is
- * the whole of the "you are here" — and forty rows above the fold it says that
+ * the whole of the "you are here", and forty rows above the fold it says that
  * to nobody. The column then reads as a list with nothing selected in it,
  * beside a page that came from one of its rows.
  *
@@ -19,7 +19,7 @@ import { prefersReducedMotion } from '$lib/interaction/motion.js';
  *
  * - **A row already wholly in view is not moved.** The section layout only
  *   calls this for an arrival, and this is the second half of the same
- *   guarantee — the rule that pressing a row may not move the list the row is
+ *   guarantee: the rule that pressing a row may not move the list the row is
  *   in.
  * - **The finder is pinned over the top of the column**, so a row the browser
  *   would call visible can be entirely underneath it. `block: 'nearest'` knows
@@ -29,7 +29,7 @@ import { prefersReducedMotion } from '$lib/interaction/motion.js';
  *
  * It moves the scroll and not the focus. The reader opened a page to read it,
  * and focus parked in a `<nav>` of dozens of links would send their first Tab
- * away from the document they came for — the same reason the workbench leaves
+ * away from the document they came for, the same reason the workbench leaves
  * the editor unfocused after a fix.
  */
 export async function revealSelectedRow(column: HTMLElement | undefined): Promise<void> {
@@ -38,7 +38,7 @@ export async function revealSelectedRow(column: HTMLElement | undefined): Promis
 }
 
 /**
- * The arithmetic on its own, for a caller that already knows which row — the
+ * The arithmetic on its own, for a caller that already knows which row: the
  * rule reference's guide column asks for the row its hovered check names.
  */
 export function revealRow(
@@ -91,7 +91,7 @@ export async function followSelectedRow(column: HTMLElement | undefined): Promis
 	await tick();
 	const row = column?.querySelector<HTMLElement>('a[aria-current="page"]');
 	// No box at all below 62rem, where the columns stack and the list is
-	// `display: none` while a page is open — so the follow costs the layout that
+	// `display: none` while a page is open, so the follow costs the layout that
 	// has no list to follow with exactly nothing, and needs no gate of its own.
 	if (!column || !row || row.offsetParent === null) return;
 

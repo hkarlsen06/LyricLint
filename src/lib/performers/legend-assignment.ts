@@ -15,9 +15,9 @@ interface LegendAssignmentTarget {
 /**
  * Why a diagnostic offers no legend assignment.
  *
- * `not-applicable` — a different rule, or a span this flow cannot name.
- * `no-header` — the section has no header to hold a legend at all.
- * `needs-plain-lyrics` — two styled slots and no plain text: promoting one
+ * `not-applicable`: a different rule, or a span this flow cannot name.
+ * `no-header`: the section has no header to hold a legend at all.
+ * `needs-plain-lyrics`: two styled slots and no plain text, so promoting one
  * still leaves the other ahead of a slot nothing fills.
  */
 type LegendAssignmentBlockReason = 'not-applicable' | 'no-header' | 'needs-plain-lyrics';
@@ -35,8 +35,8 @@ const UNAVAILABLE = (reason: LegendAssignmentBlockReason): LegendAssignmentResol
  * Whether a diagnostic's styled passage can be given a performer legend, and
  * what that assignment would target.
  *
- * Both surfaces that offer the action — the editor's diagnostic popover and the
- * linter panel's card — resolve it here, so neither shows a control the other
+ * Both surfaces that offer the action (the editor's diagnostic popover and the
+ * linter panel's card) resolve it here, so neither shows a control the other
  * hides or the document cannot honour.
  */
 export function resolveLegendAssignment(

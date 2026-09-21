@@ -5,7 +5,7 @@
 	import SourceCitation from './SourceCitation.svelte';
 	// The actual mark, raw and inline rather than an `<img>`: its brackets are
 	// stroked with `currentColor`, which only an inline SVG can take from the
-	// meta line's own text — in an image element they render black in every
+	// meta line's own text; in an image element they render black in every
 	// scheme. Raw rather than redrawn, so the geometry cannot drift from the
 	// asset the wordmark has to keep matching.
 	import lyricLintMarkRaw from '$lib/assets/lyriclint-mark.svg?raw';
@@ -77,7 +77,7 @@
 			Glyph only, and therefore no interpunct after it: an interpunct separates
 			facts of the same kind, and the mark that opens the line is not one of the
 			words in the list it introduces. The word itself is redundant here in a way
-			it is not on the rule reference — a panel of nine findings printed
+			it is not on the rule reference: a panel of nine findings printed
 			"Suggestion" eight times, in the same blue, down the same column.
 		-->
 		<SeverityTag severity={diagnostic.severity} labelled={false} />

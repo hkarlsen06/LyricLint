@@ -53,7 +53,7 @@ describe('the diagnostic meta line', () => {
 		});
 
 		// The severity is a glyph, so the line opens with the mark and no
-		// interpunct after it — an interpunct separates facts of the same kind, and
+		// interpunct after it: an interpunct separates facts of the same kind, and
 		// the mark is not one of the words in the list it introduces.
 		expect(visibleText(screen.container.querySelector('.diagnostic-meta__row')!)).toBe(
 			'Line 47 · Page G-LINES'
@@ -74,7 +74,7 @@ describe('the diagnostic meta line', () => {
 
 	it('shows the section and verified date as the link tooltip, on hover and on focus', async () => {
 		// Away from the viewport's top edge, where the tooltip takes its primary
-		// placement — a card mounted at 0 exercises only the fallback.
+		// placement, and a card mounted at 0 exercises only the fallback.
 		document.body.style.paddingTop = '300px';
 		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
@@ -84,7 +84,7 @@ describe('the diagnostic meta line', () => {
 
 		try {
 			// Nothing is on screen until the reader asks for it by pointing at or
-			// tabbing to the link — the card no longer carries this in a footer.
+			// tabbing to the link, and the card no longer carries this in a footer.
 			expect(document.querySelector('.source-tooltip')).toBeNull();
 
 			const link = page.getByRole('link', { name: /Page G-LINES/u });
@@ -100,7 +100,7 @@ describe('the diagnostic meta line', () => {
 
 			// Above the link, not below it: in the unfolded sources list a box under
 			// the hovered link lands exactly on the next citation and hides the link
-			// the pointer is travelling to. And a readout is never a target — the
+			// the pointer is travelling to. And a readout is never a target, so the
 			// box must not intercept the hover it reports on.
 			const linkRect = link.element().getBoundingClientRect();
 			expect(tooltip.getBoundingClientRect().bottom).toBeLessThanOrEqual(linkRect.top);
@@ -139,7 +139,7 @@ describe('the diagnostic meta line', () => {
 		const revealed = screen.container.querySelectorAll('.diagnostic-meta__sources a');
 		expect(revealed).toHaveLength(2);
 
-		// Unfolded, each citation is the inline one exactly — tooltip included.
+		// Unfolded, each citation is the inline one exactly, tooltip included.
 		expect(revealed[0]!.getAttribute('aria-describedby')).toBeTruthy();
 
 		await disclosure.click();
@@ -168,7 +168,7 @@ describe('the diagnostic meta line', () => {
 		});
 
 		// The external-link mark is aria-hidden and the favicon's alt is empty, so
-		// without this note nothing says the press leaves the surface — the whole
+		// without this note nothing says the press leaves the surface, so the whole
 		// accessible name is the title and the disclosure.
 		const link = screen.container.querySelector('.diagnostic-meta__row a')!;
 		await expect
@@ -184,7 +184,7 @@ describe('the diagnostic meta line', () => {
 		)!;
 		expect(description.textContent).not.toContain('opens in a new tab');
 
-		// And it is said to a screen reader only — the line on screen is unchanged.
+		// And it is said to a screen reader only, and the line on screen is unchanged.
 		expect(visibleText(screen.container.querySelector('.diagnostic-meta__row')!)).toBe(
 			'Line 47 · Page G-LINES'
 		);
@@ -198,8 +198,8 @@ describe('the diagnostic meta line', () => {
 			line: 47
 		});
 
-		// The mark rides inside the link it identifies — the citation idiom a
-		// search result or an assistant's reference row uses — and says nothing to
+		// The mark rides inside the link it identifies, the citation idiom a
+		// search result or an assistant's reference row uses, and it says nothing to
 		// a screen reader, because the title beside it already names the source.
 		const favicon = screen.container.querySelector('.diagnostic-meta__row a img')!;
 		expect(favicon).not.toBeNull();
@@ -221,7 +221,7 @@ describe('the diagnostic meta line', () => {
 
 		// The words carry the fact and the mark is decorative, so the tag reads
 		// the same to a screen reader as to anyone else. The mark is the actual
-		// `lyriclint-mark.svg` inlined — brackets on `currentColor` — inside a
+		// `lyriclint-mark.svg` inlined, brackets on `currentColor`, inside a
 		// wrapper that hides the SVG's own label from assistive technology.
 		const derivation = screen.container.querySelector('.diagnostic-meta__derivation')!;
 		expect(derivation).not.toBeNull();

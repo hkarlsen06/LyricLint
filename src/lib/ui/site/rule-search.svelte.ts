@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/reference.md — both references share one search.
+// Decision record: docs/subsystems/reference.md. Both references share one search.
 export {
 	referenceSearchQuery as ruleSearchQuery,
 	setReferenceSearchQuery as setRuleSearchQuery,

@@ -79,7 +79,7 @@
 	 * `Close` is offered only to the card that was opened with the keyboard. That
 	 * one holds focus and is deliberately exempt from the pointer-leave watcher,
 	 * so without a visible control its only exit is a keystroke nobody announced.
-	 * The hovered card has no such gap — moving away closes it — and a second
+	 * The hovered card has no such gap (moving away closes it), and a second
 	 * quiet button there would only sit beside `Ignore` looking like it, while
 	 * one of the two silences a rule for the rest of the session.
 	 */
@@ -96,7 +96,7 @@
 <!-- A role either way, because the label needs one to land on: `aria-label` on a
      generic `div` is prohibited and simply ignored. Only the card that holds the
      focus and traps Escape is a dialog; the previewing one is a labelled group,
-     which is what it is — something the pointer revealed and the keyboard can
+     which is what it is: something the pointer revealed and the keyboard can
      read without having been sent into it. -->
 <div
 	bind:this={root}
@@ -142,8 +142,8 @@
 </div>
 
 <style>
-	/* The card's chrome only. Everything inside it — meta line, explanation,
-	   action row — is shared with the linter panel and styled with it in
+	/* The card's chrome only. Everything inside it (meta line, explanation,
+	   action row) is shared with the linter panel and styled with it in
 	   `diagnostics.css`, so the two surfaces cannot drift apart. */
 	.popover {
 		--ll-card-width: min(26rem, calc(100vw - 1rem));

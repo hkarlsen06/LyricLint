@@ -4,7 +4,7 @@
 	/**
 	 * What this tab calls itself while it is a development server.
 	 *
-	 * A workbench tab is named after the draft, which is named after the song — so
+	 * A workbench tab is named after the draft, which is named after the song, so
 	 * a dev server and the deployed build, both open on the same transcription,
 	 * are two tabs carrying the same artist and title with nothing at a tab's
 	 * width to tell them apart. `PUBLIC_DEV_TAB_TITLE` is the word that replaces
@@ -16,7 +16,7 @@
 	 * gets read.
 	 *
 	 * Gated on `import.meta.env.DEV`, a build-time constant, so the label cannot
-	 * reach a production bundle even from an `.env.local` — the hazard
+	 * reach a production bundle even from an `.env.local`, which is the hazard
 	 * `.env.example` opens by naming. It is read in the component body rather than
 	 * at module scope so a test can stub it per render.
 	 */

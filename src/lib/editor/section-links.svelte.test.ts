@@ -234,7 +234,7 @@ describe('what the link picker discovers', () => {
 	});
 
 	// Opened on a section with nothing in it, the words can only come from a copy
-	// that has some — so the comparisons are read against that copy rather than
+	// that has some, so the comparisons are read against that copy rather than
 	// against the empty one, which would name two identical choruses `different`.
 	it('compares against the copy with words when the one it opened on has none', () => {
 		const occurrences = linkOccurrences(parsed, englishLanguagePack, offsetOf(SONG, '[Chorus 3]'));
@@ -275,7 +275,7 @@ describe('what the link picker discovers', () => {
 /**
  * The shape the whole rebuild is for: two choruses that are the same song part
  * sung the same way, apart from the end of one line. Under the old whole-body
- * link these could not be tied together at all — the only offer was to overwrite
+ * link these could not be tied together at all, and the only offer was to overwrite
  * one of them, which destroyed the difference the transcriber meant to keep.
  */
 const REPEAT = [
@@ -388,7 +388,7 @@ describe('linking sections that do not agree throughout', () => {
 	// Tagging a performer is a rewrite of *a few characters*, however it is
 	// computed. `transformLine` renders the whole line and used to report the
 	// whole line as its edit, which `carryHoles` reads as writing over the
-	// difference — so styling an ad-lib that exists in one chorus only ended the
+	// difference, so styling an ad-lib that exists in one chorus only ended the
 	// difference and copied the ad-lib into every other copy, silently. The
 	// position within the line decides nothing: an ad-lib in the middle is the
 	// same claim as one at the end.
@@ -425,7 +425,7 @@ describe('linking sections that do not agree throughout', () => {
 		handle.dispatchAtomic(result.edit);
 
 		const tagged = handle.getSnapshot().text;
-		// The parentheses stay outside the formatting — the transform writes the
+		// The parentheses stay outside the formatting: the transform writes the
 		// guide's own form, so only the words inside them take the style.
 		expect(tagged).toContain(adlibLine.replace('(ayy)', '(<i>ayy</i>)'));
 		// The peer never sang it, so it does not gain the ad-lib or its markup.
@@ -560,7 +560,7 @@ describe('linking sections that do not agree throughout', () => {
 			headers: [offsetOf(REPEAT, '[Chorus]'), offsetOf(REPEAT, '[Chorus 2]')]
 		});
 
-		// Select `there tonight` — shared text, then the difference — and retype it.
+		// Select `there tonight` (shared text, then the difference) and retype it.
 		const text = handle.getSnapshot().text;
 		const from = text.indexOf('there tonight');
 		handle.dispatchAtomic({
@@ -1040,7 +1040,7 @@ describe('typing only in one linked copy', () => {
 		expect(text.split('Never let go!')).toHaveLength(3);
 	});
 
-	// Armed and pressed again, the chord stands down — the other half of the
+	// Armed and pressed again, the chord stands down, the other half of the
 	// toggle, matching Escape when no audio is attached.
 	it('cancels an armed press with a second press of the chord', async () => {
 		const announcements: string[] = [];
@@ -1078,7 +1078,7 @@ describe('typing only in one linked copy', () => {
 		await userEvent.keyboard('er');
 		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
 
-		// Erased back to nothing, the run is zero width — invisible, and still
+		// Erased back to nothing, the run is zero width, invisible, and still
 		// the caret's own: an insertion here stays in this copy.
 		await userEvent.keyboard('{Backspace}{Backspace}');
 		expect(handle.getSnapshot().text).toBe(SAME);
@@ -1193,7 +1193,7 @@ describe('typing only in one linked copy', () => {
 
 	// A run that is empty in this copy is the one difference the document cannot
 	// draw, so the caret standing in it looks exactly like a caret in shared
-	// text — and it is precisely where a transcriber goes to write the ad-lib
+	// text, and it is precisely where a transcriber goes to write the ad-lib
 	// the other copy already has. Refusing the control there reported the
 	// opposite of the truth about the only position where the truth is invisible.
 	describe('where the peer has words and this copy has none', () => {
@@ -1488,7 +1488,7 @@ describe('opening Linking from the editor', () => {
 describe('what a link survives', () => {
 	// Line numbers are only how a link is written down. The live truth is a range
 	// over each header line, mapped through every change, and the numbers are read
-	// off it at save time — so text inserted above a linked section moves it
+	// off it at save time, so text inserted above a linked section moves it
 	// rather than stranding the link on whatever line took its number.
 	it('follows its sections when lines are inserted above them', async () => {
 		const handle = await mount(SONG);
@@ -1528,7 +1528,7 @@ describe('what a link survives', () => {
 	});
 
 	// Undo restores the words by reversing changes, and a `StateField` reverses
-	// nothing on its own — so this used to bring a deleted section back with its
+	// nothing on its own, so this used to bring a deleted section back with its
 	// link silently gone, which is a half-reversal and the worst kind.
 	it('undo puts the link back along with the words', async () => {
 		const handle = await mount(SONG);
@@ -1551,7 +1551,7 @@ describe('what a link survives', () => {
 	});
 
 	// Undoing a difference that was closed has to bring the difference back, not
-	// just the words — a half-reversal that restored `again` while the group still
+	// just the words: a half-reversal that restored `again` while the group still
 	// believed the line was shared would overwrite it on the next keystroke.
 	it('undo puts a closed difference back along with the words', async () => {
 		const handle = await mount(REPEAT);

@@ -1,7 +1,7 @@
 # Adding guidance-catalog entries
 
-How to turn a Genius guideline — a screenshot, a pasted annotation, a forum
-thread — into entries in the guidance catalog behind `/guidelines/` and the
+How to turn a Genius guideline (a screenshot, a pasted annotation, a forum
+thread) into entries in the guidance catalog behind `/guidelines/` and the
 rules assistant. This is the checklist a session follows when the user supplies
 source material; the design reasoning lives in `docs/rules.md` under "Guidance
 catalog".
@@ -9,41 +9,41 @@ catalog".
 ## What the catalog is
 
 `src/lib/guidance/` holds reviewed transcription conventions. An entry is
-**one checkable claim** — "a brand name keeps exactly the punctuation it
-owns", not "the punctuation annotation" — written as LyricLint's own
+**one checkable claim** ("a brand name keeps exactly the punctuation it
+owns", not "the punctuation annotation"), written as LyricLint's own
 paraphrase, never quoted Genius prose, with pointers into the same source
 registry every linter rule cites. The catalog is the conventions and the
 rules are the checks: an entry states its convention whether or not the
 linter checks it, and `relatedRuleIds` names the rules that check it, in
-whole or in part. That field is the one rule↔guideline mapping — the entry's
+whole or in part. That field is the one rule↔guideline mapping: the entry's
 meta line draws it as "Checked by", and each named rule's own page links back
-to the entry through `guidanceForRule` — so adding a rule id to an entry is
+to the entry through `guidanceForRule`, so adding a rule id to an entry is
 what gives that rule's page its guideline link. What must not exist is two
 *entries* stating one claim.
 
 Ground rules, all enforced by `src/lib/guidance/guidance.test.ts`:
 
-- Ids are `guidance.<topic>.<slug>`, stable forever — the slug is also the
+- Ids are `guidance.<topic>.<slug>`, stable forever: the slug is also the
   entry's anchor on its topic page, and the assistant corpus carries the id.
-- The title **states what the guideline says**, as a compressed instruction —
-  `Questions always end with a question mark`, the register of Genius's own
-  guide items — under 44 characters, never ending with a period. This is
+- The title **states what the guideline says**, as a compressed instruction
+  (`Questions always end with a question mark`, the register of Genius's own
+  guide items), under 44 characters, never ending with a period. This is
   deliberately **not** the rule reference's failure-naming register: a rules
   reader arrives with a symptom and wants its rule, a guidelines reader
   arrives wondering how something works and searches for the convention.
 - The statement is a paraphrase. **Never store Genius prose**: a quotation
   would be hand-written content in a generated artifact with no generator to
   re-derive it, and annotations change under us.
-- Examples are **invented**, never a real transcription's lyrics — anything
-  shipped here is quoted permanently. Brand names and facts are fine
+- Examples are **invented**, never a real transcription's lyrics, because
+  anything shipped here is quoted permanently. Brand names and facts are fine
   (`Guess Who?, Yahoo!`); Lady Gaga's lyrics are not, even when the annotation
   itself quotes them. An example is a `{ correct, incorrect }` pair of
-  **verbatim samples** — text exactly as it would stand in a document, with no
+  **verbatim samples**: text exactly as it would stand in a document, with no
   connective prose, which inside the sample face reads as part of the thing
   being quoted. Explanation belongs in the statement or the note.
 - **A form the prose names rather than uses goes in backticks.** The statement
-  and the note are the two fields that carry literal text inside a sentence —
-  `` `gon'` for `gonna` ``, `` the word `lyrics` ``, `` `'90s` `` — and
+  and the note are the two fields that carry literal text inside a sentence
+  (`` `gon'` for `gonna` ``, `` the word `lyrics` ``, `` `'90s` ``), and
   `CodeProse.svelte` sets each marked run in the page's code face. Unmarked,
   the form is a word of the sentence and the reader has to work out which:
   `` `and` rather than `an'` `` reads as a conjunction until the face says it
@@ -51,11 +51,11 @@ Ground rules, all enforced by `src/lib/guidance/guidance.test.ts`:
   plain string and a marker there reaches the reader as a grave accent. A whole
   line still belongs in `example`, which is the sample face and a different
   claim; this is for the forms a sentence has to carry inside itself.
-- `authority` must equal the highest tier among the entry's cited sources —
+- `authority` must equal the highest tier among the entry's cited sources,
   unless it is `lyriclint`, the advisory standing below.
 - **A topic landmark states its standing exactly as an entry does.** A landmark
-  is the substantial lookup a topic page draws beside its prose entries — the
-  standardized-spellings table is the one there is — and it carries its own
+  is the substantial lookup a topic page draws beside its prose entries (the
+  standardized-spellings table is the one there is), and it carries its own
   `authority` and `sourceIds` under the same equality rule, because it is a
   reviewed claim on a page whose lede promises every convention names its tier
   and its source. `guidance.test.ts` checks landmarks and entries together, and
@@ -72,20 +72,20 @@ highest first:
 | `staff`     | Genius staff wrote or touched it: badged page text, roster staff, forum replies |
 | `editorial` | A reviewed annotation with no staff in its contributor roster                   |
 | `external`  | Authority outside Genius: dictionaries, academies, platform docs                |
-| `community` | The floor: ordinary community voice in any venue — unreviewed annotations, unbadged page text, ordinary forum posts, unrecorded states |
+| `community` | The floor: ordinary community voice in any venue, whether unreviewed annotations, unbadged page text, ordinary forum posts, or unrecorded states |
 
-**The venue never decides a tier — the rank of who wrote it on Genius does**
+**The venue never decides a tier; the rank of who wrote it on Genius does**
 (ruled 2026-08-10, twice over: staff among an annotation's contributors is the
 staff signal, and a staff forum reply ranks exactly as staff guide content).
-Three signals decide a Genius item's tier — none of them is the annotation
+Three signals decide a Genius item's tier, and none of them is the annotation
 box's header, which reads "Genius Annotation" regardless of state. The track's
 verified badge covers only the page's own body text.
 
 - *The unreviewed banner*, per annotation: the red striped **"This annotation
   is unreviewed"** band means unreviewed → `community`.
 - *The contributor roster*, per reviewed annotation: expand the contributors
-  list; **Genius staff present** (the circle role badge — Gary, streetlights —
-  or an "Accepted by" naming a staff member) → `staff`, at any attribution
+  list; **Genius staff present** (the circle role badge, such as Gary or
+  streetlights, or an "Accepted by" naming a staff member) → `staff`, at any attribution
   percentage. No staff → `editorial`.
 - *The track's verified-by-staff badge*, per page, for the page's **own body
   text** only: badged (How to Add Songs) → `staff`; unbadged (Song Sections &
@@ -102,7 +102,7 @@ match; editing the enum alone fails `guidance.test.ts`. Demotion follows the
 same rule in reverse. `external` ranks below `editorial` because a dictionary is
 authoritative about language, not about Genius.
 
-**Entries may instead claim `lyriclint` — the advisory standing.** It is for a
+**Entries may instead claim `lyriclint`, the advisory standing.** It is for a
 convention that is LyricLint's own preference rather than anything a Genius
 source states: the blank line between song parts, the text-hygiene checks. An
 advisory entry still cites sources, but as *context* the preference reads from
@@ -114,12 +114,12 @@ own. A Genius name never goes on a claim no source states.
 
 The user supplies screenshots or pasted text, because genius.com is not
 fetchable from an agent session. **Never write an entry from memory of what a
-Genius page probably says** — no source material, no entry.
+Genius page probably says**: no source material, no entry.
 
 1. **Register or update the source** in `src/lib/rules/data/sources.ts`.
    - A guide-page annotation uses the `annotation()` helper (pass the authority
      as the fifth argument; the default is the conservative `community`). A
-     forum thread or non-annotation page is an object literal — permalink to
+     forum thread or non-annotation page is an object literal: permalink to
      the specific post, the author's role stated in `sectionTitle`.
    - Set `retrievedAt`/`lastVerifiedAt` to today for a new source. For an
      existing source whose content the material re-verifies, update
@@ -129,13 +129,13 @@ Genius page probably says** — no source material, no entry.
      `authorityOf` mapping, and the registry-size count.
 2. **Write the entries** in `src/lib/guidance/entries.ts`, one per claim.
    Where a claim is mechanically checkable and no rule exists yet, still add
-   it — with a `note` naming it a candidate to graduate into a linter rule.
-   Where rules check it, in whole or in part, list them in `relatedRuleIds` —
-   that is also what gives each rule's page its guideline link.
+   it, with a `note` naming it a candidate to graduate into a linter rule.
+   Where rules check it, in whole or in part, list them in `relatedRuleIds`,
+   which is also what gives each rule's page its guideline link.
 3. **A new topic** additionally needs: its title in `guidanceTopicTitles` and
    its place in `guidanceTopicOrder` (both in `src/lib/guidance/guidance.ts`),
    and the pinned topic-page count in
-   `e2e/lyriclint.spec.ts` (`guidelinePages`) bumped — the topic page and its
+   `e2e/lyriclint.spec.ts` (`guidelinePages`) bumped, because the topic page and its
    sitemap URL are generated from the data. That e2e count runs only in CI, so
    verify it locally: `bunx playwright test -g "sitemap"` (~1 minute, builds
    the site).
@@ -158,10 +158,10 @@ contributor roster. To record a verification: set the authority in
 `sources.ts` (with a comment naming the evidence), mirror it in
 `sources.test.ts` (`staffAnnotations` / `editorialAnnotations`), note it in the
 `docs/rules.md` table row, and re-run the two tests plus
-`bun run assistant:corpus` (entry authorities may rise with their sources —
+`bun run assistant:corpus` (entry authorities may rise with their sources, and
 `guidance.test.ts` names each one that must).
 
-**The whole registry was verified on 2026-08-10** — the maintainer checked
+**The whole registry was verified on 2026-08-10**: the maintainer checked
 every annotation's banner and roster in-session. No annotation carried the
 unreviewed banner; most carry staff contributors (`staff`), the section-hook
 deprecation and most of the language-header annotations are editor-only
@@ -179,36 +179,36 @@ conservative `community` default.
   topic's entries and landmarks, searchable, and the open guideline reads on
   the right. Rows deep-link `#<slug>` fragments on the prerendered topic
   pages, which draw straight from `src/lib/guidance/entries.ts`. **The list
-  draws no linter rows.** It used to — one line per rule, and the topic pages
-  closed with a "Checked by the linter" run of the same rows — and both
+  draws no linter rows.** It used to: one line per rule, and the topic pages
+  closed with a "Checked by the linter" run of the same rows. Both
   retired when the linking became two-way: every entry names its rules in its
   meta line through `relatedRuleIds`, and every rule page links its guideline
   back (`RuleReference.guidelines`, derived in `guidanceForRule` from the same
-  field, so the two directions cannot disagree — which also means adding a
+  field, so the two directions cannot disagree, which also means adding a
   rule id to an entry is what gives that rule's page its guideline link).
   What the rows were still doing was search, and that folded into the
   entries: `guidanceRuleTerms` (`lookups.server.ts`) ships each named rule's
-  title and lookup terms on the section layout's server load — the reference
-  is server-only — and the entry and landmark haystacks read them, so `woah`
+  title and lookup terms on the section layout's server load (the reference
+  is server-only), and the entry and landmark haystacks read them, so `woah`
   still lands on the standardized-spellings landmark and "question mark" on
   the unmarked-question entry. **The `Checked by` ids in an entry's meta line
-  are the section's only links into `/rules/`, and they open a tab** — a rule
+  are the section's only links into `/rules/`, and they open a tab**: a rule
   is a lookup beside the topic being read rather than the next thing to read,
   and taken in place it costs the reader a scroll position nothing on this
   surface gives back; an `sr-only` `(opens in a new tab)` says so. The
   spelling topic also draws the
   standardized-spellings table whole, from the same `ruleLookupTable` the rule
-  page loads (one data source, two surfaces; only the reviewed halves — the
+  page loads (one data source, two surfaces; only the reviewed halves; the
   linter's fix kinds and curated catches stay on the rule's page). The search
   haystack is everything a
-  topic page says about an entry — the topic title and the citations' titles
-  included — and the topic page marks what matched
+  topic page says about an entry, the topic title and the citations' titles
+  included, and the topic page marks what matched
   (`GuidanceSearchHighlight.svelte`), so an entry found by search says which of
   its words earned it, exactly as a rule page does. Two or more citations on
   an entry's meta line fold behind the diagnostic card's own `Sources ⌄`
-  (`SiteSourceFold.svelte`), unfolding on a row under the whole line —
-  promotion by evidence means entries accumulate sources, and a second inline
-  citation wraps the line. User-facing copy counts `conventions`, never
+  (`SiteSourceFold.svelte`), unfolding on a row under the whole line,
+  because promotion by evidence means entries accumulate sources and a second
+  inline citation wraps the line. User-facing copy counts `conventions`, never
   `lookups`, which is this file's own vocabulary and stays in it.
 - The assistant corpus carries a `guidance` section (format v5). A guidance
   entry has **no citable id of its own** in the answer schema: the assistant

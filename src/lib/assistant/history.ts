@@ -1,7 +1,7 @@
 /**
  * The bounded history window: complete recent exchanges up to
  * `HISTORY_WINDOW_CHARS`, plus the question being asked. Older messages stay
- * on screen with a divider saying they were not included as model context —
+ * on screen with a divider saying they were not included as model context.
  * `firstIncludedIndex` is where that divider goes.
  */
 import type {
@@ -86,7 +86,7 @@ function wireToolCall(call: AssistantToolCallRecord) {
  * What a failure says to the model, as against what the card says to the
  * visitor. The record keeps the terse reason the card renders; the model needs
  * the repair, because the anchor it will otherwise send again is the one that
- * has just failed — which is exactly what it did, twice, burning the rounds
+ * has just failed, which is exactly what it did, twice, burning the rounds
  * that would have covered the recovery. `ambiguous` in particular is nearly
  * always a stale line number rather than a badly chosen quote, so the sentence
  * names re-reading as the way out.
@@ -94,7 +94,7 @@ function wireToolCall(call: AssistantToolCallRecord) {
 const FAILURE_GUIDANCE = new Map<string, string>([
 	[
 		'ambiguous',
-		"ambiguous: the quoted text appears more than once and no line matched one copy. The 'scribe has moved since you read it — call read_scribe again for fresh line numbers before re-proposing. The same anchor sent again will fail the same way."
+		"ambiguous: the quoted text appears more than once and no line matched one copy. The 'scribe has moved since you read it, so call read_scribe again for fresh line numbers before re-proposing. The same anchor sent again will fail the same way."
 	],
 	[
 		'not-found',
@@ -205,8 +205,8 @@ function wireContent(message: AssistantMessageRecord): string {
 
 /**
  * `history` is the settled conversation (no pending placeholder), `question`
- * the text being asked now. Only complete exchanges — a user turn and the
- * assistant answer it got — count as context; failed and interrupted turns are
+ * the text being asked now. Only complete exchanges (a user turn and the
+ * assistant answer it got) count as context; failed and interrupted turns are
  * skipped, because resending a question that got no answer as though it had
  * one misleads the model about its own transcript.
  */

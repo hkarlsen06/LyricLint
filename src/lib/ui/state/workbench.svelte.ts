@@ -83,8 +83,8 @@ export interface WorkbenchController {
 	readonly snapshot: EditorSnapshot;
 	/**
 	 * Whether the document holds nothing worth acting on yet. Several surfaces
-	 * change shape on this — the toolbar's one contrast action, the linter's
-	 * empty state, the status bar's counts — so they read it from here rather
+	 * change shape on this (the toolbar's one contrast action, the linter's
+	 * empty state, the status bar's counts), so they read it from here rather
 	 * than each deciding what "empty" means.
 	 */
 	readonly isEmpty: boolean;
@@ -141,8 +141,8 @@ export interface WorkbenchController {
 	/**
 	 * A line anchor was written, corrected, or cleared.
 	 *
-	 * Anchors are saved with the draft, but no way of setting one changes any text
-	 * — a sync tap writes an anchor and moves the caret, and `Ctrl-Alt-M` and
+	 * Anchors are saved with the draft, but no way of setting one changes any text:
+	 * a sync tap writes an anchor and moves the caret, and `Ctrl-Alt-M` and
 	 * the timestamp column's own control move nothing. `onSnapshot` therefore
 	 * never hears about them, and for a while a whole synced song was lost on
 	 * reload because the only anchors that survived were the ones the automatic
@@ -170,7 +170,7 @@ export interface WorkbenchController {
 	closeLinking(): void;
 	/**
 	 * How many lines in this draft are timed. Read by the two surfaces that act on
-	 * them — the delete and the timed-lyrics export — so each draws only where
+	 * them (the delete and the timed-lyrics export), so each draws only where
 	 * there is something to act on.
 	 */
 	readonly lineAnchorCount: number;
@@ -184,7 +184,7 @@ export interface WorkbenchController {
 	/**
 	 * Whether Harper, the English grammar proofreader, runs alongside the reviewed
 	 * rules. A preference rather than a per-finding ignore because it is a stance
-	 * on a whole provider — Harper cites itself and knows nothing about lyrics — so
+	 * on a whole provider (Harper cites itself and knows nothing about lyrics), so
 	 * turning it off is one decision, not fifty. Default on; persisted through the
 	 * repository like every other preference, so it survives a reload and is
 	 * covered by the workspace backup and by `Delete all local data`.
@@ -254,8 +254,8 @@ const largePasteThreshold = 32;
 const grammarCheckPreference = 'grammarCheck';
 
 /**
- * Compose the workbench from its four stores — editor session, draft, roster,
- * and right-panel view — and expose them behind one flat controller. Anything
+ * Compose the workbench from its four stores (editor session, draft, roster,
+ * and right-panel view) and expose them behind one flat controller. Anything
  * that has to cross store boundaries (opening a draft, adopting a snapshot)
  * is orchestrated here; everything else delegates.
  */
@@ -279,7 +279,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		onBeforeReplace: () => panel.leadOnNextSnapshot()
 	});
 
-	// The anchors this draft is known to have — not a one-shot hand-off. Every
+	// The anchors this draft is known to have, not a one-shot hand-off. Every
 	// editor remount (a draft switch, but also HMR) starts blank, and a blank
 	// editor's `getLineAnchors()` is `[]`, which the next save writes straight over
 	// the draft. So this is kept and re-seated onto any capable editor that has
@@ -316,7 +316,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		hasAttachment: () => media?.player.attached === true || media?.pendingName !== undefined,
 		// A deleted or discarded draft's rows leave the table directly, so the
 		// in-session ignore mirror has to be told or it answers for a draft that
-		// no longer has a record — and loses the ignores on reload.
+		// no longer has a record, and loses the ignores on reload.
 		ignoreStore: deps.ignoreStore,
 		bindings: {
 			get snapshot() {
@@ -328,7 +328,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			get lineAnchors() {
 				// Falling back to the known set rather than to nothing. The page boots
 				// with a headless handle that cannot answer this, and any save that
-				// landed in that window — a rename is enough — would write an empty
+				// landed in that window (a rename is enough) would write an empty
 				// list over the draft's own timings.
 				return editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
 			},
@@ -387,13 +387,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	 * Let the song name the draft, but only while nothing else has.
 	 *
 	 * Attaching audio to a fresh draft says what the transcription is *of*, and
-	 * that is nearly always what it should be called — so a draft still carrying
+	 * that is nearly always what it should be called, so a draft still carrying
 	 * the placeholder takes the source's own name. `Untitled transcription` is the whole
 	 * of the condition: a title the user typed, or one an earlier source already
 	 * supplied, is a decision, and a later attachment must not overwrite it.
 	 *
-	 * The store has already decided what counts as a name worth having — a pasted
-	 * link's own URL is not one, and neither is a long filename — so there is
+	 * The store has already decided what counts as a name worth having (a pasted
+	 * link's own URL is not one, and neither is a long filename), so there is
 	 * nothing to second-guess here.
 	 */
 	async function nameDraftAfterSource(title: string): Promise<void> {
@@ -444,8 +444,8 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	 * Rename a performer from the roster, carrying the new spelling into every
 	 * section header that names them.
 	 *
-	 * The mirror already runs the other way — editing a name inside one header
-	 * rewrites the others and the roster adopts it — so a roster rename that
+	 * The mirror already runs the other way (editing a name inside one header
+	 * rewrites the others and the roster adopts it), so a roster rename that
 	 * stopped at the record left the workbench contradicting itself: the toast
 	 * said renamed, the legend went on reading the old name, and the new name
 	 * appeared nowhere in the document. Keeping the headers in step is the one
@@ -908,7 +908,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion
 			};
 			// Each of these stays absent where the file said nothing, and the two
-			// lists stay absent where they are empty — a record is compared field by
+			// lists stay absent where they are empty, because a record is compared field by
 			// field on its way to disk, and a key nobody set is not a value.
 			const scribed = project.document;
 			if (scribed.geniusUrl !== undefined) imported.geniusUrl = scribed.geniusUrl;
@@ -931,7 +931,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 						name: source.name ?? `${source.kind}:${source.id}`,
 						source: source.kind
 					};
-					// One id field, named for the source's own alphabet — a record that
+					// One id field, named for the source's own alphabet, because a record that
 					// confused them would fail as a 404 a long way from here.
 					if (source.kind === 'youtube') attachment.videoId = source.id;
 					if (source.kind === 'spotify') attachment.trackId = source.id;
@@ -955,7 +955,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// could undo this press. The file itself stays on the user's disk.
 			await deps.backup?.unlink();
 			await draft.deleteAllDrafts();
-			// A reset returns the running session to its defaults too — the stored
+			// A reset returns the running session to its defaults too: the stored
 			// rows are already gone, and a switch still showing the old choice would
 			// be reporting a preference that no longer exists.
 			grammarCheckEnabled = true;
@@ -1014,8 +1014,8 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 
 	roster.importFromSnapshot(deps.initialSnapshot);
 	void controller.refreshDrafts().catch(() => {});
-	// The draft the page boots with never travels through `onDraftLoaded` — that
-	// hook fires on a *switch* — so without this a reload came back to a workbench
+	// The draft the page boots with never travels through `onDraftLoaded`, because that
+	// hook fires on a *switch*, so without this a reload came back to a workbench
 	// with no audio and no sign there had been any.
 	//
 	// The sign-in is picked up *after* it, and the order matters: a load returning

@@ -7,7 +7,7 @@
 		/**
 		 * Whether the word is on screen beside the glyph. The rule reference says
 		 * it: there the severity is a fact in a document, read once, by a reader who
-		 * may never have opened the workbench. A diagnostic's meta line does not —
+		 * may never have opened the workbench. A diagnostic's meta line does not:
 		 * eight rows down the panel the word is the same word eight times, and the
 		 * glyph and its color were already carrying it. Unlabelled it stays in the
 		 * accessible tree, and the tooltip hands it to the pointer.

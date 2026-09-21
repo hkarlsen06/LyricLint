@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/rules-catalog.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/rules-catalog.md. Read it before changing this file, and update it with any behavior change.
 import { sourceRegistry } from '$lib/rules/data/sources.js';
 import { findExactPerformer } from '$lib/performers/index.js';
 import { decodeLegendText } from '$lib/performers/import.js';
@@ -26,7 +26,7 @@ const voiceGroupRangeCache = new WeakMap<
  * Whether a sync run has anything left to time.
  *
  * The lines it would tap are `isLyricLine`'s, the same answer the editor's column
- * and sync mode use, matched here against the anchors' own line numbers — both of
+ * and sync mode use, matched here against the anchors' own line numbers, both of
  * which the shell already holds. A song with nothing to tap is not a finished one.
  */
 export function everyLyricLineTimed(text: string, anchors: readonly LineAnchor[]): boolean {
@@ -44,8 +44,8 @@ export function everyLyricLineTimed(text: string, anchors: readonly LineAnchor[]
 /**
  * Whether a sync run has timed lines to skip past.
  *
- * The song this is for was synced once and then edited — a long line split in
- * two, in several places — so it is timed everywhere except the new lines, and
+ * The song this is for was synced once and then edited (a long line split in
+ * two, in several places), so it is timed everywhere except the new lines, and
  * a run walking towards the next one re-listens through whole verses that are
  * already right. The skip is meaningful exactly when the first untimed lyric
  * line at or after the caret has a *timed* lyric line between it and the caret:
@@ -53,15 +53,15 @@ export function everyLyricLineTimed(text: string, anchors: readonly LineAnchor[]
  * the next tap is already aimed at the gap and there is nothing to skip.
  *
  * This mirrors the editor's own `lyricSyncSkipTarget` off values the shell
- * already holds — the same arrangement `everyLyricLineTimed` has with
- * `runStart` — because the strip draws the control from the shell's state, and
+ * already holds, the same arrangement `everyLyricLineTimed` has with
+ * `runStart`, because the strip draws the control from the shell's state, and
  * a handle asked inside a derived would never be re-asked.
  */
 /**
  * Whether the selection names lines a sync run could be scoped to.
  *
- * The strip's control follows this before the press — `Sync selection` over
- * `Sync lyrics` — so it has to be the same question the editor's own
+ * The strip's control follows this before the press (`Sync selection` over
+ * `Sync lyrics`), so it has to be the same question the editor's own
  * `selectionScope` answers on entry, and both come down to `isLyricLine` over
  * the lines the selection touches, which is what keeps the two from drifting.
  * A selection ending exactly at a line's start does not include that line, for
@@ -130,7 +130,7 @@ export function buildRuleContext(
  * This is what holds a `document`-tier finding back, and it has to separate two
  * things a snapshot cannot tell apart on its own. Opening a draft, pasting a
  * transcription, loading the sample and applying a bulk fix all deliver a
- * finished document in one change — the shape findings are right immediately and
+ * finished document in one change: the shape findings are right immediately and
  * waiting on them would read as the linter being slow. Typing delivers it a
  * character at a time, and the shape is wrong the whole way down.
  *
@@ -139,7 +139,7 @@ export function buildRuleContext(
  * over two curly apostrophes rewrites two characters in different verses for a
  * net delta of zero, so a length comparison called the loudest bulk press in the
  * application "typing" and blinked every shape finding off the panel for a
- * second and a half — the exact churn this whole mechanism exists to remove.
+ * second and a half, the exact churn this whole mechanism exists to remove.
  * Comparing from both ends catches it: the span between the common prefix and
  * the common suffix covers both edits.
  *
@@ -151,8 +151,8 @@ export function buildRuleContext(
  * `dispatchAtomicEdit`'s own `input.atomic` annotation), because the case this
  * function cannot ever get right is a single-occurrence fix: `Dont` → `Don't`
  * inserts one character at the caret and is indistinguishable from typing one
- * there. What is left for this to judge is the changes nobody dispatched —
- * keystrokes, pastes, drops — where the size of the change is genuinely all
+ * there. What is left for this to judge is the changes nobody dispatched
+ * (keystrokes, pastes, drops), where the size of the change is genuinely all
  * there is to go on.
  */
 export function isTypingChange(previousText: string, nextText: string): boolean {
@@ -177,7 +177,7 @@ interface EditorStateFilter {
 	 * Whether the document has stopped changing under the user's hands.
 	 *
 	 * Defaults to true, because a caller that does not track typing is a caller
-	 * looking at a document nobody is typing into — a test, or the landing page's
+	 * looking at a document nobody is typing into: a test, or the landing page's
 	 * demo. The workbench passes the real answer.
 	 */
 	settled?: boolean;
@@ -190,7 +190,7 @@ interface EditorStateFilter {
  * reach them: where the caret is, which sections are linked, and whether the
  * document is still being typed. All three are applied here rather than passed
  * into `RuleContext`, because this runs on every snapshot while the lint itself
- * is memoized on the document — a link made or taken off changes no text, and a
+ * is memoized on the document, and a link made or taken off changes no text, so a
  * suggestion that outlived the press that answered it would sit there until the
  * next keystroke.
  *
@@ -198,7 +198,7 @@ interface EditorStateFilter {
  * worth its cost. A rule sees a document mid-composition as a finished one, so
  * most of the catalog spends the keystrokes between two words asserting things
  * the next keystroke refutes. Measured over one short verse typed a character at
- * a time, 21 cards appeared and 16 of them were doomed — `[` is an unbalanced
+ * a time, 21 cards appeared and 16 of them were doomed: `[` is an unbalanced
  * bracket for eight keystrokes, `thoug` is one edit from `though`, and a song
  * has one distinct verse until the second one is written.
  *
@@ -243,8 +243,8 @@ export function filterForEditorState(
 }
 
 /**
- * The lines the caret is composing: its own, and — where the caret sits in a
- * linked section — the lines its edits are being mirrored onto, which are being
+ * The lines the caret is composing: its own, and, where the caret sits in a
+ * linked section, the lines its edits are being mirrored onto, which are being
  * written just as much as the one under it.
  *
  * A selection defers nothing. A range is not somewhere a word is being typed; it
@@ -253,7 +253,7 @@ export function filterForEditorState(
  *
  * **A mirrored line is only a peer where the peer section actually has one.**
  * The offset arithmetic assumes every member of a link runs to the same length,
- * which the merge-structure link model explicitly does not require — two
+ * which the merge-structure link model explicitly does not require, and two
  * choruses differing by a line is the shape the whole feature was rebuilt for.
  * Unbounded, a caret on the fourth line of a long chorus resolved to a line in
  * whichever section happened to sit at that offset from the peer's header, and
@@ -378,7 +378,7 @@ export function resolveVoiceGroupRanges(
 		}
 		// Malformed or unsupported markup (e.g. an <i> left open across lines)
 		// makes the implicit "everything else is the plain voice" inference
-		// unreliable — but only where the broken markup reaches: the lines that
+		// unreliable, but only where the broken markup reaches: the lines that
 		// carry a broken tag, plus the lines inside an apparently unclosed
 		// wrapper. Clean lines in the same section keep the plain fallback, and
 		// explicitly tagged spans and legend names always keep their colors.
@@ -482,7 +482,7 @@ export function resolveVoiceGroupRanges(
  * Order the roster by each performer's first appearance in the document
  * (legend names and styled spans alike). Performers who do not appear yet
  * keep their existing relative order after the appearing ones. The color a
- * performer carries never changes with this ordering — it is only a visual
+ * performer carries never changes with this ordering. It is only a visual
  * distinguisher.
  */
 export function orderPerformersByAppearance(

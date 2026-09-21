@@ -4,7 +4,7 @@
  * `services/rules-assistant/generated/rules-context.json` is this module's
  * output, committed so the Worker builds from a reviewed artifact and the
  * parity tests can catch it going stale. Everything in it comes from data the
- * frontend already ships or derives — `currentRuleSet`, the `RuleReference`
+ * frontend already ships or derives: `currentRuleSet`, the `RuleReference`
  * derivations, the catalog's own lookup tables, the reviewed source registry,
  * the reviewed language packs, and the policy sections of `docs/rules.md`.
  * Nothing unreviewed enters: sources are filtered to
@@ -18,7 +18,7 @@
  * are, could only answer with that pair. `lookups` is the rest of it: the seven
  * catalog tables in full, from `lookup-tables.ts`, derived from the same
  * constants the rules check against so an added spelling cannot go missing here.
- * A pointer to a guideline is deliberately still all a source carries — the
+ * A pointer to a guideline is deliberately still all a source carries. The
  * registry stores no Genius prose, and transcribing some would make this the one
  * hand-written thing in an artifact whose whole design is that it is generated.
  *
@@ -49,7 +49,7 @@ export const CORPUS_FORMAT_VERSION = 5;
 
 const HARPER_BEHAVIOR =
 	'Alongside the reviewed Genius rules, LyricLint runs Harper, a local English proofreader, ' +
-	'in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper — ' +
+	'in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper, ' +
 	'always suggestions, always citing Harper itself (T-HARPER) rather than a Genius guideline, ' +
 	'and a native reviewed rule always wins where the two overlap.';
 
@@ -92,12 +92,12 @@ function corpusSource(source: SourceReference): AssistantCorpusSource {
 	};
 }
 
-/** Everything but the stamp and the hash — deterministic for a given source tree. */
+/** Everything but the stamp and the hash, deterministic for a given source tree. */
 export function buildAssistantCorpusContent(
 	rulesMd: string
 ): Omit<AssistantCorpus, 'generatedAt' | 'contentHash'> {
 	// `corpusContentHash` hashes `JSON.stringify`, which writes keys in insertion
-	// order — so where an optional key sits is part of the artifact, and an
+	// order, so where an optional key sits is part of the artifact, and an
 	// absent one has to be absent rather than `undefined`. That is why the two
 	// halves either side of `fixLabel` are named: appending it would move it.
 	const rules = ruleReferences().map((reference) => {

@@ -37,7 +37,7 @@ export const numbersSpellOutRule: RuleDefinition = {
 		}
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) => {
-				// The ordinal in a written-out label — `Verse 1:` — is part of a
+				// The ordinal in a written-out label, as in `Verse 1:`, is part of a
 				// header, not a number in a lyric, so spelling it out would produce
 				// `Verse one:`. It is the very first thing on a pasted transcription,
 				// which is the worst possible moment to be confidently wrong.

@@ -104,7 +104,7 @@ export const sectionGhostTheme = EditorView.baseTheme({
 		padding: 'var(--space-1-5) 0 var(--space-1-5)'
 	},
 	// A dashed chip offering to add something that is not there yet, so the pill
-	// radius is the categorical one it is entitled to — this is a chip, not an
+	// radius is the categorical one it is entitled to: this is a chip, not an
 	// action button in the shell's button vocabulary.
 	'.ll-section-ghost-button': {
 		padding: 'var(--space-1) var(--space-3)',

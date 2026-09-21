@@ -121,7 +121,7 @@ describe('LyricLint Scribe format', () => {
 	});
 
 	// A Scribe is a *shared* file, which is the one path in this application
-	// where somebody else's bytes become workspace state — so the parser owes at
+	// where somebody else's bytes become workspace state, so the parser owes at
 	// least what the clipboard's own reader asks of the same shapes. Each of
 	// these passed before, and each landed as state nothing downstream could
 	// make sense of.

@@ -56,7 +56,7 @@
 	/**
 	 * A row says which kind it is only where the footer holds both. With one kind
 	 * the line above has already said it, and a word repeated down every row of a
-	 * column is one nobody reads — the same reason the diagnostic card gave up
+	 * column is one nobody reads, for the same reason the diagnostic card gave up
 	 * printing its severity.
 	 */
 	const mixed = $derived(ignoredCount > 0 && acceptedCount > 0);

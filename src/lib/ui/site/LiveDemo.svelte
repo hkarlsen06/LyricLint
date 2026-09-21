@@ -15,7 +15,7 @@
 	//
 	// This mounts the same `EditorPane` the workbench mounts, running the same
 	// rule set through the same wiring, so the underlines, the hovered popover,
-	// the citation and its tooltip, and the fix diff are not reproductions —
+	// the citation and its tooltip, and the fix diff are not reproductions:
 	// they are the components themselves. A screenshot would go stale the first
 	// time a severity color or a card's shape changed; this cannot.
 	//
@@ -105,7 +105,7 @@
 	// with none to offer a reader who selects a line meets a control that can only
 	// tell them to go and create something first.
 	//
-	// `performerNames` seeds this once and then stops mattering — the roster is
+	// `performerNames` seeds this once and then stops mattering. The roster is
 	// local state from here, and a reader who adds or renames a performer owns it.
 	// `untrack` is what says so: re-deriving from the prop would silently discard
 	// their edit every time the prop's identity changed.
@@ -334,8 +334,8 @@
 
 	// The static sample below is the prerendered text, and it is what a crawler
 	// and a reader with no JavaScript get. CodeMirror only exists after mount, so
-	// the fallback stands in until the real pane is ready and then stands down —
-	// leaving both in the document would show the verse twice.
+	// the fallback stands in until the real pane is ready and then stands down,
+	// because leaving both in the document would show the verse twice.
 	let editorReady = $state(false);
 
 	onDestroy(() => {

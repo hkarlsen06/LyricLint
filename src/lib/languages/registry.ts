@@ -121,8 +121,8 @@ const LINKABLE_SEMANTICS = new Set(['chorus', 'prechorus', 'postchorus']);
  * The linkable kind this header spells, in the draft's own language.
  *
  * English is consulted second rather than instead: Genius pages in every
- * language carry English headers routinely — `ja` is an English pack outright,
- * and `no` lists `Chorus` beside `Refreng` — so a German draft with `[Chorus]`
+ * language carry English headers routinely: `ja` is an English pack outright,
+ * and `no` lists `Chorus` beside `Refreng`, so a German draft with `[Chorus]`
  * in it links exactly like one with `[Hook]`. The selected pack still wins,
  * which is what keeps `Refrain` reading as a chorus in French and as a chorus
  * in German rather than as English's separate `Refrain`.

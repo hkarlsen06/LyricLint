@@ -1,4 +1,4 @@
-# Performance audit — September 6, 2026
+# Performance audit, September 6, 2026
 
 Audit only: no application behavior, dependencies, assets, or persistence policy changed.
 The priority is responsive editing and a polished interface, followed by reducing background

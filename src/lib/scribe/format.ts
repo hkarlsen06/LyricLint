@@ -53,7 +53,7 @@ export interface ScribeProjectInput {
 /**
  * A value read out of a parsed `.lls` payload: JSON, or a key the file does not
  * have at all. Nothing below takes `unknown`, because what arrives here has
- * already been through `JSON.parse` — what is still open is which of JSON's own
+ * already been through `JSON.parse`; what is still open is which of JSON's own
  * six shapes each field turned out to be, and answering that is this module's
  * whole job.
  */
@@ -131,7 +131,7 @@ function parsePerformers(value: JsonValue): PerformerRecord[] {
 		// `--performer-*` custom property from, so a name nothing declares draws
 		// no color anywhere and reads as a voice the workbench forgot. Refused
 		// rather than reallocated, because this parser refuses everything it
-		// cannot vouch for — a Scribe carrying one is a file this build did not
+		// cannot vouch for: a Scribe carrying one is a file this build did not
 		// write, and the rest of it is no more trustworthy.
 		const colorId = string(item.colorId, `performers[${index}].colorId`);
 		if (!performerColorIds.some((paletteId) => paletteId === colorId)) {
@@ -162,7 +162,7 @@ function parseLinks(value: JsonValue, lyrics: string): SectionLink[] {
 			throw new ScribeFormatError(`sectionLinks[${index}].lines must contain at least two lines.`);
 		}
 		// A member twice over is one header standing for two copies, which every
-		// translation downstream reads as a group whose counts do not add up — so
+		// translation downstream reads as a group whose counts do not add up, so
 		// `[3, 3]` is a link with one member, not two. Sorted for the same reason
 		// the clipboard's own reader sorts: the mirror pairs members by position,
 		// and a list in the order somebody's file happened to write it is not one.
@@ -226,8 +226,8 @@ function parseSong(value: JsonValue): ClipboardMediaSource | undefined {
 	if (value.kind !== 'youtube' && value.kind !== 'spotify' && value.kind !== 'apple') {
 		throw new ScribeFormatError('song.kind is not supported.');
 	}
-	// The shape subsumes the clipboard reader's own pair of rules — present, and
-	// not absurdly long — because every alphabet here states its own length.
+	// The shape subsumes the clipboard reader's own pair of rules (present, and
+	// not absurdly long) because every alphabet here states its own length.
 	const id = string(value.id, 'song.id');
 	if (!songIdShapes[value.kind].test(id)) {
 		throw new ScribeFormatError(`song.id is not a ${value.kind} identifier.`);

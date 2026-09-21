@@ -16,7 +16,7 @@ export function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[
 
 /**
  * Two edits collide when their ranges overlap, or when both are insertions at
- * the same offset — the latter produce order-dependent output, so neither can
+ * the same offset, and the latter produce order-dependent output, so neither can
  * claim the point.
  */
 function editsCollide(left: TextEdit, right: TextEdit): boolean {
@@ -40,7 +40,7 @@ function editsCollide(left: TextEdit, right: TextEdit): boolean {
  * individual application, and re-running the engine after the batch offers it
  * again against the new revision. Arbitration cannot be resolved by applying
  * in passes instead, because every fix in one batch shares a `baseRevision`
- * and the apply path rejects stale ones — a batch is atomic by contract.
+ * and the apply path rejects stale ones: a batch is atomic by contract.
  */
 export function collectSafeFixes(diagnostics: readonly Diagnostic[]): DiagnosticFix[] {
 	const accepted: DiagnosticFix[] = [];
@@ -62,8 +62,8 @@ export function collectSafeFixes(diagnostics: readonly Diagnostic[]): Diagnostic
 }
 
 /**
- * Containment, not equality. Every statement of this rule — this module's own
- * comment, the reference, and `diagnostics/order.ts` — says a native finding
+ * Containment, not equality. Every statement of this rule (this module's own
+ * comment, the reference, and `diagnostics/order.ts`) says a native finding
  * wins a *shared* range, and a native rule routinely covers more than the token
  * Harper stopped on: a line-range finding over a word Harper also flags left
  * two cards arguing about the same word. Only this direction is safe. A Harper

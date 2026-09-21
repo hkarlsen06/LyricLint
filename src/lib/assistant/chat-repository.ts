@@ -1,7 +1,7 @@
 /**
  * Browser-local conversation persistence, on the same Dexie database as the
  * drafts (version 4). Conversations survive reloads and modal closure, stay in
- * this browser, and go only when the user deletes them — singly here, or all
+ * this browser, and go only when the user deletes them: singly here, or all
  * at once through `Delete all local data`, which clears these tables in the
  * draft repository's own transaction.
  */
@@ -21,7 +21,7 @@ export interface AssistantChatRepository {
 	): Promise<AssistantMessageRecord>;
 	updateMessage(id: string, patch: Partial<AssistantMessageRecord>): Promise<void>;
 	/**
-	 * A `pending` answer cannot outlive the session that asked it — unless
+	 * A `pending` answer cannot outlive the session that asked it, unless
 	 * `resumable` says this one can. The caller owns that rule, because what
 	 * makes a turn resumable is a fact about the tool protocol rather than about
 	 * storage.

@@ -50,7 +50,7 @@
 /* The name is the row's rename control, and it draws nothing to say so: a
    bordered field on every row would be six boxes for a name that is usually
    only read. It takes the whole of the row's free width, so the target is the
-   name and everything after it, and it underlines under the pointer — the same
+   name and everything after it, and it underlines under the pointer, the same
    tell the linter panel's recent drafts use for a line you can press. */
 .performer-row__name {
 	padding: 0;

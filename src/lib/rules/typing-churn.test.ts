@@ -9,7 +9,7 @@ import { currentRuleSet } from './index.js';
  * What a transcriber sees while typing, measured rather than reasoned about.
  *
  * A rule runs against a whole parsed document on every keystroke, so a document
- * mid-composition is linted as if it were finished — and the cards that produces
+ * mid-composition is linted as if it were finished, and the cards that produces
  * are not merely early, they are wrong, and they retract themselves. This file
  * types a verse a character at a time and counts the ones that appear only to
  * vanish again.
@@ -77,7 +77,7 @@ function settled(text: string): Set<string> {
 
 describe('typing churn', () => {
 	// The number is a ceiling on noise, not a target. It was 16 doomed episodes
-	// over this verse before `settlesOn` existed — `[` alone accounted for eight
+	// over this verse before `settlesOn` existed: `[` alone accounted for eight
 	// keystrokes of `syntax.unbalanced-brackets` plus a fresh
 	// `section.header-unrecognized` card per letter of the word "Verse".
 	test('a card that appears while typing is one that survives', () => {
@@ -139,7 +139,7 @@ describe('typing churn', () => {
 	});
 
 	// The point of the tier is that deferral is selective, and a `character`
-	// finding is one whose *message* is settled too — not merely its existence.
+	// finding is one whose *message* is settled too, not merely its existence.
 	// `quotes.typewriter` fails that second half and is deliberately not in this
 	// tier: `isApostrophe` reads the character after the mark, so `Don’` says
 	// "closing curly single quote" and `Don’t` says "curly apostrophe" one
@@ -155,7 +155,7 @@ describe('typing churn', () => {
 	// A caret is not a hand. Two real findings went undrawn while this tier waited
 	// on caret position alone: the landing page's demo seeds a collapsed caret at
 	// offset 0 and never moves it, and a transcriber who types the last line of a
-	// song and stops leaves the caret there for good — which hid that line from
+	// song and stops leaves the caret there for good, which hid that line from
 	// the panel and from the `Fix N automatically` batch, which plans over what is
 	// visible.
 	test('a caret at rest is not a line being written', () => {

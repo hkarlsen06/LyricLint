@@ -105,7 +105,7 @@ export type AssistantReferenceRecord = AssistantReference &
 /**
  * The compact result returned to the model for one reference. Its reason is a
  * free string rather than the record's terse code, because what the model is
- * told about a failure is the repair for it — see `FAILURE_GUIDANCE`.
+ * told about a failure is the repair for it. See `FAILURE_GUIDANCE`.
  */
 type AssistantReferenceOutcome =
 	| { id: string; status: 'shown'; reason?: never }
@@ -141,7 +141,7 @@ export type AssistantLinkActionRecord = AssistantLinkAction &
 
 /**
  * The compact result returned to the model for one link action. Its reason is
- * the repair sentence `outcomeReason` writes, not the record's terse code —
+ * the repair sentence `outcomeReason` writes, not the record's terse code,
  * which is why it is a free string here while the record above keeps the union.
  */
 export type AssistantLinkActionOutcome =

@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/media-spotify.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/media-spotify.md. Read it before changing this file, and update it with any behavior change.
 import type { MediaSource, MediaSourceEvents, SongDetails } from './media-player.svelte.js';
 import type { PollScheduler } from './media-youtube.js';
 import {
@@ -11,8 +11,8 @@ import {
 /**
  * How often a running Spotify playhead is read, in milliseconds.
  *
- * The same 250ms the YouTube source polls at, and for the same reason — there is
- * no `timeupdate` — but with one difference worth knowing: `getCurrentState()`
+ * The same 250ms the YouTube source polls at, and for the same reason: there is
+ * no `timeupdate`, but with one difference worth knowing: `getCurrentState()`
  * is answered by the SDK inside this tab, not by Spotify's servers. It is not a
  * Web API call and it is not rate limited, so this poll costs nothing on the
  * network. That is the whole argument for driving playback through the Web
@@ -25,8 +25,8 @@ import {
  * How long the SDK script has to answer before the load is called a failure.
  *
  * The same twenty seconds the YouTube loader allows, and for the same reason:
- * a script that never runs — an extension blocking it, a content policy, a
- * stalled CDN — otherwise leaves this promise pending for the life of the page,
+ * a script that never runs (an extension blocking it, a content policy, a
+ * stalled CDN) otherwise leaves this promise pending for the life of the page,
  * and every `finally` behind it with it. `attachSpotifyTrack` clears `busy` in
  * one of those, so a hung script does not cost a track, it costs the picker.
  */
@@ -37,7 +37,7 @@ interface SpotifyTrack {
 	name: string;
 	artists?: { name: string }[];
 	duration_ms?: number;
-	/** Widest first, as Spotify orders them — 640px at the top. */
+	/** Widest first, as Spotify orders them, with 640px at the top. */
 	album?: { images?: { url: string }[] };
 }
 
@@ -53,8 +53,8 @@ export interface SpotifyPlaybackState {
 /**
  * What each SDK event this module listens for carries.
  *
- * Hand-written for the reason `SpotifyPlayerLike` is — Spotify ships no types
- * this module can hold them to — and it is what keeps a listener from having to
+ * Hand-written for the reason `SpotifyPlayerLike` is (Spotify ships no types
+ * this module can hold them to), and it is what keeps a listener from having to
  * be cast on its way in. The four error events carry one shape between them.
  */
 export interface SpotifyPlayerEventMap {
@@ -110,7 +110,7 @@ interface SpotifyGlobal {
 let injected: Promise<SpotifySdk> | undefined;
 
 /**
- * Fetch Spotify's Web Playback SDK — once, and never before something asks.
+ * Fetch Spotify's Web Playback SDK once, and never before something asks.
  *
  * The whole of this source's page-load network surface, and nothing calls it at
  * module scope. A failed load forgets itself so a second attempt is a second
@@ -121,7 +121,7 @@ export function loadSpotifySdk(): Promise<SpotifySdk> {
 
 	const attempt = new Promise<SpotifySdk>((resolve, reject) => {
 		// SAFETY: the SDK installs itself as a property of the global object, which
-		// is all this claims — both properties are optional, so the branches below
+		// is all this claims. Both properties are optional, so the branches below
 		// are what establish either is there.
 		const scope = globalThis as SpotifyGlobal;
 		if (scope.Spotify?.Player) {
@@ -159,8 +159,8 @@ export function loadSpotifySdk(): Promise<SpotifySdk> {
 	});
 
 	// A wrapper around `attempt` rather than the promise itself, so that a failure
-	// raised while this function is still running — a document that cannot be
-	// written to — is forgotten too, by which time the assignment has happened.
+	// raised while this function is still running (a document that cannot be
+	// written to) is forgotten too, by which time the assignment has happened.
 	injected = (async () => {
 		try {
 			return await attempt;
@@ -203,7 +203,7 @@ export function isSpotifyTrackId(id: string): boolean {
 }
 
 const notALink = 'That is not a Spotify track link.';
-const noTrack = 'That link is not a track — albums and playlists cannot be transcribed against.';
+const noTrack = 'That link is not a track. Albums and playlists cannot be transcribed against.';
 
 /**
  * Turn whatever the user pasted into a track id.
@@ -279,7 +279,7 @@ export type SpotifySearchOutcome =
 /**
  * Find a track by name, so nobody has to go and fetch a link.
  *
- * Search needs no scope beyond a valid token — it is public catalogue data — so
+ * Search needs no scope beyond a valid token (it is public catalogue data), so
  * this costs nothing the sign-in has not already paid for. It is a plain
  * function rather than a method on the source because it runs *before* anything
  * is attached: there is no player yet, and building one to ask a question would
@@ -317,7 +317,7 @@ export async function searchSpotifyTracks(
 	}
 
 	// Annotated rather than asserted: `Response.json()` answers `any`, so the shape
-	// is a claim either way — and the one field spent below is re-checked there.
+	// is a claim either way, and the one field spent below is re-checked there.
 	const payload: { tracks?: { items?: ({ id?: string } & SpotifyTrack)[] } } | undefined =
 		await response.json().catch(() => undefined);
 
@@ -365,15 +365,15 @@ function describe(track: SpotifyTrack): string {
 /**
  * Spotify as something the transport can drive.
  *
- * The same three asymmetries the YouTube bridge absorbs — commands that have not
+ * The same three asymmetries the YouTube bridge absorbs (commands that have not
  * landed by the next read, no `timeupdate`, and a rate the source does not
- * control — plus one that is Spotify's alone and shapes the whole module:
+ * control), plus one that is Spotify's alone and shapes the whole module:
  *
  * **There is no cue.** The IFrame API can point a player at a video without
  * starting it, which is what keeps attaching audio from playing it. Spotify's
  * SDK has no equivalent: the only way to put a track on the device is
  * `PUT /me/player/play`, which plays. So attaching fetches the track's metadata
- * over the Web API — name and length, no sound — and the `PUT` is deferred to
+ * over the Web API (name and length, no sound), and the `PUT` is deferred to
  * the user's first `play()`. That is why `started` exists as a flag: the first
  * press starts the track, and every press after it resumes.
  *
@@ -421,7 +421,7 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 	 *
 	 * `stale` is what keeps a superseded call quiet. A read for the track the user
 	 * has just moved off still has to be waited out, and reporting its refusal
-	 * would put an error on the strip about a track that is no longer attached —
+	 * would put an error on the strip about a track that is no longer attached,
 	 * the same staleness the success path has always checked, on the half that was
 	 * left unguarded.
 	 */
@@ -462,7 +462,7 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 		// name and a cover; the track itself still plays, so reporting it through
 		// `failed` would replace the scrubber with a sentence about a song the user
 		// can hear. What the label falls back to is the provisional one the attach
-		// carried, and the cover band draws that rather than nothing — the anonymous
+		// carried, and the cover band draws that rather than nothing. The anonymous
 		// playback this used to produce was the band waiting on a picture, not this.
 		if (!response?.ok) return;
 		// Annotated rather than asserted, exactly as the search read above is: the
@@ -474,8 +474,8 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 		// no second request. Widest first is Spotify's own order.
 		events.artworkChanged(track.album?.images?.[0]?.url);
 		// The two halves of that name, for the band that sets them at opposite ends
-		// of a row. Everything else Spotify would need for the tools panel's list —
-		// the label above all — is on a request this source does not make, so this
+		// of a row. Everything else Spotify would need for the tools panel's list,
+		// the label above all, is on a request this source does not make, so this
 		// reports what it has rather than a shape with holes in it.
 		// Built a field at a time rather than spread conditionally: a track with no
 		// artist on it reports no artist, rather than one that is there and empty.
@@ -576,7 +576,7 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 						// A refused refresh, and the SDK has nowhere to report it: the
 						// callback is simply never made, and it arms no timeout of its
 						// own. Left silent, a session that expired mid-track took the
-						// transport dead with it — the glyphs answered and nothing
+						// transport dead with it: the glyphs answered and nothing
 						// happened, forever. Before the device arrives `fail` also
 						// settles `connect()`, which would otherwise wait out the
 						// 20-second timeout and then blame the loader.
@@ -702,7 +702,7 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 			}
 
 			events.ratesChanged([1]);
-			// The metadata is what makes attaching silent — it is the whole of what
+			// The metadata is what makes attaching silent: it is the whole of what
 			// the strip needs before a first press, and it costs no sound.
 			await fetchTrack(nextTrackId);
 			try {

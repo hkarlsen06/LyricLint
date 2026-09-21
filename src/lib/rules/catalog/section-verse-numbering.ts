@@ -32,7 +32,7 @@ function bodyKey(section: Section): string {
  *
  * A header that already carries a number has its digits replaced; one that
  * carries none takes an insertion at the end of its name, which is before the
- * legend rather than at the end of the header — `[Vers: Ane]` numbers as
+ * legend rather than at the end of the header, so `[Vers: Ane]` numbers as
  * `[Vers 1: Ane]`.
  */
 function numberEdit(header: SectionHeader, expected: number): TextEdit {
@@ -147,7 +147,7 @@ export const sectionVerseNumberingRule: RuleDefinition = {
 
 		// A verse carries no number at all, so what is missing is the enumeration
 		// itself. Two verses written out is a song that needs numbering, and a
-		// verse still waiting for its words is not evidence of one — so the
+		// verse still waiting for its words is not evidence of one, so the
 		// trigger counts the verses that have words, while the numbers themselves
 		// still count every verse. Otherwise pressing Enter on a fresh `[Verse]`
 		// would ask for numbering before there was a second verse to distinguish.
@@ -161,7 +161,7 @@ export const sectionVerseNumberingRule: RuleDefinition = {
 			return diagnostics;
 		}
 		// One finding for the song, not one per header. Numbering is a single
-		// decision about a set — a card per verse would be the same sentence down
+		// decision about a set, and a card per verse would be the same sentence down
 		// a column, and each of them would only do part of the job.
 		const scope =
 			verses.length === uniqueBodies.size

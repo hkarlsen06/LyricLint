@@ -6,7 +6,7 @@
  * scrolls the viewport, and it has to survive a phone, because the phone gate
  * deliberately does not apply here. The two reference sections are the
  * exception, and they are the workbench's own arrangement rather than
- * articles — see `data-shell` below.
+ * articles. See `data-shell` below.
  *
  * The material vocabulary is the app's, unchanged. Chrome bands for the header
  * and footer, prose directly on `--color-canvas`, and exactly two things that
@@ -21,15 +21,15 @@
  *
  * The workbench follows the visitor's preference, because it is a tool somebody
  * sits in front of for an hour in whatever light they are in. This is not that.
- * It is a page read once, and the whole of its composition — a lit grid behind
+ * It is a page read once, and the whole of its composition (a lit grid behind
  * the headline, marks floating over it, a product shot that reads as a lit
- * screen rather than as a picture pasted onto paper — is a dark composition.
+ * screen rather than as a picture pasted onto paper) is a dark composition.
  * Rendered light, none of it is merely paler: the glow has nothing to glow
  * against and the screenshot becomes a rectangle of night stapled to a white
  * page.
  *
  * WHAT IS PINNED IS THE APP'S OWN DARK SCHEME, VALUE FOR VALUE. This block used
- * to be a second palette — deeper surfaces of the site's own, on the reasoning
+ * to be a second palette, deeper surfaces of the site's own, on the reasoning
  * that a landing page wants contrast under a display headline where a workbench
  * wants a document somebody can live in. Read side by side that was two
  * products: a reader pressed `Open the workbench` and watched every surface in
@@ -40,7 +40,7 @@
  * token for token, so neither can be retuned alone.
  *
  * It is still a complete palette rather than a handful of overrides, and it
- * still has to be — that is the *pinning*, not the deepening. A visitor in
+ * still has to be: that is the *pinning*, not the deepening. A visitor in
  * light mode gets none of `tokens.css`'s dark block, and the live demo mounts
  * the real editor inside this subtree: severity underlines, performer bars,
  * selection, and every fill the diagnostic card uses resolve here. A partial
@@ -50,7 +50,7 @@
 .site {
 	color-scheme: dark;
 
-	/* Surfaces — `tokens.css`'s dark block, restated. */
+	/* Surfaces: `tokens.css`'s dark block, restated. */
 	--color-canvas: oklch(15% 0.004 285);
 	--color-surface: oklch(19.5% 0.004 285);
 	--color-fill-subtle: oklch(23% 0.005 285);
@@ -71,7 +71,7 @@
 	 *
 	 * A custom property is inherited as its *substituted* value. `--color-control:
 	 * var(--color-surface)` is declared on `:root` and therefore resolves against
-	 * `:root`'s own `--color-surface` — so what reaches this subtree is already a
+	 * `:root`'s own `--color-surface`, so what reaches this subtree is already a
 	 * colour, and overriding `--color-surface` here does not reach back and change
 	 * it. The app's dark scheme gets away with redefining only the anchors because
 	 * it redefines them on `:root` as well, where the derivations are declared and
@@ -96,7 +96,7 @@
 	--color-playhead: var(--color-warning);
 	--color-playhead-soft: var(--color-warning-soft);
 
-	/* Product colors — the same dark block, unchanged. Severity, accent, focus and
+	/* Product colors: the same dark block, unchanged. Severity, accent, focus and
 	   the performer identities are what the demo is a demonstration *of*, so a
 	   page showing a different amber for a warning than the tool does would be
 	   misreporting the thing it is selling. */
@@ -153,7 +153,7 @@
 
 /*
  * A film of noise over the whole site, at a strength that is never seen as
- * texture — it is seen as the flat fields under it *not* banding.
+ * texture. It is seen as the flat fields under it *not* banding.
  *
  * That is the whole reason it is here rather than decoration. This page spends
  * most of its area on very dark near-neutral surfaces and on two large radial
@@ -161,7 +161,7 @@
  * draws as visible rings; a fractional dither breaks the step up. It is
  * `position: fixed` so it does not scroll (a moving grain reads as a dirty
  * screen), `pointer-events: none` so it takes no press, and above the content
- * but below every overlay tier — a texture that painted over a popover would be
+ * but below every overlay tier. A texture that painted over a popover would be
  * the one thing here anybody actually notices.
  */
 .site::after {
@@ -201,8 +201,8 @@
  * header is sized into. It rides above the pinned masthead so a focused skip
  * link is never behind the band it is skipping.
  *
- * Hidden by clipping rather than by fading — opacity is never a state carrier
- * here — and it takes the shared contrast tier rather than drawing a control of
+ * Hidden by clipping rather than by fading (opacity is never a state carrier
+ * here), and it takes the shared contrast tier rather than drawing a control of
  * its own.
  */
 .site-skip {
@@ -222,7 +222,7 @@
 }
 
 /* Chrome, like the document toolbar, so arriving at the workbench from here is
-   not a change of material — the same band, the same brand, in the same place. */
+   not a change of material: the same band, the same brand, in the same place. */
 .site-header,
 .site-footer {
 	background: var(--color-chrome);
@@ -236,14 +236,14 @@
  * workbench's document toolbar, which is what makes arriving at the tool from
  * here read as the same window rather than as a second product. Its *contents*
  * are aligned differently on purpose: the brand shares a left edge with the
- * page container — the headline, every paragraph — rather than with the
+ * page container (the headline, every paragraph) rather than with the
  * viewport, because a marketing page's masthead belongs to the column being
  * read, where the workbench's toolbar belongs to the window being operated.
  * The e2e test pins that alignment too.
  *
  * The fill is the site's own chrome grey, translucent, over a `backdrop-filter`.
  * Chrome rather than canvas because the band sits over the hero's lit grid,
- * and the grid's hairlines lift that region a step above bare canvas — a
+ * and the grid's hairlines lift that region a step above bare canvas. A
  * pure-canvas band up there read as a black strip on a grey field, which is
  * the two-mismatched-bands failure the phone rule below describes, arrived at
  * from the other direction. The blur is what keeps the type legible once a
@@ -269,7 +269,7 @@
 /* The hairline arrives with the first scroll and not before. At rest the band
    sits on the hero and separates nothing; once content moves under it there is
    an edge worth drawing. Colour only, on a border that is already there
-   transparent, so nothing shifts — the layout toggles `data-scrolled` off the
+   transparent, so nothing shifts. The layout toggles `data-scrolled` off the
    window's own scroll, which the rule reference never produces. */
 .site-header[data-scrolled] {
 	border-bottom-color: var(--color-border);
@@ -328,14 +328,14 @@
 
 /*
  * Which of the two reference sections is on screen, said in the band rather
- * than left to the nav's `aria-current`. The sections are deliberately alike —
- * one shell, one finder, one run of rows — so at a glance the only difference
+ * than left to the nav's `aria-current`. The sections are deliberately alike
+ * (one shell, one finder, one run of rows), so at a glance the only difference
  * between `/rules/` and `/guidelines/` was a 15px link a shade brighter than
  * its neighbours, which is a difference nobody reads.
  *
  * It is the biggest type in the band, and that is the whole of the effect: the
  * lockup beside it is set at the body size, so what a reader lands on first is
- * where they are. It fits inside the band's own height rather than growing it —
+ * where they are. It fits inside the band's own height rather than growing it.
  * `e2e/lyriclint.spec.ts` pins that height against the workbench's toolbar, and
  * `--font-size-xl` on a tight line sits well inside it with the band's padding.
  *
@@ -358,7 +358,7 @@
 }
 
 /* The brand and the section it is over sit together at the start of the band,
-   and the nav takes the far end — `space-between` alone would strand the
+   and the nav takes the far end. `space-between` alone would strand the
    section title in the middle of the row. */
 .site-nav {
 	display: flex;
@@ -371,13 +371,13 @@
 }
 
 /* A masthead is chrome, and chrome does not underline. Set as prose links these
-   were three accent-blue, underlined words crowded against the wordmark — a link
+   were three accent-blue, underlined words crowded against the wordmark, a link
    list where a masthead should be, and on a phone the busiest thing on the first
    screen. They are quiet text now: muted, resolving to the body color under the
    pointer, which is the same way the workbench's own toolbar commands answer one.
 
    The page the reader is already on is named but not linked, so the nav says
-   where they are without offering to take them there again — which is now a step
+   where they are without offering to take them there again, which is now a step
    up in color rather than the absence of an underline. */
 .site-nav a {
 	color: var(--color-text-muted);
@@ -443,7 +443,7 @@
 
 /*
  * The landing page's hero used to live here, and it is now `.lp-hero` in
- * `landing.css` — see the note at the top of that file for why the marketing
+ * `landing.css`. See the note at the top of that file for why the marketing
  * page stopped being an article with a tall first block and became a
  * composition of its own.
  *
@@ -492,7 +492,7 @@
 /* The mark inside a button takes the button's own ink, not the brand amber.
    These are unscoped on purpose: the icon only ever rides a button's label, and
    scoping them to one action row is how the hero's contrast action shipped an
-   amber wave on a near-white fill — the mark inherits, wherever the button is. */
+   amber wave on a near-white fill. The mark inherits, wherever the button is. */
 .lyric-icon {
 	display: inline-flex;
 	flex: none;
@@ -512,7 +512,7 @@
 	stroke: currentColor;
 }
 
-/* Sits beside the destination action and says what it costs — a desktop, a
+/* Sits beside the destination action and says what it costs: a desktop, a
    keyboard. Muted prose, not a tinted advisory box. */
 .site-aside {
 	margin: 0 0 var(--space-6);
@@ -524,7 +524,7 @@
  * A run of repeating items, drawn like the linter's run of diagnostic cards: no
  * gap, no rounding between neighbours, a hairline where two meet. One border
  * around the whole run, because the run is the thing being separated from the
- * page — the rows are separated from each other, which a hairline already does.
+ * page. The rows are separated from each other, which a hairline already does.
  */
 .site-run {
 	padding: 0;
@@ -582,13 +582,13 @@
 
 /*
  * A form a sentence *names* rather than uses, set apart from the prose it is
- * quoted inside — `gon'` for `gonna`, the word `lyrics`, `'90s`.
+ * quoted inside: `gon'` for `gonna`, the word `lyrics`, `'90s`.
  *
  * The face alone is not enough here, and that is what separates this from
  * `.site-code` above. That one labels something the reader already knows is an
  * identifier: it stands alone in a row, or is the whole of a link. This one is
  * a run of characters in the middle of a sentence, competing with the words
- * either side of it — read at the same size in the same colour, a mono
+ * either side of it. Read at the same size in the same colour, a mono
  * `and` is a conjunction, and a step down in size alone reads as small text
  * rather than as quoted text. The fill is what says where the form starts and
  * stops, which is the same argument `.site-sample` makes at block size: this is
@@ -596,7 +596,7 @@
  *
  * A fill and a radius and no border. A hairline around a 13px run in the middle
  * of a line is a rectangle competing with the sentence for the reader's eye,
- * and the fill has already done the separating — the border would be the
+ * and the fill has already done the separating. The border would be the
  * decoration `A card has to earn its border` is about, at inline scale.
  *
  * Inline padding is safe where block padding on a box would not be: padding on
@@ -604,7 +604,7 @@
  * keeps its rhythm and nothing below it moves.
  *
  * And a form does not break across lines. `jet ski` split at its space, which
- * left half a box at the end of one line and half at the start of the next —
+ * left half a box at the end of one line and half at the start of the next:
  * two forms where the sentence names one. The longest form the catalog carries
  * is twenty characters, so `nowrap` costs the narrowest screen nothing; a form
  * long enough to need a line of its own belongs in `example`, which is the
@@ -612,7 +612,7 @@
  *
  * The size is relative and floored, because this is drawn in two registers. In
  * a statement it sits in body copy, where a fixed `--font-size-xs` is a fifth
- * smaller than its neighbours — the drop that read as small rather than as
+ * smaller than its neighbours, the drop that read as small rather than as
  * quoted. In a lookup note it sits in `--font-size-xs` text already, where
  * 0.9em would take it below the smallest type on the site. `max()` is one
  * declaration answering both: a step down from whatever it is inside, never
@@ -629,8 +629,8 @@
 
 /*
  * A verbatim sample of document text. This earns its border: it is a different
- * material from the prose around it — the literal thing the reader would type
- * into the editor — and the boundary is what says where the sample stops. It is
+ * material from the prose around it (the literal thing the reader would type
+ * into the editor), and the boundary is what says where the sample stops. It is
  * `--color-surface`, one step up from the page, and never nested in anything
  * else that has a border.
  *
@@ -659,7 +659,7 @@
 	tab-size: 2;
 }
 
-/* Which of the two a sample is — the input that trips the rule, or the text it
+/* Which of the two a sample is: the input that trips the rule, or the text it
    should have been. Color states it and a word states it too, because the pair
    is the whole point of the example and must not be carried by hue alone. */
 .site-sample__label {
@@ -698,10 +698,10 @@
 }
 
 /* Two or more citations fold behind the diagnostic card's own `Sources ⌄`
-   (`SiteSourceFold.svelte`), which reuses the card's disclosure classes — this
+   (`SiteSourceFold.svelte`), which reuses the card's disclosure classes. This
    is only the unfolded list's place in the site's wrapping meta row: a full
    row of its own under the whole line, never a run spliced into the middle of
-   it. The `order` is what keeps that true with facts after the disclosure —
+   it. The `order` is what keeps that true with facts after the disclosure:
    the list sorts past them visually while the DOM keeps the citations beside
    the control that reveals them. */
 .site-meta__sources {
@@ -712,7 +712,7 @@
 /*
  * The authority ladder (`AuthorityLadder.svelte`): four ascending steps for
  * the four source tiers, filled up to the tier the entry's sources establish.
- * The bars are `aria-hidden` — the tier label beside them is the fact — and
+ * The bars are `aria-hidden` (the tier label beside them is the fact), and
  * an unmet step keeps an opaque muted colour rather than fading, because
  * opacity is never a state carrier.
  */
@@ -750,9 +750,9 @@
 /*
  * The guidelines welcome page's legend for the ladder: one term per tier,
  * ascending as the ladder fills. The term is the ladder and the label
- * together — the entries' own pairing, but in the body color and weight,
+ * together (the entries' own pairing, but in the body color and weight,
  * because here the tier is the subject being read rather than a fact in an
- * entry's margin — over one sentence of what earns it.
+ * entry's margin), over one sentence of what earns it.
  */
 .guidelines__tiers {
 	margin: 0 0 var(--space-4);
@@ -776,8 +776,8 @@
 /*
  * The live demo: the workbench's own `EditorPane`, mounted without the shell
  * around it. It gets the same border and surface as a `.site-sample`, because
- * it is the same material — a piece of document text set apart from the prose
- * describing it — and for the same reason it is the only thing on this page
+ * it is the same material (a piece of document text set apart from the prose
+ * describing it), and for the same reason it is the only thing on this page
  * allowed a second one.
  *
  * The wrapper paints nothing and reserves nothing. That is the whole trick
@@ -788,7 +788,7 @@
  *   has four corners where the child's curve falls outside the parent's, and
  *   the surface color spills past the border in each of them. So exactly one
  *   element paints the border, the radius, the background and the clip, and
- *   that element is the editor itself — nothing is nested, so nothing can
+ *   that element is the editor itself: nothing is nested, so nothing can
  *   mismatch.
  * - The height has to be the same before and after CodeMirror exists, or the
  *   page jumps under the reader while it loads. It used to be the same because
@@ -808,7 +808,7 @@
 	position: relative;
 }
 
-/* One box, painted once — see above. `overflow: hidden` here and not on the
+/* One box, painted once. See above. `overflow: hidden` here and not on the
    wrapper: CodeMirror draws the scroller and the gutters as square boxes that
    would otherwise sit proud of this radius, while the diagnostic popover is a
    sibling of this element and stays free to overhang the wrapper.
@@ -833,7 +833,7 @@
 
    In flow, and deliberately: with neither element given a height, the box is
    whichever of the two is currently in the document, so the stand-in has to be
-   the shape the editor will be. That is what every value below is for — the
+   the shape the editor will be. That is what every value below is for: the
    editor's own type size, its line height, and padding measured to the pixel
    where its text lands (past the gutter and the content's own inset on the
    left, inside the line's end padding on the right). Matching insets at
@@ -851,7 +851,7 @@
 	margin: 0;
 	/* The editor's own base face, or the wraps stop matching: the stand-in is a
 	   plain <pre> and cannot split markup from words, so it takes the words'
-	   face whole — which is also what the editor sets every line that wraps in
+	   face whole, which is also what the editor sets every line that wraps in
 	   (headers, the only mono-bracketed lines, are one line always). */
 	color: var(--color-text-reading);
 	font-family: var(--font-lyrics);
@@ -872,16 +872,16 @@
 
 /* There is no width band for the demo box any more, and that is the point of
    sizing it to its document: the reservation had to be tall enough for the
-   worst wrap at every width it covered, so it was too tall at all the others —
+   worst wrap at every width it covered, so it was too tall at all the others:
    three breakpoints, each one re-measured every time the gutter or the sample
    moved. A box that is exactly as tall as the verse is correct at 320px and at
    1280px without being told. */
 
 /*
- * A reference section — the rule reference and the guidance catalog both —
+ * A reference section (the rule reference and the guidance catalog both),
  * which is a master and a detail rather than a list that leads away to pages.
  * The list lives in the section's layout (`SectionSplit.svelte`), so pressing
- * a row swaps only the column beside it — and the arrangement is the
+ * a row swaps only the column beside it, and the arrangement is the
  * workbench's own: the run you are working through on the left, the thing you
  * are reading about on the right.
  *
@@ -910,7 +910,7 @@
 	 * rather than a stylistic preference. The areas cross on every navigation,
 	 * so unequal columns mean both of them change *width* as well as position:
 	 * the transition group then animates size and stretches the two snapshots
-	 * against each other, and — the half that outlives the animation — each
+	 * against each other, and (the half that outlives the animation) each
 	 * scroll port reflows its own content at the new width, so the offset the
 	 * reader left it at lands somewhere else. Equal, the crossing is a pure
 	 * translation and neither column's content moves inside it. The pair was
@@ -929,12 +929,12 @@
  * nothing to scroll it back.
  *
  * `overscroll-behavior` keeps a wheel that reaches the end of one column from
- * being handed to anything behind it — there is no document scroll here to
+ * being handed to anything behind it. There is no document scroll here to
  * receive it, but a nested scroller would otherwise take it.
  *
  * The inline-end padding is the scrollbar's lane, and it is padding rather than
  * `scrollbar-gutter` alone because the two platforms fail differently. An
- * overlay scrollbar — macOS, and any touch device — takes no layout space at
+ * overlay scrollbar (macOS, and any touch device) takes no layout space at
  * all, so `scrollbar-gutter` reserves nothing and the bar paints straight over
  * the last word of every wrapped line and over the right border of every sample
  * card. A classic scrollbar does take space, but it takes it from the content
@@ -946,7 +946,7 @@
  * The inline-start padding is the focus ring's lane, and the negative margin is
  * what keeps it from being an indent: a scroll port clips at its padding edge,
  * so a full-width field flush against the start of this column had the left
- * side of its ring cut off — which reads as a control whose border is broken on
+ * side of its ring cut off, which reads as a control whose border is broken on
  * one side rather than as an outline that ran out of room. The margin gives the
  * four pixels back to the section's own inline padding, so every row, heading
  * and field keeps the x it had.
@@ -955,21 +955,21 @@
  * way: the search field is the first thing in the index column, so the top of
  * its ring was cut off flat at the port's edge. Both columns pull their clip
  * edge up by the ring's reach and hand the height back so every first line
- * keeps the y it had — but where the room is *reserved* differs, and the
+ * keeps the y it had, but where the room is *reserved* differs, and the
  * difference is a sticky trap worth keeping. The detail column takes the
  * inline lane's own pair, padding plus negative margin. The index column must
  * not: its finder is sticky, and a sticky box cannot sit above its containing
- * block's content edge — the negative margin that would let it start inside
+ * block's content edge. The negative margin that would let it start inside
  * the column's padding is clamped back to the content edge, which shoves the
  * field (and every row under it) down by the lane instead. So the index
  * carries no block padding, and the lane there is the finder's own padding
- * below, which also holds while the finder is pinned — a pinned box is back
+ * below, which also holds while the finder is pinned: a pinned box is back
  * at the clip edge whatever the column's padding says.
  */
 .site-split__index,
 .site-split__detail {
-	/* The two lanes above, named so the pinned back bar can bleed across them —
-	   a bar that stopped at the content edge would let a line of the page show
+	/* The two lanes above, named so the pinned back bar can bleed across them.
+	   A bar that stopped at the content edge would let a line of the page show
 	   past it on either side as the page scrolls under. The guidance catalog
 	   widens the start lane for its wash and therefore moves this with it. */
 	--split-lane-start: var(--focus-ring-reach);
@@ -1031,8 +1031,8 @@
 	padding-bottom: var(--space-5);
 }
 
-/* Every guidance entry is a deep-link target — the index and the assistant both
-   name entries by fragment — and on a wide screen the masthead travels with the
+/* Every guidance entry is a deep-link target (the index and the assistant both
+   name entries by fragment), and on a wide screen the masthead travels with the
    reader, so a jumped-to heading has to clear it or the one line the link named
    is the line under the chrome. (The page's own landing re-centers it; this is
    the no-JavaScript fallback's clearance.) */
@@ -1043,7 +1043,7 @@
 }
 
 /* Where one section ends and the next begins: the hairline the linter's run
-   draws between neighbours. Every section opens on one — drawn only between
+   draws between neighbours. Every section opens on one. Drawn only between
    entries, the first convention ran straight on from the topic's own lede
    with nothing saying where the intro stopped and the catalog began, and the
    spelling topic's landmark met its first entry the same way. The last entry
@@ -1059,7 +1059,7 @@
 
 /* A section owns its own rhythm: the prose gap its heading used to carry moves
    onto the section, and the first and last children give their margins up.
-   Read at rest this is the same page to the pixel — what it buys is the wash
+   Read at rest this is the same page to the pixel: what it buys is the wash
    below, whose background paints the section's box, child margins included: a
    heading still carrying its own top margin put a hand of empty blue above
    the one line the link named. The landmark keeps the same rhythm, because it
@@ -1078,7 +1078,7 @@
    as the hash names it. The page marks it (`data-current`, read off the hash),
    because `:target` cannot carry this alone: only a native fragment navigation
    updates the target element, and pressing an index row from another page is
-   the router's `pushState`, which updates nothing — so the wash skipped the
+   the router's `pushState`, which updates nothing, so the wash skipped the
    first press and lit only on same-path hash presses. `:target` stays in the
    selector as the no-JavaScript arrival's mark, handed to the whole entry by
    `:has()`. The wash is a pseudo-element floated behind the content rather
@@ -1086,12 +1086,12 @@
    so a background would lie against both lines, and the shape wanted is a
    line, a breath, the box, a breath, a line. The box spills `--space-4` past
    the content on every side, and where a hairline sits `--space-6` off the
-   content it therefore stops `--space-4` short of the line — the same even
+   content it therefore stops `--space-4` short of the line, the same even
    gap above and below. `z-index: 0` on the entry scopes the negative layer so
    the wash cannot slip behind an ancestor's paint.
 
-   A landmark is a deep-link target exactly as an entry is — the index and every
-   rule page's guideline link both name its anchor — so it takes the same wash
+   A landmark is a deep-link target exactly as an entry is (the index and every
+   rule page's guideline link both name its anchor), so it takes the same wash
    through the same pair of marks. One mechanism: the page sets the same
    `data-current`, and `:target` is the same no-JavaScript fallback. */
 .guidelines__entry[data-current],
@@ -1119,7 +1119,7 @@
 }
 
 /* The wash above spills `--space-4` past the entry's box on every side, and
-   this column is a scroll port, which clips at its padding edge — at the
+   this column is a scroll port, which clips at its padding edge. At the
    shared focus-ring lane the wash's left corners were cut off square, which
    read as the radius failing rather than as a clip. The lane is widened to
    the spill and handed back with the same negative margin, so every line of
@@ -1131,7 +1131,7 @@
 
 /* Both split sections open reading-first: at the index the intro leads in the
    left column and the list of lookups rides the right, and opening a page
-   swaps them — the list crosses to the left and the page takes the right. The
+   swaps them: the list crosses to the left and the page takes the right. The
    push is the view transition below. */
 .site-split[data-view='index'] {
 	grid-template-areas: 'detail index';
@@ -1141,15 +1141,15 @@
  * The choreography's names, and they are on the two columns rather than on
  * what is inside them.
  *
- * The page itself was named once — `.site-split__detail > main`, keyed off
+ * The page itself was named once: `.site-split__detail > main`, keyed off
  * `data-view` so the intro and an open page were named apart and could be
  * given a leave and an arrive of their own. That is where the instability
  * came from, and it is worth writing down because the markup looked right. A
  * view transition snapshots a named element **unclipped by its ancestors**:
  * `main` lives inside a scroll port, so a rule or a guideline several
  * thousand pixels long was captured whole, positioned at its own border-box
- * origin — which for a column scrolled past its first screen is above the
- * viewport — and painted over the entire window for the length of the
+ * origin (which for a column scrolled past its first screen is above the
+ * viewport) and painted over the entire window for the length of the
  * animation. Nothing about the resting layout says so, and the taller the
  * page the worse it read.
  *
@@ -1158,23 +1158,23 @@
  * else.
  *
  * The list is named once, at both views, so the browser morphs it between
- * its two grid positions — one slot's travel, which is the push's middle
+ * its two grid positions, one slot's travel, which is the push's middle
  * column. The detail column is named *by view*: it is the intro at the
  * index view and the page at a detail one, and that split is what encodes
  * the push's direction without a line of script. Opening a page captures an
  * old `section-intro` with no new one and a new `section-page` with no old
  * one, so the intro is an exit and the page an entrance, each with a slide
- * of its own below — and going back lands each name on the other side of
+ * of its own below, and going back lands each name on the other side of
  * the capture, which reverses the slides with it. The back bar rides inside
  * the page's own snapshot, so it arrives with the slide rather than popping
  * in over one.
  *
  * A press from one detail page straight to another captures `section-page`
- * on both sides — the pair the `:only-child` selectors below deliberately
- * skip — so neither column moves and only the contents cross-fade, which is
+ * on both sides (the pair the `:only-child` selectors below deliberately
+ * skip), so neither column moves and only the contents cross-fade, which is
  * the in-place change that move deserves.
  *
- * Names are inert at rest — they only mean something inside a transition
+ * Names are inert at rest: they only mean something inside a transition
  * `SectionSplit` starts, and it declines to start one across the section's
  * boundary, without browser support, under reduced motion, or below the
  * width where these columns stop being columns.
@@ -1192,7 +1192,7 @@
 }
 
 /* The ride is a push seen through a slit: the three views a section can
-   show — intro, list, page — behave as one strip of paper, and a navigation
+   show (intro, list, page) behave as one strip of paper, and a navigation
    pulls the strip one slot sideways. Opening a page pulls it left: the
    intro is drawn out through the container's left edge, the list's own
    group morph carries it from the right slot to the left one, and the page
@@ -1205,18 +1205,18 @@
    off whole when the transition ended; clipped to its own slot, it
    disappears at the edge it is pulled through, which is what makes the
    motion read as paper under a mask rather than a card flying over one.
-   The list needs no keyframes and no clip — the default morph is exactly
+   The list needs no keyframes and no clip: the default morph is exactly
    its one-slot journey, always inside the container, and the columns are
    equal, so it translates without resizing. Each slide's travel is the
    snapshot's own width plus the grid's gap, so the three pieces move in
    lockstep.
 
    The easing is the pull: `--ease-in-out-cubic` gathers and settles, where
-   `--ease-out-quart`'s full-speed launch — right for a control answering a
-   press — reads as thrown when a whole column crosses the page. Every
+   `--ease-out-quart`'s full-speed launch (right for a control answering a
+   press) reads as thrown when a whole column crosses the page. Every
    pseudo takes the same pair of tokens, or the images outlive the box they
-   are painted in — the browser's own default is 250ms, ten past
-   `--duration-slow` — and the slides carry `animation-fill-mode: both` for
+   are painted in (the browser's own default is 250ms, ten past
+   `--duration-slow`), and the slides carry `animation-fill-mode: both` for
    the same ten milliseconds: the root's default cross-fade keeps the
    transition alive past their end, and a slide fallen back to base styles
    would draw the exited column back over the arrived list for exactly that
@@ -1313,14 +1313,14 @@
 	margin-top: 0;
 }
 
-/* The guidance catalog's group heading is a link into the whole topic page —
+/* The guidance catalog's group heading is a link into the whole topic page:
    the rows under it are fragments on that one page, and this is the "read it
    all at once" press. It keeps the heading's own ink, because a column of
    accent-colored headings would out-shout the rows they group, and it
    underlines under the pointer the way every pressable name here does. The
    chevron is the resting affordance: muted, always drawn, because a press
    only discoverable by hovering is one a finger never finds. The rules
-   index's group headings stay plain text — a rule family has no page of its
+   index's group headings stay plain text: a rule family has no page of its
    own to open, and this selector is inert there because nothing renders a
    link inside one. */
 .site-index__group a {
@@ -1349,8 +1349,8 @@
  * It rides the top of the column rather than scrolling away with the rows,
  * because on a wide screen this column is its own scroll port: a reader forty
  * rows in would otherwise have to travel back to the field to change their
- * mind. `--color-canvas` is the page it is pinned over — the rows are
- * `--color-surface` and pass underneath — and the block-end padding is what
+ * mind. `--color-canvas` is the page it is pinned over (the rows are
+ * `--color-surface` and pass underneath), and the block-end padding is what
  * keeps the first row from touching the field as it goes by.
  *
  * No border and no fill of its own: a boundary here would separate the controls
@@ -1360,7 +1360,7 @@
  * The block-start padding is the focus ring's lane, at rest and while pinned.
  * The index column deliberately reserves none of its own (the sticky trap the
  * column rule documents), so this padding is the whole of the room above the
- * field — and carried here it travels with the pin, where a lane held by the
+ * field, and carried here it travels with the pin, where a lane held by the
  * column would put a pinned finder back at the clip edge. The finder's canvas
  * fill covers it, so no sliver of row shows above the field while the list
  * scrolls past, and the column's negative block margin is what hands the
@@ -1419,7 +1419,7 @@
 	font-size: var(--font-size-sm);
 }
 
-/* The citations' own mark for a link that leaves, on the run rows that do —
+/* The citations' own mark for a link that leaves, on the run rows that do:
    a rule lookup in the guidance list opens the rule reference rather than a
    page beside it. Inline in the title's run rather than a flex item, because
    the title wraps and the mark belongs after its last word; the nudge sits it
@@ -1429,7 +1429,7 @@
 }
 
 /*
- * A row of a lookup table, in the `.site-run` the index's rows already use —
+ * A row of a lookup table, in the `.site-run` the index's rows already use:
  * the run is one bordered object with hairlines inside it either way, and a
  * second run class for the same material is the drift that idiom exists to
  * prevent. What differs is that these rows are read rather than pressed, so
@@ -1443,7 +1443,7 @@
 
 /*
  * `.site-prose` puts a bottom margin on every `p` and `li` inside it, and this
- * run is inside one — at `(0,1,1)`, which outranks a single class, so the row's
+ * run is inside one, at `(0,1,1)`, which outranks a single class, so the row's
  * own `gap` was being *added* to a `--space-4` margin under each of its three
  * lines and a `--space-2` margin under the row itself. Three short lines read as
  * a paragraph of empty surface, with the deepest gap under the last one where
@@ -1457,7 +1457,7 @@
 }
 
 /* The forms are literal strings the reader types into a document, so they are
-   set in the source face wherever they appear — the same reason `.site-code`
+   set in the source face wherever they appear, the same reason `.site-code`
    exists. The preferred form takes the body color and the form it replaces is
    muted: the answer is what the row is for. That is emphasis and not a state
    carrier, since the arrow and the order already say which is which. */
@@ -1500,7 +1500,7 @@
  * once the reader has stopped on it.
  *
  * A run rather than a list, because nineteen bulleted lists of two-to-eleven
- * items is the column beside this one drawn a second time — the links are
+ * items is the column beside this one drawn a second time. The links are
  * inside prose here, which is the whole difference between a guide and a finder.
  */
 .rules__checks {
@@ -1517,7 +1517,7 @@
 }
 
 /* The collapsed family reads as one name with its packs in a parenthesis after
-   it rather than joining the interpuncts around them — read inline,
+   it rather than joining the interpuncts around them. Read inline,
    `English · Norwegian · German` would be eight more entries in a run of eleven
    rather than one. The brackets are in the markup, not in a `::before`: see the
    comment on this run in `+page.svelte` for what generated punctuation costs a
@@ -1534,13 +1534,13 @@
 
 /*
  * One convention that exists once per language pack, drawn as one row with its
- * packs as the links — the eight spelling rules that were eight near-identical
+ * packs as the links, the eight spelling rules that were eight near-identical
  * rows on the reader's second screen. See `ruleIndexEntries`.
  *
  * It is a row in the same run as the rules around it, not a nested box: the run
  * is the boundary and a member of it does not get a second one. What differs is
  * that the row is read rather than pressed, so it carries its own padding the
- * way a lookup row does — `.site-run a` is not there to supply it — and it is
+ * way a lookup row does (`.site-run a` is not there to supply it), and it is
  * the links inside that are the targets.
  */
 .rules__family {
@@ -1556,7 +1556,7 @@
 /*
  * The packs, as a wrapping row of quiet links. Underlined only under the
  * pointer, like every other name-as-a-control in this application, and the open
- * one is marked the way a rule row is — recessed, since it is the same "you are
+ * one is marked the way a rule row is: recessed, since it is the same "you are
  * here" and the marker lives on the link rather than on the row around it.
  */
 .rules__languages {
@@ -1572,7 +1572,7 @@
    sit inside a `.site-run`, whose own `a` rule makes every link a full-width
    grid row with the row's padding. At equal specificity this block wins only
    the properties it names, so an undeclared `display` would leave eight
-   language links stacked down the column as eight rows — which is the shape
+   language links stacked down the column as eight rows, which is the shape
    this collapse exists to remove, arriving through the stylesheet. */
 .rules__languages a {
 	display: inline-block;
@@ -1597,21 +1597,21 @@
 
 /*
  * What the reader's own search matched, marked on the page they opened out of
- * it — the title, the explanation, both examples, and every row of a lookup
- * table. See `SearchHighlight.svelte` — shared by both reference sections,
+ * it: the title, the explanation, both examples, and every row of a lookup
+ * table. See `SearchHighlight.svelte`, shared by both reference sections,
  * which is why the class is `site-`prefixed rather than either section's own.
  *
  * `--color-text-selection` rather than a highlighter yellow, and rather than a
  * token of its own. This is the system's one tone for a run of text picked out
  * of a page, its own comment already states that it is opaque and light enough
  * to leave the glyphs on top readable, and it is restated in the `.site`
- * palette — so this needs nothing added to either scheme. The yellow a browser
+ * palette, so this needs nothing added to either scheme. The yellow a browser
  * draws `<mark>` in is what `--color-warning-soft` means here, and this page is
  * covered in severities: a warning tint on text that is not a warning is the
  * drift the severity glyphs were reworked to stop.
  *
  * `color: inherit` is not optional. A `<mark>` takes the browser's own
- * `marktext` foreground, which is black — over the dark scheme's selection blue
+ * `marktext` foreground, which is black: over the dark scheme's selection blue
  * that is text nobody can read, on the one element added to help somebody read.
  */
 .site-hit {
@@ -1622,13 +1622,13 @@
 
 /*
  * Except inside a link, where inheriting is what breaks it. The citations are
- * searched with the rest of the page, so a mark lands on accent-blue text — and
+ * searched with the rest of the page, so a mark lands on accent-blue text, and
  * measured, that is 3.92:1 against this fill in the dark scheme where the body
  * colour is 9.28:1. Under AA, on the one element added to help somebody read.
  *
  * The word gives up the accent and keeps everything else: the underline runs
  * through it and the external-link glyph is at the end of the same link, so
- * what says "link" here was never the colour on its own — which is this
+ * what says "link" here was never the colour on its own, which is this
  * system's rule about colour everywhere else, applied to the one run of a link
  * that has a second thing to say.
  */
@@ -1645,7 +1645,7 @@
 
 /* The guide column's check links are these rows in another shape, so a pointer
    resting on one lights its row here exactly as a pointer on the row itself
-   would — the same fill, because it is the same statement. Declared before the
+   would: the same fill, because it is the same statement. Declared before the
    current-page marker below so that marker wins by order: a recessed "you are
    here" must not flicker to a hover wash because the reader crossed its link
    in the guide. */
@@ -1653,7 +1653,7 @@
 	background: var(--color-fill-subtle);
 }
 
-/* Selection is depth, not hue. No accent wash and no ring — the severity tag is
+/* Selection is depth, not hue. No accent wash and no ring: the severity tag is
    already the one colored thing in the row, and a second color would compete
    with it.
 
@@ -1679,7 +1679,7 @@
 /* And a structural half beside the depth: a background and an inset shadow are
    both erased under `forced-colors`, which left "you are here" carried by
    nothing a Windows High Contrast reader can see. A border survives forced
-   colors by design — it is redrawn in the forced ink — so the recessed row also
+   colors by design (it is redrawn in the forced ink), so the recessed row also
    opens with a short upright at its start, in the muted tone the row's own meta
    line already wears (the depth still carries it for ordinary vision; the bar
    is the copy that cannot be erased). The padding gives the bar's width back so
@@ -1707,22 +1707,22 @@
 
 /*
  * The way out of an open page, at every width. On a wide screen it returns to
- * the section's welcome view — the intro the choreography pushed out, which
- * nothing else on screen brings back — and on a narrow one it is also the way
+ * the section's welcome view (the intro the choreography pushed out, which
+ * nothing else on screen brings back), and on a narrow one it is also the way
  * back to the list that left with it. Quiet, at the top of the column, where
  * the reader who wants out looks first.
  *
  * And it stays there: pinned to the top of this column exactly as the index's
  * finder is pinned to the top of its own, and for the same reason. Each column
  * is its own scroll port on a wide screen, so a control that scrolled away with
- * the page would be gone by the second screen of a rule — and a guideline
+ * the page would be gone by the second screen of a rule, and a guideline
  * opened by fragment *lands* mid-column, with the control already above the
  * fold and nothing on screen saying the section has a way back at all.
  *
  * Three things it owes:
  *
  * The bar bleeds across the column's own lanes (`--split-lane-*`), or the page
- * shows past it on either side as it scrolls under — at the focus ring's lane
+ * shows past it on either side as it scrolls under, at the focus ring's lane
  * on one edge and the scrollbar's on the other. The bleed is the pair the
  * column itself uses, so the guidance catalog's wider wash lane moves it
  * without this rule knowing about that section.
@@ -1758,8 +1758,8 @@
 }
 
 /* The suggestion line at the foot of the reading column. The hairline is the
-   site footer's own rule — it says where the page stops and a note about the
-   catalog begins — and the measure is the page's, so the line ends where every
+   site footer's own rule (it says where the page stops and a note about the
+   catalog begins), and the measure is the page's, so the line ends where every
    paragraph above it does rather than running on under the scrollbar's lane.
    Muted and a step down, because it is an offer standing under everything the
    reader came for, not part of it. */
@@ -1767,8 +1767,8 @@
    *under* the hairline that closes the content, never over it: borderless,
    above the suggest line's own rule, the button read as the last item inside
    the entry run while the line beneath it fenced only the colophon. The
-   closing line keeps the run's own rhythm — the same `--space-6` above and
-   below that every section boundary draws — and the margin collapses with
+   closing line keeps the run's own rhythm (the same `--space-6` above and
+   below that every section boundary draws), and the margin collapses with
    whatever the content above still carries, so a guidance entry (whose last
    margins are zeroed) and ordinary prose land the line at the same breath. A
    washed last entry needs no compensation any more either: its `--space-4`
@@ -1795,7 +1795,7 @@
 	/*
 	 * One column at a time. A detail page is a route of its own here rather than
 	 * a pane beside the list, so opening one replaces the list and the control at
-	 * the top of the page goes back to it — back, not forward to a fresh index,
+	 * the top of the page goes back to it: back, not forward to a fresh index,
 	 * which is what returns the reader to the row they pressed. The scroll that
 	 * restores is the document's, and the document is what scrolled, so there is
 	 * nothing for this stylesheet to preserve: the list must simply not be given
@@ -1822,7 +1822,7 @@
 	}
 
 	/* Nothing clips here, so neither lane is needed: the scrollbar's, nor the
-	   focus ring's — on either axis. */
+	   focus ring's, on either axis. */
 	.site-split__index,
 	.site-split__detail {
 		min-height: auto;
@@ -1837,9 +1837,9 @@
 
 	/* The wide rules above outrank the resets here by specificity, so both are
 	   stood down by name: the guidance catalog's wash paint lane, whose scroll
-	   port no longer exists to clip anything — it is only the lane variables
+	   port no longer exists to clip anything (it is only the lane variables
 	   now, and the reset above zeroes the padding they were spent on, so this
-	   pair is what keeps a bleed from being computed off them — and the swapped
+	   pair is what keeps a bleed from being computed off them), and the swapped
 	   index arrangement, since two named columns in a one-column template would
 	   conjure a phantom second column. */
 	.site-split[data-section='guidelines'] .site-split__detail {
@@ -1848,15 +1848,15 @@
 	}
 
 	/* The arrival wash stands down where the index does. On a wide screen the
-	   wash ties the washed entry to the marked row in the column beside it —
+	   wash ties the washed entry to the marked row in the column beside it:
 	   one selection, said by both columns at once. Stacked, the list is
 	   `display: none` while a page is open, so there is no row on screen for
 	   the wash to agree with, and what is left is a blue box around one
 	   section of a one-column article: emphasis nobody asked for, saying
 	   nothing the landing scroll does not already say. The mark itself
-	   (`data-current`, and `:target` for the no-JavaScript arrival) stays —
-	   the reading spy and the index still read the same state when the reader
-	   goes back — only the paint goes. */
+	   (`data-current`, and `:target` for the no-JavaScript arrival) stays. The
+	   reading spy and the index still read the same state when the reader
+	   goes back, and only the paint goes. */
 	.guidelines__entry[data-current]::before,
 	.guidelines__entry:has(:target)::before,
 	.guidelines__landmark[data-current]::before,
@@ -1864,11 +1864,11 @@
 		content: none;
 	}
 
-	/* Stacked, the finder leads and the intro follows — the opposite of the wide
+	/* Stacked, the finder leads and the intro follows, the opposite of the wide
 	   swap, and a correction. Intro-first was carried over from the two-column
 	   arrangement, where the list stands beside the intro either way; stacked, it
 	   put the whole guide *above* the index, which at `/rules/` measured ten
-	   phone viewports of prose between the reader and the search field — a
+	   phone viewports of prose between the reader and the search field. A
 	   finder nobody scrolls to is a finder the section does not have. Lookup is
 	   the primary phone journey, so the index takes the first screen and the
 	   intro is one flick below the rows, where a reader who wants it still meets
@@ -1880,12 +1880,12 @@
 
 	/* The way out stays pinned at this width, and that is a correction: it used
 	   to unpin with everything else, which left a reader eight viewports into a
-	   topic with no navigation on screen at all — the masthead scrolled away,
+	   topic with no navigation on screen at all: the masthead scrolled away,
 	   the list is `display: none` below, and the way to the next topic was the
 	   whole article back up.
 
 	   What pins is the control, not a band. A full-width canvas strip here read
-	   as a bare slab lying across whatever scrolled under it — and while the
+	   as a bare slab lying across whatever scrolled under it, and while the
 	   entry wash still drew at this width, its spill poked out blue on either
 	   side of the black. So the row is transparent and takes no presses, and the
 	   button inside it becomes a small lifted surface: border, fill and shadow,
@@ -1897,7 +1897,7 @@
 	   still sticky above, so the chip rides directly under it; past 46rem the
 	   masthead goes static and the chip takes the top of the viewport. The
 	   heading clearance below moves with the same seam, so a deep-linked entry
-	   still lands clear of whatever is pinned — and the reading spy reads the
+	   still lands clear of whatever is pinned, and the reading spy reads the
 	   headings' own `scroll-margin-top`, so it follows for free. */
 	.site-split__backbar {
 		position: sticky;
@@ -1910,7 +1910,7 @@
 	}
 
 	/* The quiet tier's border is already there, transparent, so lifting the
-	   control costs no layout shift — the chip is the same box the button was. */
+	   control costs no layout shift: the chip is the same box the button was. */
 	.site-split__back {
 		border-color: var(--color-control-border);
 		background: var(--color-control);
@@ -1948,7 +1948,7 @@
 	/*
 	 * The chrome band comes off on a phone, and the reason is the strip of screen
 	 * above it. `theme-color` is `--color-canvas`, so the browser paints the
-	 * status bar and the safe area with the *page* color — and a header filled
+	 * status bar and the safe area with the *page* color, and a header filled
 	 * with `--color-chrome` meets that at a seam a few percent lighter than it,
 	 * across the full width, at the very top of the first screen. The first thing
 	 * the page said was that it was two mismatched strips.
@@ -1961,7 +1961,7 @@
 	 * directly on the canvas, and the top of the screen is one surface from the
 	 * status bar down.
 	 *
-	 * The footer keeps its hairline and loses its fill for the same trade — the
+	 * The footer keeps its hairline and loses its fill for the same trade: the
 	 * rule is what separates the end of the article from the colophon, and it
 	 * does that job on its own.
 	 *
@@ -1979,7 +1979,7 @@
 	   what the fill coming off depends on: a band left `sticky` with no fill of
 	   its own is a transparent blur strip travelling over the article, so every
 	   line the reader scrolls under it is smeared by a `backdrop-filter` that no
-	   longer has a surface to keep type legible against. Both go together — the
+	   longer has a surface to keep type legible against. Both go together: the
 	   band either separates pinned chrome from the content moving under it, or it
 	   scrolls away with the document and separates nothing. */
 	.site-header {
@@ -2005,7 +2005,7 @@
 	   controls at this width. And the far-end margin comes off with the section
 	   title it was added for: here the nav wraps to a row of its own, where an
 	   auto margin parks it at the right edge while the brand above it sits at
-	   the page's gutter — two rows of chrome on opposite edges. `space-between`
+	   the page's gutter, two rows of chrome on opposite edges. `space-between`
 	   is what it was, and with nothing beside the brand on the first row it does
 	   the same job the margin does on a wide screen. */
 	.site-nav {
@@ -2013,7 +2013,7 @@
 		margin-inline-start: 0;
 	}
 
-	/* A bare text link's hit box is its line box — ~20px at this size, under a
+	/* A bare text link's hit box is its line box, ~20px at this size, under a
 	   thumb, in the row every page's navigation runs through. The padding grows
 	   the target without moving the type: block only, because the gap already
 	   spaces the row, and the visual hierarchy is the words, not a box. */
@@ -2022,7 +2022,7 @@
 	}
 
 	/* The masthead is static at this width, so the back bar takes the top of the
-	   viewport — and the heading clearance drops the masthead's term with it.
+	   viewport, and the heading clearance drops the masthead's term with it.
 	   The bar's control is `lg` here (every `.button` steps up below 46rem). */
 	.site-split__backbar {
 		inset-block-start: 0;
@@ -2037,7 +2037,7 @@
 	   all three the nav wraps to a second row and the masthead doubles in height,
 	   on the screen with the least of it to spend. The section is what comes off,
 	   because at this width the columns stack and the page's own heading is the
-	   first thing under the band — which is the question this title answers on a
+	   first thing under the band, which is the question this title answers on a
 	   wide screen, where the choreography has pushed that heading away. */
 	.site-header__section {
 		display: none;
@@ -2082,12 +2082,12 @@
 
 @media (pointer: coarse) {
 	/* Shared input selectors have specificity (0,0,1), so any class that
-	   sizes a field elsewhere in the system quietly outranks them — which is how
+	   sizes a field elsewhere in the system quietly outranks them, which is how
 	   the reference sections' search fields shipped at 13px under a finger and
 	   re-created the Safari focus-zoom this whole block exists to prevent. The
 	   raise is restated at the class's own specificity for the one field class
 	   that carries a size of its own (the finder owns its own size). A new field class that sets `font-size` needs a row here, or it
-	   reintroduces the lurch on the one device the test suite does not run on —
+	   reintroduces the lurch on the one device the test suite does not run on.
 	   `e2e/lyriclint.spec.ts` pins this one's computed size under a coarse
 	   pointer. */
 	.site-finder__search {

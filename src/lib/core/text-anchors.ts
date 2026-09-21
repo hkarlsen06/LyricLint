@@ -56,7 +56,7 @@ export function occurrenceAt(
 /**
  * Resolve an anchor without normalizing any part of the document. Context is
  * compared directly beside each exact occurrence and exists only to
- * disambiguate; it never turns a near match into a match — and it never
+ * disambiguate; it never turns a near match into a match, and it never
  * vetoes one either. The model writes `before`/`after` from its reading of
  * the draft and gets a character wrong often enough that consulting context
  * against a unique occurrence turned real edits into "not found", costing a
@@ -67,13 +67,13 @@ export function occurrenceAt(
  * words, so `before` and `after` are identical in every copy and the anchor is
  * refused as ambiguous however much context is quoted. A line that narrows to
  * nothing is a number the author got wrong, and falls back to context rather
- * than vetoing — the same rule context itself already follows.
+ * than vetoing, the same rule context itself already follows.
  *
  * `pinned` outranks even the line, and it is what makes a batch of proposals
  * survive its own approvals. A line number is measured against the document
  * the author read; applying the first proposal in a batch moves every line
  * below it, so the second proposal's number narrows to nothing, falls back to
- * context, and — between repeated verses, whose neighbours are identical — is
+ * context, and (between repeated verses, whose neighbours are identical) is
  * refused as ambiguous. That refusal was the linter invalidating edits it had
  * itself just made correct. The k-th copy is still the k-th copy while there
  * are still the same number of them, so the pin is trusted exactly that far:

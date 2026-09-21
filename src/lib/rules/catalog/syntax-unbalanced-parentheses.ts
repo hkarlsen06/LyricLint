@@ -43,7 +43,7 @@ export function scanParentheses(line: LyricLine): ParenthesisScan {
 const explanation =
 	'Parentheses wrap a vocal sitting behind the lead, so every opening mark needs its closing ' +
 	'half on the same line. Detecting the imbalance is a product-safety check derived from that ' +
-	'convention, not an explicit Genius catalog of every malformed case — and where the mark ' +
+	'convention, not an explicit Genius catalog of every malformed case. Where the mark ' +
 	'should close is a judgment about the vocal, so no automatic repair is offered.';
 
 export const syntaxUnbalancedParenthesesRule: RuleDefinition = {

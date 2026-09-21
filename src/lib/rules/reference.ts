@@ -30,7 +30,7 @@ if (!('window' in globalThis)) {
 /**
  * The public rule reference, derived rather than written.
  *
- * Rules carry no prose of their own — their `message` and `explanation` exist
+ * Rules carry no prose of their own: their `message` and `explanation` exist
  * only on the diagnostics `check()` emits. Hand-writing 47 page descriptions
  * would create a second copy of that text with no test tying it to the rule,
  * and it would drift within a release. So each page's content comes from
@@ -44,8 +44,8 @@ if (!('window' in globalThis)) {
 export interface RuleReference {
 	id: string;
 	/**
-	 * What the rule is called — the reviewed case's own `title`, and the one
-	 * field here that is written rather than run. See `RulePolicyCase.title` for
+	 * What the rule is called, taken from the reviewed case's own `title`, and the
+	 * one field here that is written rather than run. See `RulePolicyCase.title` for
 	 * why this one is the exception.
 	 */
 	title: string;
@@ -75,7 +75,7 @@ export interface RuleReference {
 	/** The explanation cut to meta-description length for the page's head. */
 	seoDescription: string;
 	/**
-	 * Every form in this rule's lookup table, for the index's search — and only
+	 * Every form in this rule's lookup table, for the index's search, and only
 	 * the forms. The table itself is loaded by the rule's own page, because this
 	 * entry travels in the section layout's data and is therefore copied into all
 	 * 60 prerendered payloads: the whole table is 17.8% of that payload for
@@ -86,8 +86,8 @@ export interface RuleReference {
 	/**
 	 * The guideline entries whose convention this rule checks, resolved to their
 	 * topic pages' own anchors. Derived from the guidance catalog's
-	 * `relatedRuleIds` — the same mapping the entries' meta lines draw the other
-	 * way — so the two directions cannot drift apart. Absent while no entry
+	 * `relatedRuleIds`, the same mapping the entries' meta lines draw the other
+	 * way, so the two directions cannot drift apart. Absent while no entry
 	 * names the rule, which is the page drawing nothing.
 	 */
 	guidelines?: RuleGuidelineLink[];
@@ -109,15 +109,15 @@ export function ruleFromSlug(slug: string): string | undefined {
  * The order the index draws its groups in, most-consulted first.
  *
  * It used to be each group's first appearance in the registry, which is an
- * ordering of the *pipeline* — rules run roughly in the order a document is
- * taken apart — and it put `language.selection-mismatch` second on the page.
+ * ordering of the *pipeline* (rules run roughly in the order a document is
+ * taken apart), and it put `language.selection-mismatch` second on the page.
  * That is one rule, and it is the one a reader only ever meets by having chosen
  * the wrong language pack; above it, and above spelling, sat nothing anybody
  * arrives here looking for. A reader's first screen was decided by an
  * implementation detail.
  *
  * This is an editorial ranking rather than a measurement, and it has to be:
- * LyricLint collects nothing — 'scribes stay in the browser, there is no
+ * LyricLint collects nothing: 'scribes stay in the browser, there is no
  * analytics on the site, and the deployed build phones nobody but the audio
  * source the user attached. So there is no "most accessed" to read off, and the
  * honest proxy is how often a transcriber meets that family at all. Inventing a
@@ -127,12 +127,12 @@ export function ruleFromSlug(slug: string): string | undefined {
  * The shape of it: what every transcription has (headers, spellings, the markup
  * itself, the voices) leads; then the conventions that apply line by line; then
  * the narrow families a particular song runs into; and last the two that only
- * exist under a condition the reader has to have hit — a prose-dense line, and
+ * exist under a condition the reader has to have hit: a prose-dense line, and
  * the wrong pack selected.
  *
  * Order *within* a group stays registry order, which is already written
- * strongest-first inside each family — `spelling.standardized` leads the
- * spellings and the nine language-specific ones trail it — so a second hand-run
+ * strongest-first inside each family (`spelling.standardized` leads the
+ * spellings and the nine language-specific ones trail it), so a second hand-run
  * ranking of all 60 rules would be a lot of judgment for very little movement.
  *
  * Exhaustive, and it throws for a prefix it does not know, exactly as
@@ -262,7 +262,7 @@ export function ruleReferences(): RuleReference[] {
 			const policy = caseById.get(rule.id);
 			if (!policy) {
 				// A rule without a policy case has no reviewed example to derive a
-				// page from — and no page means no reference entry, so the rule
+				// page from, and no page means no reference entry, so the rule
 				// cannot ship until the case (and with it the test coverage) exists.
 				throw new Error(`Rule ${rule.id} has no policy case to derive its reference page from`);
 			}
@@ -286,7 +286,7 @@ export interface RuleReferenceGroup {
 }
 
 /**
- * The reference grouped for the index, in `groupOrder` — most-consulted first.
+ * The reference grouped for the index, in `groupOrder`, most-consulted first.
  * Grouping by prefix pulls the spelling rules that the registry interleaves
  * with grammar back into one section; the rules inside each group keep the
  * registry's own order.

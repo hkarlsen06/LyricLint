@@ -40,7 +40,7 @@ function blankDraft(): DraftRecord {
  * A record that cannot be read is neither recovered nor swept. `listRecords`
  * has already left out the rows it could not copy at all; this drops the ones
  * that copied without carrying an id or the transcription itself, and neither
- * kind is deleted or repaired — deleting somebody's work because we could not
+ * kind is deleted or repaired: deleting somebody's work because we could not
  * parse it is the worse failure by a long way. That covers the record the
  * current-draft pointer names as well: it simply never joins the recoverable
  * list, so the boot falls through to the newest draft exactly as it does for a
@@ -57,7 +57,7 @@ export async function recoverStartupDraft(
 	for (const draft of records) {
 		if (!isReadableDraft(draft)) continue;
 		// A draft with a song attached and no words yet is not one of the empty
-		// rows this sweep exists to clear — it is a transcription about to start,
+		// rows this sweep exists to clear. It is a transcription about to start,
 		// and deleting it takes the attachment with it, because `delete` clears
 		// the media record in the same transaction.
 		if (

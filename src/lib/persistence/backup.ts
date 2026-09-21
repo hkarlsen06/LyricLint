@@ -47,7 +47,7 @@ declare global {
 	interface Window {
 		/**
 		 * The File System Access picker, which the DOM types do not declare and
-		 * Firefox does not implement — hence optional, and read through a
+		 * Firefox does not implement, hence optional, and read through a
 		 * presence check before it is ever called.
 		 */
 		showSaveFilePicker?: SaveFilePicker;
@@ -340,7 +340,7 @@ function parseMedia(value: Json): SerializableMediaRecord {
  * under, or nothing where it describes a draft this import does not carry.
  *
  * `assistantDraftAccess:<id>` names a draft, and a colliding id is remapped on
- * the way in — so imported verbatim the decision would answer for whichever
+ * the way in, so imported verbatim the decision would answer for whichever
  * local draft happens to hold the old id. A decision whose draft is not in the
  * import at all is an orphan nothing ever clears, because deleting a draft
  * sweeps only its own key.
@@ -484,8 +484,8 @@ function mediaIdentity(record: MediaHandleRecord): string {
 /**
  * The browser's own save-file picker, where there is a browser carrying one.
  *
- * `window` is guaranteed by the DOM types rather than by the runtime — this
- * module is loaded on the server too — so the optional chain is what stands in
+ * `window` is guaranteed by the DOM types rather than by the runtime (this
+ * module is loaded on the server too), so the optional chain is what stands in
  * for the environment check the types cannot express.
  */
 function nativeSaveFilePicker(): SaveFilePicker | undefined {
@@ -532,7 +532,7 @@ export function createWorkspaceBackup(
 		.then(async (record) => {
 			if (!record || destroyed) return;
 			// SAFETY: the only writer of this row is `chooseFile`, which stores the
-			// handle the save-file picker returned — and a picker handle carries
+			// handle the save-file picker returned, and a picker handle carries
 			// `createWritable` and the permission pair the record's type omits.
 			handle = record.handle as WritableFileHandle;
 			// A remembered destination does not prove the previous session's last
@@ -681,7 +681,7 @@ export function createWorkspaceBackup(
 					});
 					// SAFETY: `parseWorkspaceBackup` refuses a backup whose media names a
 					// draft it does not carry, and the loop above mapped every draft it
-					// carries — so every one of these ids is in `idMap`.
+					// carries, so every one of these ids is in `idMap`.
 					const importedMedia = backup.media.map((media) => ({
 						...media,
 						draftId: idMap.get(media.draftId) as string
@@ -692,7 +692,7 @@ export function createWorkspaceBackup(
 
 					// The ignores go in here rather than after the transaction commits.
 					// The caller reloads the page the moment this resolves, so a write
-					// left queued behind it is a write the unload aborts — and one put
+					// left queued behind it is a write the unload aborts, and one put
 					// per key rewrote the whole row every time.
 					// SAFETY: the same refusal covers the ignored diagnostics, so each of
 					// these draft ids was mapped with its draft above.

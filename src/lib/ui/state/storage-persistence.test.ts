@@ -21,7 +21,7 @@ describe('storage persistence', () => {
 	afterEach(() => configureStoragePersistence());
 
 	it('reports unsupported where the browser has no storage API', async () => {
-		// This suite runs server-side, so the resolved browser API is absent —
+		// This suite runs server-side, so the resolved browser API is absent,
 		// which is exactly the unsupported branch.
 		await ensurePersistentStorage();
 		expect(storagePersistence()).toBe('unsupported');

@@ -102,7 +102,7 @@ function beginSession(state: EditorState, change: TextRange): HeaderRenameSessio
  *
  * The mirrored edits are appended to the transaction that caused them, so the
  * document is never briefly inconsistent, one snapshot is emitted, and one undo
- * restores every header at once — the same contract `legendCleanupFilter` uses.
+ * restores every header at once, the same contract `legendCleanupFilter` uses.
  * Undo, redo, and IME composition are exempt so history replays byte for byte
  * and composition is never interrupted.
  */

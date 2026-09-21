@@ -3,7 +3,7 @@ import { trackKeyboardInset } from './keyboard-inset.js';
 
 /**
  * A stand-in for `window.visualViewport`. The real one cannot be driven from a
- * test — there is no software keyboard in a headless browser — and what is under
+ * test (there is no software keyboard in a headless browser), and what is under
  * test is what the tracker publishes for a given visible viewport, not the
  * browser's reporting of it.
  */

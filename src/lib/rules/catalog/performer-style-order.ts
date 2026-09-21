@@ -103,7 +103,7 @@ function orderLabel(ranked: ReadonlyMap<StyleSlot, StyleSlot>, restyles: boolean
 		return 'Reorder legend groups';
 	}
 	// The only way every group lands in plain is one group moving there alone,
-	// and then nothing is reordered or restyled — the markers simply come off.
+	// and then nothing is reordered or restyled: the markers simply come off.
 	return [...ranked.values()].every((slot) => slot === 1)
 		? 'Remove performer formatting'
 		: 'Restyle in slot order';
@@ -140,7 +140,7 @@ function orderFix(section: Section, context: RuleContext): DiagnosticFix | undef
 
 	if (restyles) {
 		// Without a plain group of its own, the lowest group is the one that
-		// becomes plain — and unnamed plain lyrics in the body would absorb it.
+		// becomes plain, and unnamed plain lyrics in the body would absorb it.
 		if (!ranked.has(1) && usedStyleSlots(section).has(1)) {
 			return undefined;
 		}

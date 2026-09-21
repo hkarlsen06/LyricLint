@@ -36,7 +36,7 @@ describe('AuthorityLadder', () => {
 		expect(ladder()).toEqual({ total: 4, met: 1 });
 	});
 
-	it('is hidden from assistive technology — the tier label beside it is the fact', async () => {
+	it('is hidden from assistive technology, since the tier label beside it is the fact', async () => {
 		await render(AuthorityLadder, { authority: 'staff' });
 		expect(document.querySelector('.site-ladder')?.getAttribute('aria-hidden')).toBe('true');
 	});

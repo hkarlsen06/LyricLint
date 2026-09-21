@@ -41,8 +41,8 @@ describe('adlib.parentheses', () => {
 	});
 
 	it('offers both readings of a capitalized trailing ad-lib', () => {
-		// `, Ayy` is conventional in neither reading — part of the line it stays
-		// lowercase, behind the lead it takes parentheses — so the capital is
+		// `, Ayy` is conventional in neither reading: part of the line it stays
+		// lowercase, behind the lead it takes parentheses. So the capital is
 		// what earns the finding, and the transcriber picks the repair.
 		const text = '[Verse]\nWe run, Ayy';
 		const [finding] = checkRule(rule, text);
@@ -63,8 +63,8 @@ describe('adlib.parentheses', () => {
 	});
 
 	it('wraps outside the markup when the ad-lib is the whole of a performer wrapper', () => {
-		// The parentheses stay outside the formatting — the reviewed guide's own
-		// form — so this wrap must not write the shape
+		// The parentheses stay outside the formatting, the reviewed guide's own
+		// form, so this wrap must not write the shape
 		// `performer.parenthetical-boundary` exists to flag.
 		const text = '[Verse]\nWe run, <i>Yeah</i>';
 		expect(applyFix(text, 0)).toBe('[Verse]\nWe run, <i>yeah</i>');
@@ -81,7 +81,7 @@ describe('adlib.parentheses', () => {
 
 	it('reads only the titlecased form', () => {
 		// All caps is a shout, not a stray capital, and the word after the comma
-		// in `Yeah, Yeah` is the line's own refrain — neither is offered anything.
+		// in `Yeah, Yeah` is the line's own refrain, so neither is offered anything.
 		expect(checkRule(rule, '[Verse]\nWe run, AYY')).toEqual([]);
 		expect(checkRule(rule, '[Verse]\nYeah, Yeah')).toEqual([]);
 		expect(checkRule(rule, '[Verse]\n<i>Yeah</i>, Yeah')).toEqual([]);

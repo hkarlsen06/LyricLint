@@ -85,7 +85,7 @@ function nextUtcMidnight(now: number): string {
 
 /**
  * The storage operations this object performs. `DurableObjectState['storage']`
- * satisfies it, and so does an in-memory stand-in — which is what lets the test
+ * satisfies it, and so does an in-memory stand-in, which is what lets the test
  * suite exercise the real accounting instead of a re-implementation of it.
  */
 export interface QuotaStorage {

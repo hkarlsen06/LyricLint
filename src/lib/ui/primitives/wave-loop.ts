@@ -1,11 +1,11 @@
 /**
- * The brand mark's waveform, with a phase — the running curve behind every
+ * The brand mark's waveform, with a phase: the running curve behind every
  * indeterminate loading mark in the application.
  *
  * The mark's own wave is a quadratic approximation of a sine over `2` to `30` in
  * its 32-unit viewBox. Computing that sine instead lets it move: the phase is one
  * number in the expression, and at phase 0 the result *is* the mark, within 0.27
- * units at its worst — about a third of a pixel at the size a boot screen draws
+ * units at its worst, about a third of a pixel at the size a boot screen draws
  * it. So nothing has to transition into the animation or out of it.
  *
  * The alternative, and the reason this is worth a module of its own, was to
@@ -59,7 +59,7 @@ interface WaveLoopOptions {
  * something a keyframe could state anyway.
  *
  * It runs until it is stopped, and does not stop itself. There was a run-out
- * here once — on the answer arriving it would carry on to the next whole
+ * here once: on the answer arriving it would carry on to the next whole
  * wavelength, where the curve is the mark again, so that the wave was never left
  * frozen mid-stride. That is worth nothing to a caller whose exit takes the wave
  * away rather than leaving it standing: the boot screen closes the brackets over

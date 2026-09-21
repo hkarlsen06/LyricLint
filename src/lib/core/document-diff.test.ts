@@ -20,8 +20,8 @@ describe('diffDocuments', () => {
 		const hunk = diff.hunks[0];
 		expect(hunk.line).toBe(2);
 		expect(current.slice(hunk.from, hunk.to)).toBe('Hello world');
-		// The change arrives inside its surroundings: the header above — which
-		// is also the neighbour — and the line below.
+		// The change arrives inside its surroundings: the header above (which
+		// is also the neighbour) and the line below.
 		expect(hunk.rows).toEqual([
 			{ kind: 'context', text: '[Verse 1]', line: 1, at: 0 },
 			{
@@ -102,7 +102,7 @@ describe('diffDocuments', () => {
 		expect(header.at).toBe(0);
 	});
 
-	test('a blank neighbour is dropped — a placeholder line orients nobody', () => {
+	test('a blank neighbour is dropped because a placeholder line orients nobody', () => {
 		// Change on a section's last line: the line below is the blank between
 		// sections. "(blank line)" as context says nothing about where the
 		// change sits; the placeholder is only owed where a blank line is
@@ -144,8 +144,8 @@ describe('diffDocuments', () => {
 	});
 
 	test('changes up to two kept lines apart coalesce into one hunk', () => {
-		// Split, the two cards would draw the entire gap anyway — the kept line
-		// as one card's neighbour below and the other's neighbour above — with
+		// Split, the two cards would draw the entire gap anyway (the kept line
+		// as one card's neighbour below and the other's neighbour above), with
 		// the section header printed a second time over the lower card.
 		const baseline = '[Bro]\nOne\nTwo\nThree\nFour';
 		const current = '[Bro]\nOne\nTwoo\nThree\nFourr';
@@ -175,7 +175,7 @@ describe('diffDocuments', () => {
 		// A refrain repeats its lines with ad-lib variations. An exact-match
 		// alignment anchors on the byte-identical plain twin, dumping the varied
 		// line as a whole-line removal and its counterpart as a whole-line
-		// addition — a wall of red and green for what a transcriber reads as one
+		// addition, a wall of red and green for what a transcriber reads as one
 		// line with its ad-lib struck. The similarity alignment pairs each varied
 		// line with the line it varies, and the character diff tells the rest.
 		const baseline = [
@@ -209,7 +209,7 @@ describe('diffDocuments', () => {
 	test('a moved parenthetical boundary draws as Genius draws it', () => {
 		// The flip `<i>(City)</i>` → `(<i>City</i>)` shares nothing at the
 		// line's edges, but one flat character pass holds the markup and the
-		// word steady and shows the parens moved — red inside, green outside —
+		// word steady and shows the parens moved (red inside, green outside),
 		// which is Genius's own rendering of this canonical edit.
 		const baseline = 'One\nHvem er på, som oss? Vi styrer hele byen <i>(City)</i>\nTwo';
 		const current = 'One\nHvem er på som oss? Vi styrer hele byen (<i>City</i>)\nTwo';
@@ -255,7 +255,7 @@ describe('diffDocuments', () => {
 		expect(diff.hunks[0].notes).toContain('Typographic quote marks became straight ones');
 	});
 
-	test('a removed zero-width space is named — the rows cannot show it', () => {
+	test('a removed zero-width space is named because the rows cannot show it', () => {
 		const diff = diffDocuments('Hello​world', 'Helloworld');
 		expect(diff.hunks).toHaveLength(1);
 		expect(diff.hunks[0].notes).toContain('Removed a zero-width space');
@@ -286,9 +286,9 @@ describe('diffDocuments', () => {
 		expect(rows.length).toBeGreaterThan(0);
 	});
 
-	test('rows sharing one collapse point all render — a renderer may not key on it', () => {
+	test('rows sharing one collapse point all render, so a renderer may not key on it', () => {
 		// Scrambled short lines degrade to struck baseline rows over fresh
-		// current rows, and every struck row collapses to the same offset —
+		// current rows, and every struck row collapses to the same offset,
 		// which is why a renderer may not treat the (at, line) pair as an
 		// identity; keying on it crashed the dialog once.
 		const diff = diffDocuments('a\nb\n\na', 'c\na\n');

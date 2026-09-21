@@ -61,7 +61,7 @@
 	});
 
 	/**
-	 * The unique sources this page cites, for the structured data — the
+	 * The unique sources this page cites, for the structured data: the
 	 * landmarks' as well as the entries', because a landmark states its
 	 * standing on the page and a citation drawn there but missing here would
 	 * describe the page as resting on less than it does.
@@ -112,8 +112,8 @@
 	//
 	// The mark cannot be `:target` alone, and for a while it was: only a native
 	// fragment navigation updates the target element, and pressing an index row
-	// from the index page or the other topic is the router's navigation — a
-	// `pushState`, which updates nothing — so the first press drew no wash, and
+	// from the index page or the other topic is the router's navigation, a
+	// `pushState`, which updates nothing, so the first press drew no wash, and
 	// only a same-path hash press (the one navigation the router leaves to the
 	// browser) ever lit one. The page marks the entry itself, from the same
 	// hash the landing reads; `:target` stays in the selector as the
@@ -124,7 +124,7 @@
 	 * The first section in document order, which is not always the first entry:
 	 * the spelling topic opens on the standardized-spellings landmark, and that
 	 * section carries no entry of its own. Falling back to `entries[0]` marked
-	 * the *second* row while the reader was still at the top of the page — the
+	 * the *second* row while the reader was still at the top of the page. It is the
 	 * one row the mark is least allowed to be wrong about, since a topic opened
 	 * with no fragment is the commonest arrival there is.
 	 *
@@ -147,20 +147,20 @@
 	function updateLanding(scrollToAnchor: boolean) {
 		// The same shared decode the index column reads its own mark through: a
 		// fragment is somebody else's string, and `#%` is a `URIError` rather than
-		// an anchor — thrown here it would take the topic page down on the arrival
+		// an anchor, and thrown here it would take the topic page down on the arrival
 		// a deep link exists for.
 		anchor = safeDecodeHash(location.hash.slice(1));
 		// The landing is also this page's first word to the index about where the
 		// reader is, and it is said before the scroll rather than left to the spy
 		// below to work out afterwards. Computed from a document still at its top,
-		// the reading position is the leading section — so the list would mark that
+		// the reading position is the leading section, so the list would mark that
 		// row, travel to it, and be corrected a frame later when the landing
 		// scroll finally fired. Deep-linked, the entry you were sent to is the one
 		// you are reading; with no fragment, it is whatever leads the page.
 		//
 		// Only a fragment that resolves is published, and that is the correction:
 		// a stale or hand-typed `#anythin` names no heading here, and published
-		// anyway it was a reading position no row in the index could match — so
+		// anyway it was a reading position no row in the index could match, so
 		// the list marked *nothing* until the reader's next scroll, on the one
 		// arrival where a wrong fragment already left them with no wash either.
 		// The wash keeps the raw hash, because a hash matching no entry correctly
@@ -240,7 +240,7 @@
 			current = section.querySelector('h2')?.id ?? current;
 		}
 		// Above the first heading the reader is in the lede, on their way into the
-		// first convention — which is the row worth marking, and the same answer a
+		// first convention, which is the row worth marking, and the same answer a
 		// topic opened with no fragment lands on.
 		return current || leadAnchor;
 	}
@@ -249,8 +249,8 @@
 	// layout read is worth doing: the handler is a rect per entry, which is
 	// cheap, and doing it a dozen times inside one frame is not. Bound in the
 	// capture phase on the document rather than on the scroll port, since which
-	// element scrolls is the layout's business — the column at one width and the
-	// document at the other — and a scroll event does not bubble to where that
+	// element scrolls is the layout's business (the column at one width and the
+	// document at the other), and a scroll event does not bubble to where that
 	// could be ignored.
 	let frame = 0;
 
@@ -274,14 +274,14 @@
 			document.removeEventListener('scroll', spy, true);
 			window.removeEventListener('resize', spy);
 			// The index outlives this page, so a reading position left behind is a
-			// row marked in a list whose page has gone — the rule guide's hover
+			// row marked in a list whose page has gone; the rule guide's hover
 			// clears itself for the same reason.
 			setReadingAnchor('');
 		};
 	});
 
-	// A navigation that changes only the fragment — the reader pasting a second
-	// anchor over the first — is the browser's own, not the router's: no
+	// A navigation that changes only the fragment (the reader pasting a second
+	// anchor over the first) is the browser's own, not the router's: no
 	// hydration pass, no `afterNavigate`, measured landing at the native top
 	// position with the handler never called. `hashchange` is that arrival's
 	// only hook.
@@ -318,7 +318,7 @@
 <StructuredData data={structuredData} />
 
 <!-- Every string a search can match is drawn through the marker, so a
-     guideline opened out of a search says which of its words matched — the
+     guideline opened out of a search says which of its words matched, the
      rule pages' own answer, using the shared reference query. -->
 {#snippet marked(value: string)}<GuidanceSearchHighlight text={value} />{/snippet}
 
@@ -372,8 +372,8 @@
 	{/if}
 
 	{#if data.spellings}
-		<!-- A landmark is a deep-link target exactly as an entry is — the index
-		     lists it and every rule page's guideline link can name it — so it
+		<!-- A landmark is a deep-link target exactly as an entry is: the index
+		     lists it and every rule page's guideline link can name it, so it
 		     takes the arrival wash through the same mark rather than through
 		     `:target`, which only a native fragment navigation ever sets. -->
 		<section
@@ -382,7 +382,7 @@
 		>
 			<!-- The reviewed preferred-spellings list leads the topic page a reader
 		     wondering about a spelling actually opens. Drawn from the same
-		     `ruleLookupTable` the rule page loads — one data source, two surfaces —
+		     `ruleLookupTable` the rule page loads (one data source, two surfaces),
 		     and only the reviewed halves of it: the forms and the conditions the
 		     guide itself states. What the linter does about each row (fix kinds,
 		     LyricLint's own curated catches) stays on the rule's page, which is
@@ -392,7 +392,7 @@
 				<!-- The entries' own meta idiom, in the section that leads the page:
 				     the ladder, the tier, and the exact source the table is read
 				     from. It carries no "Checked by" run, and that is the one
-				     difference from an entry's line — the sentence directly beneath
+				     difference from an entry's line: the sentence directly beneath
 				     already links `spelling.standardized`'s page in prose, and a
 				     second link to it a line above would be the same command
 				     offered twice on one surface. -->
@@ -442,12 +442,12 @@
 			<!-- The anchor is the id's own last segment, so the index, the assistant,
 			     and anything else that cites an entry all name the same fragment. -->
 			<h2 id={entryAnchor(entry.id)}><GuidanceSearchHighlight text={entry.title} /></h2>
-			<!-- The diagnostic card's own meta idiom: the tier, then the citation —
+			<!-- The diagnostic card's own meta idiom: the tier, then the citation,
 			     the exact source the claim is read from, whose section and verified
 			     date are the link's tooltip. The tier label and the link are one
 			     fact read together: the source is what makes the tier true. The
 			     ladder ahead of the label draws that standing as ascending steps
-			     (`AuthorityLadder.svelte`, `aria-hidden` — the label is the fact).
+			     (`AuthorityLadder.svelte`, `aria-hidden`, since the label is the fact).
 			     A folded set still unfolds under the whole line rather than in the
 			     middle of it, through the list's own flex `order`. -->
 			<div class="site-meta">
@@ -456,14 +456,14 @@
 				<span class="site-meta__separator" aria-hidden="true">·</span>
 				<SiteSourceFold sources={entrySources(entry.sourceIds)} text={marked} />
 			</div>
-			<!-- The forms a convention names — `[Verse 1]`, `gon'`, `'90s` — are
+			<!-- The forms a convention names (`[Verse 1]`, `gon'`, `'90s`) are
 			     written in backticks in the entry and set in the code face here,
 			     because a form left in the sentence's own type is a word of the
 			     sentence: `and rather than an'` reads as a conjunction until the
 			     face says it is being quoted. The catalog's own titles carry
 			     none, since the index draws those as plain strings. -->
 			<p><CodeProse text={entry.statement} mark={marked} /></p>
-			<!-- The pair, incorrect first — the rule pages' own order — with the color
+			<!-- The pair, incorrect first, in the rule pages' own order, with the color
 			     and the word both carrying which is which. A sample holds only text
 			     as it would stand in a document: connective prose set in the sample
 			     face read as part of the very thing being quoted. -->
@@ -483,8 +483,8 @@
 						/></pre>
 				</figure>
 			{/if}
-			<!-- The note is the convention's own qualifications — where the rule
-			     bends, which half the linter checks — not a colophon about the
+			<!-- The note is the convention's own qualifications (where the rule
+			     bends, which half the linter checks), not a colophon about the
 			     entry. Set as muted small print it read as skippable and was
 			     genuinely hard to read over the dark scheme, so it is ordinary
 			     prose like the statement above it: sitting after the samples is

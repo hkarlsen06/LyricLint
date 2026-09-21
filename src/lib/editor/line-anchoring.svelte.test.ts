@@ -100,7 +100,7 @@ async function mount(options: {
 }
 
 /**
- * The timestamp column only draws once the shell has said where the audio is —
+ * The timestamp column only draws once the shell has said where the audio is:
  * `setMediaPlayhead(undefined)` is also how "nothing is attached" is stated, so
  * the push is what brings the column into existence.
  */
@@ -123,8 +123,8 @@ function lineNumberElements(): HTMLElement[] {
 }
 
 /**
- * The cell beside a line, counted among the lines that *have* one. Structure —
- * blanks and section headers — is drawn no cell at all, so the cells and the
+ * The cell beside a line, counted among the lines that *have* one. Structure
+ * (blanks and section headers) is drawn no cell at all, so the cells and the
  * document's lines are not the same list and cannot share an index.
  */
 function cellFor(lineText: string): HTMLElement {
@@ -161,7 +161,7 @@ describe('line anchoring while transcribing', () => {
 	 * Typing used to stamp the line being typed with wherever the playhead was.
 	 * It was the feature and it was also the thing most able to ruin the data it
 	 * collected: what it recorded was the moment you *started typing* a line, which
-	 * is after you heard it and after however long you spent working out the words —
+	 * is after you heard it and after however long you spent working out the words,
 	 * a lag with no fixed size and nothing on screen disclosing it. Typing a verse
 	 * at one pause put every line of it on one second, and typing along with the
 	 * tape put every line late by a different amount.
@@ -225,7 +225,7 @@ describe('line anchoring while transcribing', () => {
 	});
 
 	/*
-	 * Wrapping a lyric in performer tags replaces `Gamma` with `<i>Gamma</i>` —
+	 * Wrapping a lyric in performer tags replaces `Gamma` with `<i>Gamma</i>`:
 	 * no shared first or last character, so even the narrowed edit covers the
 	 * line's whole span, and a wrapper closed several lines down covers every
 	 * line between as one change. Both read as the line being erased, so
@@ -307,7 +307,7 @@ describe('line anchoring while transcribing', () => {
 
 describe('line anchoring stays out of the way', () => {
 	// The rule the whole design hangs on. Clicking a line is how a caret is
-	// placed, and it is the single most frequent gesture in the editor — a click
+	// placed, and it is the single most frequent gesture in the editor: a click
 	// that also moved the audio would make the document unusable for the one
 	// activity this feature exists to serve.
 	it('does not seek when the text of an anchored line is clicked', async () => {
@@ -354,7 +354,7 @@ describe('line anchoring stays out of the way', () => {
 	// `Ctrl-Alt-Enter` plays the passage the caret is in: its own line where
 	// that line is timed, else the nearest timed line above it. Answering only
 	// for the caret's own line made the chord a refusal on most of a part-timed
-	// song — the caret is usually a line or two past the last tap.
+	// song: the caret is usually a line or two past the last tap.
 	it('plays from the nearest timed line at or above the caret', async () => {
 		const caretOnUntimedLine = lyric.indexOf('second line');
 		const { handle, seek, announcements } = await mount({
@@ -382,7 +382,7 @@ describe('line anchoring stays out of the way', () => {
 	 * the whole `.cm-gutters` container, and `aria-hidden` cannot be undone by a
 	 * descendant. Nothing in any gutter is reachable by assistive technology.
 	 *
-	 * So nothing in a cell carries an accessible name to be found by — the whole
+	 * So nothing in a cell carries an accessible name to be found by: the whole
 	 * column is a pointer affordance, and the equivalent for everyone else is
 	 * `Ctrl-Alt-Enter`, `Ctrl-Alt-M`, and sync mode, all tested here. Nothing in it
 	 * is focusable either, because a focusable control inside an `aria-hidden`
@@ -406,7 +406,7 @@ describe('line anchoring stays out of the way', () => {
 
 describe('the timestamp column', () => {
 	// The column is how anchoring is discovered at all, so it does not wait for a
-	// first anchor the way the transport waits for a first file — and an untimed
+	// first anchor the way the transport waits for a first file, and an untimed
 	// line draws a dash rather than nothing. A column of blank cells is an
 	// invisible column: there is no mark on screen to say the rail exists or that a
 	// line can be timed, so the feature reads as absent until the pointer happens
@@ -425,7 +425,7 @@ describe('the timestamp column', () => {
 	});
 
 	/*
-	 * The column is a pointer-only surface — `aria-hidden` all the way down — so
+	 * The column is a pointer-only surface (`aria-hidden` all the way down), so
 	 * the shared box is the one place its keyboard equivalents are ever named on
 	 * screen: the timestamp teaches `Ctrl-Alt-Enter` and the pin teaches
 	 * `Ctrl-Alt-M`, at the moment somebody is already aiming at the pointer
@@ -435,7 +435,7 @@ describe('the timestamp column', () => {
 	 *
 	 * The keystroke is named only on the caret's own line, because that is the
 	 * only line it acts on: taught on any other row, the caption promised "the
-	 * keystroke that does the same thing" and delivered an action at the caret —
+	 * keystroke that does the same thing" and delivered an action at the caret,
 	 * somewhere the user was not looking, which is exactly how it was reported.
 	 */
 	it('names each cell control, with the keystroke on the caret’s line alone', async () => {
@@ -463,7 +463,7 @@ describe('the timestamp column', () => {
 		expect(box()?.querySelector('kbd')?.textContent).toBe('Ctrl+Alt+Enter');
 
 		// A timed line's pencil opens the ± pair, which is not `Ctrl-Alt-M`'s
-		// write, so it names no keystroke it does not perform — caret or no caret.
+		// write, so it names no keystroke it does not perform, caret or no caret.
 		hover(cellFor('first line').querySelector('.ll-time-stamp')!);
 		await vi.waitFor(() => {
 			expect(box()?.textContent).toContain('Adjust this line’s time');
@@ -494,8 +494,8 @@ describe('the timestamp column', () => {
 	});
 
 	// The number is the second way to play a line, and its whole affordance was
-	// a cursor change. The hover answers only where a press would — a hint on an
-	// untimed number would promise a rewind the press refuses — and the
+	// a cursor change. The hover answers only where a press would (a hint on an
+	// untimed number would promise a rewind the press refuses), and the
 	// keystroke follows the caret's line, `timeGutterHint`'s rule.
 	it('names an anchored line number as a way to play, and an untimed one not at all', async () => {
 		hideControlHint();
@@ -550,7 +550,7 @@ describe('the timestamp column', () => {
 	});
 
 	// The dash means "a value goes here and is not set yet", which is false on a
-	// blank line and on a section header — and saying it there cost a real bug: an
+	// blank line and on a section header, and saying it there cost a real bug: an
 	// untimed lyric line wore the same mark as the structure around it, so a song
 	// with one line missing read as finished. Nothing is drawn beside a line no run
 	// will ever visit, stamp control included, because there is nothing to time.
@@ -630,7 +630,7 @@ describe('the timestamp column', () => {
 
 	// Hover alone put the control only where the pointer already was, which is
 	// nowhere until you know to look. The caret's own line offers it at rest, so
-	// the way to find it is to click into a line — which is what a user does first.
+	// the way to find it is to click into a line, which is what a user does first.
 	it('offers the stamp control at rest on the caret’s own line', async () => {
 		const { handle } = await mount({
 			text: lyric,
@@ -677,7 +677,7 @@ describe('the timestamp column', () => {
 	});
 
 	// With no song there is nothing to show a time for and nothing to anchor to,
-	// so the column goes rather than standing there as an empty rail — which is
+	// so the column goes rather than standing there as an empty rail, which is
 	// also what keeps it out of the landing page's demo editor.
 	it('goes entirely when the audio is detached', async () => {
 		const { handle } = await mount({ text: lyric, mediaTime: () => 0 });
@@ -752,7 +752,7 @@ describe('the timestamp column', () => {
 	);
 
 	// A line that already carries a time is nearly always a line whose time is
-	// nearly right — a tap landed late, or a run was a beat behind — so writing the
+	// nearly right (a tap landed late, or a run was a beat behind), so writing the
 	// playhead over it is almost never the correction wanted. The pencil offers the
 	// correction that is: a second either way, which is what `m:ss` can show.
 	it('offers a nudge either side of the time instead of re-stamping it', async () => {
@@ -773,7 +773,7 @@ describe('the timestamp column', () => {
 		// One at each end of the number: `−` off its start, `+` against its last
 		// digit. The time itself does not move, because a number sliding sideways
 		// when a control opens beside it is the reflow this cell is arranged to
-		// avoid — which is what keeps `−` out of flow.
+		// avoid, which is what keeps `−` out of flow.
 		const box = (selector: string) =>
 			cellFor('first line').querySelector(selector)!.getBoundingClientRect();
 		expect([...cellFor('first line').querySelectorAll('button')].map((b) => b.textContent)).toEqual(
@@ -783,7 +783,7 @@ describe('the timestamp column', () => {
 		expect(box('.ll-time-nudge--back').right).toBeLessThanOrEqual(box('.ll-time-value').left);
 		expect(box('.ll-time-nudge--on').left).toBeGreaterThanOrEqual(box('.ll-time-value').right);
 		// CodeMirror clips every gutter column, which cut the chip hanging off the
-		// start of the number down to a sliver — a control that is there, is
+		// start of the number down to a sliver: a control that is there, is
 		// pressable, and cannot be seen.
 		expect(getComputedStyle(document.querySelector('.ll-time-gutter')!).overflow).toBe('visible');
 		expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 10 }]);
@@ -796,7 +796,7 @@ describe('the timestamp column', () => {
 		expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 9.75 }]);
 
 		// A quarter second is only worth stepping if the cell can answer it, so the
-		// open one shows hundredths — `m:ss` alone said nothing for three presses in
+		// open one shows hundredths: `m:ss` alone said nothing for three presses in
 		// every four. Every other row is left in whole seconds.
 		await vi.waitFor(() =>
 			expect(cellFor('first line').querySelector('.ll-time-value')?.textContent).toBe('0:09.75')
@@ -806,8 +806,8 @@ describe('the timestamp column', () => {
 
 	/*
 	 * This column is the last thing before the scroller's own edge, so whatever
-	 * sits at the end of a cell — `+` while the pair is open, the stamp glyph the
-	 * rest of the time — is what a vertical scrollbar lands on. An overlay bar
+	 * sits at the end of a cell (`+` while the pair is open, the stamp glyph the
+	 * rest of the time) is what a vertical scrollbar lands on. An overlay bar
 	 * takes no layout space at all and paints over the last dozen or so pixels of
 	 * the scrollport, where it also wins the press, so at the eight pixels this
 	 * used to reserve, aiming at `+` scrubbed the document instead of moving the
@@ -861,7 +861,7 @@ describe('the timestamp column', () => {
 	});
 
 	// Every transient surface in the workbench closes on a press anywhere else, and
-	// this one is no different — the press that opened it is the only thing keeping
+	// this one is no different: the press that opened it is the only thing keeping
 	// it up.
 	it('dismisses the nudge pair on a press outside it', async () => {
 		const { handle } = await mount({ text: lyric, mediaTime: () => 75 });
@@ -916,7 +916,7 @@ describe('the timestamp column', () => {
 		});
 	});
 
-	// The transcription loop is listen, pause, type — so a pause that lasts rests
+	// The transcription loop is listen, pause, type, so a pause that lasts rests
 	// the band across the text, and the rails keep the color: a paused tape still
 	// has a position, and the number and the time are where it stays findable.
 	// Resuming answers a press, so the band snaps straight back.
@@ -938,7 +938,7 @@ describe('the timestamp column', () => {
 		await vi.waitFor(() =>
 			expect(document.querySelector('.cm-line.ll-current-line--rested')).not.toBeNull()
 		);
-		// Only the band rests. The rails keep the playhead's color — every gutter
+		// Only the band rests. The rails keep the playhead's color: every gutter
 		// still marks the row, and the cell still shows the current time.
 		expect(document.querySelectorAll('.cm-gutterElement.ll-current-line-gutter')).toHaveLength(3);
 		expect(document.querySelector('.ll-time-value--current')?.textContent).toBe('0:10');
@@ -950,8 +950,8 @@ describe('the timestamp column', () => {
 		});
 	});
 
-	// The mark moving while paused is the tape landing somewhere — the cue-point
-	// step keys work against a paused tape — and the wash coming back is the whole
+	// The mark moving while paused is the tape landing somewhere (the cue-point
+	// step keys work against a paused tape), and the wash coming back is the whole
 	// of the on-document feedback for where it landed.
 	it('re-lights a rested wash when the paused tape is seeked', async () => {
 		const { handle } = await mount({ text: lyric, mediaTime: () => 15 });
@@ -1007,8 +1007,8 @@ describe('the timestamp column', () => {
 
 describe('line anchors in linked sections', () => {
 	// The mirror used to dispatch a peer's whole shared run as one replacement,
-	// and `dropErasedAnchors` reads a line wholly inside a replacement as erased
-	// — so typing one character in a linked chorus silently deleted every line
+	// and `dropErasedAnchors` reads a line wholly inside a replacement as erased,
+	// so typing one character in a linked chorus silently deleted every line
 	// timing its peers carried. The mirrored edit is narrowed now, so an anchor
 	// on a line the edit did not actually change maps through like any other.
 	it('keeps the peer sections’ timings when an edit is mirrored into them', async () => {
@@ -1051,7 +1051,7 @@ describe('line anchors in linked sections', () => {
  * Timing a whole lyric by tapping along with the song.
  *
  * The document under test has both kinds of line the run has to walk past: a
- * blank one, and a section header, which sits in the gap before its verse — so a
+ * blank one, and a section header, which sits in the gap before its verse, so a
  * tap that landed on it would be spent at the exact moment the verse's first
  * line starts.
  */
@@ -1089,7 +1089,7 @@ describe('following the playhead', () => {
 		});
 	});
 
-	// A scoped run does not scroll — not on entry, not on the playhead follow,
+	// A scoped run does not scroll, not on entry, not on the playhead follow,
 	// not on a tap. The reading-line hold exists for a pass over the whole song,
 	// where the caret descends out of view; a scoped run's lines were on screen
 	// when the user selected them, and the document jumping to a reading
@@ -1101,7 +1101,7 @@ describe('following the playhead', () => {
 		const long = ['[Verse 1]', ...Array.from({ length: 60 }, (_, i) => `line ${i + 1}`)].join('\n');
 		const { handle } = await mount({ text: long, mediaTime: () => 30 });
 		// Timed lines far below the viewport, so the follow would have somewhere
-		// dramatic to go when the playhead crosses them — the top-of-document clamp
+		// dramatic to go when the playhead crosses them: the top-of-document clamp
 		// must not be what passes this test.
 		handle.setLineAnchors?.([
 			{ line: 41, time: 1 },
@@ -1117,7 +1117,7 @@ describe('following the playhead', () => {
 		handle.setMediaPlayhead?.(0.5);
 
 		// Two visible lines low enough in the viewport that the reading-line hold
-		// would have pulled them up on entry — and high enough to still be wholly
+		// would have pulled them up on entry, and high enough to still be wholly
 		// on screen in the 300px pane at the editor's own type size, or the
 		// nearest-edge nudge fires for the honest reason and the assertion stops
 		// being about the hold.
@@ -1128,7 +1128,7 @@ describe('following the playhead', () => {
 		expect(scroller.scrollTop).toBe(0);
 
 		// The playhead crossing a marked line is the follow's own trigger, and the
-		// marked lines sit forty rows down — suppressed, nothing moves.
+		// marked lines sit forty rows down: suppressed, nothing moves.
 		handle.setMediaPlayhead?.(1.5);
 		await new Promise((resolve) => setTimeout(resolve, 500));
 		expect(scroller.scrollTop).toBe(0);
@@ -1140,7 +1140,7 @@ describe('following the playhead', () => {
 	});
 
 	// Typing is not the playhead moving. `currentFrom` is an offset, so an edit
-	// above the marked line shifts it — and the follow used to read that raw
+	// above the marked line shifts it, and the follow used to read that raw
 	// difference as the mark crossing onto another line, so any keystroke hauled
 	// the reader from the line they were editing back to the reading line.
 	it('does not scroll for a keystroke that only shifted the marked line', async () => {
@@ -1237,7 +1237,7 @@ describe('following the playhead', () => {
 
 describe('sync mode', () => {
 	// A run is one pass over the whole lyric against one pass of the audio, and the
-	// shell rewinds the song to 0:00 at this same moment — so the caret goes to the
+	// shell rewinds the song to 0:00 at this same moment, so the caret goes to the
 	// top whatever it was doing, or the first press would time the last line the
 	// user happened to click against the opening bar.
 	it('starts at the top of the document, wherever the caret was', async () => {
@@ -1250,7 +1250,7 @@ describe('sync mode', () => {
 		handle.setLyricSync?.(true);
 
 		expect(syncChanges).toEqual([{ active: true, startAt: 0, scoped: false }]);
-		// Line 2, not line 1 — the top of a lyric is usually a section header, and a
+		// Line 2, not line 1: the top of a lyric is usually a section header, and a
 		// tap spent on one is a tap thrown away.
 		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
 	});
@@ -1258,7 +1258,7 @@ describe('sync mode', () => {
 	// A tap is a claim about the line starting *now*, so the caret stays on the
 	// line it just timed rather than jumping ahead of the music. That row is what
 	// the user is reading while it plays, and it is the whole of the feedback for
-	// the press — read on the next line it is feedback about the wrong thing.
+	// the press. Read on the next line it is feedback about the wrong thing.
 	it('times the caret’s own line and stays on it', async () => {
 		const { handle } = await mount({
 			text: song,
@@ -1279,8 +1279,8 @@ describe('sync mode', () => {
 	});
 
 	// The transport's tap control, for a pointer with no `Space`. It runs the same
-	// command the key does — that is the whole reason it is a command and not a
-	// synthesised key event — so a run driven entirely from the strip has to time
+	// command the key does (that is the whole reason it is a command and not a
+	// synthesised key event), so a run driven entirely from the strip has to time
 	// the same lines, at the same offset, in the same order, with the editor never
 	// focused.
 	it('times a line from the transport control, with the editor unfocused', async () => {
@@ -1300,7 +1300,7 @@ describe('sync mode', () => {
 		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('second line'));
 	});
 
-	// A run ends on the document changing, and a selection change is not one — so
+	// A run ends on the document changing, and a selection change is not one, so
 	// the caret can be put on a section header between entering a run and its first
 	// tap. Timed at face value that header would carry an anchor, which every
 	// downstream reader assumes cannot happen: the fill pairs by stampable line,
@@ -1361,8 +1361,8 @@ describe('sync mode', () => {
 		expect(anchor?.time).toBeCloseTo(30 - tapOffsetSeconds * 0.5, 5);
 	});
 
-	// Pausing holds the run rather than ending it — the transcription loop is
-	// listen, pause, think, and the transport keys are bound to the window — and a
+	// Pausing holds the run rather than ending it (the transcription loop is
+	// listen, pause, think, and the transport keys are bound to the window), and a
 	// tap made against the parked tape is refused out loud instead of spent. Spent,
 	// it would write the pause's own moment onto the next line, wrong by the length
 	// of the pause with nothing on screen saying so. Refusing changes nothing
@@ -1390,7 +1390,7 @@ describe('sync mode', () => {
 		// And the mode never turned off: nothing reported an exit to the shell.
 		expect(syncChanges.every((change) => change.active)).toBe(true);
 
-		// Resuming needs no re-entry — the next tap is an ordinary tap, advancing
+		// Resuming needs no re-entry: the next tap is an ordinary tap, advancing
 		// onto the next line exactly as if the pause had never happened.
 		playing = true;
 		time = 42;
@@ -1401,11 +1401,11 @@ describe('sync mode', () => {
 	});
 
 	// A selection scopes a run: entering collapses it, the first tap times the
-	// selection's first line, and timing its last ends the run — the selection is
+	// selection's first line, and timing its last ends the run: the selection is
 	// the one gesture that deliberately names a region, so the run covers it and
 	// nothing else. With no timed line above it the editor names no start moment
 	// at all (`startAt` undefined), because wherever the user parked the tape is
-	// the only position anybody chose — and a tap stamps `liveTime()`, so it is
+	// the only position anybody chose, and a tap stamps `liveTime()`, so it is
 	// true whenever it is made.
 	it('scopes a run to the selection and finishes on its last line', async () => {
 		const verse = ['[Verse 1]', 'first line', 'second line', '', '[Chorus]', 'third line'].join(
@@ -1436,8 +1436,8 @@ describe('sync mode', () => {
 	});
 
 	// Where the stampable line directly above the selection already has a time,
-	// a scoped run enters resume-style — caret on that line, armed, tape sent to
-	// its anchor — so there is a whole line of run-up to tap against, exactly as
+	// a scoped run enters resume-style (caret on that line, armed, tape sent to
+	// its anchor), so there is a whole line of run-up to tap against, exactly as
 	// a resumed pass gives itself.
 	it('enters a scoped run with a run-up from the timed line above the selection', async () => {
 		const verse = ['[Verse 1]', 'first line', 'second line', 'third line'].join('\n');
@@ -1452,7 +1452,7 @@ describe('sync mode', () => {
 		expect(handle.getSnapshot().selection.head).toBe(verse.indexOf('first line'));
 
 		// The first tap advances off the run-up line and times the selection's own
-		// first line, which is what the arming is for — and that line is also the
+		// first line, which is what the arming is for, and that line is also the
 		// selection's last, so the run is done.
 		handle.tapLyricSync?.();
 		expect((handle.getLineAnchors?.() ?? []).map((anchor) => anchor.line)).toEqual([2, 3]);
@@ -1461,7 +1461,7 @@ describe('sync mode', () => {
 
 	// The run's first tap is a keystroke, so entry must leave the editor holding
 	// focus even when the press that started the run was made with focus parked
-	// somewhere else — on the scrubber the user just aimed, most likely, since
+	// somewhere else, on the scrubber the user just aimed, most likely, since
 	// parking the tape is exactly what a scoped run's own design tells them to
 	// do. The shell focuses on entry; this drives that call from where it really
 	// runs, inside the dispatch that turned the mode on.
@@ -1494,7 +1494,7 @@ describe('sync mode', () => {
 
 	// A selection touching no lyric line at all is not a scope: the press falls
 	// back to the ordinary pass, which is also what the strip's label promised in
-	// that state — both read the same `isLyricLine` underneath.
+	// that state: both read the same `isLyricLine` underneath.
 	it('falls back to a full pass when the selection covers no lyric line', async () => {
 		const { handle, syncChanges } = await mount({
 			text: song,
@@ -1543,7 +1543,7 @@ describe('sync mode', () => {
 		handle.tapLyricSync?.();
 
 		// The tap timed line 7, the fill dated line 8 from the peer's interval and
-		// stopped there — line 9 is outside the selection and stays untimed — and
+		// stopped there (line 9 is outside the selection and stays untimed), and
 		// landing on the boundary ended the run.
 		expect((handle.getLineAnchors?.() ?? []).map((anchor) => anchor.line)).toEqual([2, 3, 4, 7, 8]);
 		expect(notices.at(-1)).toContain('2 lines');
@@ -1551,7 +1551,7 @@ describe('sync mode', () => {
 	});
 
 	// The advance is deferred to the front of the next tap, which is the moment it
-	// stops being wrong — and it walks past the blank line and `[Chorus]` in one
+	// stops being wrong, and it walks past the blank line and `[Chorus]` in one
 	// step, so no tap is spent on structure nobody sings.
 	it('advances at the start of the following tap, past the structure between verses', async () => {
 		const { handle } = await mount({
@@ -1571,7 +1571,7 @@ describe('sync mode', () => {
 	// The document is no longer held read-only, so the run's own keymap is the
 	// whole of what keeps its keys out of the text. Each of these commands returns
 	// true down every path it has while a run is under way, so none of them ever
-	// reaches the document — a run that typed a space into the lyric on its first
+	// reaches the document: a run that typed a space into the lyric on its first
 	// tap would be worse than no run at all.
 	it('keeps the run’s own keys out of the document', async () => {
 		const { handle, syncChanges } = await mount({ text: song, mediaTime: () => 30 });
@@ -1587,7 +1587,7 @@ describe('sync mode', () => {
 	// Typing is the fourth way out, and the only one that arrives without having
 	// been asked for. A mode that answered a mis-keyed letter with nothing at all
 	// left the user typing at a line they could see was wrong, with no sign of why
-	// it would not take — so the keystroke ends the run and then lands, exactly
+	// it would not take, so the keystroke ends the run and then lands, exactly
 	// where it was typed.
 	it('ends the run on a typed character, and takes the character', async () => {
 		const { handle, syncChanges, announcements } = await mount({
@@ -1609,7 +1609,7 @@ describe('sync mode', () => {
 	});
 
 	// Without a way back, one fumbled tap means restarting the run: every later
-	// press lands on the wrong line. Backspace undoes the last tap — it clears the
+	// press lands on the wrong line. Backspace undoes the last tap: it clears the
 	// line it leaves rather than merely stepping off it, so that line is genuinely
 	// un-timed and the next tap writes it fresh.
 	it('undoes the last tap on Backspace', async () => {
@@ -1630,7 +1630,7 @@ describe('sync mode', () => {
 		await userEvent.keyboard('{Backspace}');
 
 		// The second line is un-timed and the caret is back on the first, which is
-		// still timed — so the next tap advances and writes the second one again.
+		// still timed, so the next tap advances and writes the second one again.
 		expect((handle.getLineAnchors?.() ?? []).map(({ line }) => line)).toEqual([2]);
 		expect(handle.getSnapshot().selection.head).toBe(longer.indexOf('first line'));
 
@@ -1691,8 +1691,8 @@ describe('sync mode', () => {
 
 	/*
 	 * The save path, and the reason it needs one of its own: no way of setting an
-	 * anchor changes any text, so the shell's snapshot — which is what schedules a
-	 * write — never fires. Without this hook a whole synced song was lost on
+	 * anchor changes any text, so the shell's snapshot (which is what schedules a
+	 * write) never fires. Without this hook a whole synced song was lost on
 	 * reload.
 	 */
 	it('tells the shell to write the anchors down, since no text changed', async () => {
@@ -1740,8 +1740,8 @@ describe('sync mode', () => {
 	/*
 	 * The wash and the caret are read against each other on every tap, and they
 	 * were not moving together. The marked line is the last anchor at or before the
-	 * *playhead*, and the playhead the editor holds is `currentTime` — a
-	 * `timeupdate`-fed mirror, up to a tick stale — while a tap stamps its line
+	 * *playhead*, and the playhead the editor holds is `currentTime` (a
+	 * `timeupdate`-fed mirror, up to a tick stale) while a tap stamps its line
 	 * from `liveTime`. Whenever the mirror was more than the tap offset itself
 	 * behind, the line just timed sorted after the playhead on record: the caret
 	 * moved and the yellow band stayed a line behind it until the next tick.
@@ -1795,7 +1795,7 @@ describe('sync mode', () => {
 	});
 
 	// The document follows the run, and every advance parks the line being timed at
-	// the reading line a third down — including a run resumed mid-song, which used
+	// the reading line a third down, including a run resumed mid-song, which used
 	// to sit wherever the document happened to be scrolled and never come down.
 	it('parks the line being timed a third down, wherever the run started', async () => {
 		const long = ['[Verse 1]', ...Array.from({ length: 60 }, (_, i) => `line ${i + 1}`)].join('\n');
@@ -1818,7 +1818,7 @@ describe('sync mode', () => {
 		handle.focus();
 
 		// Near the top there is nowhere to scroll to: the target is negative and the
-		// browser clamps it away. Two taps, not three — the third tap's line sits
+		// browser clamps it away. Two taps, not three: the third tap's line sits
 		// within a pixel of the reading third at the editor's own metrics, and this
 		// assertion is about the clamp, not about where the hold's boundary falls.
 		await userEvent.keyboard('  ');
@@ -1878,8 +1878,8 @@ describe('sync mode', () => {
 	});
 
 	/*
-	 * A song synced once and then edited — a line split into two, in several
-	 * places — is timed everywhere except the new lines. A resumed run only knows
+	 * A song synced once and then edited (a line split into two, in several
+	 * places) is timed everywhere except the new lines. A resumed run only knows
 	 * how to pick up before the *first* gap; the skip is how the run reaches the
 	 * later ones without re-listening through verses that are already right.
 	 */
@@ -1920,8 +1920,8 @@ describe('sync mode', () => {
 
 			handle.skipLyricSync?.();
 
-			// The landing is `fourth line` — timed, directly before the untimed
-			// `fifth line` — and the tape goes to its own anchor, so there is a whole
+			// The landing is `fourth line` (timed, directly before the untimed
+			// `fifth line`), and the tape goes to its own anchor, so there is a whole
 			// line of run-up to tap against.
 			expect(handle.getSnapshot().selection.head).toBe(gapped.indexOf('fourth line'));
 			expect(seek).toHaveBeenCalledWith(40);
@@ -1939,7 +1939,7 @@ describe('sync mode', () => {
 			);
 		});
 
-		// The next tap is already aimed at the gap, so a jump would move nothing —
+		// The next tap is already aimed at the gap, so a jump would move nothing,
 		// and a jump anywhere further would leave an untimed line behind the caret,
 		// which is a line the run never comes back to.
 		it('refuses when the next untimed line is the one the next tap already times', async () => {
@@ -1980,7 +1980,7 @@ describe('sync mode', () => {
  * A chorus is typed once and sung three times, and a link is the document saying
  * so. A run that has already timed one copy therefore knows the shape of the
  * next: the words are the same words, and all that is left to establish is where
- * in the song this repeat starts — which is exactly what the tap walking into it
+ * in the song this repeat starts, which is exactly what the tap walking into it
  * says. So the tap dates the first line and the peer's own intervals date the
  * rest, the tape moves past what it just answered, and a toast says what happened
  * and how to refuse it.
@@ -2037,7 +2037,7 @@ describe('sync mode across linked sections', () => {
 		);
 	}
 
-	// The times themselves are never copied — a peer's anchors belong to its own
+	// The times themselves are never copied: a peer's anchors belong to its own
 	// moment in the song, and carried over outright every jump into the second
 	// chorus would land in the first. What repeats is the distance between lines.
 	it('times a linked repeat from the intervals of the copy already timed', async () => {
@@ -2067,7 +2067,7 @@ describe('sync mode across linked sections', () => {
 		// And the wash is on that same line rather than on the one the tap landed
 		// on: a fill publishes where the tape is being sent, or the band would sit at
 		// the top of the section the caret has just left. Read off the marked
-		// timestamp, which is unique where the lyric is not — the repeat's last line
+		// timestamp, which is unique where the lyric is not: the repeat's last line
 		// reads the same words as the first copy's.
 		await vi.waitFor(() => {
 			expect(
@@ -2085,7 +2085,7 @@ describe('sync mode across linked sections', () => {
 		expect(seek.mock.calls[0]?.[0]).toBeCloseTo(104.5 - tapOffsetSeconds, 5);
 
 		const message =
-			'Chorus 2 timed from Chorus — 3 lines. Press a line number to time it by hand instead.';
+			'Chorus 2 timed from Chorus: 3 lines. Press a line number to time it by hand instead.';
 		// Both audiences: the toast region is not a live region, and either alone
 		// loses one of them.
 		expect(notices).toEqual([message]);
@@ -2099,8 +2099,8 @@ describe('sync mode across linked sections', () => {
 	});
 
 	// The way out, and the only one. Pressing the repeat's first line number sends
-	// the tape back to it and the run's caret with it — the two ends of a run
-	// cannot be in different places — and the section is not written a second time,
+	// the tape back to it and the run's caret with it (the two ends of a run
+	// cannot be in different places), and the section is not written a second time,
 	// or the shortcut would take the correction away on the very press it exists
 	// for.
 	it('hands the section back on a press of its line number, and does not refill it', async () => {
@@ -2119,7 +2119,7 @@ describe('sync mode across linked sections', () => {
 		expect(handle.getSnapshot().selection.head).toBe(linkedSong.lastIndexOf('hold on tight'));
 
 		// Armed, exactly as a resumed run is: the press landed on a line that already
-		// carries a time — the user's own tap, in this case — so the next tap belongs
+		// carries a time (the user's own tap, in this case), so the next tap belongs
 		// to the line after it, which is the first one the fill wrote. A press that
 		// cost a dead tap here is what this run was reported as doing.
 		now = 200;
@@ -2136,7 +2136,7 @@ describe('sync mode across linked sections', () => {
 	});
 
 	// The complaint this arrived as: hit sync, press a numbered line that already
-	// has a time, and the first tap went nowhere. It could not have gone anywhere —
+	// has a time, and the first tap went nowhere. It could not have gone anywhere:
 	// the press seeks to that line's own stored anchor, so a tap against it rewrites
 	// the moment it just rewound to and the caret does not move.
 	it('times the next line on the first tap after a jump', async () => {
@@ -2158,7 +2158,7 @@ describe('sync mode across linked sections', () => {
 
 	// Only from a copy that comes earlier. A later peer is the same words and would
 	// date this section just as well, but a section written by the one below it
-	// reads as the document filling itself in backwards — and the run has not been
+	// reads as the document filling itself in backwards, and the run has not been
 	// there yet, so those are the times the user is on their way to correcting.
 	it('never fills a copy from the one below it', async () => {
 		let now = 0;
@@ -2214,7 +2214,7 @@ describe('sync mode across linked sections', () => {
 
 	/*
 	 * The fill pairs lines by index, and the link model deliberately allows the
-	 * copies to differ — a chorus carrying a line its peer lacks is the shape the
+	 * copies to differ: a chorus carrying a line its peer lacks is the shape the
 	 * merge model was rebuilt for. Pairing past such a line dates every later line
 	 * with the *next* peer line's offset: times that still increase, so the
 	 * monotonicity guard passes, and nothing on screen says they are wrong. So the
@@ -2236,7 +2236,7 @@ describe('sync mode across linked sections', () => {
 			'', // 11
 			'[Chorus 2]', // 12
 			'hold on tight', // 13
-			'oh yeah', // 14 — this copy's own line, second from the top
+			'oh yeah', // 14, this copy's own line, second from the top
 			'we go again', // 15
 			'all night long' // 16
 		];
@@ -2257,7 +2257,7 @@ describe('sync mode across linked sections', () => {
 
 		// The structures part ways one line in, so there is nothing left for the
 		// peer to date and the tap is a plain tap: positional pairing would have put
-		// 'we go again' — +2s in the copy it repeats — at +4.5s, and left the last
+		// 'we go again' (+2s in the copy it repeats) at +4.5s, and left the last
 		// line untimed behind a caret that had moved past it.
 		expect(times(handle)[13]).toBeCloseTo(100 - tapOffsetSeconds, 5);
 		expect(times(handle)[14]).toBeUndefined();
@@ -2294,7 +2294,7 @@ describe('sync mode across linked sections', () => {
 			'hold on tight', // 13
 			'we go again', // 14
 			'all night long', // 15
-			'and never let go' // 16 — this copy's own closing line
+			'and never let go' // 16, this copy's own closing line
 		];
 		const trailingSong = trailingLines.join('\n');
 		let now = 0;
@@ -2321,7 +2321,7 @@ describe('sync mode across linked sections', () => {
 		expect(handle.getSnapshot().selection.head).toBe(trailingSong.lastIndexOf('all night long'));
 		expect(seek.mock.calls.at(-1)?.[0]).toBeCloseTo(104.5 - tapOffsetSeconds, 5);
 		expect(notices).toEqual([
-			'Chorus 2 timed from Chorus — 3 lines. Press a line number to time it by hand instead.'
+			'Chorus 2 timed from Chorus: 3 lines. Press a line number to time it by hand instead.'
 		]);
 
 		now = 110;
@@ -2357,7 +2357,7 @@ describe('sync mode across linked sections', () => {
 	});
 
 	// A peer this run derived is a rhythm at one remove, and a chain of fills
-	// would carry any error of the first one down the whole song — so a peer the
+	// would carry any error of the first one down the whole song, so a peer the
 	// user actually tapped outranks a nearer one the run wrote itself. The label
 	// in the notice is what says which peer won.
 	it('fills a third copy from the tapped peer, not the derived one', async () => {
@@ -2396,14 +2396,14 @@ describe('sync mode across linked sections', () => {
 		now = 50;
 		handle.tapLyricSync?.();
 		expect(notices).toEqual([
-			'Chorus 2 timed from Chorus — 2 lines. Press a line number to time it by hand instead.'
+			'Chorus 2 timed from Chorus: 2 lines. Press a line number to time it by hand instead.'
 		]);
 
 		now = 150;
 		handle.tapLyricSync?.();
 		// Nearest-first alone would name Chorus 2 here.
 		expect(notices[1]).toBe(
-			'Chorus 3 timed from Chorus — 2 lines. Press a line number to time it by hand instead.'
+			'Chorus 3 timed from Chorus: 2 lines. Press a line number to time it by hand instead.'
 		);
 		expect(times(handle)[13]).toBeCloseTo(150 - tapOffsetSeconds, 5);
 		expect(times(handle)[14]).toBeCloseTo(152 - tapOffsetSeconds, 5);

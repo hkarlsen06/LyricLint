@@ -176,8 +176,8 @@ describe('spelling.standardized', () => {
 		]);
 	});
 
-	// The exact patterns are cross-language on purpose — somebody who typed
-	// `trynna` typed the English form wherever they typed it — but a handful of
+	// The exact patterns are cross-language on purpose, because somebody who
+	// typed `trynna` typed the English form wherever they typed it, but a handful of
 	// them are ordinary words somewhere else, and every one of those carried a
 	// *safe* fix. `Fix N automatically` therefore rewrote correct Norwegian,
 	// German and French lyrics mechanically, with no card asking anything.

@@ -56,7 +56,7 @@ describe('section.unlinked-repeat', () => {
 
 	// Widening this rule to every repeat went one step too far: two copies with
 	// completely different words share nothing, so linking them would tie no text
-	// together at all — every word a difference, the mirror unable to carry
+	// together at all: every word a difference, the mirror unable to carry
 	// anything, and the finding an offer to do nothing.
 	it('says nothing where the copies have nothing in common', () => {
 		expect(
@@ -117,7 +117,7 @@ describe('section.unlinked-repeat', () => {
 
 	// One finding per group, not one per repeat. Three identical choruses are one
 	// thing to say, and three cards saying it would be the panel repeating itself
-	// down a column — and every one of them would open the same picker.
+	// down a column, and every one of them would open the same picker.
 	it('says it once for a group of three, and counts them', () => {
 		const text =
 			'[Chorus]\nHold the line\n\n[Verse 1]\nA\n\n[Chorus 2]\nHold the line\n\n[Verse 2]\nB\n\n[Chorus 3]\nHold the line';
@@ -141,7 +141,7 @@ describe('section.unlinked-repeat', () => {
 	});
 
 	// The kinds are grouped separately, so a song that repeats all three says so
-	// three times — one card per group, in document order.
+	// three times, one card per group, in document order.
 	it('groups each kind on its own', () => {
 		expect(
 			findings(
@@ -151,8 +151,8 @@ describe('section.unlinked-repeat', () => {
 	});
 
 	// The common shape: a chorus that departs in the middle and comes back at the
-	// end. All three are in the offer now — the odd one out is a copy with a
-	// difference to keep, not a copy to be left out — and the finding says how
+	// end. All three are in the offer now. The odd one out is a copy with a
+	// difference to keep, not a copy to be left out, and the finding says how
 	// many of them the user still has to reconcile.
 	it('counts the copy that departs rather than leaving it out', () => {
 		const text =
@@ -169,8 +169,8 @@ describe('section.unlinked-repeat', () => {
 	});
 
 	// The anchor is simply the first copy with words in it. It no longer has to be
-	// the most-repeated wording, because the picker no longer overwrites from it —
-	// it only decides which wording wins where the user asks for one.
+	// the most-repeated wording, because the picker no longer overwrites from it.
+	// It only decides which wording wins where the user asks for one.
 	it('anchors on the first copy that has words, wherever it sits', () => {
 		const text =
 			'[Chorus]\nLet it go\n\n[Verse 1]\nA\n\n[Chorus 2]\nHold the line\n\n[Verse 2]\nB\n\n[Chorus 3]\nHold the line';
@@ -191,7 +191,7 @@ describe('section.unlinked-repeat', () => {
 	});
 
 	// The alignment behind `sharesEnough` is quadratic in tokens, and this rule
-	// re-runs it for every same-kind pair on every keystroke inside a member —
+	// re-runs it for every same-kind pair on every keystroke inside a member,
 	// where the picker aligns once, on a press. A repeated song part is tens of
 	// tokens, so the ceiling only ever refuses something that is not one, and it
 	// refuses it silently: the picker still links whatever it is opened on.

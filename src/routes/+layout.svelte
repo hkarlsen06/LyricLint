@@ -12,8 +12,8 @@
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
-	// Provided at the root rather than inside `(app)` so the error page — which
-	// sits above both groups — still resolves the context if it ever announces.
+	// Provided at the root rather than inside `(app)` so the error page, which
+	// sits above both groups, still resolves the context if it ever announces.
 	provideFeedbackState();
 	// The assistant is provided here for the opposite reason as well: both the
 	// rule reference under `(site)` and the workbench under `(app)` open the
@@ -24,8 +24,8 @@
 	/*
 	 * The modal draws nothing until assistant.open() is called, so its dialog,
 	 * conversation, markdown, and Bits UI graph do not belong in every route's
-	 * first navigation. The state remains rooted here — a live answer still
-	 * survives navigation between the rules and the workbench — while the view
+	 * first navigation. The state remains rooted here (a live answer still
+	 * survives navigation between the rules and the workbench) while the view
 	 * joins it only when that state says there is something to show.
 	 */
 	type AssistantHostComponent = typeof import('$lib/ui/assistant/AssistantHost.svelte').default;
@@ -41,8 +41,8 @@
 			})
 			.catch((error: unknown) => {
 				// The latch exists to stop a second import racing the first, so a
-				// refusal has to release it: a chunk that could not be fetched once —
-				// offline, or a deploy that retired it under an open tab — otherwise
+				// refusal has to release it: a chunk that could not be fetched once,
+				// whether offline or through a deploy that retired it under an open tab, otherwise
 				// makes every later `open()` a silent no-op for the life of the tab,
 				// with an unhandled rejection as the only sign. Released, the next
 				// press asks again, which is the one gesture that can succeed.
@@ -52,8 +52,8 @@
 	});
 
 	// A deploy while a tab is open reaches it here, on the user's own next
-	// gesture. A full-page load is already fresh — navigations are network-first
-	// through the worker — but a client-side navigation reuses the running app,
+	// gesture. A full-page load is already fresh (navigations are network-first
+	// through the worker), but a client-side navigation reuses the running app,
 	// stale code included. The version poll (`vite.config.ts`) marks `updated`
 	// once a newer build is live, and the first navigation after that becomes a
 	// full-page one instead, so a hotfix lands without a toast asking for a
@@ -69,7 +69,7 @@
 	// The offline worker is a production promise, and registering it against a dev
 	// server breaks the dev server. It is cache-first over every same-origin GET,
 	// which in dev is every Vite module request, and its miss path throws rather
-	// than failing the way a network error fails — so an ordinary restart or dep
+	// than failing the way a network error fails, so an ordinary restart or dep
 	// re-optimize becomes a rejected dynamic import, which the browser caches
 	// against that module's URL for the life of the document. The tab lands on
 	// `+error.svelte` and cannot leave it. It also answers `static/` from the
@@ -124,7 +124,7 @@
 	     `apple-mobile-web-app-capable` is the same request in the form iOS before
 	     17.4 understands; from 17.4 the manifest's `display` is what answers. It is
 	     deprecated in favour of `mobile-web-app-capable`, which is what every other
-	     browser reads out of the manifest anyway — so the Apple spelling is the one
+	     browser reads out of the manifest anyway, so the Apple spelling is the one
 	     that still buys anything.
 
 	     No `theme_color` in the manifest on purpose: it takes a single value, and
@@ -138,7 +138,7 @@
 
 	     There is deliberately no default <meta name="description"> here. SvelteKit
 	     concatenates heads rather than deduping them, and where two of the same tag
-	     end up in one document the first one wins — a layout-level default would
+	     end up in one document the first one wins, and a layout-level default would
 	     therefore be emitted *above* each rule page's own description and shadow
 	     all forty-seven of them, which is the opposite of what a default is for.
 	     The same reasoning is why there is no layout <title>: it would silently

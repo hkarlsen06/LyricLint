@@ -62,8 +62,8 @@
 		onChooseHeader: (diagnostic: Diagnostic) => void;
 		/**
 		 * Whether the expanded card offers the performer assignment. A section
-		 * that cannot take one — no header, or two styled voices and no plain
-		 * lyrics — gets no button rather than one that only explains itself.
+		 * that cannot take one (no header, or two styled voices and no plain
+		 * lyrics) gets no button rather than one that only explains itself.
 		 */
 		canAssignPerformers?: (diagnostic: Diagnostic) => boolean;
 		onAssignPerformers?: (diagnostic: Diagnostic) => void;
@@ -76,7 +76,7 @@
 		onApplyFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
 		/**
 		 * The batch behind a fix, and the way to apply it. Both come from the
-		 * shell, which plans against the whole visible list — a card only knows
+		 * shell, which plans against the whole visible list; a card only knows
 		 * its own finding.
 		 */
 		fixBatchSize?: (
@@ -329,7 +329,7 @@
 					longer *contains* the head, because the meta line ends in a link to
 					the cited source, and an `<a>` inside a `<button>` is neither valid
 					nor reliably pressable. The link lifts above the stretched layer
-					instead — it is the one place on the card that does something else.
+					instead, and it is the one place on the card that does something else.
 				-->
 				<div class="diagnostic-list__head">
 					<button

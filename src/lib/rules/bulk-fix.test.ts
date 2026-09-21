@@ -24,7 +24,7 @@ function diagnostic(ruleId: string, from: number, to: number, fixes: DiagnosticF
 }
 
 /**
- * One document with two different standardized spellings under one rule — the
+ * One document with two different standardized spellings under one rule, the
  * case the card's batch exists to keep apart.
  */
 function mixedSpellingDocument(): Diagnostic[] {
@@ -153,8 +153,8 @@ describe('the whole-document plan counts what the panel is showing', () => {
 		];
 
 		const plan = planBulkFix(diagnostics);
-		// The dropped fix is not discarded — it is offered again against the next
-		// revision — so it counts as still needing a decision now.
+		// The dropped fix is not discarded, and it is offered again against the next
+		// revision, so it counts as still needing a decision now.
 		expect(plan.automatic).toBe(1);
 		expect(plan.manual).toBe(1);
 	});

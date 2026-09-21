@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /*
- * AGENTS.md routes agents to current contracts in docs/subsystems/ — the
+ * AGENTS.md routes agents to current contracts in docs/subsystems/, and the
  * split only works while the routing is honest. A doc nothing routes to is
  * never read, a routed doc that does not exist is a dead pointer, and a
  * `Touches:` path that no longer exists sends its reader to code that moved.
@@ -18,7 +18,7 @@ const docs = readdirSync(subsystemsDir).filter((name) => name.endsWith('.md'));
 
 describe('subsystem docs routing', () => {
 	it('routes every doc from the AGENTS.md table', () => {
-		// A prose mention elsewhere in AGENTS.md must not stand in for a table row —
+		// A prose mention elsewhere in AGENTS.md must not stand in for a table row:
 		// the table is the routing mechanism, so the check reads only its rows.
 		const tableRows = agents.split('\n').filter((line) => line.startsWith('|'));
 		expect(tableRows.length).toBeGreaterThan(0);

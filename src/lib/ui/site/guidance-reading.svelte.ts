@@ -8,8 +8,8 @@
  * row and keeping it in the column.
  *
  * A topic page is a column of conventions rather than one document, which is
- * what makes this worth having: `aria-current` used to be the *hash* — where
- * the reader was sent — so it went stale the moment they scrolled off that
+ * what makes this worth having: `aria-current` used to be the *hash*, where
+ * the reader was sent, so it went stale the moment they scrolled off that
  * entry, and a topic opened without a fragment marked no row at all. A list
  * beside a page it does not follow is a list that has stopped answering "where
  * am I".

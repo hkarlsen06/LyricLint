@@ -19,7 +19,7 @@ describe('the block form of a citation', () => {
 	it('says the press opens a tab, since the mark beside it cannot', async () => {
 		// The external-link glyph is aria-hidden and the favicon's alt is empty, so
 		// this note is the whole of what tells a screen reader the link leaves the
-		// page — the convention every external link on the site pages follows.
+		// page, the convention every external link on the site pages follows.
 		const screen = await render(SourceLink, { source: SOURCE });
 
 		const link = screen.container.querySelector('.source-reference a')!;

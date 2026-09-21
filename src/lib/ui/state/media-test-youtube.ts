@@ -11,7 +11,7 @@ import type { YouTubeApi, YouTubePlayerLike, YouTubePlayerOptions } from './medi
  *
  * Test-only, and imported only from `*.test.ts`. It is here rather than beside
  * one of them because the player's tests, the store's, and the strip's all need
- * it — the same reason `media-test-audio.ts` sits here.
+ * it, the same reason `media-test-audio.ts` sits here.
  */
 
 /** The numbers the IFrame API uses for player state. */

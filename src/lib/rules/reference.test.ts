@@ -16,7 +16,7 @@ describe('rule reference derivation', () => {
 	it('derives a page for every enabled rule from its policy case', () => {
 		// `ruleReferences` throws for a rule with no policy case or whose invalid
 		// example produces no diagnostic, so a new rule cannot ship without a
-		// reference page — this assertion is what turns that contract into CI.
+		// reference page, and this assertion is what turns that contract into CI.
 		const references = ruleReferences();
 		expect(references.map((reference) => reference.id)).toEqual(
 			enabledRules.map((rule) => rule.id)
@@ -141,7 +141,7 @@ describe('rule reference derivation', () => {
 		expect(spellings.lookupTerms).toContain('tryna');
 		expect(spellings.lookupTerms).toContain("y'all");
 		// And the prose the page is mostly made of, which for these eight rules is
-		// the table's own description and the conditions written down its rows —
+		// the table's own description and the conditions written down its rows,
 		// deduped, because a gate is repeated on row after row and a haystack has
 		// no use for the copies.
 		expect(spellings.lookupTerms).toContain('remains valid when it means cousin');
@@ -156,7 +156,7 @@ describe('rule reference derivation', () => {
 		// data, so it is copied into all 60 prerendered payloads; what the search
 		// needs is 5.8% of that payload against the full table's 16.2%, for content
 		// six of every seven pages never draw. The page loads its own through
-		// `+page.server.ts`, which is why the structure never rides along — only
+		// `+page.server.ts`, which is why the structure never rides along, only
 		// the text.
 		const payload = JSON.stringify(groupedRuleReferences()).length;
 		const terms = references.reduce(
@@ -187,8 +187,8 @@ describe('rule reference derivation', () => {
 	it('opens the index on what a transcriber actually looks up', () => {
 		// `groupedRuleReferences` throws for a family with no place in `groupOrder`,
 		// so exhaustiveness is already a build error and needs no assertion. What is
-		// worth pinning is the decision itself: this order is editorial — nothing
-		// here is measured, because the product measures nothing — so it has to be
+		// worth pinning is the decision itself: this order is editorial. Nothing
+		// here is measured, because the product measures nothing, so it has to be
 		// something a reorder changes on purpose rather than a side effect of the
 		// order the rules happen to run in.
 		const titles = groupedRuleReferences().map((group) => group.title);

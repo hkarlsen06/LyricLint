@@ -9,7 +9,7 @@
  * **That cadence is advisory, and deliberately so.** `uses` lives only in the
  * cookie, so a client that replays the copy it was first issued keeps the count
  * at zero and is never rechallenged inside the cookie's TTL. What replaying
- * buys is one Turnstile pass instead of several — and nothing else: the minute
+ * buys is one Turnstile pass instead of several, and nothing else: the minute
  * throttles, the daily counts, the concurrency slots and the spend ceilings are
  * all keyed on the session and IP hashes in the Durable Objects, which the
  * cookie cannot move, and `abuseHash` still forces a fresh challenge the moment
@@ -150,7 +150,7 @@ export function turnstileVerifier(
 			body
 		});
 		if (!response.ok) throw new ApiError('provider_error', 'Challenge verification unavailable.');
-		// SAFETY: nothing is trusted from this shape — `success` is re-checked against the
+		// SAFETY: nothing is trusted from this shape; `success` is re-checked against the
 		// literal `true` and `hostname` against the allowlist below, so a body missing or
 		// mistyping either field is refused rather than believed.
 		const result = (await response.json()) as TurnstileVerification;

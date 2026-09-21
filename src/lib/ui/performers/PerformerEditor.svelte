@@ -26,7 +26,7 @@
 
 	async function beginRename(): Promise<void> {
 		// Seeded at mount and never again, this field opened on whatever the name
-		// was when the row was first drawn — and a rename made inside a header
+		// was when the row was first drawn, and a rename made inside a header
 		// reaches the roster through `adoptHeaderRename` without this instance
 		// going anywhere. The row said KrissyC, the field said KrissyB, and one
 		// Enter wrote every header back. The field is the row's name at the moment
@@ -89,7 +89,7 @@
 			></span>
 			<!-- The name is the rename. A pencil beside it was a second control for
 			     the thing the user is already pointing at, so pressing the name opens
-			     the field in its place — and while a removal is pending it is text
+			     the field in its place, and while a removal is pending it is text
 			     again, because that question is the row's only one.
 
 			     A name, not an emphasis: six bold rows in a column were the same

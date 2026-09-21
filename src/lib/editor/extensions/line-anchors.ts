@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/line-anchors.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/line-anchors.md. Read it before changing this file, and update it with any behavior change.
 import {
 	EditorState,
 	Facet,
@@ -40,7 +40,7 @@ export type { LineAnchor };
  * would offer a stamp control for a line a run refuses to visit. The document
  * rides along because a line's own text cannot answer alone any more: the
  * opening line of a multi-line annotation starts with `[` and carries no `]`,
- * and only the document knows the `](id)` that closes it — sung text that gets
+ * and only the document knows the `](id)` that closes it: sung text that gets
  * timed, not structure.
  */
 export function isStampableLine(line: Line, doc: Text): boolean {
@@ -51,13 +51,13 @@ export function isStampableLine(line: Line, doc: Text): boolean {
  * The anchor's own value: a time, over the line's text.
  *
  * `MapMode.TrackDel` is the whole reason this is a `RangeValue` and not a plain
- * array — deleting the line an anchor sits on has to delete the anchor, and
+ * array: deleting the line an anchor sits on has to delete the anchor, and
  * mapping is what knows that happened. An array of line numbers would quietly
  * point at whatever text slid up into the gap.
  *
  * It spans the line rather than marking its start, and that distinction is
  * load-bearing. A point at `line.from` sits on the *boundary* of the deletion
- * that removes the line, and a boundary is not inside anything — so deleting a
+ * that removes the line, and a boundary is not inside anything, so deleting a
  * line left its anchor behind, sharing the next line with that line's own
  * anchor, and a jump went to whichever of the two came first. An anchor belongs
  * to the line's text, so it covers the line's text and dies with it.
@@ -80,8 +80,8 @@ export const setLineAnchorsEffect = StateEffect.define<readonly LineAnchor[]>();
 /**
  * Anchor the line containing `pos` to `time`, replacing whatever was there.
  *
- * Every anchor is deliberate — `Ctrl-Alt-M`, the column's own control, or a tap
- * in sync mode — so there is nothing to arbitrate: correcting a wrong time is
+ * Every anchor is deliberate (`Ctrl-Alt-M`, the column's own control, or a tap
+ * in sync mode), so there is nothing to arbitrate: correcting a wrong time is
  * most of what all three are for. There used to be a second, automatic kind
  * that never overwrote, and the flag telling them apart went when it did.
  */
@@ -95,7 +95,7 @@ export const clearLineAnchorEffect = StateEffect.define<{ pos: number }>();
  *
  * The stamp control on an *anchored* line no longer writes the playhead over its
  * time. A line that already carries one is usually a line whose time is nearly
- * right — a tap landed late, or a run was a beat behind — so re-stamping it from
+ * right (a tap landed late, or a run was a beat behind), so re-stamping it from
  * wherever the tape happens to be sitting is almost never the correction wanted.
  * The pencil opens `−` and `+` beside the time instead.
  */
@@ -116,7 +116,7 @@ const anchorNudgeSeconds = 0.25;
  * Tell the column where the audio is, or `undefined` when nothing is attached.
  *
  * This moves nothing. It marks one cell, and that is the entire extent of what
- * playback is allowed to do to the document — outside sync mode, which is a
+ * playback is allowed to do to the document, outside sync mode, which is a
  * mode the user deliberately entered and is not typing in.
  */
 export const setPlayheadEffect = StateEffect.define<number | undefined>();
@@ -125,7 +125,7 @@ export const setPlayheadEffect = StateEffect.define<number | undefined>();
  * Whether the tape is actually running, alongside where it is.
  *
  * The wash reads this and nothing else does: a paused tape still has a
- * position — the column keeps drawing, the marked cell stays marked — but a
+ * position (the column keeps drawing, the marked cell stays marked), but a
  * pause that lasts puts the band across the text to rest, because the pause is
  * the typing half of the transcription loop and a bright band under the words
  * being edited shouts about audio that is not running.
@@ -155,12 +155,12 @@ const followPlayheadField = StateField.define<boolean>({
 /**
  * Extensions that need the reading-line follow to stand down contribute true.
  *
- * This is not the user's follow toggle — that is `followPlayheadField`, and it
+ * This is not the user's follow toggle: that is `followPlayheadField`, and it
  * must stay the user's alone. A selection-scoped sync run is the contributor
  * today: its lines were on screen when the user selected them, and the follow
  * pulling the document to a reading position mid-run is exactly the scroll
  * that mode has no use for. A facet rather than a read of the sync field,
- * because this module is what `lyric-sync.ts` imports from — asking the
+ * because this module is what `lyric-sync.ts` imports from: asking the
  * question directly would close an import cycle.
  */
 export const suppressPlayheadFollow = Facet.define<boolean, boolean>({
@@ -170,8 +170,8 @@ export const suppressPlayheadFollow = Facet.define<boolean, boolean>({
 interface LineAnchorState {
 	anchors: RangeSet<AnchorValue>;
 	/**
-	 * Where the audio is, and — because the shell pushes `undefined` whenever
-	 * nothing is attached — whether there is any audio at all. The timestamp
+	 * Where the audio is, and (because the shell pushes `undefined` whenever
+	 * nothing is attached) whether there is any audio at all. The timestamp
 	 * column draws off exactly this: a workbench with no song has no times to
 	 * show and no line worth stamping, so the whole column stays out of the
 	 * editor rather than standing there as an empty rail.
@@ -185,7 +185,7 @@ interface LineAnchorState {
 	/**
 	 * The wash has been put to rest by a pause that lasted `washRestDelayMs`.
 	 *
-	 * Only the band across the text answers to this — the line number and the
+	 * Only the band across the text answers to this: the line number and the
 	 * timestamp keep the playhead's color, which is how a parked tape stays
 	 * findable. It clears here, in the field, the moment playback resumes or the
 	 * marked line changes; only the *setting* arrives from outside, because a
@@ -207,8 +207,8 @@ interface LineAnchorState {
 /**
  * `m:ss`, duplicated from the media player on purpose.
  *
- * The editor may not import from `$lib/ui` — it is the rule that keeps the
- * shell replaceable — and four lines of arithmetic is a cheaper price than the
+ * The editor may not import from `$lib/ui` (it is the rule that keeps the
+ * shell replaceable), and four lines of arithmetic is a cheaper price than the
  * dependency.
  */
 export function formatAnchorTime(seconds: number): string {
@@ -219,8 +219,8 @@ export function formatAnchorTime(seconds: number): string {
 /**
  * `m:ss.cc`, for a cell whose nudge pair is open and nothing else.
  *
- * The anchors are not whole seconds and never were — a sync tap is written 50ms
- * early, and the pair moves a quarter second at a time — so `m:ss` alone answers
+ * The anchors are not whole seconds and never were (a sync tap is written 50ms
+ * early, and the pair moves a quarter second at a time), so `m:ss` alone answers
  * three presses in every four with no visible change. At rest it is the right
  * readout and this one is noise, which is why the two are separate functions
  * rather than a flag. The announcements stay whole for the same reason:
@@ -238,7 +238,7 @@ function formatAnchorTimePrecise(seconds: number): string {
  *
  * Everything in it is a pointer affordance and only that, because CodeMirror
  * puts `aria-hidden="true"` on the whole `.cm-gutters` container and a descendant
- * cannot opt back in — `aria-hidden="false"` under a hidden ancestor does
+ * cannot opt back in: `aria-hidden="false"` under a hidden ancestor does
  * nothing. So nothing here carries an accessible name: a name nothing can read is
  * a claim to accessibility rather than the thing itself, and `tabIndex = -1`
  * follows from the same fact, since a focusable control inside an `aria-hidden`
@@ -277,21 +277,21 @@ class TimeGutterMarker extends GutterMarker {
 
 		// One at each end of the number, lifted off the rail: `−` hangs outside the
 		// cell entirely and `+` follows the last digit. Set as two glyphs after the
-		// time they change, they read as a suffix of it — `0:12.88 −+` — which is
+		// time they change, they read as a suffix of it (`0:12.88 −+`), which is
 		// three things in a row where there is one control, one value and one
 		// control.
 		if (this.adjusting) cell.append(nudgeButton(-1));
 
 		// The time is the play control. A visible timestamp is the most obvious
 		// thing in the world to press to hear that moment, so it needs no icon of
-		// its own — and a separate play glyph would be a second control for the
+		// its own, and a separate play glyph would be a second control for the
 		// gesture the pointer is already on.
 		const time = document.createElement('button');
 		time.type = 'button';
 		time.tabIndex = -1;
 		time.className = 'll-time-value';
 		if (this.time === undefined) {
-			// A dash, not a blank. A column of empty cells is an invisible column —
+			// A dash, not a blank. A column of empty cells is an invisible column:
 			// there is nothing on screen to say the rail exists, what it holds, or
 			// that a line can be timed at all, so the feature reads as absent until
 			// the pointer happens to cross the one cell that answers. A dash is the
@@ -304,8 +304,8 @@ class TimeGutterMarker extends GutterMarker {
 		} else {
 			if (this.current) time.classList.add('ll-time-value--current');
 			// Hundredths only while the pair is open. A column of `m:ss.cc` is a
-			// column of two digits nobody is reading — the resting job of this rail is
-			// to say where a line sits in the song, which whole seconds answer — but
+			// column of two digits nobody is reading. The resting job of this rail is
+			// to say where a line sits in the song, which whole seconds answer, but
 			// they are exactly what a quarter-second step needs on screen, and a press
 			// nothing answers reads as broken. So the precision arrives with the
 			// controls that spend it and leaves with them.
@@ -314,7 +314,7 @@ class TimeGutterMarker extends GutterMarker {
 				: formatAnchorTime(this.time);
 			// No `title`: the cell names itself through the shared box instead (the
 			// delegated hover below), which carries the keystroke a `title` never
-			// could — and two tooltips for one control is the platform's and ours
+			// could, and two tooltips for one control is the platform's and ours
 			// disagreeing in front of the user.
 			time.dataset.anchorSeek = String(this.time);
 		}
@@ -332,7 +332,7 @@ class TimeGutterMarker extends GutterMarker {
 
 		// One control for the write, whichever write it is: on an empty line it
 		// stamps the playhead, on a timed one it opens the pair above. It carries no
-		// time in its hint on purpose — the playhead moves several times a second
+		// time in its hint on purpose: the playhead moves several times a second
 		// and a label that named it would go stale between the hover and the press.
 		// Which write is on offer rides the element as data, because the hover that
 		// names it is delegated and must not read editor state to answer.
@@ -370,8 +370,8 @@ class TimeGutterMarker extends GutterMarker {
  * line number rather than decorate it.
  *
  * It rides the `lineNumberMarkers` facet rather than `gutterLineClass`, because
- * the latter classes the matching element in *every* gutter — the timestamp cell
- * and the performer bar included — for a fact that is only about this one.
+ * the latter classes the matching element in *every* gutter (the timestamp cell
+ * and the performer bar included) for a fact that is only about this one.
  */
 const seekableLineMarker = new (class extends GutterMarker {
 	override elementClass = 'll-line-seek';
@@ -383,7 +383,7 @@ const seekableLineMarker = new (class extends GutterMarker {
  * Tinting the timestamp alone asked the eye to follow four muted characters at
  * one edge of the document while reading the words at the other. The lyric gets
  * a band and its rails go yellow with it, and that is the one thing playback is
- * allowed to draw on the document — it still moves nothing.
+ * allowed to draw on the document: it still moves nothing.
  *
  * This is the case `gutterLineClass` is for and `seekableLineMarker` is not: the
  * row includes its line number and its timestamp cell, so classing the matching
@@ -395,7 +395,7 @@ const currentLine = Decoration.line({ class: 'll-current-line' });
  * The same line once a pause has lasted: the band fades out and only the rails
  * keep the color. The pause is the typing half of the transcription loop, so
  * the one thing that leaves is the tint sitting directly under the words being
- * worked on — the line number and the timestamp stay yellow, which is how a
+ * worked on: the line number and the timestamp stay yellow, which is how a
  * parked tape stays findable, and the marked cell never stops being marked.
  */
 const currentLineRested = Decoration.line({ class: 'll-current-line ll-current-line--rested' });
@@ -419,8 +419,8 @@ function adjustingLineStart(state: EditorState): number | undefined {
 /**
  * Printed as pressed, the action tray's idiom (`EditorActions.svelte`).
  *
- * The gutters are pointer-only surfaces — CodeMirror holds them `aria-hidden`
- * and nothing in them may pretend otherwise — so the shared box these captions
+ * The gutters are pointer-only surfaces (CodeMirror holds them `aria-hidden`
+ * and nothing in them may pretend otherwise), so the shared box these captions
  * feed is the one place their keyboard equivalents are ever named on screen.
  * The commands themselves announce, but an announcement is feedback for a press
  * already made, not how anybody discovers the key.
@@ -434,7 +434,7 @@ const seekKeystroke = mac ? '⌃⌥⏎' : 'Ctrl+Alt+Enter';
  * shared box should say about it.
  *
  * Delegated off the gutter rather than attached per cell, because the column
- * rebuilds whenever the playhead crosses a line — a listener pair tied to one
+ * rebuilds whenever the playhead crosses a line: a listener pair tied to one
  * element would be orphaned mid-hover. These are the native `title`s the cells
  * used to carry, moved into the box every named control uses, plus the one fact
  * a `title` never held: the keystroke that does the same thing without aiming.
@@ -443,7 +443,7 @@ const seekKeystroke = mac ? '⌃⌥⏎' : 'Ctrl+Alt+Enter';
  *
  * **The keystroke is named only on the caret's own line.** `Ctrl-Alt-Enter` and
  * `Ctrl-Alt-M` act on the line the caret is in, and a cell is any line the
- * pointer happens to cross — so on every other row the caption promised "the
+ * pointer happens to cross, so on every other row the caption promised "the
  * keystroke that does the same thing" and delivered an action somewhere the
  * user was not looking, which was reported exactly that way. Hovering your own
  * line's cell is also the moment the disclosure is true *and* wanted: the
@@ -479,7 +479,7 @@ function timeGutterHint(
 	const stamp = target?.closest<HTMLElement>('[data-anchor-stamp]');
 	if (!stamp) return undefined;
 	// The pencil opens the ± pair, and re-stamping a timed line is `Ctrl-Alt-M`'s
-	// own press — different writes, so the pencil names no keystroke it does not
+	// own press: different writes, so the pencil names no keystroke it does not
 	// perform. Only the pin, whose press *is* the pointer's `Ctrl-Alt-M`, teaches
 	// it.
 	return stamp.dataset.anchored === 'true'
@@ -498,7 +498,7 @@ function timeGutterHintOver(_view: EditorView, _line: BlockInfo, event: Event): 
 	return false;
 }
 
-/** Release only on a true leave — crossing into a child is not one. */
+/** Release only on a true leave: crossing into a child is not one. */
 function timeGutterHintOut(_view: EditorView, _line: BlockInfo, event: Event): boolean {
 	const hint = timeGutterHint(event);
 	if (!hint) return false;
@@ -512,11 +512,11 @@ function timeGutterHintOut(_view: EditorView, _line: BlockInfo, event: Event): b
  * Names an anchored line's number, and the keystroke that plays without aiming.
  *
  * The number is the second way to play a line, and its whole affordance was a
- * cursor change — which answers on some rows and silently not on others, and is
+ * cursor change, which answers on some rows and silently not on others, and is
  * the faintest signal in the editor. `seekableLineMarker` is an `elementClass`
  * with deliberately no DOM of its own, so there is nothing for an attachment to
  * hold; the hover is delegated off the gutter exactly as the timestamp column's
- * is, and the class — computed from the same field the press answers from — is
+ * is, and the class (computed from the same field the press answers from) is
  * what says a row is pressable at all.
  */
 export function anchorHintsOnLineNumbers() {
@@ -550,8 +550,8 @@ export function anchorHintsOnLineNumbers() {
  * characters of muted text, and it is on the side of the document the eye is
  * already using to find a line. It is safe to make it seek for the same reason
  * the timestamp is: a gutter sits outside `.cm-content`, so a press there never
- * places a caret, and the rule that keeps seeking out of the text — clicking a
- * line is how a caret is placed, and is the most frequent gesture in the editor —
+ * places a caret, and the rule that keeps seeking out of the text (clicking a
+ * line is how a caret is placed, and is the most frequent gesture in the editor)
  * does not reach here.
  *
  * It answers only on a line that has a time. Returning false leaves the press
@@ -563,7 +563,7 @@ export function anchorSeekOnLineNumber(
 	options: LineAnchorOptions
 ): (view: EditorView, line: BlockInfo, event: Event) => boolean {
 	return (view, line) => {
-		// A press is a control the user has finished asking about — the rule the
+		// A press is a control the user has finished asking about, the rule the
 		// attachment's own click listener states, kept by hand here because the
 		// hover is delegated.
 		hideControlHint();
@@ -654,8 +654,8 @@ function anchorsFromLines(
  * a line is deleted its anchor and the following line's anchor both land on the
  * same line, which is *also* exactly what happens when backspace merges two
  * lines. The two are indistinguishable from the result and want opposite
- * answers — the deleted line's anchor should go, the merged line's earlier
- * anchor should stay — so only the change set can separate them.
+ * answers (the deleted line's anchor should go, the merged line's earlier
+ * anchor should stay), so only the change set can separate them.
  *
  * `touchesRange` is the obvious tool and the wrong one. Its `'cover'` verdict is
  * strict on both sides (`pos < from && end > to`), and deleting a line produces
@@ -689,8 +689,8 @@ function dropErasedAnchors(
  * collapse test above and `MapMode.TrackDel`, and for a deleted line that is
  * the right answer. But an edit can cover every character of a line without
  * removing the line. Wrapping a lyric in performer tags replaces `Gamma` with
- * `<i>Gamma</i>` — no shared first or last character, so even the narrowed
- * edit spans the whole line — and a wrapper closed several lines down arrives
+ * `<i>Gamma</i>` (no shared first or last character, so even the narrowed
+ * edit spans the whole line), and a wrapper closed several lines down arrives
  * as one change spanning every line between. Assigning performers to a
  * selection therefore silently cleared its timestamps.
  *
@@ -698,7 +698,7 @@ function dropErasedAnchors(
  * then the k-th line of what was deleted is the k-th line of what was
  * inserted, and the anchor's time still belongs to it. These times only fill
  * lines the mapped set left bare, so nothing here overrides an anchor the
- * ordinary pipeline kept — and a change that leaves the line with no text is
+ * ordinary pipeline kept, and a change that leaves the line with no text is
  * not rescued, because deleting every word of a line stays what it always
  * was: the end of that anchor.
  */
@@ -750,7 +750,7 @@ function rescueRewrittenLines(
  * Re-seat every anchor on the line it now covers, one anchor per line.
  *
  * Mapping keeps an anchor with its text but not necessarily flush with the
- * line's bounds, and it cannot prevent two anchors arriving on one line — press
+ * line's bounds, and it cannot prevent two anchors arriving on one line: press
  * backspace at the start of a line and two of them merge along with the text.
  * Where that happens the earlier time wins, because the merged line begins with
  * the earlier line's words and that is the moment its audio starts.
@@ -817,7 +817,7 @@ function withAnchor(
  * Which anchor the playhead is inside.
  *
  * An anchor owns the audio from its own time until the next anchor's, so this
- * is the last anchor at or before the playhead — not the nearest one, which
+ * is the last anchor at or before the playhead, not the nearest one, which
  * would jump the marker forward halfway through a line.
  */
 function currentAnchorFrom(
@@ -865,7 +865,7 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 		let playing = value.playing;
 		let washRested = value.washRested;
 		// The open pair belongs to a line, so it travels with the text like an
-		// anchor does — and it closes with the draft being read back.
+		// anchor does, and it closes with the draft being read back.
 		let adjusting =
 			value.adjusting !== undefined && transaction.docChanged
 				? transaction.changes.mapPos(value.adjusting)
@@ -905,7 +905,7 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 
 		const currentFrom = currentAnchorFrom(anchors, playhead);
 		// The rested wash belongs to one pause on one line. Playback resuming ends
-		// the pause, and the mark moving means the tape was sent somewhere — a
+		// the pause, and the mark moving means the tape was sent somewhere, a
 		// paused seek included, where the wash coming back *is* the feedback for
 		// where it landed. The old mark is mapped through the edit first, exactly
 		// as the follow listener maps it: an edit above the marked line shifts its
@@ -967,7 +967,7 @@ export function hasAnchorAt(state: EditorState, pos: number): boolean {
  * The nearest anchored time at or above the line containing `pos`.
  *
  * `Ctrl-Alt-Enter`'s question. Answering only for the caret's own line made
- * the chord a refusal on most of a part-timed song — the caret is usually a
+ * the chord a refusal on most of a part-timed song: the caret is usually a
  * line or two past the last timed line, and "play the passage I am in" is what
  * the press means. The nearest anchor above is that passage's own start: the
  * same reading the marked cell gives the playhead, from the other direction.
@@ -989,7 +989,7 @@ export function anchorTimeAtOrAbove(state: EditorState, pos: number): number | u
  *
  * A third from the top: far enough down that the lines already timed stay
  * readable above it, and high enough that the two thirds below show what is
- * coming — which is what the user is reading ahead into while they wait for the
+ * coming, which is what the user is reading ahead into while they wait for the
  * next line to start.
  */
 const readingLineFraction = 1 / 3;
@@ -999,7 +999,7 @@ const readingLineFraction = 1 / 3;
  *
  * Every advance targets the third, wherever the run started. It used to leave the
  * caret alone anywhere between the top and the reading line, so a run resumed
- * mid-song never came down to it — the caret just sat wherever the document
+ * mid-song never came down to it: the caret just sat wherever the document
  * happened to be scrolled. Near the top of the document the browser clamps the
  * negative target away at zero, which is the behaviour that band was really
  * providing.
@@ -1007,12 +1007,12 @@ const readingLineFraction = 1 / 3;
  * `scrollTo` rather than `scrollIntoView`, because CodeMirror's own scroll is a
  * nearest-edge nudge with no notion of a fixed reading position. Smooth, because
  * the document moving a line at a time under someone reading along is easier to
- * follow than a jump — a new `scrollTo` supersedes an in-flight one, so taps
+ * follow than a jump: a new `scrollTo` supersedes an in-flight one, so taps
  * faster than the animation just retarget it, and each tap recomputes from live
  * positions so any mid-animation drift corrects itself on the next one.
  *
  * `lineBlockAt` rather than `coordsAtPos`, because the target is routinely not
- * on screen — a seek across the song marks a line far outside the rendered
+ * on screen: a seek across the song marks a line far outside the rendered
  * viewport, and `coordsAtPos` answers null there, which made the follow silently
  * do nothing for exactly the jumps most worth following. The block's estimated
  * top is near enough: CodeMirror re-measures as the scroll brings the region in,
@@ -1030,7 +1030,7 @@ export function holdReadingLine(view: EditorView, pos: number): void {
 /** Roughly one line's worth of travel, eased. */
 const readingScrollMs = 380;
 
-/** `cubic-bezier(0.65, 0, 0.35, 1)` — the standard ease-in-out, solved directly. */
+/** `cubic-bezier(0.65, 0, 0.35, 1)`, the standard ease-in-out, solved directly. */
 function easeInOutCubic(t: number): number {
 	return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 }
@@ -1076,7 +1076,7 @@ function tweenScroll(scroller: HTMLElement, to: number): void {
  * moves focus, because the press has already said where the user is going.
  *
  * It listens on the document rather than the editor, since most of what is
- * "anywhere else" — the panel, the toolbar, the transport — is outside it. The
+ * "anywhere else" (the panel, the toolbar, the transport) is outside it. The
  * cell's own two controls are exempt: the pair has to survive being pressed, and
  * the pencil is its own way back out.
  */
@@ -1113,7 +1113,7 @@ export const washRestDelayMs = 2000;
  * Count the pause down, and say so when it lasts.
  *
  * The timer lives out here because a field cannot count time; everything else
- * about the rested wash — every way it comes back — is the field's own rule.
+ * about the rested wash (every way it comes back) is the field's own rule.
  * The countdown belongs to one pause on one line: playback resuming or the
  * mark moving cancels it, and the mark moving *while paused* restarts it, so a
  * paused seek shows the band on the line it landed on and then rests it again.
@@ -1136,7 +1136,7 @@ const restWashAfterPause = ViewPlugin.fromClass(
 				this.clear();
 				return;
 			}
-			// The same pause on the same line keeps its countdown — mapped through
+			// The same pause on the same line keeps its countdown, mapped through
 			// the edit for the follow listener's reason, so typing above the marked
 			// line does not hand the pause a fresh delay.
 			const beforeFrom =
@@ -1176,7 +1176,7 @@ const restWashAfterPause = ViewPlugin.fromClass(
 
 interface LineAnchorOptions {
 	/**
-	 * Seek the audio. Called only from a press on a timestamp — never from a caret
+	 * Seek the audio. Called only from a press on a timestamp, never from a caret
 	 * move, a click in the text, or a selection.
 	 */
 	onSeek(time: number): void;
@@ -1203,7 +1203,7 @@ interface LineAnchorOptions {
  * It is the whole of what line anchoring draws. There was a dot in a left gutter
  * before this, and it lost on both counts: the left side already carries line
  * numbers and the performer voice bars, so a third lane crowded it, and a dot
- * says only *that* a line is anchored — never to when. A column of times says
+ * says only *that* a line is anchored, never to when. A column of times says
  * both, and it is where the eye already goes to check timings.
  *
  * It draws whenever audio is attached, anchors or not, because an empty cell that
@@ -1252,7 +1252,7 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 		// The playhead moving onto another anchored line pulls the document with it,
 		// parked at the same reading line sync mode uses. This is the one thing
 		// playback is allowed to do to the document outside sync mode, and it is
-		// keyed on `currentFrom` — the marked line — so a tick that stays inside one
+		// keyed on `currentFrom` (the marked line), so a tick that stays inside one
 		// line costs nothing.
 		followPlayheadField,
 		EditorView.updateListener.of((update) => {
@@ -1262,7 +1262,7 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 			const after = update.state.field(lineAnchorField).currentFrom;
 			if (after === undefined) return;
 			// `currentFrom` is an offset, and an edit above the marked line shifts
-			// every offset below it — so the raw values differ on a keystroke that
+			// every offset below it, so the raw values differ on a keystroke that
 			// moved no mark at all, and comparing them scrolled the document under
 			// someone typing. Map the old position through the edit first: a mark
 			// that only travelled with the text is not the playhead crossing lines.
@@ -1287,7 +1287,7 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 			class: 'll-time-gutter',
 			side: 'after',
 			// `lineMarker` rather than a marker `RangeSet`, because every line gets a
-			// cell — an unanchored one is an empty slot holding the column's width
+			// cell: an unanchored one is an empty slot holding the column's width
 			// and offering the control that fills it.
 			lineMarker: (view, line) => {
 				const field = view.state.field(lineAnchorField);
@@ -1295,7 +1295,7 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 				const found = anchorOnLine(view.state, field.anchors, line.from);
 				// A line that will never be timed is drawn nothing: no dash, and no
 				// control to time it with. The dash means "a value goes here and is not
-				// set yet", which is false on a blank line and on a section header — and
+				// set yet", which is false on a blank line and on a section header, and
 				// it cost a real bug, because an untimed lyric line wore the same mark as
 				// the structure around it and read as finished work. A cell still draws
 				// where a time exists, since `Ctrl-Alt-M` may put one anywhere and a
@@ -1326,7 +1326,7 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 				);
 			},
 			// No `initialSpacer`. The column's width is a constant in the theme, so a
-			// spacer reserves nothing CSS has not already reserved — and it is a real
+			// spacer reserves nothing CSS has not already reserved, and it is a real
 			// marker, drawn with its own controls, in the gutter of a document that
 			// may have no anchors at all.
 			domEventHandlers: {
@@ -1335,7 +1335,7 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 				mouseover: timeGutterHintOver,
 				mouseout: timeGutterHintOut,
 				mousedown: (view, line, event) => {
-					// The box must not survive the state it described — a press on the
+					// The box must not survive the state it described: a press on the
 					// pin turns it into the pencil.
 					hideControlHint();
 					const target = event.target instanceof Element ? event.target : null;
@@ -1372,7 +1372,7 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 					if (!target?.closest('[data-anchor-stamp]')) return false;
 
 					// A timed line's pencil opens the pair rather than writing anything,
-					// and pressing it again is the way back out — the same press that
+					// and pressing it again is the way back out: the same press that
 					// asked the question answers it.
 					if (hasAnchorAt(view.state, line.from)) {
 						event.preventDefault();
@@ -1416,7 +1416,7 @@ export const lineAnchorTheme = EditorView.baseTheme({
 		// an empty row as on an anchored one, and the same open as closed, so neither
 		// anchoring a song nor correcting a time moves a wrap point in the document.
 		// It is a `min-width` on a `border-box` element, so it has to cover the
-		// element's own inline padding as well — reserving only the content leaves
+		// element's own inline padding as well: reserving only the content leaves
 		// the row's contents governing the width, which is how the number slid
 		// sideways once already: `+` is a shade wider than the glyph it replaces,
 		// and with no slack the gutter grew by exactly that. One `--space-4` is that
@@ -1424,11 +1424,11 @@ export const lineAnchorTheme = EditorView.baseTheme({
 		minWidth: 'calc(9ch + var(--space-4) + var(--space-4))',
 		// The inline end is the scrollbar's lane, and it is wider than the inline
 		// start on purpose: this column is the last thing before the scroller's own
-		// edge, so whatever sits at the end of the cell — `+` while the pair is open,
-		// the stamp glyph the rest of the time — is what a vertical scrollbar lands
+		// edge, so whatever sits at the end of the cell (`+` while the pair is open,
+		// the stamp glyph the rest of the time) is what a vertical scrollbar lands
 		// on. At `--space-2` it did. A classic bar takes its width out of the
 		// scrollport, so the sticky column stops beside it and eight pixels is merely
-		// a tight gap; an overlay bar — macOS, and any touch device — takes no layout
+		// a tight gap; an overlay bar (macOS, and any touch device) takes no layout
 		// space at all and paints over the last dozen or so pixels of the scrollport,
 		// where it also wins the press, so aiming at `+` scrubbed the document
 		// instead. The lane is the width the widest of those bars needs, which is the
@@ -1442,7 +1442,7 @@ export const lineAnchorTheme = EditorView.baseTheme({
 		// Top, not centre, because a gutter element is as tall as the block it
 		// stands beside: a lyric long enough to wrap makes this box two or three
 		// lines deep, and centred in it the time slid to the middle of the block
-		// while the line number stayed on the first row — two facts about one line,
+		// while the line number stayed on the first row, two facts about one line,
 		// drawn on different rows. The cell below takes one line of that height and
 		// centres inside it, so where the time sits is decided by the row it is
 		// about rather than by how far the words ran on.
@@ -1470,19 +1470,19 @@ export const lineAnchorTheme = EditorView.baseTheme({
 		color: 'var(--color-text)'
 	},
 	// Where the audio is. Yellow rather than the accent, because the accent is the
-	// caret's own tint and the two are on screen together — a blue wash under a
+	// caret's own tint and the two are on screen together: a blue wash under a
 	// blue-washed active line says one thing twice and neither clearly.
 	'.ll-time-value--current': {
 		color: 'var(--color-playhead)'
 	},
 	// The wash is the text's alone. A gutter is a rail of marks a few characters
-	// wide, and a band behind one is mostly empty tint at the edge of the row —
+	// wide, and a band behind one is mostly empty tint at the edge of the row,
 	// so the number and the time take the color themselves and the band stops at
 	// the content's edge.
 	'.cm-line.ll-current-line': {
 		backgroundColor: 'var(--color-playhead-soft)'
 	},
-	// A pause that lasts sends the band away by fading, not by cutting out — a
+	// A pause that lasts sends the band away by fading, not by cutting out: a
 	// tint vanishing on the instant reads as something breaking. The transition
 	// is declared on the modifier so only the way out animates: resuming answers
 	// a press and snaps the band straight back, and the band crossing lines
@@ -1522,7 +1522,7 @@ export const lineAnchorTheme = EditorView.baseTheme({
 	// Three ways it shows, and the first is the one that makes it findable: the
 	// caret's own line always offers it. Hover alone meant the control existed only
 	// where the pointer happened to already be, which is nowhere until you know to
-	// look — a control discovered by hovering a blank column is a control nobody
+	// look: a control discovered by hovering a blank column is a control nobody
 	// discovers. `highlightActiveLineGutter` is what puts the class here.
 	'.cm-activeLineGutter .ll-time-action': {
 		visibility: 'visible'
@@ -1541,7 +1541,7 @@ export const lineAnchorTheme = EditorView.baseTheme({
 	// Each one is a small lifted surface rather than a glyph in the rail: they are
 	// on screen for as long as one correction takes, over a column of quiet text
 	// that they must not read as part of. Border, fill and shadow are what say
-	// "pressable and temporary" — the same three the workbench's other popovers
+	// "pressable and temporary", the same three the workbench's other popovers
 	// use, at the size the gutter has room for.
 	'.ll-time-nudge': {
 		// One `ch` of glyph, stated rather than left to the font: `−` is not in
@@ -1562,7 +1562,7 @@ export const lineAnchorTheme = EditorView.baseTheme({
 	},
 	// `−` hangs off the start of the number, outside the cell and therefore out of
 	// flow: in flow it would push the number right by its own width, which is the
-	// one thing this cell is arranged never to do. `+` needs no such treatment —
+	// one thing this cell is arranged never to do. `+` needs no such treatment:
 	// it follows the last digit, where the reserved slot already has room.
 	'.ll-time-nudge--back': {
 		position: 'absolute',
@@ -1595,12 +1595,12 @@ export const lineAnchorTheme = EditorView.baseTheme({
 		width: '100%',
 		// The cell's own line box plus one `--space-0-5` of slack at each end, so
 		// centring the time inside it lands the glyphs exactly one `--space-0-5`
-		// below the cell's top — which is where the line number's glyphs land too,
+		// below the cell's top, which is where the line number's glyphs land too,
 		// pushed there by `lineNumbers`' hidden width spacer (a border-box element
 		// cannot be shorter than what it pads by). Stated in the cell's *own* `1lh`
 		// rather than the editor's type arithmetic, because the two columns are
 		// level by construction only while the offset is independent of the
-		// document's size — the old `font-size-editor × line-height` form was tuned
+		// document's size: the old `font-size-editor × line-height` form was tuned
 		// to one rung and drifted the moment the editor's type moved. Stated as a
 		// height at all, rather than left to the content, or a wrapped row would
 		// centre the time in the whole block again.

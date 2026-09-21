@@ -48,7 +48,7 @@ describe('rule reference search', () => {
 
 	it('matches any form in a rule’s lookup table, not just the one in its example', () => {
 		// The example is one row of a table with 29 in it, and for a long time it
-		// was the only row the search could see — so `Imma` found the rule and
+		// was the only row the search could see, so `Imma` found the rule and
 		// `tryna` found nothing, which reads as the reference not covering it.
 		expect(idsFor('tryna')).toEqual(['spelling.standardized']);
 		expect(idsFor('bougie')).toEqual(['spelling.standardized']);
@@ -56,7 +56,7 @@ describe('rule reference search', () => {
 		// A curated misspelling is searchable too: it is what the reader typed.
 		expect(idsFor('tryina')).toEqual(['spelling.standardized']);
 		// Matching is substring, so a short form legitimately lands on more than
-		// one rule — `couse` is inside `becouse`, which another table also carries.
+		// one rule: `couse` is inside `becouse`, which another table also carries.
 		// Both rows are true answers, so this widens rather than misfires.
 		expect(idsFor('couse')).toEqual(['spelling.standardized', 'spelling.english-common']);
 		// And the other tables, whose examples name one token each.
@@ -73,12 +73,12 @@ describe('rule reference search', () => {
 		expect(cited).toContain('section.localized-header-preference');
 		// It widens rather than groups, which is the thing this was left out for
 		// on an assumption nobody measured. When it was measured, the most-cited
-		// page covered a third of the catalog — the header rules, a correct
-		// answer — and every other title covered three or fewer; the assertion
+		// page covered a third of the catalog (the header rules, a correct
+		// answer) and every other title covered three or fewer; the assertion
 		// below is the half of that worth pinning against a growing catalog.
 		expect(cited.length).toBeLessThan(countRules(groups) / 2);
 		// And the reviewed part of the page, which is the more specific of the two
-		// strings a citation draws — three rules read that vocabulary and all
+		// strings a citation draws, and three rules read that vocabulary and all
 		// three are true answers to having typed it.
 		expect(idsFor('norwegian section-header vocabulary')).toEqual([
 			'section.header-language',
@@ -89,7 +89,7 @@ describe('rule reference search', () => {
 
 	it('matches the prose a table-shaped rule’s page is mostly made of', () => {
 		// For these eight rules the table *is* the page, so the conditions written
-		// down its rows are most of what the reader is looking at — and for a long
+		// down its rows are most of what the reader is looking at, and for a long
 		// time none of it was reachable by typing the words in it. A search that
 		// answers for a page's headings and not for its body is one the reader
 		// learns to distrust.
@@ -121,7 +121,7 @@ describe('rule reference search', () => {
 		// cedilla it has to land, or the page is unreachable by the only string a
 		// reader has. `toContain` rather than an exact list: the terms here are two
 		// letters each and match by substring, so a handful of other rules keep
-		// them too — this list is filtered, never ranked, because the index is
+		// them too. This list is filtered, never ranked, because the index is
 		// grouped by rule family and a relevance order would have to break that.
 		expect(idsFor('ca va')).toContain('spelling.french-common');
 		expect(idsFor('ça va')).toEqual(idsFor('ca va'));
@@ -193,7 +193,7 @@ describe('rule reference search', () => {
 
 	it('counts each chip over the query alone, blind to the chips themselves', () => {
 		// A count that also obeyed the chips would read as what the chip is
-		// contributing, so pressing it back on would be a press towards zero — and
+		// contributing, so pressing it back on would be a press towards zero, and
 		// the two chip rows would chase each other's numbers on every toggle.
 		const all = ruleCounts(groups, '');
 		const severityTotal = severityOrder.reduce((sum, key) => sum + all.severity[key], 0);
@@ -236,14 +236,14 @@ describe('rule reference search', () => {
 		expect(foldForSearch('“Don’t”')).toBe('"don\'t"');
 		expect(foldForSearch('word—, then')).toBe('word-, then');
 		// Hangul decomposes to jamo rather than to combining marks, so it survives
-		// the strip as its own decomposed form — which is what a typed query
+		// the strip as its own decomposed form, which is what a typed query
 		// decomposes to as well.
 		expect(foldForSearch('됐')).toBe('됐'.normalize('NFD'));
 	});
 
 	it('resolves every rule in the popular block against the index', () => {
 		// The block is a hand-written list of IDs, and a rule leaving the catalog
-		// would otherwise shorten it silently — `popularRules` skips what it cannot
+		// would otherwise shorten it silently, since `popularRules` skips what it cannot
 		// find, because losing a shortcut is not worth failing a page render over.
 		// This is where a stale ID is supposed to be caught instead.
 		expect(popularRules(groups).map((rule) => rule.id)).toEqual(popularRuleIds);
@@ -311,7 +311,7 @@ describe('marking the query inside the rule it opened', () => {
 		// and the same string folded a character at a time ends in `σ`. The
 		// filter runs the first and the marker runs the second, so without the
 		// sigma fold this query narrows the list to a page that draws no mark at
-		// all — a search whose answer is a page saying nothing matched.
+		// all, a search whose answer is a page saying nothing matched.
 		expect(searchTokens('λογος')).toEqual([foldForSearch('ΛΟΓΟΣ')]);
 		expect(marked('ΛΟΓΟΣ', 'λογος')).toEqual(['ΛΟΓΟΣ']);
 		expect(marked('λογος', 'λογοσ')).toEqual(['λογος']);
@@ -324,7 +324,7 @@ describe('marking the query inside the rule it opened', () => {
 	});
 
 	it('never changes the text it is marking', () => {
-		// The segments are rendered in place of the string, examples included —
+		// The segments are rendered in place of the string, examples included,
 		// and those are set in a `<pre>`, where a character gained or lost is a
 		// transcription nobody typed.
 		for (const group of groups) {

@@ -68,7 +68,7 @@ export function assignPerformers(callbacks: EditorCallbacks): (view: EditorView)
  * Open the link picker on the repeated section the caret is in.
  *
  * The pointer opens this card by selecting a header whole, which a keyboard
- * user has no equivalent of — every anchored surface here is `aria-hidden`
+ * user has no equivalent of: every anchored surface here is `aria-hidden`
  * inside CodeMirror's gutters or reached by a drag. So the shortcut asks the
  * same question of the same predicate, and answers a refusal out loud: an aimed
  * press that silently does nothing reads as a broken shortcut.
@@ -240,13 +240,13 @@ export function navigateDiagnostic(
 }
 
 /**
- * Open the nearest fixable finding with its actions focused — `Mod-.`.
+ * Open the nearest fixable finding with its actions focused: `Mod-.`.
  *
  * Exported because the keystroke answers from the whole window, not only from
  * the caret: `create-editor.ts` binds it beside its window-level `Mod-F` and
  * runs this same command, so the two ways in cannot come to mean different
- * things. It is taught on the diagnostic row, which lives in the panel — where
- * the caret is not — so an editor-only binding answered in the wrong half of
+ * things. It is taught on the diagnostic row, which lives in the panel (where
+ * the caret is not), so an editor-only binding answered in the wrong half of
  * the loop, exactly as the transport keys once did.
  */
 export function openAvailableFix(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
@@ -297,7 +297,7 @@ function anchorCurrentLine(callbacks: LyricEditorCallbacks): (view: EditorView) 
 /**
  * Play from the caret's line, or from the nearest timed line above it.
  *
- * Nothing about the document moves — not the caret, not the scroll position.
+ * Nothing about the document moves, not the caret, not the scroll position.
  * The only thing that happens is that the audio goes somewhere. It used to
  * answer only for the caret's own line, which made the chord a refusal on most
  * of a part-timed song: the caret is usually a line or two past the last timed
@@ -327,14 +327,14 @@ export function lyricLintKeymap(
 		...overrides,
 		// `Alt-p` has never fired on macOS. Option+P types a character there, so
 		// CodeMirror's dispatcher refuses the base-key fallback for Alt held without
-		// Ctrl or Cmd and nothing matches — the same trap the transport below
+		// Ctrl or Cmd and nothing matches, the same trap the transport below
 		// documents at length, and `Ctrl-Alt` is the same answer to it: the one
 		// modifier span free on both platforms. The old key stays as the alias
 		// Windows and Linux have been pressing all along.
 		{ key: 'Ctrl-Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Mod-Shift-h', run: insertSection(callbacks), preventDefault: true },
-		// `Mod-Shift-L` arms the local exception — the same press as the link
+		// `Mod-Shift-L` arms the local exception, the same press as the link
 		// card's `Edit this section only` button. It used to open the link picker, and a
 		// whole card arriving under a keystroke read as the workbench doing
 		// something nobody asked; the picker's ways in are its own surfaces now,
@@ -343,14 +343,14 @@ export function lyricLintKeymap(
 		// `Ctrl-Alt-L` is the transport's forward key, bound to the window, and
 		// two implementations of one keystroke is how every nudge came to fire
 		// twice. The old `Ctrl-Alt-H` went with the swap rather than staying as an
-		// alias — two chords for one command is a legend, and this one is taught
+		// alias: two chords for one command is a legend, and this one is taught
 		// where it is pressed.
 		{ key: 'Mod-Shift-l', run: typeOnlyInLinkedSection(callbacks), preventDefault: true },
 		// `Ctrl-Alt-U` for the unknown marker, in the same family as the anchor
 		// pair below and free on both platforms. Deliberately no
 		// `preventDefault: true`: that option prevents the default even when the
 		// command returns *false*, and this one returns false whenever no shell is
-		// listening — which would swallow the keystroke in an editor that had not
+		// listening, which would swallow the keystroke in an editor that had not
 		// bound it at all. Returning true already prevents the default.
 		{ key: 'Ctrl-Alt-u', run: insertUnknownMarker(callbacks) },
 		// F7 through F9 belong to the transport. F2 and Shift-F2 keep diagnostic
@@ -360,14 +360,14 @@ export function lyricLintKeymap(
 		// `Mod-.` below.
 		{ key: 'Ctrl-Alt-.', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
 		// One modifier up from `Mod-.`: the chord that opens the nearest fix,
-		// shifted, walks the findings instead — and it wraps, because a "next"
+		// shifted, walks the findings instead, and it wraps, because a "next"
 		// that dead-ends on the last row is a press that reads as broken.
 		{ key: 'Mod-Shift-.', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
 		{ key: 'Ctrl-Alt-,', run: navigateDiagnostic(callbacks, -1), preventDefault: true },
 		{ key: 'F2', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
 		{ key: 'Shift-F2', run: navigateDiagnostic(callbacks, -1), preventDefault: true },
 		{ key: 'Mod-.', run: openAvailableFix(callbacks), preventDefault: true },
-		// The transport triad — `Ctrl-Alt-J`, `K`, `L` — is deliberately *not* here.
+		// The transport triad (`Ctrl-Alt-J`, `K`, `L`) is deliberately *not* here.
 		// It is bound to the window in `ui/state/media-shortcuts.ts`, because the
 		// tape is most wanted when the caret has left the document. Binding it in
 		// both places would double every nudge.

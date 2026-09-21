@@ -58,7 +58,7 @@ export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 			const header = section.header;
 			// A nameless header is not a custom one. `Review the custom section
 			// header “”` quoted nothing back at the user, offered `It's correct`
-			// about it, and drew its underline over a zero-width range — and it was
+			// about it, and drew its underline over a zero-width range, and it was
 			// the first thing anybody typing `[` and `]` met. `section.header-empty`
 			// owns that line, and it owns it whether or not the bracket was closed:
 			// this rule has nothing to say about a name that is not there.

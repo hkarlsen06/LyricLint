@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
  * `<meta name="theme-color">` cannot reference a custom property, and writing it
  * from JS would break the static prerender and flash the wrong tint on load. So
  * the browser-chrome color is necessarily a second, hand-converted copy of
- * `--color-canvas` — the exact shape of drift that left the tag sitting on a
+ * `--color-canvas`, the exact shape of drift that left the tag sitting on a
  * warm hue 78 for months after the palette moved to a cool 285.
  *
  * This is the guard: parse both canvas values out of tokens.css, convert them

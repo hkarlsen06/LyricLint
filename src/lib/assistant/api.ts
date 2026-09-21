@@ -2,12 +2,12 @@
  * The one network call the assistant makes: POST /v1/answers on the separate
  * Worker, with credentials so the anonymous session cookie rides along.
  *
- * The endpoint URL is committed for the same reason the Spotify client id is — it
+ * The endpoint URL is committed for the same reason the Spotify client id is: it
  * is not a secret, and `import.meta.env` resolves at build time, so a runtime
  * variable would never reach the bundle. `PUBLIC_ASSISTANT_ANSWERS_URL` overrides
  * it for a fork or a staging deploy, and setting it empty turns the assistant
  * off: `assistantAvailable` is then false and no surface draws an entry point
- * it cannot honor — the rule `spotifyAvailable` already follows.
+ * it cannot honor, the rule that `spotifyAvailable` already follows.
  */
 import {
 	AssistantError,
@@ -27,8 +27,8 @@ const DEFAULT_ANSWERS_URL = 'https://api.lyriclint.com/v1/answers';
  * The longest silence the worker can still be alive through.
  *
  * It commits its response headers before the provider has said anything and
- * emits nothing at all until the first visible token — reasoning time is dead
- * air by design — so a stalled turn and a thinking one look identical on the
+ * emits nothing at all until the first visible token (reasoning time is dead
+ * air by design), so a stalled turn and a thinking one look identical on the
  * wire. What bounds the honest case is the worker's own `MODEL.providerTimeoutMs`
  * (120s): a provider call that says nothing for that long is aborted and the
  * worker answers with an `error` event. A repair round resets that same budget
@@ -37,7 +37,7 @@ const DEFAULT_ANSWERS_URL = 'https://api.lyriclint.com/v1/answers';
  * stream, the quota release the worker awaits before it emits, and transit.
  *
  * Past this, the connection is being held open by something that is never going
- * to answer — a buffering proxy, a wedged worker — and without a watchdog the
+ * to answer (a buffering proxy, a wedged worker), and without a watchdog the
  * store stays `busy` for the life of the tab: the composer disabled, every chat
  * command refusing, and no Retry drawn, recoverable only by a reload.
  *
@@ -179,7 +179,7 @@ async function sendTurn(
 		return readAnswerStream(response, abort, options.onProgress, options.onRetry);
 	}
 	// SAFETY: reached only on an `ok` response the worker did not mark NDJSON, which
-	// is its single-shot answer envelope — the same fields the stream below assembles,
+	// is its single-shot answer envelope, the same fields the stream below assembles,
 	// minus the `kind` discriminant, which is the client's own and never on the wire.
 	const answer = (await response.json()) as Omit<Extract<TurnResponse, { kind: 'answer' }>, 'kind'>;
 	return { kind: 'answer', ...answer };
@@ -195,7 +195,7 @@ type StreamEvent =
 			kind?: AssistantAnswerBlock['kind'];
 			/**
 			 * The validated text, sent only where it is not what the deltas already
-			 * assembled — validation strips a trailing citation run, and a client
+			 * assembled. Validation strips a trailing citation run, and a client
 			 * that assembled purely from deltas would go on showing the stripped
 			 * text in streaming mode, which is the only mode production uses.
 			 */
@@ -219,8 +219,8 @@ async function readAnswerStream(
 	let buffer = '';
 	let requestId = '';
 	let scope: AssistantAnswerScope | undefined;
-	// The worker cannot close a block before validation — rule and source ids
-	// only leave it after the whole answer passes the gate — so `block_start`
+	// The worker cannot close a block before validation (rule and source ids
+	// only leave it after the whole answer passes the gate), so `block_start`
 	// for block N+1 routinely arrives while block N is still open, and every
 	// `block_done` arrives at the end, oldest block first. The reader is
 	// therefore a queue, not a single `current` slot: text appends to the
@@ -287,7 +287,7 @@ async function readAnswerStream(
 					sourceIds: event.sourceIds
 				};
 				// The close carries the validated kind, which normalization may have
-				// moved off the kind the block streamed under — and the validated text
+				// moved off the kind the block streamed under, and the validated text
 				// where validation changed it, which the deltas alone cannot report.
 				if (event.kind) settled.kind = event.kind;
 				if (event.text !== undefined) settled.text = event.text;
@@ -298,7 +298,7 @@ async function readAnswerStream(
 			case 'tool_calls':
 				// The narration a round streamed is stored off the throttled mirror
 				// this publishes, so the deltas of the last 32ms before the calls
-				// arrive are the ones that would be missing from it — forced through
+				// arrive are the ones that would be missing from it, forced through
 				// here, exactly as a block's close forces its own.
 				await publish(true);
 				toolCalls = event.calls;
@@ -319,7 +319,7 @@ async function readAnswerStream(
 	// Inter-chunk, not whole-turn: an answer is allowed to take as long as it
 	// keeps arriving. It is armed before the first read rather than after it,
 	// because the worker commits its headers before the provider has said
-	// anything — the gap before the first chunk is the longest one there is, and
+	// anything. The gap before the first chunk is the longest one there is, and
 	// the request-level path cannot see it at all, since `fetch` has already
 	// resolved by then.
 	let watchdog: ReturnType<typeof setTimeout> | undefined;
@@ -348,8 +348,8 @@ async function readAnswerStream(
 			if (done) break;
 		}
 		// NDJSON is newline-*delimited*, not newline-terminated: a stream whose
-		// last line arrives without one leaves a whole event — routinely the
-		// `done` that carries the quota — sitting in the buffer, so the answer
+		// last line arrives without one leaves a whole event (routinely the
+		// `done` that carries the quota) sitting in the buffer, so the answer
 		// failed as "did not finish" with every block of it already in hand.
 		const rest = buffer.trim();
 		if (rest) await consume(rest);

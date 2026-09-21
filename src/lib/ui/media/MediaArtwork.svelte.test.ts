@@ -14,8 +14,8 @@ const withCover = () => appleStore({ artwork: coverTemplate });
 describe('MediaArtwork', () => {
 	/*
 	 * The compact row is the only shape: thumbnail, title over artist, and the
-	 * mark at the far end. The stage this band used to expand into — and the fold
-	 * that remembered it — are gone, so nothing here may draw a second transport
+	 * mark at the far end. The stage this band used to expand into, and the fold
+	 * that remembered it, are gone, so nothing here may draw a second transport
 	 * or a chevron.
 	 */
 	it('draws one compact row: thumbnail, title over artist, and the mark', async () => {
@@ -53,11 +53,11 @@ describe('MediaArtwork', () => {
 	 * A song with no cover is still a song, and this band is the only surface that
 	 * names one: the strip hands both the title and the mark over here on the
 	 * source kind (`drawsCoverBand`). Gated on the picture, a catalogue read that
-	 * answers 404 or 403 — which reports no artwork ever, not merely late — left
+	 * answers 404 or 403, which reports no artwork ever and not merely late, left
 	 * the workbench playing somebody's track and saying nothing about it, with
 	 * neither required attribution drawn.
 	 */
-	it('names the song and draws the mark before — or without — a cover', async () => {
+	it('names the song and draws the mark before, or without, a cover', async () => {
 		const { media, player } = await appleStore();
 		expect(player.artwork).toBeUndefined();
 
@@ -75,7 +75,7 @@ describe('MediaArtwork', () => {
 	});
 
 	// The same, one source over: Spotify's read carries the cover with the name,
-	// so a refused one costs both — and their mark is required wherever the track
+	// so a refused one costs both, and their mark is required wherever the track
 	// is playing.
 	it('names a Spotify track with no cover and keeps their mark on screen', async () => {
 		const { media, player } = await spotifyStore();
@@ -106,7 +106,7 @@ describe('MediaArtwork', () => {
 	/*
 	 * Looking at the picture bigger is a press on the picture: the thumbnail is a
 	 * button and the full-size cover opens in a modal, which also carries the two
-	 * artwork commands the Song panel offers — the same `ArtworkActions`
+	 * artwork commands the Song panel offers, through the same `ArtworkActions`
 	 * component, so the pair cannot drift between the two surfaces.
 	 */
 	it('opens the full-size cover in a modal with the two artwork commands', async () => {
@@ -160,7 +160,7 @@ describe('MediaArtwork', () => {
 
 	// A cover carries nothing a screen reader can use: the track is named in the
 	// row beside the thumbnail and in the dialog's own header, and the press
-	// carries its name on the button — so an alt on either image would announce
+	// carries its name on the button, so an alt on either image would announce
 	// the same fact twice.
 	it('leaves both copies of the cover out of the accessible tree', async () => {
 		const { media } = await withCover();

@@ -5,7 +5,7 @@ import type { Extension } from '@codemirror/state';
  * The caret, drawn in a layer above the document's own fills.
  *
  * The native caret is painted in the editing host's layer, so a child element
- * with a background paints over it — and this editor's lines are covered in
+ * with a background paints over it, and this editor's lines are covered in
  * deliberate fills: the performer tints on mixed-voice lines (whose highlight
  * carries z-index 1), the fix-preview surfaces, the active-line wash. On
  * exactly the lines a transcriber works most, the caret typed into the right
@@ -13,8 +13,8 @@ import type { Extension } from '@codemirror/state';
  *
  * This is the cursor half of CodeMirror's drawSelection, taken without its
  * selection half. The refusal of drawSelection stands, for the reason recorded
- * in create-editor.ts — its selection layer sits behind every background and
- * vanished under them — but the cursor layer is the opposite arrangement:
+ * in create-editor.ts (its selection layer sits behind every background and
+ * vanished under them), but the cursor layer is the opposite arrangement:
  * `above: true`, painted over the content, with its own z-index above the
  * highlight's. Only the main cursor is drawn, because multiple selection
  * ranges are a feature this editor does not use, and the native caret is
@@ -34,7 +34,7 @@ const caretMarkers = layer({
 	update(update, dom) {
 		// A caret rests solid while it moves and blinks only once it has stopped,
 		// so every selection change restarts the animation. Two identical
-		// keyframe names are how a restart avoids a style recomputation — the
+		// keyframe names are how a restart avoids a style recomputation, the
 		// same trick drawSelection documents in its own source.
 		if (update.transactions.some((tr) => tr.selection)) {
 			dom.style.animationName =

@@ -17,7 +17,7 @@
 }
 
 /* One short title naming the state, one muted line saying why and what to do.
-   Prose only — the bare panel canvas is the surface, not a box. */
+   Prose only: the bare panel canvas is the surface, not a box. */
 .diagnostic-list__empty {
 	display: grid;
 	gap: var(--space-1);
@@ -74,7 +74,7 @@
 /* The drafts sit at the foot of the column, pushed there by the auto margin
    rather than by whatever is above them: on an empty document that is a short
    paragraph, and a list of destinations left directly under it read as part of
-   the message. Still prose on the canvas — a list of the user's own drafts is
+   the message. Still prose on the canvas: a list of the user's own drafts is
    not a region anyone acts on independently of its neighbours, so there is no
    border to draw around it, and the empty canvas above is the separation. */
 .linter-panel__drafts {
@@ -181,7 +181,7 @@
 
 /* Chrome, like the tab strip above and the ignored-rules footer at the far end
    of the panel: this row is not part of the list it acts on. The fill is load
-   bearing rather than decorative — `--color-canvas` is already spoken for as
+   bearing rather than decorative: `--color-canvas` is already spoken for as
    the *selected* card's recessed level, so a row of bare canvas here read as a
    continuation of whichever card was open and the button looked loose inside
    it. Same inset as the chips row, which is the other strip that hangs here. */
@@ -198,7 +198,7 @@
 }
 
 /* Compact, and bordered rather than quiet: it has to read as pressable against
-   a strip that is otherwise inert. It keeps the default tier — the contrast
+   a strip that is otherwise inert. It keeps the default tier: the contrast
    action on this surface belongs to the fix a card is previewing, and there is
    one of those per surface. */
 .linter-panel__bulk-action {
@@ -217,7 +217,7 @@
 
 /* The chips hang from the tab strip: no gap above them, and a rule below
    separating them from the run of diagnostic cards. They are drawn whenever the
-   document has a finding of any kind — one chip per kind that is actually
+   document has a finding of any kind: one chip per kind that is actually
    there, so the row costs the panel nothing on a clean draft and never offers
    to filter out a severity with nothing in it. */
 .linter-panel__filters {
@@ -226,13 +226,13 @@
 	border-bottom: 0;
 	flex-wrap: wrap;
 	gap: var(--space-1);
-	/* Chrome, like the tab strip it drops out of — the row is an extension of
+	/* Chrome, like the tab strip it drops out of: the row is an extension of
 	   the tabs, not the first item in the list of diagnostics. */
 	background: var(--color-chrome);
 }
 
 /* The chip itself is `.filter-chip` in `controls.css`, shared with the rule
-   reference's index — the same control filtering the same kinds out of a list,
+   reference's index, the same control filtering the same kinds out of a list,
    so it is one implementation and not two. Nothing about it needs overriding
    here; this row only decides where the chips sit. */
 
@@ -262,7 +262,7 @@
 }
 
 /* The depth answers a press, so it arrives at the control tier's rate rather
-   than snapping. Only the tone, the shadow and the seams ease — the card's own
+   than snapping. Only the tone, the shadow and the seams ease. The card's own
    expansion stays instant, because a height between two documents' worth of
    content has no honest intermediate frame. */
 @media (prefers-reduced-motion: no-preference) {
@@ -274,7 +274,7 @@
 	}
 }
 
-/* The head — not the list item — carries the card's padding: there is no dead
+/* The head (not the list item) carries the card's padding: there is no dead
    margin around the heading where a press lands on nothing. It is deliberately
    unpositioned: the stretched press layer below resolves against the row, so a
    containing block here would stop it at the head's own bottom edge. */
@@ -296,8 +296,8 @@
  * The card's whole face is still the control, but the button no longer contains
  * it: the meta line ends in a link to the cited source, and an `<a>` inside a
  * `<button>` is neither valid nor reliably pressable. The button holds the
- * message and stretches its hit area over the whole *row* instead — the head,
- * the explanation under it, and the slack beside the actions — so a press
+ * message and stretches its hit area over the whole *row* instead (the head,
+ * the explanation under it, and the slack beside the actions), so a press
  * anywhere on the card that is not aimed at something else opens the diagnostic.
  */
 .diagnostic-list__navigate {
@@ -318,7 +318,7 @@
 
 /* Whatever does something else rides above the stretched layer and takes its own
    press: the citation, its disclosure, and every decision in the expanded card.
-   The buttons and not the row they sit in — lifting `.diagnostic-actions` would
+   The buttons and not the row they sit in: lifting `.diagnostic-actions` would
    make the whole band dead, and the slack beside the last control is card. */
 .diagnostic-list__head .source-citation,
 .diagnostic-list__head .diagnostic-meta__disclosure,
@@ -335,7 +335,7 @@
 
 /*
  * Hover and focus belong to the whole head, because that is what the press
- * target covers — reading them off the button alone would light up only the
+ * target covers. Reading them off the button alone would light up only the
  * message. Hovering the citation deliberately does not raise the row: the
  * pointer is over the link, and the link is where the press would land.
  */
@@ -360,7 +360,7 @@
 	font-weight: var(--font-weight-medium);
 }
 
-/* The expanded card's body — explanation and actions — is shared with the
+/* The expanded card's body (explanation and actions) is shared with the
    editor's diagnostic popover and styled in `diagnostics.css`, as is the meta
    line above it. What stays here is the run of cards itself. */
 .diagnostic-details {
@@ -414,7 +414,7 @@
 }
 
 /* The list is a continuation of the row above it, so it is set in that row's
-   type — a rule's name at body size beside a header at `--font-size-sm` read as
+   type: a rule's name at body size beside a header at `--font-size-sm` read as
    two lists that had landed on top of each other. */
 .ignored-rules li {
 	display: grid;

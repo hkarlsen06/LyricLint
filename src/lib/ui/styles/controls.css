@@ -5,21 +5,21 @@
  * There are exactly three tiers, and they are keyed to the *action*, never to
  * the surface the action happens to sit on:
  *
- *   .button--quiet     borderless text button — reversible, secondary actions
- *   .button            bordered default — ordinary actions
- *   .button--contrast  theme-inverting — the one destination action per surface
+ *   .button--quiet     borderless text button: reversible, secondary actions
+ *   .button            bordered default: ordinary actions
+ *   .button--contrast  theme-inverting: the one destination action per surface
  *
  * `.button--danger` is a color modifier on the contrast tier, not a fourth
  * tier; `.danger-text` is the same for the quiet tier. There is no
  * `.button--primary`: an accent-filled button duplicated the contrast tier's
  * role, which is how "copy the canonical markup" ended up rendered as a black
  * contrast button in the toolbar and a blue accent button in the tools panel at
- * the same time. And there is no `.button--pill` — pill radii belong to
+ * the same time. And there is no `.button--pill`: pill radii belong to
  * categorical chips and badges only.
  */
 
-/* The default tier is borderless: `--shadow-control` carries the edge — an
-   ambient ring plus a contact shadow — so the control reads as a low object on
+/* The default tier is borderless: `--shadow-control` carries the edge (an
+   ambient ring plus a contact shadow), so the control reads as a low object on
    the surface rather than a ruled rectangle. The border box is kept at its old
    width, transparent, so nothing a test measures moves. */
 .button,
@@ -63,7 +63,7 @@
 	background: var(--color-control-active);
 }
 
-/* Disabled is muted ink, a muted surface, and no lift — never opacity. The
+/* Disabled is muted ink, a muted surface, and no lift, never opacity. The
    shadow coming off is the non-color half of the cue: a control that has lost
    its edge has stopped being an object to press. */
 .button:disabled,
@@ -77,8 +77,8 @@
    that both are borderless: the default tier keeps its fill and its shadow, the
    quiet tier has neither until the pointer arrives. `border-color` is stated
    here and not only on the base tier, because several controls wear this
-   modifier without `.button` — the editor action tray, the status bar's media
-   control — and a bare <button> otherwise keeps the browser's own outset
+   modifier without `.button` (the editor action tray, the status bar's media
+   control), and a bare <button> otherwise keeps the browser's own outset
    border, which is a beveled box from another decade. */
 .button--quiet {
 	border-color: transparent;
@@ -131,14 +131,14 @@
    standing alone in a column of prose reads as a paragraph that failed to line
    up rather than as a deliberately indented control. Pull the label back to the
    column's own edge; the hover fill keeps the padding it needs. Only for a
-   quiet button whose edge is read against text — inside a row of controls the
+   quiet button whose edge is read against text: inside a row of controls the
    gap is the alignment and this would close it. */
 .button--flush {
 	margin-inline: calc(-1 * var(--control-padding-inline));
 }
 
 /* Form fields follow the button tier: the ring in `--shadow-control` is the
-   resting boundary, and the focus ring is the strong one — a field is where
+   resting boundary, and the focus ring is the strong one: a field is where
    the focus outline is guaranteed to arrive the moment it matters. */
 input,
 select,
@@ -176,8 +176,8 @@ textarea:disabled {
  * and the list underneath holds only the kinds that are pressed.
  *
  * It lives here rather than in `linter.css` because two surfaces filter a list
- * by severity — the linter panel's run of diagnostics and the rule reference's
- * index — and the states below are the whole of what the control says. Drawn
+ * by severity (the linter panel's run of diagnostics and the rule reference's
+ * index), and the states below are the whole of what the control says. Drawn
  * twice, the copy that drifted would be the one nobody is looking at, which is
  * the same argument the diagnostic card and its popover share components for.
  * A pill radius is right here and only here: this is a categorical chip, never
@@ -211,7 +211,7 @@ textarea:disabled {
  * An unpressed chip reads as excluded through two cues that survive a greyscale
  * print: the label is struck through, and the outline goes dashed at full
  * strength. This used to be `opacity: 0.55`, which put the label at 3.1:1 and
- * faded the dashed border to 1.0:1 against the panel — so the only real signal
+ * faded the dashed border to 1.0:1 against the panel, so the only real signal
  * for "this kind is hidden" was a dimming effect, which is both an AA failure
  * and state carried by nothing but color.
  */
@@ -257,9 +257,9 @@ textarea:disabled {
 }
 
 /* The count is what pressing the chip puts back. A zero on one is a fact about
-   the rule reference's query — the linter panel drops a chip whose kind has
+   the rule reference's query: the linter panel drops a chip whose kind has
    nothing in it rather than printing one. It used to also drop to
-   `opacity: 0.45` — 2.2:1 — which made the zero it was trying to communicate the
+   `opacity: 0.45` (2.2:1), which made the zero it was trying to communicate the
    hardest thing on the chip to read. */
 .filter-chip__count {
 	min-width: 1.1em;
@@ -275,7 +275,7 @@ textarea:disabled {
 }
 
 /* Every button answers the pointer at the fast tier: the fill, the border and
-   the label color arrive rather than snap. Colors only — nothing here moves or
+   the label color arrive rather than snap. Colors only: nothing here moves or
    resizes, so no layout a test measures can drift under it. The diagnostic
    action row already stated the same transition for its own buttons
    (diagnostics.css); this is that decision applied to the tier system rather
@@ -302,7 +302,7 @@ textarea:disabled {
  * makes the mark larger.
  *
  * Nothing here is animated by CSS. Everything that moves is the wave, and that is
- * a curve with a phase in it, which is not something a keyframe can state —
+ * a curve with a phase in it, which is not something a keyframe can state.
  * `wave-loop.ts` redraws the path instead.
  */
 .loading-mark {

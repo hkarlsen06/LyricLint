@@ -21,7 +21,7 @@ geometry at desktop and phone widths, including long text. `DESIGN.md` defines t
 ### No cards inside cards
 
 Never nest a card, panel, or bordered/filled box inside another one. If an action needs a
-follow-up step, it happens **in place** in the existing surface — swap the control's label,
+follow-up step, it happens **in place** in the existing surface: swap the control's label,
 reveal a sibling control in the same row, or change the surface's own state. Do not open a
 second bordered box inside the card the user is already looking at.
 
@@ -47,12 +47,12 @@ Canonical implementations: `src/lib/ui/tools/PreferencesPanel.svelte` and
 A card is a boundary, and a boundary has to separate something from something. Before drawing
 one, name the job: it groups items that repeat (a diagnostic among other diagnostics), it marks
 a region the user acts on independently of its neighbors, or it lifts a surface above the page
-(a popover, a menu). If none of those apply, the border is decoration — drop it and let the
+(a popover, a menu). If none of those apply, the border is decoration; drop it and let the
 content sit directly on the page background.
 
 The tell is a card with nothing beside it. A single centered box on an otherwise empty page
 separates its contents from nothing at all; it only adds a rectangle, an inset, and a second
-background color for the reader to parse. Full-page messages — boot and error states — are prose on
+background color for the reader to parse. Full-page messages (boot and error states) are prose on
 the canvas: constrain the measure with `max-width`, center it, and stop there.
 
 Canonical implementation: `.error-page` in `src/lib/ui/styles/overlays.css`.
@@ -60,15 +60,15 @@ Canonical implementation: `.error-page` in `src/lib/ui/styles/overlays.css`.
 ### Design system
 
 `DESIGN.md` is authoritative. Components consume semantic tokens from
-`src/lib/ui/styles/tokens.css` — never literal colors, radii, spacing, or timings. All ordinary
+`src/lib/ui/styles/tokens.css`, never literal colors, radii, spacing, or timings. All ordinary
 buttons share one silhouette; emphasis changes through color, not shape. There is no pill-shaped
-button variant — the legacy `.button--pill` hook has been removed, so do not reintroduce it. Pill
+button variant; the legacy `.button--pill` hook has been removed, so do not reintroduce it. Pill
 radii belong to categorical chips and badges only (`.tab-count`,
 `.linter-panel__filter-chip`), never to an action button.
 
 The severity on a diagnostic is a **colored glyph** (`.severity`, no fill, no border, no radius),
 leading the card's meta line ahead of the line number: `⚠ Line 47 · Use song part headers`. No chip,
-no word, no line of its own — repetition that never varies stops being read, and a chip reads as one
+no word, no line of its own: repetition that never varies stops being read, and a chip reads as one
 of the pressable severity filters directly above it.
 Three things hold it up, and removing any one of them puts severity back on color alone:
 
@@ -82,7 +82,7 @@ Three things hold it up, and removing any one of them puts severity back on colo
 (`/guidelines/checks/[rule]`).
 
 Three button tiers, and no more: `.button--quiet` (borderless) < `.button` (bordered default) <
-`.button--contrast` (theme-inverting, one per surface). `.button--primary` is gone — an
+`.button--contrast` (theme-inverting, one per surface). `.button--primary` is gone: an
 accent-filled button competed with the contrast tier for the same job. Pick the tier from what
 the action _is_, not from which panel it landed in; if a command appears twice, only its home
 surface gets the contrast tier.

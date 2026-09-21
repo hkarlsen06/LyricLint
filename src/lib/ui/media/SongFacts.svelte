@@ -5,7 +5,7 @@
 	 * Whether any of the facts *this list draws* are known.
 	 *
 	 * `songDetails` existing is not the same question: a source that reports only an
-	 * artist and a title would otherwise open an empty `<dl>` under a heading — and
+	 * artist and a title would otherwise open an empty `<dl>` under a heading, and
 	 * under `genius`, a song known only by its ISRC would open one the same way.
 	 */
 	export function hasSongFacts(details: SongDetails | undefined, genius = false): boolean {
@@ -22,14 +22,14 @@
 	 *
 	 * **Joining the array back up returns the string byte for byte**, which is what
 	 * keeps this from being the rewrite `SongDetails.writers` refuses. The row still
-	 * reads exactly as the catalogue gave it — `Petter Bjørklund Kristiansen,
-	 * Kristofer Strandberg, Thor-Erik Claussen & Andreas Werling` — and all that has
+	 * reads exactly as the catalogue gave it (`Petter Bjørklund Kristiansen,
+	 * Kristofer Strandberg, Thor-Erik Claussen & Andreas Werling`) and all that has
 	 * changed is where one press lands.
 	 *
 	 * That is also the whole of the safety argument for splitting at all. A credit
 	 * this cuts in the wrong place (`Smith, Jr.` is the one to worry about) costs a
 	 * press that copies half a name, in front of a reader who can see the boundary
-	 * because the half they hovered is the half that underlines — where a *list*
+	 * because the half they hovered is the half that underlines, where a *list*
 	 * built on the same guess would state a writer that does not exist.
 	 */
 	export function creditSegments(credit: string): string[] {
@@ -97,7 +97,7 @@
 	gone wrong. Two things stop it, and only the second is ours to keep. The
 	compiler trims whitespace at the edges of a block, which is what every piece
 	here sits inside; and `.metadata-list dd` is a flex row, where a whitespace-only
-	anonymous item is not rendered at all — so a piece moved out of its block later
+	anonymous item is not rendered at all, so a piece moved out of its block later
 	cannot reintroduce the gap. `SongFacts.svelte.test.ts` measures the pieces
 	meeting rather than trusting either.
 -->

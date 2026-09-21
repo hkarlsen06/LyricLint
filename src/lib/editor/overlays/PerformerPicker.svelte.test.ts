@@ -34,7 +34,7 @@ describe('PerformerPicker layout', () => {
 	it('keeps the action button inside the card when the roster fills the row', async () => {
 		// Regression: the actions box shrank under its own button, so the widest
 		// label ("Remove formatting") hung outside the card's rounded edge. The
-		// roster is the part that gives way — it wraps.
+		// roster is the part that gives way: it wraps.
 		await render(PerformerPicker, {
 			performers: crowdedRoster(),
 			initialSelectedIds: ['leif tore'],
@@ -55,7 +55,7 @@ describe('PerformerPicker layout', () => {
 		const actionBox = action!.getBoundingClientRect();
 		expect(actionBox.right).toBeLessThanOrEqual(cardBox.right);
 		expect(actionBox.left).toBeGreaterThanOrEqual(cardBox.left);
-		// The chips take the squeeze instead — the roster wraps onto another row,
+		// The chips take the squeeze instead: the roster wraps onto another row,
 		// and every chip stays inside the card rather than scrolling out of view.
 		const chips = [...document.querySelectorAll<HTMLElement>('.roster .chip')];
 		expect(
@@ -84,7 +84,7 @@ describe('PerformerPicker layout', () => {
 		expect(action!.classList.contains('button')).toBe(true);
 		expect(action!.classList.contains('button--contrast')).toBe(true);
 
-		// The recipe matches controls.css exactly — the drifted local copy
+		// The recipe matches controls.css exactly. The drifted local copy
 		// (hover mixed toward transparent, pill silhouette) is gone.
 		const probe = document.createElement('button');
 		probe.className = 'button button--contrast';
@@ -260,7 +260,7 @@ describe('PerformerPicker dismissal', () => {
 	});
 
 	// The card that opens itself off a pointer selection has been asked for
-	// nothing, so it leaves the caret where the user put it — and drops the `↵`
+	// nothing, so it leaves the caret where the user put it, and drops the `↵`
 	// with it, because Enter then belongs to the document rather than to this
 	// card. `EditorPane.svelte.test.ts` pins the same pair end to end.
 	it('takes no focus and promises no Enter when it opened uninvited', async () => {
@@ -383,7 +383,7 @@ describe('PerformerPicker action width', () => {
 		// Step one offers `Next`; step two offers `Skip` until somebody is picked
 		// and `Apply` once one is. All three land in the same slot, at the end of
 		// the row, so a width that follows the label drags the card's right edge
-		// in and out while the reader is working along the roster — and moves the
+		// in and out while the reader is working along the roster, and moves the
 		// target between deciding to press it and pressing it.
 		const next = await actionWidth({ initialSelectedIds: ['leif tore'], applyLabel: 'Next' });
 		const skip = await actionWidth({ initialSelectedIds: [], emptyApplyLabel: 'Skip' });
@@ -411,7 +411,7 @@ describe('PerformerPicker step bar', () => {
 
 	it('holds one prompt width across the questions a two-step flow asks', async () => {
 		// The two questions are different lengths, and the roster sits directly
-		// beside them — so a prompt that sized itself to its own text slid every
+		// beside them, so a prompt that sized itself to its own text slid every
 		// chip along as the flow advanced.
 		const widths: number[] = [];
 		const bars: Array<{ bar: number; question: number }> = [];
@@ -467,7 +467,7 @@ describe('PerformerPicker step bar', () => {
 
 	it('drops the empty answer out of the contrast tier and puts it back on a real one', async () => {
 		// `Skip` is a real answer but not the one the card is asking for, so it
-		// must not be the loudest control on the surface — otherwise the card's
+		// must not be the loudest control on the surface, otherwise the card's
 		// primary action advertises not answering the question.
 		await render(PerformerPicker, {
 			performers: crowdedRoster(),

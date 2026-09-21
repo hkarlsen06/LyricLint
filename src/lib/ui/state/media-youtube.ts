@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/media-youtube.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/media-youtube.md. Read it before changing this file, and update it with any behavior change.
 import type { MediaSource, MediaSourceEvents } from './media-player.svelte.js';
 import {
 	remoteLoadTimeoutMs,
@@ -11,7 +11,7 @@ import {
  *
  * The IFrame API has no `timeupdate`. `getCurrentTime()` is a number the player
  * keeps up to date on its own side of the bridge, so the only way to watch a
- * playhead is to ask for it — four times a second, which is what a media
+ * playhead is to ask for it, four times a second, which is what a media
  * element's own `timeupdate` works out at and therefore what the write throttle
  * downstream was tuned against. Anything faster is a postMessage round trip per
  * frame for a readout nobody can read that fast.
@@ -22,7 +22,7 @@ import {
  *
  * A seek across the bridge does not land by the time the next read happens, so
  * `getCurrentTime()` answers with the position the user just left. The source
- * therefore reports the *target* until the player catches up — otherwise a
+ * therefore reports the *target* until the player catches up, because otherwise a
  * back-2 followed by a resume reads the pre-nudge time and moves four seconds,
  * which is the exact failure the local-file transport is written to avoid. The
  * poll cap is there so a seek the player ignored outright cannot leave the
@@ -85,7 +85,7 @@ const apiScriptUrl = 'https://www.youtube.com/iframe_api';
 let injected: Promise<YouTubeApi> | undefined;
 
 /**
- * Fetch Google's IFrame API — once, and never before something asks for it.
+ * Fetch Google's IFrame API: once, and never before something asks for it.
  *
  * This function is the whole of the network surface the YouTube source has, and
  * nothing calls it at module scope or on page load. It runs when the user has
@@ -101,7 +101,7 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
 
 	const attempt = new Promise<YouTubeApi>((resolve, reject) => {
 		// SAFETY: the IFrame API installs itself as a property of the global object
-		// and calls another, which is all this claims — both are optional, so the
+		// and calls another, which is all this claims. Both are optional, so the
 		// branches below are what establish either is there.
 		const scope = globalThis as YouTubeGlobal;
 		if (scope.YT?.Player) {
@@ -135,8 +135,8 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
 	});
 
 	// A wrapper around `attempt` rather than the promise itself, so that a failure
-	// raised while this function is still running — a document that cannot be
-	// written to — is forgotten too, by which time the assignment has happened.
+	// raised while this function is still running (a document that cannot be
+	// written to) is forgotten too, by which time the assignment has happened.
 	injected = (async () => {
 		try {
 			return await attempt;
@@ -150,8 +150,8 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
 
 /**
  * The one failure with nothing to retry, so it names the way out instead of
- * stopping at the diagnosis. Nothing here can lift the owner's embed flag —
- * Google checks it server-side — and the file source is not subject to it, so
+ * stopping at the diagnosis. Nothing here can lift the owner's embed flag
+ * (Google checks it server-side), and the file source is not subject to it, so
  * the sentence points at the control that switches sources rather than leaving
  * the user with a dead track and an `✕`.
  */
@@ -161,7 +161,7 @@ const embedRefused =
 /**
  * What the IFrame API's error codes mean, in the words the strip has room for.
  *
- * All five used to arrive as one sentence — "That video could not be played." —
+ * All five used to arrive as one sentence ("That video could not be played."),
  * which is true of every one of them and useful about none. The distinction that
  * costs a debugging session is 101/150 against 5: the first is the owner's
  * decision and no amount of retrying changes it, while the second is this
@@ -172,7 +172,7 @@ const embedRefused =
 const youtubeErrorMessages = new Map<number, string>([
 	[2, 'That video id is not valid.'],
 	[5, 'This browser could not play that video. Serving the app over https usually fixes it.'],
-	[100, 'That video is gone — removed, or private.'],
+	[100, 'That video is gone: removed, or private.'],
 	[101, embedRefused],
 	[150, embedRefused]
 ]);
@@ -185,7 +185,7 @@ function youtubeErrorMessage(code: number): string {
  * The still YouTube publishes for a video, at the largest size it always has.
  *
  * `maxresdefault` is twice the size and exists only where the uploader supplied
- * a frame that big — everywhere else it is a 404, which the browser draws as a
+ * a frame that big. Everywhere else it is a 404, which the browser draws as a
  * broken picture in the panel. `hqdefault` is generated for every video there
  * is, which is the trade this makes: a cover that is always there beats a
  * sharper one that sometimes is not.
@@ -200,7 +200,7 @@ function youtubeThumbnailUrl(videoId: string): string {
  * The one honest answer to "find the video for this song", and the reason it is
  * a link rather than a lookup is worth writing down so nobody tries the other
  * two again. The Data API's `search.list` costs 100 quota units against a
- * 10,000/day default — a hundred searches a day for the whole deployed build,
+ * 10,000/day default, a hundred searches a day for the whole deployed build,
  * shared by every visitor, behind a key inlined in the bundle for anyone to
  * lift. Odesli resolves an Apple or Spotify id keylessly and correctly, and
  * returns no `youtube` entry at all for those inputs. So the search runs where
@@ -208,7 +208,7 @@ function youtubeThumbnailUrl(videoId: string): string {
  * Google's own page, one press away, with the result they pick pasted back into
  * the field above it.
  *
- * The extension goes for the same reason it goes from a draft title — it is a
+ * The extension goes for the same reason it goes from a draft title: it is a
  * fact about a file on a disk, and `sensommer.mp3` is a worse query than
  * `sensommer`. Nothing else is guessed at: a name this application was given is
  * a better search term than one it has rewritten.
@@ -258,7 +258,7 @@ const noVideo = 'That link has no video id in it.';
  * People have a link, not an id, and the link they have is whichever one the
  * share sheet gave them: a `youtu.be` short form, a watch page with `&t=90s` and
  * a playlist on the end, a mobile host, an embed. So the parser is `new URL`
- * rather than a pattern over the whole string — a regex is the thing that works
+ * rather than a pattern over the whole string. A regex is the thing that works
  * on the three links it was written against and breaks on the fourth, silently,
  * by matching the wrong eleven characters.
  */
@@ -479,7 +479,7 @@ export function createYouTubeSource(deps: YouTubeSourceDependencies): YouTubeSou
 
 		if (player) {
 			// `cue`, never `load`: `loadVideoById` autoplays by design, so reusing an
-			// existing player — a draft switch, a reconnect, an HMR reload — started
+			// existing player (a draft switch, a reconnect, an HMR reload) started
 			// the song on its own. Playback is `wantPlaying`'s job.
 			player.cueVideoById({ videoId, startSeconds: startAt ?? 0 });
 			if (wantPlaying) player.playVideo();

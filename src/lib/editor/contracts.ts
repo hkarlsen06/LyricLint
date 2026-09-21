@@ -26,7 +26,7 @@ export type { ClipboardMediaSource };
  *
  * A card the pointer opened closes when the pointer leaves it, and the count
  * badge at the end of a line is the one such control the keyboard can be
- * standing on at the same time — where a mouse nudged by accident would take
+ * standing on at the same time, where a mouse nudged by accident would take
  * the surface out from under the focus. It is named here rather than in either
  * of the two files that need it: the extension that draws the badge pulls
  * CodeMirror in, and the overlay that reads it may not.
@@ -105,8 +105,8 @@ export interface SectionHeaderChoice {
 /**
  * One reading of the transport, taken at the moment of a sync tap.
  *
- * `time` is the source's own playhead — `liveTime()`, not the mirrored
- * readout — and `playing` includes a press still starting, because a queued
+ * `time` is the source's own playhead (`liveTime()`, not the mirrored
+ * readout), and `playing` includes a press still starting, because a queued
  * start is the user's stated intent and a tap made against it is a tap they
  * meant.
  */
@@ -141,7 +141,7 @@ interface EditorOverlayCallbacks {
 	 * one it came from.
 	 *
 	 * The editor does not answer this itself. The batch has to be exactly the
-	 * one the linter panel would apply — same diagnostics, same arbitration —
+	 * one the linter panel would apply (same diagnostics, same arbitration),
 	 * and only the shell knows which diagnostics are visible, so a popover that
 	 * counted its own would offer a different number for the same fix.
 	 */
@@ -170,7 +170,7 @@ interface EditorOverlayCallbacks {
 	 *
 	 * The editor recognizes the drag and nothing more: it does not know what a
 	 * draft's audio is, whether one is already attached, or where the bytes are
-	 * kept. Returning false — or leaving the hook off — means the drop was not
+	 * kept. Returning false, or leaving the hook off, means the drop was not
 	 * taken, and CodeMirror's own drop handling runs as if nothing here existed.
 	 * That fallback is the whole safety net for the drops that were already
 	 * working, so nothing on this path may claim an event it did not handle.
@@ -179,8 +179,8 @@ interface EditorOverlayCallbacks {
 	/**
 	 * Where the audio is now, for the line about to be anchored.
 	 *
-	 * Read from a deliberate stamp — `Ctrl-Alt-M`, the timestamp column's control,
-	 * or a tap in sync mode — so it must never throw. `undefined` means nothing is
+	 * Read from a deliberate stamp (`Ctrl-Alt-M`, the timestamp column's control,
+	 * or a tap in sync mode), so it must never throw. `undefined` means nothing is
 	 * attached, and no anchor is recorded.
 	 */
 	onRequestMediaTime?(): number | undefined;
@@ -188,7 +188,7 @@ interface EditorOverlayCallbacks {
 	 * How the tape is running right now, for a tap in sync mode.
 	 *
 	 * A tap needs two facts the plain time cannot carry. Whether the tape is
-	 * playing at all — `liveTime()` goes on reporting wherever a paused tape is
+	 * playing at all: `liveTime()` goes on reporting wherever a paused tape is
 	 * parked, so a tap spent there would stamp the pause's own moment onto the
 	 * next line, wrong by the length of the pause with nothing on screen saying
 	 * so. And the playback rate, because the tap offset is a wall-clock fact
@@ -202,7 +202,7 @@ interface EditorOverlayCallbacks {
 	 * The remote source the attached audio came from, for a copy to carry.
 	 *
 	 * Read only while a copy is being claimed for its metadata, and answered only
-	 * for a source that is an id — YouTube, Spotify, Apple Music. A local file is
+	 * for a source that is an id: YouTube, Spotify, Apple Music. A local file is
 	 * a handle only this browser can redeem, so a shell answers `undefined` for
 	 * one exactly as it does for no audio at all.
 	 */
@@ -210,8 +210,8 @@ interface EditorOverlayCallbacks {
 	/**
 	 * A pasted fragment arrived carrying the source it was transcribed from.
 	 *
-	 * The shell decides what that is worth: a draft that already has audio —
-	 * attached or pending — keeps it, because an attachment is deliberate work
+	 * The shell decides what that is worth: a draft that already has audio
+	 * (attached or pending) keeps it, because an attachment is deliberate work
 	 * and a paste must not overwrite it. Nothing here may contact anyone on its
 	 * own; a source adopted from a paste waits on a press exactly as a restored
 	 * record does.
@@ -232,13 +232,13 @@ interface EditorOverlayCallbacks {
 	 * A sync tap writes an anchor and moves the caret, and `Ctrl-Alt-M` and the
 	 * timestamp column's own control move nothing, so `onSnapshot` never hears
 	 * about any of them. A shell that saved only on a document change would lose
-	 * every anchor that was not a side effect of typing — which is all of them.
+	 * every anchor that was not a side effect of typing, which is all of them.
 	 */
 	onLineAnchorsChanged?(): void;
 	/**
 	 * Sync mode turned on or off.
 	 *
-	 * The editor owns the mode, so this reports rather than asks — and it fires
+	 * The editor owns the mode, so this reports rather than asks, and it fires
 	 * for every cause, including the ones the shell did not start: `Escape`, and
 	 * running out of lines to time. The shell answers it by starting or stopping
 	 * playback, so those two never disagree about whether a run is under way.
@@ -246,7 +246,7 @@ interface EditorOverlayCallbacks {
 	 * `startAt` is where the audio has to be for the run to line up with the
 	 * caret: 0 for a fresh pass, the resumed line's own time when a half-timed
 	 * song picks up where it was left, and **absent when the tape must be left
-	 * where the user parked it** — a selection-scoped run with no timed line
+	 * where the user parked it**. A selection-scoped run with no timed line
 	 * above the selection has no moment of its own to name, and seeking anywhere
 	 * would destroy the one position somebody deliberately chose. The editor
 	 * decides it, because the anchors are the editor's.
@@ -254,7 +254,7 @@ interface EditorOverlayCallbacks {
 	 * `scoped` says the run covers a selection rather than the song. The strip
 	 * reads it to withhold the skip control: the skip is a jump measured against
 	 * the whole document, and offered inside a scope it would be a press that
-	 * refuses — the failure `availableRates` exists to prevent.
+	 * refuses, the failure `availableRates` exists to prevent.
 	 */
 	onLyricSyncChange?(active: boolean, startAt?: number, scoped?: boolean): void;
 	/**
@@ -262,11 +262,11 @@ interface EditorOverlayCallbacks {
 	 *
 	 * There are two of these. Walking into a linked section whose earlier copy is
 	 * already timed writes the whole section from that copy's intervals and moves
-	 * the tape past it — that one dates lines nobody tapped, so it says what it
+	 * the tape past it. That one dates lines nobody tapped, so it says what it
 	 * did and how to refuse it. And a tap made while the tape is paused is
-	 * refused rather than spent, which changes nothing on screen at all — the
+	 * refused rather than spent, which changes nothing on screen at all. The
 	 * sentence saying why is the whole of the feedback for the press. Every other
-	 * thing a run does is announced and drawn — the caret, the rail, the times —
+	 * thing a run does is announced and drawn (the caret, the rail, the times)
 	 * and needs no toast.
 	 *
 	 * The editor announces the same sentence itself, so a shell that leaves this
@@ -280,7 +280,7 @@ interface EditorOverlayCallbacks {
 	 *
 	 * Deliberately not `onDiagnosticActivate`: pointing is not navigation. The
 	 * shell may mark the matching card, but nothing here may move the caret or
-	 * scroll the document — the line has to stay exactly where the pointer
+	 * scroll the document: the line has to stay exactly where the pointer
 	 * found it. Only choosing a diagnostic outright travels to it.
 	 */
 	onDiagnosticHighlight?(diagnostic: Diagnostic): void;
@@ -300,7 +300,7 @@ interface EditorOverlayCallbacks {
 	 */
 	onSectionLinksChanged?(): void;
 	/**
-	 * `[?]` was asked for at the caret — by the action bar, or by its shortcut.
+	 * `[?]` was asked for at the caret, by the action bar, or by its shortcut.
 	 *
 	 * The shell owns the edit rather than the editor writing three characters
 	 * itself: the insertion is an `AtomicDocumentEdit` against the session's own
@@ -309,7 +309,7 @@ interface EditorOverlayCallbacks {
 	 * never saw.
 	 *
 	 * `false` when no shell is listening, so the key falls through instead of
-	 * being swallowed — which is why its binding carries no `preventDefault`.
+	 * being swallowed, which is why its binding carries no `preventDefault`.
 	 */
 	onUnknownMarkerRequest?(): boolean;
 	/**

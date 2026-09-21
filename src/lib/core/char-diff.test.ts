@@ -53,8 +53,8 @@ describe('charDiffSegments', () => {
 
 	it('draws a moved parenthetical boundary the way Genius does', () => {
 		// The flip `<i>(City)</i>` → `(<i>City</i>)`: the markup and the word
-		// hold steady as shared text; the parens read as moved — red inside,
-		// green outside — which is Genius's own rendering of this edit.
+		// hold steady as shared text; the parens read as moved (red inside,
+		// green outside), which is Genius's own rendering of this edit.
 		expect(charDiffSegments('sang <i>(City)</i>', 'sang (<i>City</i>)')).toEqual([
 			{ kind: 'shared', text: 'sang ' },
 			{ kind: 'change', deleted: '', inserted: '(' },

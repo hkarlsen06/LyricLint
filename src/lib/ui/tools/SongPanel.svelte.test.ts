@@ -10,7 +10,7 @@ import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
 /*
  * The song half of the split tab. It carries only what is about the
- * transcription in front of the user — its metadata and the files it exports —
+ * transcription in front of the user (its metadata and the files it exports)
  * so the app-scoped sections (backup, local data, preferences) must never
  * appear here. Their home is `PreferencesPanel`.
  */
@@ -77,8 +77,8 @@ describe('SongPanel skimmability', () => {
 			})
 		);
 		expect(reconnect).toHaveBeenCalledOnce();
-		// The picker itself lives in the workbench — the tray's note glyph, the
-		// strip's pencil — so this tab names no second way into it.
+		// The picker itself lives in the workbench (the tray's note glyph, the
+		// strip's pencil), so this tab names no second way into it.
 		expect(screen.queryByRole('button', { name: 'Change audio source' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Add audio source' })).toBeNull();
 	});
@@ -108,7 +108,7 @@ describe('SongPanel document counts', () => {
 	});
 
 	// The counts are one run of facts with interpuncts between them, exactly as
-	// a diagnostic's meta line is — the performer count joins the run rather
+	// a diagnostic's meta line is; the performer count joins the run rather
 	// than sitting in a spaced-apart group of its own.
 	test('joins the performer count into the one interpunct run', async () => {
 		const { controller } = createTestWorkbench({
@@ -122,8 +122,8 @@ describe('SongPanel document counts', () => {
 
 	// This document has lines and sections but no performers, so the roster half
 	// of the run is absent rather than reporting a zero. The voice-group count
-	// is gone outright: it summed legend entries over the whole document —
-	// offset-keyed, so three identical choruses counted three — which is a
+	// is gone outright: it summed legend entries over the whole document
+	// (offset-keyed, so three identical choruses counted three), which is a
 	// number nobody could read anything from. Re-adding it is the specific
 	// regression.
 	test('omits a count until it has something to report', async () => {
@@ -136,7 +136,7 @@ describe('SongPanel document counts', () => {
 	});
 
 	// The line count is of sung text only. Blank lines and bracket-shaped lines
-	// — headers, an unclosed `[Bridge` — are structure, and the parser keeps
+	// (headers, an unclosed `[Bridge`) are structure, and the parser keeps
 	// them out of `section.lines`; this pins that the counts inherit the
 	// distinction rather than counting rows. A lone `[?]` is the exception the
 	// parser makes: it wears the header's brackets but stands where a line
@@ -154,7 +154,7 @@ describe('SongPanel document counts', () => {
 		const { controller } = createTestWorkbench({ text: '' });
 		const { container } = await render(SongPanel, { controller });
 
-		// Nothing counts anything, so nothing in the tab is a number — which is
+		// Nothing counts anything, so nothing in the tab is a number, which is
 		// a stricter claim than naming the counts that went.
 		expect(documentSection(container)?.textContent).not.toMatch(/\d/u);
 	});
@@ -162,7 +162,7 @@ describe('SongPanel document counts', () => {
 
 /*
  * Line timings are a document-scoped delete, so they live here, in the section
- * about the timings they clear — next to the export, not beside `Delete all
+ * about the timings they clear, next to the export, not beside `Delete all
  * local data`, which is a different scope and now a different tab. The two were
  * only ever together because both are destructive.
  */
@@ -200,7 +200,7 @@ describe('SongPanel line timings', () => {
 
 /*
  * Both facts are facts about the attached song, so the section carrying them
- * comes and goes with one — and each control comes and goes with its own fact.
+ * comes and goes with one, and each control comes and goes with its own fact.
  * A local file has neither and must draw no heading at all.
  */
 describe('SongPanel song metadata', () => {

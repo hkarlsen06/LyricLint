@@ -3,7 +3,7 @@
  * own dark palette, rendered offscreen into `static/social-preview.png`.
  *
  * It builds its own document rather than photographing the site, so the colours
- * below are a *hand copy* of the dark scheme in `src/lib/ui/styles/tokens.css` —
+ * below are a *hand copy* of the dark scheme in `src/lib/ui/styles/tokens.css`:
  * canvas, text, border, border-strong, text-muted and the warning ramp the mark
  * is drawn in. Nothing enforces that copy the way `theme-color.test.ts` enforces
  * the meta tag's, so a palette retune means re-reading it here and re-running

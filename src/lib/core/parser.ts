@@ -88,12 +88,12 @@ function trimmedRange(text: string, from: number, to: number): TextRange {
 }
 
 /**
- * A whole line that is nothing but a bracketed run of question marks — `[?]`,
+ * A whole line that is nothing but a bracketed run of question marks: `[?]`,
  * and the `[??]` near-misses `unknown.marker` rewrites to it. It wears the
  * header's brackets, but it is the unknown-lyric marker standing where a line
  * nobody could make out was sung: sung text, not structure. Read as a header it
  * was `section.header-unrecognized`'s custom header “?” with
- * `section.header-spacing` piling on above it — while the unknown rules, which
+ * `section.header-spacing` piling on above it, while the unknown rules, which
  * walk `section.lines`, could never reach a line the parser had already taken
  * out of them. It also could not be timed, and sync mode skipped over it.
  */
@@ -104,7 +104,7 @@ const unknownLyricLine = /^\[\s*\?+\s*\]$/u;
  * text cannot answer: whether its leading `[` opens a Genius annotation
  * rather than a section header. An annotation's fragment may cross line
  * breaks, so the opening line of one reads exactly like a header still being
- * typed — `[Det er for mange white boys i gamet nå` — and only the document
+ * typed (`[Det er for mange white boys i gamet nå`), and only the document
  * knows a `](35524264)` closes it two lines down. Callers that hold the
  * document pass this; a caller that truly has one bare line falls back to the
  * line-local answer, which cannot see multi-line annotations.
@@ -131,7 +131,7 @@ function opensAnnotation(text: string, context: LineDocumentContext | undefined)
  * from this one the first time the parser learned about an unclosed bracket.
  * That first time arrived with annotations: a line whose leading `[` opens an
  * annotation span is sung text wearing Genius's own link markup, never a
- * header — which is why the predicate takes the document context and every
+ * header, which is why the predicate takes the document context and every
  * caller that holds a document must pass it.
  */
 export function isSectionHeaderLine(text: string, context?: LineDocumentContext): boolean {
@@ -161,7 +161,7 @@ export function isSectionHeaderLine(text: string, context?: LineDocumentContext)
 /**
  * Whether a line is one of the ones that gets timed: sung text, not structure.
  *
- * Three surfaces ask this — sync mode taps through these lines, the timestamp
+ * Three surfaces ask this: sync mode taps through these lines, the timestamp
  * column draws a cell only for them, and the strip's `Lyrics synced` is the claim
  * that every one of them has an anchor. They have to agree, so there is one
  * answer and it lives beside the header test it is built from.
@@ -177,8 +177,8 @@ export function isLyricLine(text: string, context?: LineDocumentContext): boolea
  * Here rather than in the rule that reports it, for the reason
  * `isSectionHeaderLine` is here: three surfaces need the same answer, and the
  * two that are not rules may not import one. `section.header-empty` reports it,
- * `section.header-unrecognized` steps aside for it — a name that is not there
- * is not a custom one — and `insertSectionHeader` reads it to decide whether a
+ * `section.header-unrecognized` steps aside for it (a name that is not there
+ * is not a custom one), and `insertSectionHeader` reads it to decide whether a
  * chosen header opens a new line or fills the brackets already on this one.
  *
  * The name part arrives with any ordinal and any `: legend` already split off,
@@ -213,8 +213,8 @@ function parseHeaderName(
 
 	// A trailing run of digits with whitespace in front of it, scanned rather
 	// than matched. `/^(.*?)(?:\s+(\d+))$/u` says the same thing and is
-	// polynomial on a line that never reaches a digit — 685ms at 32,000
-	// characters — and `parseDocument` is the hottest path in the application.
+	// polynomial on a line that never reaches a digit (685ms at 32,000
+	// characters), and `parseDocument` is the hottest path in the application.
 	let digitsFrom = rawNamePart.length;
 	while (digitsFrom > 0 && isAsciiDigit(rawNamePart.charCodeAt(digitsFrom - 1))) {
 		digitsFrom -= 1;

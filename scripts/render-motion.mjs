@@ -3,7 +3,7 @@
  * browser, filmed one frame at a time.
  *
  * Each is the same scene as its own still from `render-workbench-shot.mjs`, and
- * shares that still's setup — the roster, the songs and the phrase all come from
+ * shares that still's setup: the roster, the songs and the phrase all come from
  * `shot-scene.mjs`, so a picture and its loop cannot drift. What a loop adds is
  * the part a still cannot argue. A reader looking at finished `<i>` spans has to
  * take on faith that nobody typed them; a reader watching the pointer drag a
@@ -21,7 +21,7 @@
  *
  * `ORIGIN` overrides the server it drives. The detail scenes write two files
  * each into `static/`: a `.webm` for the page, and a `.gif` for anywhere a video
- * tag is not welcome — a README, an issue, a social post. The hero writes full
+ * tag is not welcome, such as a README, an issue, a social post. The hero writes full
  * and phone-sized WebMs, with no GIF for the reason given where it is encoded.
  *
  * Run it with **node**, not bun: bun resolves `playwright-core` out of its own
@@ -31,7 +31,7 @@
  * ## Why frames rather than a screen recording
  *
  * Playwright records video, and its own bundled ffmpeg is built
- * `--disable-everything` — no GIF encoder, no `palettegen`, and a lone MJPEG
+ * `--disable-everything`: no GIF encoder, no `palettegen`, and a lone MJPEG
  * decoder, so a recording could only ever be re-encoded through a lossy
  * intermediate. Screenshotting each beat instead is lossless, and it makes the
  * timing *declared* rather than observed: a frame is captured when the scene is
@@ -89,7 +89,7 @@ const frames = [];
 
 /*
  * The pointer. Playwright's mouse moves the page and draws nothing, so the
- * cursor in the picture is ours — an arrow that follows the same coordinates
+ * cursor in the picture is ours, an arrow that follows the same coordinates
  * the real mouse is given, one `page.evaluate` per frame, so the two cannot
  * disagree about where the press landed.
  *
@@ -126,7 +126,7 @@ const CURSOR_SCRIPT = `
 
 	/* A steady caret rather than a blinking one. A blink is a change in a region
 	   that is otherwise still for seconds at a time, which costs the GIF real
-	   bytes for a detail nobody is watching — and a loop that catches it mid-off
+	   bytes for a detail nobody is watching, and a loop that catches it mid-off
 	   reads as a dropped frame. */
 	const steady = document.createElement('style');
 	steady.textContent = '.cm-cursor, .cm-cursor-primary { animation: none !important; }';
@@ -159,7 +159,7 @@ async function main() {
 	try {
 		const page = await browser.newPage({
 			// The same window each still is taken in: narrower than a laptop on
-			// purpose, and — for the performer scene — tall enough to hold the whole
+			// purpose, and, for the performer scene, tall enough to hold the whole
 			// song plus the picker under the selection. The grammar scene's document
 			// is four lines, so it needs no more room than the hero's.
 			viewport: shotViewport(scene),
@@ -202,7 +202,7 @@ async function main() {
 		/*
 		 * The caret goes to the top of the document, and both halves of that matter.
 		 *
-		 * CodeMirror's active-line wash follows the caret rather than the focus —
+		 * CodeMirror's active-line wash follows the caret rather than the focus:
 		 * the highlighter decorates off `state.selection` and never asks whether the
 		 * view is focused, so blurring does not clear it. Left where the paste ends,
 		 * the loop opens on a band across its last line that vanishes on the first
@@ -213,8 +213,8 @@ async function main() {
 		 *
 		 * **The grammar scene opens with its fix already previewed as a diff, and
 		 * that is the product rather than a leftover.** `DiagnosticList` expands the
-		 * leading card whenever nothing else has been chosen — "so the panel is
-		 * never a wall of closed rows" — and an expanded card previews its fix in
+		 * leading card whenever nothing else has been chosen, "so the panel is
+		 * never a wall of closed rows", and an expanded card previews its fix in
 		 * the document. With exactly one finding there is therefore no state in
 		 * which that card is closed: moving the caret, pressing Escape and switching
 		 * the panel's tab were all tried, and the diff is still there after each,
@@ -238,15 +238,15 @@ async function main() {
 		 * finished document is *wider* than the one the loop opens on, because
 		 * assigning the phrase writes `[Verse 2: Blair & <i>Avery</i>]` and that
 		 * legend runs past the longest line the song had before it. A crop taken
-		 * from the opening frame — which is exactly the still's own crop — cuts
+		 * from the opening frame, which is exactly the still's own crop, cuts
 		 * the end off the one line the whole loop exists to produce.
 		 */
 		/*
 		 * **The hero films the whole window, and its crop is the whole window too.**
 		 * Every other loop here is a detail shot of the editor column, so it captures
 		 * that column and works the crop out afterwards from what the scene drew.
-		 * This one's subject is the *panel* — a queue of findings emptying, card by
-		 * card, beside the document each press rewrites — so both columns have to be
+		 * This one's subject is the *panel* (a queue of findings emptying, card by
+		 * card, beside the document each press rewrites), so both columns have to be
 		 * in frame at once, and there is nothing left for a union to decide. It is
 		 * the still's own frame, which is what lets the two share a slot on the page
 		 * without the box changing size when the video's metadata lands.
@@ -300,7 +300,7 @@ async function main() {
 		};
 
 		/*
-		 * Where the pointer waits before the first gesture — and where it is put
+		 * Where the pointer waits before the first gesture, and where it is put
 		 * back at the end, so the last frame and the first are the same picture
 		 * apart from the markup the loop wrote. A loop that ends with the arrow
 		 * parked somewhere else jumps twice on repeat: once for the document
@@ -331,7 +331,7 @@ async function main() {
 						? { x: region.x + region.width * 0.45, y: firstLineTop + 6 }
 						: { x: region.x + Math.min(region.width * 0.62, 500), y: region.y + 90 };
 		// The crop is the union of what the scene drew, and the pointer is drawn by
-		// us rather than by the page — so its home has to be entered into that union
+		// us rather than by the page, so its home has to be entered into that union
 		// by hand or the arrow can rest just outside the frame. The box is the
 		// arrow's own, measured down and right from the hotspot.
 		seen.push({
@@ -462,7 +462,7 @@ async function main() {
 		};
 
 		/*
-		 * A move is the same call whether or not a button is down — the drag is
+		 * A move is the same call whether or not a button is down. The drag is
 		 * the mouse being *held*, which `page.mouse.down()` established before
 		 * this ran and `page.mouse.up()` ends after it. The dragging option only
 		 * keeps the path straight along the selected lyric line.
@@ -537,7 +537,7 @@ async function main() {
 			await observe();
 			await hold(6);
 
-			// ── 3. `Who sings this? · 1 of 2` — the phrase's own voice.
+			// ── 3. `Who sings this? · 1 of 2`, the phrase's own voice.
 			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Avery'), 13);
 			await clickHere(0, true);
 			await observe();
@@ -550,21 +550,21 @@ async function main() {
 			await observe();
 
 			/*
-			 * ── 5. `Who sings the rest? · 2 of 2` — the section's general voice, and
+			 * ── 5. `Who sings the rest? · 2 of 2`, the section's general voice, and
 			 *       **both** performers are pressed for it.
 			 *
 			 * The obvious cut picks one name here and one there, which reads as a
 			 * radio group: a viewer comes away thinking a passage belongs to exactly
 			 * one voice. The roster is a multiple selection, and two performers
 			 * singing the same line together is ordinary in the songs this tool is
-			 * used on — so the loop spends one extra press answering the question the
+			 * used on, so the loop spends one extra press answering the question the
 			 * shorter version left open. The first step took one name and this one
 			 * takes two, which shows both shapes in the same eleven seconds without
 			 * either needing a caption.
 			 *
 			 * The two presses are one decision, and the tempo has to say so. "Both of
-			 * them" was decided before the pointer moved — nobody reads the roster
-			 * again between Avery and Blair — so a dwell between the presses reads as
+			 * them" was decided before the pointer moved (nobody reads the roster
+			 * again between Avery and Blair), so a dwell between the presses reads as
 			 * the hand hesitating over a question it already answered. The second
 			 * press is a flick to the adjacent chip with no pause on the first, and
 			 * the pointer continues directly to Apply once both are selected.
@@ -582,8 +582,8 @@ async function main() {
 			await page.waitForTimeout(600);
 
 			// Applying returns focus to the editor. Nothing should carry a focus ring
-			// in the frames the loop rests on — it reads as a control the viewer is
-			// being asked to press — and the loop restarts on a document that looks
+			// in the frames the loop rests on (it reads as a control the viewer is
+			// being asked to press) and the loop restarts on a document that looks
 			// like the one it opened on, minus the markup it just wrote.
 			await page.evaluate(() =>
 				document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined
@@ -591,7 +591,7 @@ async function main() {
 			await observe();
 
 			// The pointer goes home, so the last thing on screen is the result rather
-			// than an arrow parked on the line it just wrote — and so the loop closes
+			// than an arrow parked on the line it just wrote, and so the loop closes
 			// on the frame it opened with. It is `restPosition` rather than an offset
 			// nudged from wherever `Apply` happened to be: nudged, it left the crop
 			// entirely and the longest beat ran with no pointer in it at all, which
@@ -609,7 +609,7 @@ async function main() {
 
 		/*
 		 * The grammar scene. One finding, hovered the way a reader hovers it, read,
-		 * and fixed — which is the whole of what this section claims and the half a
+		 * and fixed, which is the whole of what this section claims and the half a
 		 * still cannot show: that the button beside the explanation does what the
 		 * explanation says.
 		 */
@@ -636,7 +636,7 @@ async function main() {
 
 			/*
 			 * Onto the fix. The travel from the underline to the button crosses open
-			 * document, and the card is watching for exactly that — but it allows a
+			 * document, and the card is watching for exactly that, but it allows a
 			 * grace margin and a short delay so the diagonal from underline to
 			 * popover does not close it early. The glide is short for the same
 			 * reason: a slow crawl through the gap is how that grace gets spent.
@@ -884,7 +884,7 @@ async function main() {
 		);
 
 		// VP9 at the capture's own 2x, because this is what the page plays and a
-		// product shot is scaled down in the layout — a 1x encode set into the
+		// product shot is scaled down in the layout: a 1x encode set into the
 		// frame is visibly soft on every display anybody reads that page on.
 		const segments =
 			player || hero
@@ -963,7 +963,7 @@ async function main() {
 		 * **The hero writes no GIF, and the arithmetic is why.** A GIF is the
 		 * sharing copy for a detail shot: a few hundred frames of one column, most
 		 * of it unchanging, which `diff_mode=rectangle` compresses to almost
-		 * nothing. This scene is the opposite on every term — the whole window,
+		 * nothing. This scene is the opposite on every term: the whole window,
 		 * three times the pixels, five times the frames, and both halves of it
 		 * changing at once as the panel empties beside a document being rewritten.
 		 * The result is tens of megabytes, which is not a thing anybody drops into
@@ -975,12 +975,12 @@ async function main() {
 			await renderMobileLoop();
 			const { size } = await (await import('node:fs/promises')).stat(webmPath);
 			console.log(`wrote ${webmPath} (webm, ${(size / 1024).toFixed(0)}KB)`);
-			console.log('no gif for the hero scene — the still is its sharing copy');
+			console.log('no gif for the hero scene; the still is its sharing copy');
 			return;
 		}
 
 		// The GIF is 1x. It is the sharing copy rather than the page's, and GIF
-		// pays for a wider picture twice over — in palette error across a dark UI
+		// pays for a wider picture twice over: in palette error across a dark UI
 		// full of antialiased text, and in bytes. `stats_mode=diff` weights the
 		// palette towards what actually changes between frames instead of towards
 		// the acres of still background, and `diff_mode=rectangle` writes each

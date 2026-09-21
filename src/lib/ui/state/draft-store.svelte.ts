@@ -27,8 +27,8 @@ const maxRecentLanguages = 5;
 const saveFailedMessage = 'Local save failed. Keep this tab open and try again.';
 
 /**
- * A draft's title as a filename, with whatever extension the export wants —
- * one sanitiser for all of them, because a second copy is one edit away from
+ * A draft's title as a filename, with whatever extension the export wants.
+ * One sanitiser for all of them, because a second copy is one edit away from
  * disagreeing about which characters a disk will take.
  */
 export function safeFilename(title: string, extension = 'txt'): string {
@@ -82,7 +82,7 @@ interface DraftStoreDependencies {
 	 *
 	 * "An empty document is not a draft" is right about text and wrong about a
 	 * song: choosing what a draft is transcribed *from* is deliberate work, and
-	 * without this it was thrown away on reload — the media record kept pointing
+	 * without this it was thrown away on reload: the media record kept pointing
 	 * at a transient id that no draft would ever carry again.
 	 */
 	hasAttachment?: () => boolean;
@@ -91,7 +91,7 @@ interface DraftStoreDependencies {
 	 * repository cannot report: dropping a draft's record.
 	 *
 	 * `delete` clears the draft's ignore rows inside its own transaction, while
-	 * the store answers from an in-memory mirror hydrated once at boot — so
+	 * the store answers from an in-memory mirror hydrated once at boot, so
 	 * without this, a draft emptied out (or deleted) goes on reporting ignores
 	 * for the rest of the session that a reload will not find. Only `clearDraft`
 	 * is asked for: every other ignore operation belongs to the panel.
@@ -116,7 +116,7 @@ interface DraftStore {
 	readonly compareBaseline: CompareBaselineRecord | undefined;
 	/**
 	 * Store the Compare dialog's baseline, stamped now. Its own save trigger,
-	 * like the anchors' — a baseline changes no text, so nothing else would
+	 * like the anchors': a baseline changes no text, so nothing else would
 	 * write it.
 	 */
 	setCompareBaseline(text: string): void;
@@ -160,7 +160,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	// `noteSaveStatus`.
 	let sawPendingSave = false;
 	// Whether this draft has a record in the repository. A draft with no text
-	// never does — see `scheduleSave` — so blankness and persistence track each
+	// never does (see `scheduleSave`), so blankness and persistence track each
 	// other, and startup recovery has already swept any blank record an older
 	// build left behind.
 	let persisted = deps.initialDraft.text.trim().length > 0 || !!deps.initialDraft.geniusUrl?.trim();
@@ -171,13 +171,13 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	/**
 	 * A refused draft operation draws a toast *and* announces. The toast region
 	 * is not a live region and the live region draws nothing, so either alone
-	 * loses an audience — the same split `report` makes in the editor session.
+	 * loses an audience, the same split `report` makes in the editor session.
 	 * Successes keep announcing only: the change on screen is the confirmation.
 	 */
 	function reportFailure(message: string): void {
 		feedback.announce(message);
 		// A refusal is a sentence the user has never read, and the instruction in
-		// this one is what they have to act on — the confirmation timer is sized
+		// this one is what they have to act on, and the confirmation timer is sized
 		// for restating something they just did.
 		feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
 	}
@@ -211,7 +211,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	 *
 	 * **A landed save is what puts a draft in the list.** The list was otherwise
 	 * read once at boot and then only by the operations that change it, so a
-	 * draft's *first* save — the one that creates its record — left `drafts` at
+	 * draft's *first* save, the one that creates its record, left `drafts` at
 	 * the empty value it booted with, and the menu went on saying "No saved
 	 * 'scribes yet. This one will appear after its first local save" over a
 	 * record already on disk, for the rest of the session. That is the only
@@ -221,7 +221,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	 *
 	 * **Every landed save, not only the first.** The row carries the draft's own
 	 * `updatedAt` and the list is ordered by it, so a list re-read once would go
-	 * on reporting `Yesterday` under a draft being typed into now — the same lie
+	 * on reporting `Yesterday` under a draft being typed into now, the same lie
 	 * with a smaller radius.
 	 *
 	 * `sawPendingSave` is what keeps that to one read per save rather than one
@@ -234,8 +234,8 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	 * about a menu nobody has opened is noise.
 	 *
 	 * **A failure is not silent, wherever it came from.** A save that stops
-	 * landing in the background reached exactly one surface — a 13px readout in
-	 * the toolbar, which is not a live region — so persistence could stop with no
+	 * landing in the background reached exactly one surface, a 13px readout in
+	 * the toolbar, which is not a live region, so persistence could stop with no
 	 * warning at all to a screen reader and nearly none to anyone else. It is
 	 * reported on the way *into* the state rather than on every report of it: the
 	 * status is re-read by this store's own 250ms poll and again by the autosave
@@ -289,7 +289,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 
 		// An empty document is not a draft. It has nothing to recover and shows up
 		// as one more "Untitled transcription" among the real ones, so it is never
-		// written — and a draft emptied out gives up the record it had.
+		// written, and a draft emptied out gives up the record it had.
 		//
 		// Attached audio and a Genius page link are worth keeping on *every*
 		// save rather than only at the moment of attaching: the document is still
@@ -334,13 +334,13 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	/** `isPersisted` is false for a draft that exists only in memory so far. */
 	function loadDraft(nextDraft: DraftRecord, isPersisted: boolean): void {
 		// Loading a draft mounts a fresh editor, whose revisions start again at
-		// zero — so the autosave's high-water mark for this draft describes a
+		// zero, so the autosave's high-water mark for this draft describes a
 		// session that no longer exists, and every save made in the new one was
 		// dropped as stale until it out-typed the old one. A sync run never does,
 		// because an anchor changes no text: a reopened draft's whole timing pass
 		// went nowhere. Here rather than in `openDraft`, because every path that
-		// loads a draft into the editor resets that counter — the delete that
-		// opens whatever is left included.
+		// loads a draft into the editor resets that counter, including the delete that
+		// opens whatever is left.
 		deps.autosave.noteDraftLoaded?.(nextDraft.id);
 		persisted = isPersisted;
 		draftId = nextDraft.id;
@@ -447,7 +447,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		async refreshDrafts() {
 			// A failed read is deliberately quiet: the list simply stays as it was,
 			// and a message about a menu nobody has opened is noise. Not rejecting
-			// also keeps an operation that already landed — a delete, a rename —
+			// also keeps an operation that already landed (a delete, a rename)
 			// from reading as failed because the re-read after it did.
 			try {
 				drafts = await deps.repository.list();
@@ -467,7 +467,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			}
 			// Nothing is written here. A new draft is empty by definition, and the
 			// first save with text in it is what creates the record and takes over
-			// the current-draft pointer — so a new draft abandoned untouched leaves
+			// the current-draft pointer, so a new draft abandoned untouched leaves
 			// nothing behind, and a reload before the first keystroke comes back to
 			// the draft that still has the user's work in it.
 			loadDraft(emptyTransientDraft(), false);

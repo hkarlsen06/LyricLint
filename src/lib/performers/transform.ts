@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/performers.md and docs/subsystems/section-links.md — read both before changing this file; `narrowEdit` is load-bearing for the link mirror.
+// Decision record: docs/subsystems/performers.md and docs/subsystems/section-links.md. Read both before changing this file; `narrowEdit` is load-bearing for the link mirror.
 import type {
 	AssignmentBlockReason,
 	AssignmentRequest,
@@ -51,7 +51,7 @@ interface LineTransform {
 
 const STYLE_SLOTS: readonly StyleSlot[] = [1, 2, 3, 4];
 
-/** Whether a slice of lyric carries anything actually sung — letters, marks, or digits. */
+/** Whether a slice of lyric carries anything actually sung: letters, marks, or digits. */
 function hasSungText(text: string): boolean {
 	return /[\p{L}\p{M}\p{N}]/u.test(text);
 }
@@ -459,7 +459,7 @@ function renderPieces(pieces: readonly StyledPiece[]): RenderedLine {
 /**
  * The edit a rewrite actually makes, rather than the line it was computed over.
  *
- * A rendered line is built whole — every piece, styled or not, concatenated —
+ * A rendered line is built whole (every piece, styled or not, concatenated),
  * so the naive edit replaces the physical line even where the only difference is
  * an opening and a closing tag around five characters in the middle of it. That
  * is not merely wasteful: an edit's range is read as a claim about what the user
@@ -472,7 +472,7 @@ function renderPieces(pieces: readonly StyledPiece[]): RenderedLine {
  * So the common text at both ends stays put and the range covers what changed.
  * The trims are clamped to `keep`, the selected content's own span in the
  * rendered text, which is what `insertedOffset` measures the mapped selection
- * against — the caller's local offset stays valid because the edit can never
+ * against. The caller's local offset stays valid because the edit can never
  * start after it or end before it. Neither trim is allowed to stop between the
  * halves of a surrogate pair.
  *
@@ -524,7 +524,7 @@ export function narrowEdit(
 	}
 	// The mirror of the same reading, counted from the ends: the character *at*
 	// the boundary is shared, and the one before it is where the two strings
-	// part — so the high half can be `original`'s alone.
+	// part, so the high half can be `original`'s alone.
 	if (
 		isLowSurrogate(insert[insert.length - suffix]) &&
 		(isHighSurrogate(insert[insert.length - suffix - 1]) ||
@@ -600,8 +600,8 @@ function combineLineTransforms(
 		// A line transform's edit is narrowed to the span that changed, so the
 		// rendered line has to be rebuilt around it: the offsets walked below are
 		// line-relative, and reading them against the narrowed insert made every
-		// line whose wrapper opens or closes mid-line — a selection ending
-		// mid-line, or the rest of a section starting there — fail the boundary
+		// line whose wrapper opens or closes mid-line (a selection ending
+		// mid-line, or the rest of a section starting there) fail the boundary
 		// check and drop the whole passage back to one wrapper per line.
 		const edit = entry.transform.edit;
 		let rendered = edit
@@ -751,8 +751,8 @@ function parentheticalPlainRanges(text: string, selection: TextRange): TextRange
 
 /**
  * A selection that is exactly one parenthetical assigns the words inside it.
- * The reviewed guide keeps parentheses outside performer formatting —
- * `(<i>Yeah</i>)`, never `<i>(Yeah)</i>` — so wrapping from the parens outward
+ * The reviewed guide keeps parentheses outside performer formatting:
+ * `(<i>Yeah</i>)`, never `<i>(Yeah)</i>`, so wrapping from the parens outward
  * would write the very shape `performer.parenthetical-boundary` flags, and the
  * picker's own output must not argue with the linter.
  */
@@ -825,7 +825,7 @@ function normalizeSelection(
  *
  * What it deliberately does not ask about is the roster. An empty one is
  * answered by the card's own inline add, and `too-many-groups` depends on which
- * performers are chosen — which is the question the card is open to ask.
+ * performers are chosen, which is the question the card is open to ask.
  */
 export function canAssignVoiceGroup(
 	document: ParsedDocument,
@@ -843,12 +843,12 @@ export function canAssignVoiceGroup(
  * `undefined` where the selection names none.
  *
  * This is the range the picker's pre-selection is derived against, for the same
- * reason `canAssignVoiceGroup` above exists: the question — which voices does
- * applying touch — has to be the transform's own answer rather than a second
+ * reason `canAssignVoiceGroup` above exists: the question of which voices
+ * applying touches has to be the transform's own answer rather than a second
  * opinion read off the raw selection. Today the two readings agree on every
  * selection that can reach the picker, but only because the keyboard refuses a
  * collapsed selection and a voice group can only be overlapped through its own
- * non-whitespace characters — invariants that live in other files. The chips
+ * non-whitespace characters, invariants that live in other files. The chips
  * lit on open are part of what Apply writes, so they ask the owner.
  */
 export function assignmentSelectionRange(
@@ -1005,7 +1005,7 @@ function lineEndingForInsertion(text: string, offset: number): string {
  * `styleSlot`, retaining the continuous wrappers around unselected lyrics.
  *
  * This is the lyric-body half of an assignment, shared by `assignVoiceGroup`
- * and `assignUnknownVoice` — the two differ only in whether a legend edit
+ * and `assignUnknownVoice`, which differ only in whether a legend edit
  * accompanies these rewrites, so a second copy of this machinery would let the
  * named and unknown paths disagree about what a wrap does to the lines.
  */
@@ -1135,7 +1135,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 
 	// The same voice on both sides of the question is one voice: it sings the
 	// selection and it sings everything around it, so there is nothing to tell
-	// apart. Name it in the plain slot and leave the lyrics alone — wrapping a
+	// apart. Name it in the plain slot and leave the lyrics alone: wrapping a
 	// passage to distinguish a performer from themselves is `Frikk & <i>Frikk</i>`,
 	// two legend groups for one singer.
 	if (
@@ -1208,14 +1208,14 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	// flow always asked its questions about the selection first and the rest
 	// second, and writing the answers in that order is only honest while the
 	// rest is what the section opens with. Where the selection is the section's
-	// own opening lyrics, the selected voice sings first — so it keeps the plain
+	// own opening lyrics, the selected voice sings first, so it keeps the plain
 	// slot, its text untouched, and the *rest* is the passage that gets wrapped
 	// and named second. Without this, selecting a verse's opening lines wrote
 	// `[Verse: Rest & <i>Selected</i>]` with the first-heard voice in italics.
 	// What may stand before a leading selection is anything nobody sings:
 	// selecting the first phrase inside `(La oss feste litt, …)` starts one
 	// character into the line, and the `(` must not demote the first voice to
-	// italics — only words before the selection mean somebody sang first.
+	// italics: only words before the selection mean somebody sang first.
 	const bounds = lyricBounds(section);
 	const trailing = bounds
 		? trimWhitespaceRange(request.text, { from: selection.to, to: bounds.to })
@@ -1232,8 +1232,8 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 
 	// A skipped second step on a leading selection writes the legend and
 	// nothing else: `[Verse: Selected]`, every lyric untouched. Skip is the
-	// user declining to make a claim about the rest — often because it is
-	// several voices singing different parts — and a wrapper with nobody named
+	// user declining to make a claim about the rest (often because it is
+	// several voices singing different parts), and a wrapper with nobody named
 	// in it is that claim made anyway, seventeen lines of
 	// `performer.inline-mismatch` included. The plain name is incomplete rather
 	// than wrong: each remaining part is claimed by its own later selection,
@@ -1285,7 +1285,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	const edits: TextEdit[] = [...slotEdits];
 	if (allocation.status === 'available') {
 		// Inverted, the rest is the styled passage, so the rest's voices are the
-		// ones its legend group names. A skipped rest never reaches here — it
+		// ones its legend group names. A skipped rest never reaches here; it
 		// returned above with the legend alone.
 		const styledMembers = invert ? sectionPerformers : selectedPerformers;
 		const styledLegendGroups: RawLegendGroup[] = [
@@ -1307,7 +1307,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		// The picker's second step, when it ran: the plain lyrics get their own
 		// group so the legend begins at plain, instead of opening with the italic
 		// group this assignment just created. Which voice that is follows the
-		// order of appearance — the selection's own where it opens the section,
+		// order of appearance: the selection's own where it opens the section,
 		// the rest's everywhere else. Nothing to add when the section already
 		// names a plain voice, or when the user chose to name one later.
 		const plainMembers = invert ? selectedPerformers : sectionPerformers;
@@ -1349,7 +1349,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	}
 
 	// Inverted, the wrapped passage is the rest of the section and the user's
-	// own selection is text no edit touches — it stays selected where it is,
+	// own selection is text no edit touches. It stays selected where it is,
 	// shifted only by the legend rewrite above it. An edit inserted exactly at
 	// its end is the rest's opening tag, which the selection must not swallow.
 	const mappedFrom = invert
@@ -1382,7 +1382,7 @@ type UnknownSlotAnalysis =
 			section: Section;
 			range: TextRange;
 			/**
-			 * Unaccounted slots whose reuse would change the selection — "the same
+			 * Unaccounted slots whose reuse would change the selection: "the same
 			 * unknown voice as the other passages in this style". A slot the whole
 			 * selection already carries is left out: wrapping it again edits nothing.
 			 */
@@ -1451,7 +1451,7 @@ function analyzeUnknownSlots(
  *
  * The transform's own reading, not a second opinion: `assignUnknownVoice`
  * resolves the same analysis, so a chip offered here is an assignment that
- * will not refuse when pressed — `existingSlots` are the section's unnamed
+ * will not refuse when pressed. `existingSlots` are the section's unnamed
  * styled voices the selection could join, and `canAllocateNew` is whether a
  * fresh styled slot is free for a voice nobody has marked yet.
  */
@@ -1470,7 +1470,7 @@ export function unknownVoiceOffers(
  *
  * The header is deliberately never edited. A legend group is an identity
  * claim, and the whole point of an unknown voice is that no identity is known
- * yet — the styling alone records that a distinct voice sings here, which is
+ * yet, and the styling alone records that a distinct voice sings here, which is
  * exactly the state `performer.inline-mismatch` keeps visible until somebody
  * names it. Same prologue as `assignVoiceGroup`, so `canAssignVoiceGroup`
  * remains the one predicate the picker asks before offering either.
@@ -1497,8 +1497,8 @@ export function assignUnknownVoice(request: UnknownVoiceRequest): AssignmentResu
 				: undefined
 			: analysis.newSlot;
 	if (slot === undefined) {
-		// A named explicit slot that is not an unaccounted one is a stale request
-		// — the document changed under the card — while a failed allocation is
+		// A named explicit slot that is not an unaccounted one is a stale request:
+		// the document changed under the card, while a failed allocation is
 		// the four slots genuinely spent.
 		return request.styleSlot !== undefined
 			? { status: 'blocked', reason: 'invalid-range' }
@@ -1577,7 +1577,7 @@ export function assignVoiceLegend(request: LegendAssignmentRequest): DocumentTra
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 	// The retained groups are keyed by slot below, and the parser does not
-	// guarantee one group per slot — `[Chorus: <i>A</i>, <i>B</i>]` is two groups
+	// guarantee one group per slot: `[Chorus: <i>A</i>, <i>B</i>]` is two groups
 	// on slot 2. Keyed, the second silently overwrites the first, so a legend the
 	// user wrote in two parts comes back as one and a voice is dropped from the
 	// header without an edit anywhere naming it. Refused instead: a header this
@@ -1668,7 +1668,7 @@ export function assignVoiceLegend(request: LegendAssignmentRequest): DocumentTra
  * The span a chosen name is written into: the empty header's own brackets.
  *
  * `[]` is a header the user has opened and not named, and the one thing they
- * asked for by typing it is that the header goes *here* — so filling it is the
+ * asked for by typing it is that the header goes *here*, so filling it is the
  * edit, not opening a second header line above it. The slot stops at the colon
  * where there is one, because a legend is a decision about voices that has
  * nothing to do with the part being named: `[: Ari]` becomes `[Chorus: Ari]`.

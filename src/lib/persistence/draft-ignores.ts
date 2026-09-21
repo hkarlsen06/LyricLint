@@ -5,18 +5,18 @@ import type { DraftIgnoreStore } from './types.js';
  * Create the durable, draft-and-diagnostic keyed ignore store.
  *
  * Ignores used to live in `sessionStorage`, which made setting one aside a
- * decision the browser forgot with the tab — while the lyrics, the timings and
+ * decision the browser forgot with the tab, while the lyrics, the timings and
  * the links it was made about all came back. They live in the same database as
  * everything else now: a row per 'scribe, deleted inside the same transactions
  * that delete the 'scribe (`draft-repository.ts`), copied by the workspace
  * backup, and cleared by `Delete all local data`.
  *
- * The interface stays synchronous because every reader is — the panel filters
+ * The interface stays synchronous because every reader is: the panel filters
  * findings against it on every snapshot. So the factory hydrates an in-memory
  * mirror once, before the workbench exists to ask, and every write answers
  * from the mirror and persists behind it, the way preferences answer at once
  * and write after. A failed write costs the ignore its durability, not its
- * session — which is exactly what the store promised before.
+ * session, which is exactly what the store promised before.
  */
 export async function createDraftIgnoreStore(
 	database: LyricLintDatabase

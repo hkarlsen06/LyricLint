@@ -80,8 +80,8 @@ describe('Harper lyric projection', () => {
 	});
 
 	// Harper tokenizes `'90s` as a number followed by a one-letter word and
-	// spell-checks the `s` into `so`, `as` and `is` — a fix preview reading
-	// `'90s` → `'90so` — and its decade lint on `90's` would stand where
+	// spell-checks the `s` into `so`, `as` and `is` (a fix preview reading
+	// `'90s` → `'90so`), and its decade lint on `90's` would stand where
 	// `numbers.decade-apostrophe`'s reviewed finding belongs. Every
 	// decade-shaped token with an apostrophe is therefore masked, right or
 	// wrong, curly or straight; the bare `90s` is a clean token and stays.
@@ -198,7 +198,7 @@ describe('Harper diagnostic provider', () => {
 
 	it('drops a spelling guess whose token joined with its edge apostrophe is a taught word', async () => {
 		// Harper tokenizes edge apostrophes as punctuation, so the already-correct
-		// `lil'` reaches it as bare `lil` and its dictionary offers `lil'` back —
+		// `lil'` reaches it as bare `lil` and its dictionary offers `lil'` back,
 		// a fix that appends a second apostrophe and re-creates the finding
 		// forever. The curly form and the leading-apostrophe form (`'til`) take
 		// the same path; a token with no adjacent apostrophe must still pass.
@@ -252,7 +252,7 @@ describe('Harper diagnostic provider', () => {
 
 	it('drops dialect-preference findings arriving under the Regionalism kind', async () => {
 		// `have a look` against `take a look` is a fact about dialects, not about
-		// the lyric — a regionalism performed is the transcription.
+		// the lyric, and a regionalism performed is the transcription.
 		const text = '[Verse]\nHave a look at my heart';
 		const engine = engineReturning((projected) => [
 			lintAt(projected, 'Have', {
@@ -276,7 +276,7 @@ describe('Harper diagnostic provider', () => {
 
 	it('drops a spelling guess at a g-drop the transcription marks with an apostrophe', async () => {
 		// `Runnin'` is the as-spoken form; Harper's dictionary sees bare `Runnin`
-		// and guesses. The unmarked `somethin` must still come through — with no
+		// and guesses. The unmarked `somethin` must still come through. With no
 		// elision apostrophe it is a misspelling Harper is right to question.
 		const text = "[Verse]\nRunnin' from somethin real";
 		const engine = engineReturning((projected) => [
@@ -302,7 +302,7 @@ describe('Harper diagnostic provider', () => {
 
 	it("leads a bare g-drop with the elision mark Harper's own -ing form vouches for", async () => {
 		// `Killin` typed without its apostrophe used to offer only dictionary
-		// guesses — `Killing`, `Kill's`, `Kelvin` — when the transcription-first
+		// guesses (`Killing`, `Kill's`, `Kelvin`) when the transcription-first
 		// repair is the mark: `Killin'`. The `-ing` form in Harper's own list is
 		// what proves the token is a g-drop, so the synthesized fix leads, the
 		// `-ing` form stays second, and the nearest-word noise goes.
@@ -336,7 +336,7 @@ describe('Harper diagnostic provider', () => {
 
 	it('keeps ordinary fixes for a flagged token the dictionary endorses no -ing form of', async () => {
 		// `chillin` comes back from real Harper as `chill in` with no `chilling`
-		// beside it, so there is no endorsement to synthesize from — a guess of
+		// beside it, so there is no endorsement to synthesize from, and a guess of
 		// ours would be the automatic-anchor mistake, plausible and unverifiable.
 		const text = '[Verse]\nchillin all day';
 		const engine = engineReturning((projected) => [
@@ -528,7 +528,7 @@ Have a look at my heart`;
 
 	it('offers the elision mark first against the real dictionary', async () => {
 		// The stub test above pins the synthesis; this one pins the endorsement
-		// it reads — real Harper answering `Killin` with `Killing` in its list.
+		// it reads: real Harper answering `Killin` with `Killing` in its list.
 		const text = '[Verse]\nKillin the game';
 		const [{ LocalLinter }, { binary }] = await Promise.all([
 			import('harper.js'),
@@ -672,8 +672,8 @@ describe('Harper diagnostic merging', () => {
 	});
 
 	// Equality was too narrow for what this merge has always promised. Several
-	// reviewed rules report a whole line — `capitalization.title-case` and
-	// `section.header-prose` among them — and Harper stops on one word inside it,
+	// reviewed rules report a whole line (`capitalization.title-case` and
+	// `section.header-prose` among them) and Harper stops on one word inside it,
 	// so the two cards stood side by side arguing about the same words. Only
 	// containment in this direction is dropped: a Harper finding *wider* than a
 	// native one is a claim about a span no reviewed rule made.
@@ -703,7 +703,7 @@ describe('Harper diagnostic merging', () => {
 	});
 
 	// Harper's dictionary has no idea what «Idk» is, so it offers «Id», «Ids» and
-	// «Ilk» — three replacements that are not words the vocal could be singing,
+	// «Ilk», three replacements that are not words the vocal could be singing,
 	// under a card asking whether the spelling was meant. That is the failure this
 	// merge exists to prevent, and the repair is a native rule claiming the token
 	// rather than a list of words Harper is told to skip: the reviewed rule then
@@ -727,7 +727,7 @@ describe('Harper diagnostic merging', () => {
 		expect(mergeHarperDiagnostics(native, harper)).toEqual(native);
 	});
 
-	// The sample transcription leaves exactly one mistake for Harper — `I has` —
+	// The sample transcription leaves exactly one mistake for Harper, `I has`,
 	// so the loaded sample cites every origin the meta line can draw, Harper's
 	// GitHub provenance included. The rest of what Harper notices there (`dont`,
 	// `Definately`, the lowercase `i`) is claimed by native rules, which win

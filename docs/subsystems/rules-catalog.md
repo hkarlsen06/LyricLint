@@ -8,7 +8,7 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
 
 - Every rule declares `settlesOn` (`character` | `caret` | `line` | `document`; default
   `line`): the axis is how far right a change can still reach, not time. A diagnostic may
-  override its rule's tier. One gate, in `filterForEditorState` — never a second deferral
+  override its rule's tier. One gate, in `filterForEditorState`, never a second deferral
   mechanism. `typing-churn.test.ts` types a verse a character at a time and asserts the
   doomed-episode list is empty; a rule at the wrong tier fails there.
 - The `document` tier settles on a 1500ms pause and trusts `EditorSnapshot.atomic` (the
@@ -29,7 +29,7 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   `performer.header-required` owns the section with styled text and **no** legend (one
   header-anchored finding, roster-gated), `performer.inline-mismatch` owns the section
   **with** a legend missing a styled slot (one finding per unaccounted slot, anchored on the
-  slot's first span). Formatting-first transcription is a workflow, not a defect — see *A
+  slot's first span). Formatting-first transcription is a workflow, not a defect. See *A
   styled voice nobody can name yet is work remaining, not a mistake* below.
 - A finding whose claim outlives the words it flags declares `identityText`, and per-occurrence
   ignores key on that in place of the flagged text. `performer.inline-mismatch` flags a styled
@@ -49,7 +49,7 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   in the reference; `variant` collapses per-language families in the index only.
   `reference.test.ts` pins title constraints.
 - The way to quiet Harper is a reviewed rule claiming the token (`mergeHarperDiagnostics`
-  drops covered findings) — never teaching `dictionaryWords` a word the catalog thinks is
+  drops covered findings), never teaching `dictionaryWords` a word the catalog thinks is
   wrong. `harper.test.ts` drives the real rule, and the real WASM above 200 characters
   (the readability-dedup ordering must not regress behind a mock).
 - Harper is audited by purpose: `disabledHarperLints` names rules whose job contradicts the
@@ -57,8 +57,8 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   kinds drop whole in `appliesToLyrics`; marked g-drops (`runnin'`) are filtered in the
   provider; unmarked g-drops get a synthesized elision-mark fix only when Harper's own
   suggestions endorse the `-ing` form (`elisionMarkFixes`). Rules that merely misfire stay on.
-- Shorthand expansion (`spelling.texting-shorthand`) is gated on one question — does anybody
-  sing the letters? — never a `safe` fix, never mirrors the token's case beyond a leading
+- Shorthand expansion (`spelling.texting-shorthand`) is gated on one question (does anybody
+  sing the letters?), never a `safe` fix, never mirrors the token's case beyond a leading
   capital, and leaves neighbouring sets to the rules that own them.
 
 - Spelling memoization retains only line-local candidates keyed by the complete text and language,
@@ -92,13 +92,13 @@ switching, composition, retry, and destruction across this boundary.
 
 Every rule runs against a whole parsed document on every keystroke, so a transcription
 mid-composition is linted as if the user had already stopped. Most of what this catalog checks is
-therefore asserted about text the next keystroke is about to change — and those cards are not
+therefore asserted about text the next keystroke is about to change, and those cards are not
 merely early. They are wrong, they argue with the transcriber, and they retract themselves.
 
 Measured over one short invented verse typed a character at a time: **21 cards appeared and 16 of
 them were doomed**, occupying 46 keystrokes. `[` is `syntax.unbalanced-brackets` for the eight
 keystrokes it takes to type `[Verse 1]`, and letters two through five each replaced the card with a
-fresh `section.header-unrecognized` naming the prefix so far — `“V”`, `“Ve”`, `“Ver”` — with
+fresh `section.header-unrecognized` naming the prefix so far (`“V”`, `“Ve”`, `“Ver”`), with
 `section.header-language` telling the user their English was wrong in the middle of the word
 "Verse". That is the first thing anybody meets in this application.
 
@@ -107,7 +107,7 @@ reach.** Both of the obvious repairs are wrong, and each is wrong in the directi
 right:
 
 - **A global debounce fixes almost nothing measured.** The doomed episodes ran 7–11 keystrokes,
-  which is one to two seconds of ordinary typing — longer than any debounce anybody would tolerate.
+  which is one to two seconds of ordinary typing, longer than any debounce anybody would tolerate.
   It also makes the correct findings late, and the one thing it would catch (a word passing through
   a fuzzy spelling target) it catches only if the user pauses mid-word, which is exactly when they
   are stuck and least want it.
@@ -115,35 +115,35 @@ right:
   curly quote the instant it lands. Holding those means typing a whole song and meeting forty cards
   at the end, which is not a linter.
 
-So `settlesOn` is a declaration on the rule — four tiers, `line` by default, because a rule added
+So `settlesOn` is a declaration on the rule: four tiers, `line` by default, because a rule added
 without a thought about typing should be quiet while its line is being written rather than arguing
 with every prefix of every word:
 
-- **`character`** — a fact about text already committed whose **message** is settled as well as its
+- **`character`**: a fact about text already committed whose **message** is settled as well as its
   existence. `symbols.special-characters` and the invisible-character half of
   `text.invisible-characters`. These draw at once, wherever the caret is.
-- **`caret`** — provisional while the caret is on its line, typing or not. Exactly one finding is
+- **`caret`**: provisional while the caret is on its line, typing or not. Exactly one finding is
   here, and it is the one this mechanism replaced: a trailing run of spaces. Every space between two
-  words is trailing whitespace for a moment, and the transcription loop is listen, pause, type — so
+  words is trailing whitespace for a moment, and the transcription loop is listen, pause, type, so
   a pause mid-line is the commonest thing that happens in this application, and being told about the
   space you are standing in is the churn wearing a different hat.
-- **`line`** — the rule reads a whole line, so its answer is provisional while that line is being
+- **`line`**: the rule reads a whole line, so its answer is provisional while that line is being
   written. This is where every mid-word misfire lives, and where the header family lives, which is
   why **the unclosed bracket needed no special case**: a caret inside `[` is on that line, so the
   whole family stands down for free. The cost is finding out one Enter later.
-- **`document`** — a claim about the shape of the song, which is not finished until typing stops.
+- **`document`**: a claim about the shape of the song, which is not finished until typing stops.
   `section.verse-numbering` said `Do not number a song with only one distinct verse` from the moment
   `[Verse 1` existed, which for a transcriber working top to bottom is most of the session: it told
   them to unnumber a verse they were on their way to numbering correctly. `section.header-missing`
   fired on the document's **first keystroke**, because somebody transcribing by ear types the words
   before the header. `capitalization.title-case` is here too and is the subtle member: it needs two
   title-cased lines in one section and then reports on both, so typing line N+1 decides whether line
-  N is flagged — a card that lands on a line the caret is not on, which `line` cannot help with.
+  N is flagged: a card that lands on a line the caret is not on, which `line` cannot help with.
 
 **`line` needs live typing and `caret` does not, and that difference is two real findings that went
 undrawn.** Deferral is a statement about a document being written, not about where a caret is
-parked. Read the other way, the landing page's demo — which seeds a collapsed caret at offset 0 and
-never moves it — permanently hid the `section.header-prose` its own copy points at; and a
+parked. Read the other way, the landing page's demo, which seeds a collapsed caret at offset 0 and
+never moves it, permanently hid the `section.header-prose` its own copy points at; and a
 transcriber who types the last line of a song and stops leaves the caret there for good, hiding that
 line from the panel **and** from the `Fix N automatically` batch, which plans over what is visible.
 `caret` is the narrow exception, for the one finding whose whole existence is caused by the caret
@@ -157,7 +157,7 @@ worded one on the next keystroke, on every `don't`, `I'm` and `ain't` in the son
 
 **A diagnostic may override its rule's tier, and one does.** `text.invisible-characters` reports a
 zero-width space, which is wrong the moment it exists, and a trailing run of spaces, which is only
-trailing until the next word — every space between two words is trailing whitespace for a moment.
+trailing until the next word: every space between two words is trailing whitespace for a moment.
 Carried on the `Diagnostic` rather than split into two rules, for the reason `presumedCorrect` is.
 
 **This replaced `deferActiveLineTrailingWhitespace`, which was this idea hand-rolled for exactly one
@@ -167,22 +167,22 @@ prevent. There is one gate, in `filterForEditorState`, and it runs there rather 
 so a filter is free while a context change would re-run 60 rules.
 
 **The `document` tier is the one place a timer is right, and it is a settle, not a debounce.** It
-waits for the user to stop making the answer change, so `settleDelay` is 1500ms — under a second it
+waits for the user to stop making the answer change, so `settleDelay` is 1500ms: under a second it
 fires mid-sentence, which is the noise it exists to remove. Two things it owes:
 
 - **Text that arrived whole is a finished document.** Opening a draft, pasting a transcription,
   loading the sample, inserting a header and applying a fix all deliver one in a single change, and
-  their shape findings are right immediately — waiting on those would read as the linter being slow.
+  their shape findings are right immediately. Waiting on those would read as the linter being slow.
 
   **The editor says which it was; the shell does not estimate it.** `dispatchAtomicEdit` has always
   annotated its transaction `input.atomic`, and that annotation now reaches the shell as
   `EditorSnapshot.atomic`, so every path that replaces text as one complete edit is covered by the
   one place that dispatches them. This replaced a guess, and the guess could not have been made to
   work: a one-occurrence fix (`Dont` → `Don't`) inserts one character at the caret exactly as typing
-  one there would. Only a **document change** may be atomic — a selection moving is not an edit, and
+  one there would. Only a **document change** may be atomic: a selection moving is not an edit, and
   reporting it as one would tell the shell a press had landed when nothing had.
 
-  `isTypingChange` is what is left, and it judges only the changes nobody dispatched — keystrokes,
+  `isTypingChange` is what is left, and it judges only the changes nobody dispatched: keystrokes,
   pastes, drops. It measures the **changed span** rather than the length delta, because
   `Fix all 2 · Replace with '` rewrites two characters in different verses for a net delta of zero;
   that press is atomic now and never reaches this function, but a paste with the same shape would.
@@ -196,13 +196,13 @@ fires mid-sentence, which is the noise it exists to remove. Two things it owes:
   merely stops. It costs what `republishForSectionLinks` costs, which is nothing: the lint is
   memoized on the document, so it re-filters findings already computed.
 
-**A selection defers nothing.** A range is not somewhere a word is being typed — it is a decision
+**A selection defers nothing.** A range is not somewhere a word is being typed: it is a decision
 already made about text that is already there, and hiding findings under it would take away the ones
 the user selected them to read.
 
 **A mirrored line is only a peer where the peer section has one.** A caret in a linked section defers
 the lines its edits are being carried onto, and that offset arithmetic assumes every member of the
-link runs to the same length — which the merge-structure link model explicitly does not require, two
+link runs to the same length, which the merge-structure link model explicitly does not require, two
 choruses differing by a line being the shape the whole feature was rebuilt for. Unbounded, a caret on
 the fourth line of a long chorus resolved to whatever line sat at that offset from the peer's header
 and suppressed a finding in a section that was not in the link at all. It is clamped to the peer's own
@@ -210,7 +210,7 @@ line range now. This was survivable while it could only ever hide a trailing-whi
 not, now that it governs the default tier.
 
 **One line-number pass, not one per finding.** `lineNumberAt` is an O(offset) character walk, and it
-used to run for two rule ids — it now runs for nearly every finding, on every keystroke and every
+used to run for two rule ids, and it now runs for nearly every finding, on every keystroke and every
 caret move. `filterForEditorState` builds one line table instead, lazily, and returns early when
 nothing is deferred at all.
 
@@ -249,9 +249,9 @@ marks in this sense.
 finding** (2026-09-21). The Nordic Genius communities quote with `«…»`, so when the
 document language is one of `guillemetLanguages` (`no`, `nb`, `nn`, `da`, `sv`, `is`,
 `fo`, matched on the primary subtag) the rule inverts for double marks: curly, low and
-reversed doubles become `«` or `»` with a `safe` fix — they carry their own direction,
+reversed doubles become `«` or `»` with a `safe` fix (they carry their own direction,
 and a `“` after an unclosed `„` on the line is read as the closing half of a German-style
-pair — while a straight `"` carries no direction, so it alternates by parity with the
+pair), while a straight `"` carries no direction, so it alternates by parity with the
 straight marks before it on the line and previews rather than batches. A quote spanning
 lines opens twice; that is the ceiling of the heuristic. Single marks still straighten to
 `'` in every language, because most of them are apostrophes. The convention was
@@ -262,19 +262,19 @@ Genius page is registered for it.
 ### A line that is a header is not a lyric, and every rule has to agree about which
 
 Paste what a word processor or a lyric site gives you and the first line is `Verse 1:`. Three rules
-read that line, and only one of them was right about it — so the first thing a new user saw was the
+read that line, and only one of them was right about it, so the first thing a new user saw was the
 workbench contradicting itself on the line they had just pasted:
 
 - `section.header-prose` says the header wants brackets, and offers `Use [Verse 1]`, one press.
 - `section.header-missing` said the section had **no** header, on the same line, expanded and
-  leading — because the label is not bracketed, so the parser hands it over as a lyric. Two cards
+  leading, because the label is not bracketed, so the parser hands it over as a lyric. Two cards
   adjacent, the loud one denying the header the quiet one was quoting, and the quiet one was the
   one carrying the fix.
 - `numbers.spell-out` offered to write the `1` out, so the linter's advice on line 1 of a fresh
   paste was **`Verse one:`**. It goes away the moment the header is bracketed, which is exactly the
   wrong time: it is on screen while the user is deciding whether this tool knows anything.
 
-Both are one rule's finding arriving as somebody else's, and both have the same answer — the one
+Both are one rule's finding arriving as somebody else's, and both have the same answer: the one
 press that brackets the header. So `isProseHeaderLine` is exported from `section-header-prose.ts`,
 the rule that owns the question, and the other two consult it. One predicate rather than three,
 because what counts as a written-out label is exactly the set that rule is about to offer a fix
@@ -295,17 +295,17 @@ bug, and it presents as a panel arguing with itself.
 
 Implementation: `isProseHeaderLine` in `rules/catalog/section-header-prose.ts`,
 `sectionLeadsWithProseHeader` consumed directly by `section-header-missing.ts`, the guard in
-`numbers-spell-out.ts`, and the regressions in `catalog-policy.test.ts` — which is where cross-rule
+`numbers-spell-out.ts`, and the regressions in `catalog-policy.test.ts`, which is where cross-rule
 interactions are pinned, so the two halves cannot be re-broken one at a time.
 
 ### An empty header is not a custom one, and the picker fills the brackets it finds
 
-Type `[` and `]` and stop, and the workbench used to answer `Review the custom section header “”.` —
-`section.header-unrecognized`, quoting nothing back at the reader, explaining that “” is in no
-reviewed catalog, and leading with `It's correct` about it. Three things were wrong at once, and the
+Type `[` and `]` and stop, and the workbench used to answer `Review the custom section header “”.`
+(`section.header-unrecognized`, quoting nothing back at the reader, explaining that “” is in no
+reviewed catalog, and leading with `It's correct` about it). Three things were wrong at once, and the
 first is the one that matters: **a name that is not there is not a name somebody chose.** That rule
 exists for `[Chor]`, a header a transcriber typed on purpose which LyricLint cannot vouch for, and
-its whole shape — manual review, no fix, an affirmative control leading the row — is built on the
+its whole shape (manual review, no fix, an affirmative control leading the row) is built on the
 likelihood that the words are already right. Nothing about `[]` is right yet. It also drew its
 underline over the empty name part, which is a zero-width range, so the one line the card was about
 was marked with nothing at all. And it was the first thing anybody typing a header met.
@@ -313,7 +313,7 @@ was marked with nothing at all. And it was the first thing anybody typing a head
 `section.header-empty` owns that line now, at `warning`, and it says the thing that is true: the
 brackets are here and the song part they open is not named. **Its one control is `Choose header`,
 the same control `section.header-missing` carries**, because the two findings ask the same question
-— which reviewed song part is this? — and a card that offered a second, differently worded way to
+(which reviewed song part is this?), and a card that offered a second, differently worded way to
 pick a header would be two ways to ask it. `offersHeaderPicker` in `DiagnosticActions.svelte` is
 therefore an id pair rather than an id, and the surfaces stay identical because they already share
 that row.
@@ -325,15 +325,15 @@ typed**. `emptyHeaderNameSlot` in `performers/transform.ts` is that span, and it
 where there is one: a legend is a decision about voices and has nothing to do with naming the part,
 so `[: Ari]` becomes `[Chorus: Ari]`. Both are one `TextEdit`, so filling the brackets is one undo,
 and the later-verse renumbering runs on either path. `insertSectionHeader`'s refusal to touch a
-section that already has a header is otherwise unchanged — the empty one is the exception, and it is
+section that already has a header is otherwise unchanged: the empty one is the exception, and it is
 the only one.
 
 Four things this depends on:
 
 - **The finding is anchored at `section.from`, not at the header.** The two surfaces reach the
-  picker by different routes — the popover hands the diagnostic's own `from` to
+  picker by different routes (the popover hands the diagnostic's own `from` to
   `createSectionHeaderEdit`, while the panel selects the range and lets `containingSectionRange`
-  answer from the caret — and `insertSectionHeader` looks the section up by `from`. Anchored on
+  answer from the caret), and `insertSectionHeader` looks the section up by `from`. Anchored on
   `header.from` instead, an indented `  []` resolves from one path and is refused from the other.
 - **Only a _closed_ empty header is reported.** `[` on its own is
   `syntax.unbalanced-brackets`' finding, and half the keystrokes in `[Verse 1]` are spent in that
@@ -342,7 +342,7 @@ Four things this depends on:
   example rather than a comment.
 - **`section.header-unrecognized` steps aside on the name alone, closed or not.** It has nothing to
   say about a name that is not there in either state, and the predicate is the parser's
-  `headerNameIsEmpty` — beside `isSectionHeaderLine`, for the same reason: three surfaces need the
+  `headerNameIsEmpty`, beside `isSectionHeaderLine`, for the same reason: three surfaces need the
   same answer and two of them are not rules, so neither the transform nor a second rule may arrive
   at it with a check of its own.
 - **`section.header-missing` is untouched and cannot collide.** A section with a header line, empty
@@ -356,7 +356,7 @@ Implementation: `rules/catalog/section-header-empty.ts`, `headerNameIsEmpty` in 
 `emptyHeaderNameSlot` in `performers/transform.ts`, and the id pair in
 `diagnostics/DiagnosticActions.svelte`. The cross-rule regression is in `catalog-policy.test.ts`
 with the others, and `section-header-empty.test.ts` drives the real transform from the real
-finding's range — the one contract neither file would catch alone.
+finding's range, the one contract neither file would catch alone.
 
 ### A closing bracket cannot reach backward past sung text
 
@@ -381,14 +381,14 @@ explanation says why that is allowed: these are _exact recognized_ markers, so r
 mechanically safe. Its `ambiguous` case is `[Verse]\nI heard ???`, which `catalog-policy.test.ts`
 pins at zero findings.
 
-That looked like a hole — `???` is the commonest thing a transcriber types for a line they cannot
+That looked like a hole: `???` is the commonest thing a transcriber types for a line they cannot
 make out, and the linter said nothing about it. It is not a hole. It is the safe fix's own
 justification, written down as an example: `???` is somebody's improvisation rather than a form
 anyone recognizes, so a rule that swallowed it would have made "exact recognized marker" false for
 every match it has, and would have swept `Are you serious???` into a bulk fix on the strength of it.
 
 **So the answer to a gap next to an `ambiguous` case is a second rule at the right tier, not a wider
-regex.** `unknown.improvised-marker` is a `suggestion` with a `preview` fix — the tier every judgment
+regex.** `unknown.improvised-marker` is a `suggestion` with a `preview` fix, the tier every judgment
 call in this catalog uses, and the one thing `collectSafeFixes` will not touch. The reviewed decision
 survives exactly as written: nothing rewrites `???` mechanically. The transcriber is simply told what
 the marker is.
@@ -402,11 +402,11 @@ Three things it owes:
   whitespace): it stands for a missing line. A single mark beside words remains punctuation.
   The diagnostic quotes the actual marker and keeps the same preview-only replacement.
 - **It reads `recognizedUnknownMarker` rather than re-deriving it.** `( ?? )` and `[???]` are
-  `unknown.marker`'s findings, and two diagnostics over one span are two cards arguing about it —
+  `unknown.marker`'s findings, and two diagnostics over one span are two cards arguing about it,
   the same failure `isProseHeaderLine` and `isImmediateRepeat` exist to prevent, and the same
   arrangement: the rule that owns the question exports the predicate, the other imports it.
 - **`censored.mask`'s standalone-run precedent does not carry over, and the difference is worth
-  stating.** A lone `***` is ambiguous about _what it is_ — a mask, a divider, a redaction — so that
+  stating.** A lone `***` is ambiguous about _what it is_ (a mask, a divider, a redaction), so that
   rule flags only runs mixed with letters. A lone `???` is not ambiguous about what it is, only about
   whether it was meant; there is exactly one form it can be steering toward, and `[?]` is it.
 
@@ -414,12 +414,12 @@ Rule additions follow the registrations, counts, and corpus/version checklist in
 above. Keeping that checklist in one place avoids preserving an older local test workflow here.
 
 **And a fifth where the rule is a table rather than a judgment.** A rule that checks against a
-lookup — a map of misspellings, a set of expansions, a list of preferred forms — reaches the rules
+lookup (a map of misspellings, a set of expansions, a list of preferred forms) reaches the rules
 assistant as its one reviewed example and nothing else, because the corpus derives a rule the way
 the reference page does. `spelling.standardized` shipped that way: asked what the standardized
 spellings are, the assistant could see exactly one pair and said so. Export the table and add it to
-`ruleLookupTables()` in `src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/spelling.ts`, which carries per-entry fix behavior — a
-rule's `fixability` is a ceiling, not what every row of its table gets — and keeps LyricLint's own
+`ruleLookupTables()` in `src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/spelling.ts`, which carries per-entry fix behavior (a
+rule's `fixability` is a ceiling, not what every row of its table gets) and keeps LyricLint's own
 curated misspellings labelled apart from the reviewed forms. `services/rules-assistant/README.md`
 is where the rest of that decision is written down, including why a reviewed source is still a
 pointer and no Genius prose is stored.
@@ -440,7 +440,7 @@ release gating is documented in `../ci.md`.
 
 Harper is a general-purpose English proofreader with a dictionary, and a dictionary meeting `Idk`
 does the only thing it can: it looks for the nearest words it knows. What that produced was a card
-headed `Did you mean to spell Idk this way?` offering `Id`, `Ids` and `Ilk` — three replacements
+headed `Did you mean to spell Idk this way?` offering `Id`, `Ids` and `Ilk`, three replacements
 that are not words anybody sang, over a token whose meaning every reader of the line already knows.
 The finding was not merely unhelpful; the fixes were actively wrong, and they were the loudest thing
 on the card.
@@ -448,7 +448,7 @@ on the card.
 **The repair is a reviewed rule claiming the token, not a list of words Harper is told to skip.**
 Both would have removed the bad card, and only one of them says anything. `mergeHarperDiagnostics`
 already drops any Harper finding whose range a native diagnostic covers, so a rule that reports
-`Idk` is a rule that silences Harper there for free — and what stands in its place is the finding
+`Idk` is a rule that silences Harper there for free, and what stands in its place is the finding
 the transcriber wanted: the words the shorthand stands for. Teaching `dictionaryWords` the token
 would have done the opposite of the intent, since that list is what Harper is told is _correct_, and
 `idk` is exactly what this catalog does not think is correct. `harper.test.ts` drives the real rule
@@ -458,7 +458,7 @@ stopped covering that token.
 **What may be expanded is decided by one question: does anybody sing the letters?** A vocal
 performing "I don't know" has been written down as `Idk` by somebody typing the way they text, so
 the words are recoverable and the shorthand is a spelling of them. `ASAP`, `OK`, `VIP`, `DJ` are the
-other kind — the letters _are_ the performance, two of them are reviewed preferred spellings
+other kind: the letters _are_ the performance, two of them are reviewed preferred spellings
 already, and expanding one would put words in a singer's mouth. `LOL`, `OMG` and `WTF` are on that
 side too, said aloud often enough that "laughing out loud" is a guess rather than a reading. That
 question is what keeps `expansions` from drifting into every initialism in English, and it is the
@@ -467,13 +467,13 @@ same shape as `unknown.improvised-marker`'s: a rule earns a token by being able 
 Three consequences worth keeping straight:
 
 - **Nothing here is ever a `safe` fix.** An artist who spells the letters out is transcribed as they
-  sing them, and no rule can hear which happened — so this is a `suggestion` with `preview` fixes,
+  sing them, and no rule can hear which happened, so this is a `suggestion` with `preview` fixes,
   which is the tier every judgment call in this catalog uses and the one thing `collectSafeFixes`
   will not touch.
 - **A shorthand with two readings offers two fixes rather than guessing one.** `ur` is `your` about
   as often as it is `you're`, and the card already draws a row of them.
 - **The token's case is never mirrored onto the expansion.** Shorthand is conventionally capitalized
-  as an initialism — `IDK` and `TBH` are how these are written inside an ordinary lowercase line — so
+  as an initialism (`IDK` and `TBH` are how these are written inside an ordinary lowercase line), so
   its case says nothing about the line, and `I DON'T KNOW` would be the linter shouting over a lyric
   that was never shouted. Only a leading capital survives, which is what carries a line-initial `Tbh`
   onto the `To be honest` that `capitalization.line-start` is about to want.
@@ -481,13 +481,13 @@ Three consequences worth keeping straight:
 **And the neighbouring sets are left to the rules that own them**, which is the arrangement
 `isProseHeaderLine` and `recognizedUnknownMarker` are already in. Pronunciation spellings (`gonna`,
 `tho`, `cuz`) are how the word is _sung_, which is what `G-AS-SPOKEN` asks for, and `tho` and `cuz`
-are reviewed entries `spelling.standardized` answers for — `cuz` behind a cousin-meaning gate this
-rule could not reproduce. Apostrophe-less contractions belong to `contraction.apostrophe`. A
+are reviewed entries `spelling.standardized` answers for (`cuz` behind a cousin-meaning gate this
+rule could not reproduce). Apostrophe-less contractions belong to `contraction.apostrophe`. A
 performer's own name is left alone through the roster, because IDK is a rapper.
 
 **Its citation is a derivation, and `docs/rules.md` says so.** No verified Genius page names `idk`.
 What the reviewed sources establish is that lyrics use standardized spellings and reflect what is
-sung, and written-only shorthand is neither — so the rule cites `G-SPELLING` and `G-AS-SPOKEN` and
+sung, and written-only shorthand is neither, so the rule cites `G-SPELLING` and `G-AS-SPOKEN` and
 is recorded in the Policy section beside the line-ending and blank-line checks, which are the other
 two rules here that read a source rather than quote one.
 
@@ -499,11 +499,11 @@ Implementation: `src/lib/rules/catalog/spelling-texting-shorthand.ts`, its polic
 Harper is a general-purpose English proofreader with prose opinions, and some of those opinions
 are the opposite of transcription policy. Measured against ordinary lyric lines, the default
 engine offered `****` and `fudge` for a sung `fuck`, Unicode primes for `5'2"`, `because` for a
-`cuz` that meant cousin, and `Take` for a performed `have a look` — each one a card telling the
+`cuz` that meant cousin, and `Take` for a performed `have a look`: each one a card telling the
 transcriber to move the document _away_ from the performance. The repair is not a wider merge and
 not a taught word: it is refusing the rules whose **purpose** contradicts the guidance, and the
-line matters. A rule that merely misfires sometimes — an idiom correction, agreement on a dialect
-`We was` — stays on behind the preview tier and the card's review-in-context sentence, because it
+line matters. A rule that merely misfires sometimes (an idiom correction, agreement on a dialect
+`We was`) stays on behind the preview tier and the card's review-in-context sentence, because it
 is also what catches real typos, and no rule can hear which happened.
 
 Three mechanisms, one per class of harm:
@@ -512,11 +512,11 @@ Three mechanisms, one per class of harm:
   `setLintConfig` once, when the engine is created. `AvoidCurses` censors, and lyrics are censored
   only where the recording is. The initialism and informal-register expanders rewrite the register
   the catalog curates per token (`spelling.texting-shorthand`, and `cuz`/`tho` in the reviewed
-  spellings), so every one either duplicates a native rule — which already wins the shared range —
+  spellings), so every one either duplicates a native rule (which already wins the shared range)
   or contradicts a reviewed refusal: `OMG` stays as sung. `CauseItIsBecause` fires on the
   _preferred_ `'Cause`, because the elision apostrophe is tokenized away before the rule looks.
   `FootInchMinuteSecondSymbols` wants typography Genius lyrics do not use, and `UnclosedQuotes`
-  falls with it — the inch mark that refusal keeps is a quotation mark Harper can never see
+  falls with it: the inch mark that refusal keeps is a quotation mark Harper can never see
   closed, so every height in a lyric would read as sloppy quoting. The list is pinned against the
   real engine's own config in `harper.test.ts`: a Harper upgrade that renames a rule fails there
   loudly, and so does one that ships a new censoring or expanding rule, matched by description.
@@ -526,69 +526,69 @@ Three mechanisms, one per class of harm:
   prefer dialects without wearing the kind, so they are in the name list instead.
 - **A marked g-drop is filtered in the provider**, because no config reaches it: `runnin'` is the
   as-spoken form, Harper sees bare `runnin`, and what its dictionary guesses is never the word
-  being sung — measured, `Lovin` → `Loin`, `rollin` → `roll in`, `somethin` → `some thin`. The
+  being sung: measured, `Lovin` → `Loin`, `rollin` → `roll in`, `somethin` → `some thin`. The
   trailing apostrophe is the gate. An unmarked `somethin` is a misspelling Harper is right to
   question, so it still comes through, exactly as the apostrophe-edged dictionary filter beside it
   only vouches for words the reviewed spellings taught.
 
 **And the unmarked g-drop keeps its card and changes its answer.** A bare `Killin` used to offer
-only dictionary guesses — `Killing`, `Kill's`, `Kelvin` — when the transcription-first repair is
+only dictionary guesses (`Killing`, `Kill's`, `Kelvin`) when the transcription-first repair is
 the mark: `Killin'`. Harper cannot know to offer it, but it does prove the token is a g-drop, by
 carrying the `-ing` form in its own suggestion list. `elisionMarkFixes` reads that endorsement off
-the raw suggestions — raw rather than the capped fixes, because `Lovin` carries `Loving` third,
-behind two guesses — and rewrites the row: the synthesized `Replace with Killin'` leads, the
+the raw suggestions (raw rather than the capped fixes, because `Lovin` carries `Loving` third,
+behind two guesses) and rewrites the row: the synthesized `Replace with Killin'` leads, the
 `-ing` form stays second for the vocal that really sang it, and the nearest-word noise goes. The
 endorsement is the whole gate. `chillin` comes back as `chill in` with no `chilling` beside it, so
 it keeps Harper's ordinary fixes: an `-in'` synthesized without the dictionary's word behind it
-would be the automatic anchor stamp's failure again — plausible, and wrong by an amount nobody can
+would be the automatic anchor stamp's failure again: plausible, and wrong by an amount nobody can
 see.
 
 What stays on is deliberate too. The its/it's and missing-possessive-apostrophe family matches the
 same standard punctuation `contraction.apostrophe` already enforces natively, so refusing it would
 be the catalog disagreeing with itself. What remains open is the slang Harper's dictionary simply
-lacks — `finna`, `shawty`, `hunnid`, `gon'` all drew spelling guesses in the same probes — which is
+lacks (`finna`, `shawty`, `hunnid`, `gon'` all drew spelling guesses in the same probes), which is
 a curation question for the reviewed spellings or a taught lexicon, not a filter. And a per-user
 toggle for Harper as a whole is a settings surface this workbench does not have yet; the audit
 removes what is wrong for everyone, and only that.
 
 Implementation: `disabledHarperLints`, `appliesToLyrics`, `isMarkedGDrop` and `elisionMarkFixes`
-in `src/lib/rules/harper.ts`, and the pins in `harper.test.ts` — the stub tests for the ordering,
+in `src/lib/rules/harper.ts`, and the pins in `harper.test.ts` (the stub tests for the ordering,
 the filters and the synthesized row, and the real-WASM set: a document of every measured misfire
 answered with silence, `Killin` leading with its mark against the real dictionary, and the
-loud-failure guard against an upgrade renaming or re-adding a refused rule.
+loud-failure guard against an upgrade renaming or re-adding a refused rule).
 
 
 ### A styled voice nobody can name yet is work remaining, not a mistake
 
 Genius transcription runs formatting-first: hear a distinct voice, style it now, let whoever can
-name the singer complete the header later. The styling is information — it tells the reader a
+name the singer complete the header later. The styling is information: it tells the reader a
 separate voice sings there, and it tells the next transcriber the differentiation was heard, not
 imagined. The catalog used to treat that state as a `warning` twice over, and the louder card
-offered to *delete* the information as its one-press fix. Both findings are true — a finished
-page does need the legend — but they are claims about a document mid-transcription, made at the
+offered to *delete* the information as its one-press fix. Both findings are true (a finished
+page does need the legend), but they are claims about a document mid-transcription, made at the
 volume of a defect, against the workflow the guidance itself assumes.
 
 So both rules dropped to `suggestion`, together, because they are one claim at two
 granularities: demoting only one would have had the workbench say an unknown italic ad-lib is
 acceptable while the header names nobody but becomes a defect the moment the first performer is
-named — backwards, since the partial-legend section is *further along*. The wording moved with
+named: backwards, since the partial-legend section is *further along*. The wording moved with
 the tier: "not yet named", and `performer.header-required`'s prose now says the formatting is
 worth keeping until the voices are known, with removal explicitly for sections that no longer
-need differentiation. The `safe` fix survives — it is still mechanically safe — it just stopped
+need differentiation. The `safe` fix survives, since it is still mechanically safe. It just stopped
 being the recommended exit.
 
 Two shape changes rode along, and each closes a hole the old shape had:
 
 - **`performer.inline-mismatch` consolidated from one finding per styled span to one per
   unaccounted slot**, anchored on the slot's first span. Eight italic ad-lib lines are one
-  unidentified voice, not eight findings — a claim is made once, where the reader is deciding.
+  unidentified voice, not eight findings: a claim is made once, where the reader is deciding.
   The anchor stays inside a styled span, which is what `resolveLegendAssignment` resolves the
   guided assignment from, so the name-this-voice flow is untouched. The derivation is
   `unaccountedStyledSlots`, shared with the picker's unknown-voice chips
   (`docs/subsystems/performers.md` carries that half).
 - **It also stopped firing in sections with no legend at all.** That state is
-  `performer.header-required`'s one header-anchored finding — the two used to fire together
-  there, span cards under a header card about the same absence — and below that rule's roster
+  `performer.header-required`'s one header-anchored finding (the two used to fire together
+  there, span cards under a header card about the same absence), and below that rule's roster
   gate (fewer than two known performers) the fully-unknown formatting-first document now lints
   clean, which is the quiet the workflow was owed. Its policy case's `invalid` example has a
   legend for this reason.
@@ -601,7 +601,7 @@ Ruleset `2026.08.27.0`; both rules bumped to version 3, corpus regenerated. The 
 
 Profiling the native rules found `spelling.standardized` spending most of its time rebuilding
 fuzzy candidates for words it had just read. Every keystroke runs the full catalog, yet most lines
-and most words are unchanged. The lookup has only two inputs — line text and language — so those
+and most words are unchanged. The lookup has only two inputs (line text and language), so those
 are sufficient to reuse its result without reusing any document state.
 
 `lookupSpellingCandidates` now keeps up to 1,000 line/language results, each limited to 2,048

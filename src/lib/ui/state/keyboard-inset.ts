@@ -1,7 +1,7 @@
 /**
  * The visible workspace rectangle and keyboard edge, published to CSS.
  *
- * A phone keyboard covers the foot of the workbench — the transport included —
+ * A phone keyboard covers the foot of the workbench, the transport included,
  * because the page is laid out against a viewport the keyboard does not shrink.
  * On the one device where every control has to be reachable by finger, the
  * transport was the row you could not reach while typing.
@@ -19,7 +19,7 @@
  *   baseline, notably on rotation with the keyboard already open. Pinch zoom
  *   retains the last unzoomed layout rather than reflowing beneath the gesture.
  *
- * - **`--keyboard-top`** is `offsetTop + height` — the bottom edge of what the
+ * - **`--keyboard-top`** is `offsetTop + height`, the bottom edge of what the
  *   user can see, in the coordinate space `position: fixed` is measured against.
  *   That is the keyboard's top edge whether or not the layout viewport shrank
  *   with it, so the same arithmetic is right under either behaviour.
@@ -38,7 +38,7 @@
 
 /**
  * Below this the drop is rounding, a rubber-band, or the browser's own bar
- * retracting — not a keyboard. Every software keyboard is far taller.
+ * retracting, not a keyboard. Every software keyboard is far taller.
  */
 const KEYBOARD_MIN_PX = 100;
 
@@ -68,7 +68,7 @@ export function trackKeyboardInset(): () => void {
 	 * had been and sat halfway down the keyboard until something else happened.
 	 * Anything the system draws over the page can do this.
 	 *
-	 * Twice a second, and only while a keyboard is up — this is a pair of property
+	 * Twice a second, and only while a keyboard is up: this is a pair of property
 	 * reads, and it cannot run at all in the state the workbench spends its life
 	 * in. A `requestAnimationFrame` loop would catch the same thing sooner and
 	 * spend sixty frames a second doing it.

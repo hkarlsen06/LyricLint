@@ -12,14 +12,14 @@ interface ImportMetaEnv {
 	/**
 	 * The signed Apple Music developer token, valid for at most six months.
 	 *
-	 * Optional for the same reason, and checked for expiry rather than presence —
-	 * see `appleMusicConfigured` in `media-apple.ts`.
+	 * Optional for the same reason, and checked for expiry rather than presence.
+	 * See `appleMusicConfigured` in `media-apple.ts`.
 	 */
 	readonly PUBLIC_APPLE_MUSIC_TOKEN?: string;
 	/**
 	 * What a development tab calls itself, in place of the draft's own name.
 	 *
-	 * Optional like the two above, and read only out of a dev build — see
+	 * Optional like the two above, and read only out of a dev build. See
 	 * `DocumentTitle.svelte`.
 	 */
 	readonly PUBLIC_DEV_TAB_TITLE?: string;

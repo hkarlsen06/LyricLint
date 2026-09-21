@@ -232,12 +232,12 @@ export function extractPerformers(
  * A roster record this import path used to mint and no longer does.
  *
  * Extraction once answered a styled slot with no header entry by creating a
- * real performer named `Unresolved voice N` — the design the unknown-voice
+ * real performer named `Unresolved voice N`, the design the unknown-voice
  * model explicitly rejected, because it gave an identity to a voice whose
  * whole point is having none, and put a pressable stranger in every picker.
  * The state is derived now (`unaccountedStyledSlots`), but drafts saved while
  * the minting ran still carry the records; `importFromSnapshot` uses this to
- * retire them, and only them — a placeholder someone renamed no longer
+ * retire them, and only them: a placeholder someone renamed no longer
  * matches, and one a header genuinely names stays referenced and kept.
  */
 export function isRetiredUnresolvedVoiceName(displayName: string): boolean {

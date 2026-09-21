@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Decision record: docs/subsystems/diagnostics.md — read it before changing
+	// Decision record: docs/subsystems/diagnostics.md. Read it before changing
 	// this file, and update it with any behavior change.
 	import { untrack } from 'svelte';
 	import Check from 'lucide-svelte/icons/check';
@@ -25,7 +25,7 @@
 		/**
 		 * How many findings this exact fix would settle, counting this one. Both
 		 * surfaces ask the shell, which plans the batch against the diagnostics the
-		 * panel is showing — neither a card nor a popover can see the document.
+		 * panel is showing, because neither a card nor a popover can see the document.
 		 */
 		fixBatchSize?: (fix: DiagnosticFix) => number;
 		onApplyFixBatch?: (fix: DiagnosticFix) => void;
@@ -62,8 +62,8 @@
 	const isUnknownVoice = $derived(diagnostic.ruleId === 'performer.inline-mismatch');
 	/**
 	 * Where the acceptance is drawn, which is the one thing the shapes of it
-	 * differ by. An unresolved lyric's answer stands in the ignore slot — that is
-	 * where a reader looks for the way out of a finding with no fix — so it never
+	 * differ by. An unresolved lyric's answer stands in the ignore slot, which is
+	 * where a reader looks for the way out of a finding with no fix, so it never
 	 * leads the row, and the quiet `Ignore` is what it replaces. A styled voice
 	 * nobody can name yet takes the same slot: `The performer is unknown` is the
 	 * formatting-first transcriber's honest answer, while the guided assignment
@@ -76,7 +76,7 @@
 	const leadsWithAccept = $derived(acceptsAsCorrect && !standsInIgnoreSlot);
 	// Two findings, one answer: a section with no header line, and a header line
 	// with no name in it. Both are settled by choosing a reviewed header, and the
-	// transform decides which of the two edits that is — a card that offered a
+	// transform decides which of the two edits that is, and a card that offered a
 	// different control for each would be two ways to ask the same question.
 	const offersHeaderPicker = $derived(
 		(diagnostic.ruleId === 'section.header-missing' ||
@@ -85,8 +85,9 @@
 	);
 	// The picker, not the link itself: a batch that rewrites three sections is
 	// worth seeing named before it runs, and the card has no room to show the
-	// change as a diff the way a fix does. It also costs no second implementation
-	// — this is the same card `Ctrl-Shift-L` opens, over the same group.
+	// change as a diff the way a fix does. It also costs no second
+	// implementation: this is the same card `Ctrl-Shift-L` opens, over the same
+	// group.
 	const offersSectionLink = $derived(
 		diagnostic.ruleId === 'section.unlinked-repeat' && onLinkSections !== undefined
 	);
@@ -123,7 +124,7 @@
 	 * The row is where its keyboard twins are learned, and the pointer is who
 	 * they are taught to: this is the most-pressed surface in the workbench, the
 	 * pointer crosses a control here on every press, and the shared box arrives
-	 * with the keystroke at exactly that moment — which no legend or one-shot tip
+	 * with the keystroke at exactly that moment, which no legend or one-shot tip
 	 * can match. Printed as pressed, the action tray's own idiom
 	 * (`EditorActions.svelte`). The box repeats the visible label on purpose: the
 	 * label is the accessible name, the keystroke is `aria-keyshortcuts`, and the
@@ -140,12 +141,12 @@
 	};
 	/**
 	 * `Mod-.` selects the nearest fixable finding and lands focus on this row, so
-	 * the disclosure rides the leading fix — the one that press reaches. And with
+	 * the disclosure rides the leading fix, the one that press reaches. And with
 	 * focus already here, the same keystroke *applies*: the box over the focused
 	 * control names `⌘.` as its own press, so a second `⌘.` that only re-opened
 	 * the popover would be the disclosure exposed as a lie by the very keystroke
 	 * it teaches. Pressed again after that, the selection has moved on and the
-	 * window's binding reaches the next finding — so the whole panel is walked
+	 * window's binding reaches the next finding, so the whole panel is walked
 	 * one chord at a time.
 	 */
 	const openFixKeys = {
@@ -155,7 +156,7 @@
 
 	/**
 	 * The second press, bound on the control that claims the keystroke rather
-	 * than at the window, so it holds wherever this row renders — the panel
+	 * than at the window, so it holds wherever this row renders: the panel
 	 * card, the popover, and the landing page's demo, which opts out of the
 	 * window binding entirely. The window's own `Mod-.` listener stands down for
 	 * a press landing on a claimant (`create-editor.ts`), which is what keeps
@@ -228,7 +229,7 @@
 	{/if}
 	{#if offersSectionLink}
 		<!-- No keyboard twin to name: `Mod-Shift-L` arms Type only here now, and
-		     the picker's ways in are the pointer's own — this action and the `⇄`
+		     the picker's ways in are the pointer's own: this action and the `⇄`
 		     marker. A box that only repeated the label would be the label twice. -->
 		<button type="button" class="button diagnostic-actions__guided" onclick={onLinkSections}>
 			Manage linking
@@ -247,7 +248,7 @@
 	     command ("Apply Replace with Don't") says the same thing twice, so the
 	     button is the label and nothing else. -->
 	<!-- A surface has one contrast action, and a diagnostic can carry several
-	     fixes — Harper offers up to three, and `ur` alone emits two. Drawn a tier
+	     fixes. Harper offers up to three, and `ur` alone emits two. Drawn a tier
 	     each they were three answers shouting equally in the one place the reader
 	     is choosing *between* them, and the ranked lead fix lost the precedence
 	     the ordering had just given it. Only the first takes the tier; the rest

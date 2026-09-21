@@ -33,13 +33,13 @@ function arrived(element: HTMLElement): number {
  * Fonts settled, before a width is read off the lockup.
  *
  * `global.css` declares the Plex faces `font-display: swap`, so a lockup drawn
- * here is laid out in the fallback face and laid out again when Plex decodes —
- * measured at the moment these tests take their baseline, `document.fonts` is
+ * here is laid out in the fallback face and laid out again when Plex decodes.
+ * Measured at the moment these tests take their baseline, `document.fonts` is
  * still `loading` with fourteen faces outstanding. Every width assertion below
  * compares a baseline against a later measurement, so a swap landing between
  * the two is a ratio taken across two different typefaces. It holds on a quiet
  * machine, where the swap falls outside the pair, and fails under load, where
- * it falls inside — which is the whole of why this file was intermittent.
+ * it falls inside, which is the whole of why this file was intermittent.
  *
  * It is awaited after the render rather than in a `beforeAll`: a face is only
  * fetched once something needs its glyphs, so asked for before anything is on
@@ -90,12 +90,12 @@ describe('AppWordmark', () => {
 
 			// The contraction is a CSS transition on the compositor's clock, not on
 			// the timer we just wound forward, so the driver is still mid-flight
-			// here — real time has to pass before the mark's own width is readable.
+			// here, and real time has to pass before the mark's own width is readable.
 			vi.useRealTimers();
 			await Promise.all(element.getAnimations().map((animation) => animation.finished));
 
 			expect(open(element)).toBe(0);
-			// The mark is a fraction of the wordmark — this is the layout shift the
+			// The mark is a fraction of the wordmark: this is the layout shift the
 			// toolbar absorbs, and it is meant to be this big.
 			expect(element.getBoundingClientRect().width).toBeLessThan(wordmarkWidth / 3);
 		} finally {
@@ -143,7 +143,7 @@ describe('AppWordmark', () => {
 		);
 
 		// The travel beat is spent at no width at all, so the name beside it starts
-		// at the head of the toolbar and is pushed right as the word is uncovered —
+		// at the head of the toolbar and is pushed right as the word is uncovered:
 		// one edge, not two things agreeing about a rate.
 		expect(arrived(element)).toBe(0);
 		expect(element.getBoundingClientRect().width).toBe(0);
@@ -245,7 +245,7 @@ describe('AppWordmark', () => {
 
 		expect(element.dataset.state).toBe('released');
 		// `released` is absent from the open-state selector list in `wordmark.css`,
-		// and `:hover` only ever appears there alongside `idle` — so a pointer
+		// and `:hover` only ever appears there alongside `idle`, so a pointer
 		// resting on a released lockup cannot reopen it.
 		expect(open(element)).toBe(0);
 	});
@@ -267,7 +267,7 @@ describe('AppWordmark', () => {
 		element.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }));
 		await tick();
 		// Releasing restores whatever the lockup would have been doing unpressed,
-		// rather than picking a state of its own — which this early is still the
+		// rather than picking a state of its own, which this early is still the
 		// intro hold, since these presses all happened inside the first 7,000ms.
 		expect(element.dataset.state).toBe('intro');
 	});

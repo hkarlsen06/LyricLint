@@ -6,8 +6,8 @@ import { sourceRegistry } from './sources.js';
 
 // The manifest is a hand-written record of what a version of the rule set
 // shipped, and for a while it was wrong: `performer.parenthetical-boundary` was
-// enabled in the registry and absent here, so the two counts the product states
-// — the landing page's, off the registry, and the tools panel's, off this list —
+// enabled in the registry and absent here, so the two counts the product states,
+// the landing page's off the registry and the tools panel's off this list,
 // disagreed by one more than the three Harper IDs that explain the rest. Nothing
 // failed, because nothing compared them. These do.
 describe('current rule-set manifest', () => {

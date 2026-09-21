@@ -160,13 +160,13 @@ describe('rule regressions', () => {
 		}
 		expect(diagnostics('section.header-empty', '[]\nA lyric')).toHaveLength(1);
 		// A section that has a header line, empty or not, is not a section with
-		// none — so the two picker findings never both fire on one line.
+		// none, so the two picker findings never both fire on one line.
 		expect(diagnostics('section.header-missing', '[]\nA lyric')).toEqual([]);
 	});
 
 	it('leaves a lone [?] line to the unknown rules rather than reviewing it as a header', () => {
 		// A whole line nobody could make out is written `[?]` on a line of its
-		// own, so the marker wears the header's brackets — and read as a header it
+		// own, so the marker wears the header's brackets, and read as a header it
 		// drew the custom-header review and the blank-line warning, while the
 		// unknown rules, which walk `section.lines`, could never reach it.
 		const input = '[Intro]\nEikeli\n[?]\nEikeli';
@@ -175,7 +175,7 @@ describe('rule regressions', () => {
 		expect(diagnostics('unknown.unresolved', input)).toHaveLength(1);
 
 		// The `[??]` near-miss on its own line belongs to `unknown.marker`'s safe
-		// fix for the same reason — a header review would stand in front of the
+		// fix for the same reason: a header review would stand in front of the
 		// one press that writes the recognized form.
 		const nearMiss = '[Intro]\nEikeli\n[??]\nEikeli';
 		expect(diagnostics('section.header-unrecognized', nearMiss)).toEqual([]);
@@ -306,8 +306,8 @@ describe('rule regressions', () => {
 	});
 
 	it('does not call a section headerless when it leads with a written-out label', () => {
-		// The two cards read as contradictory — one denying the header the other
-		// is quoting — and the one carrying the exact one-press fix was second.
+		// The two cards read as contradictory, one denying the header the other
+		// is quoting, and the one carrying the exact one-press fix was second.
 		const input = 'Verse 1:\nFirst line\n\nChorus:\nSecond line';
 		expect(diagnostics('section.header-missing', input)).toEqual([]);
 		expect(diagnostics('section.header-prose', input).map((finding) => finding.message)).toEqual([

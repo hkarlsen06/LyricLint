@@ -95,7 +95,7 @@ describe('the empty-document placeholder', () => {
 
 	// The out-of-flow ghost only fixes the native caret. The drawn caret layer
 	// measures through coordsAtPos, which falls back to the widget's own client
-	// rect — four rows tall however it is positioned — so the widget answers
+	// rect (four rows tall however it is positioned), so the widget answers
 	// that measurement with its first row, or the four-row caret is back.
 	it('keeps the drawn caret one row tall beside the ghost', async () => {
 		const handle = await mount();

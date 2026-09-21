@@ -3,8 +3,8 @@
  * own paraphrases; examples are invented, because anything shipped here is
  * quoted permanently and a real transcription's lyrics must never be.
  *
- * Every entry's authority is the highest tier among its cited sources —
- * claimed here, enforced in `guidance.test.ts` — so promoting an entry means
+ * Every entry's authority is the highest tier among its cited sources
+ * (claimed here, enforced in `guidance.test.ts`), so promoting an entry means
  * adding the confirming higher-tier source, which is the audit trail.
  */
 import {
@@ -22,7 +22,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'section-headers',
 		title: 'Song parts open with bracketed headers',
 		statement:
-			"Each part of a song stands under its own header — the part's name in square brackets on a line of its own — with `Intro`, `Verse`, `Refrain`, `Pre-Chorus`, `Chorus`, `Bridge`, and `Outro` the most common names, and further parts documented in the reviewed sections guide.",
+			"Each part of a song stands under its own header, the part's name in square brackets on a line of its own, with `Intro`, `Verse`, `Refrain`, `Pre-Chorus`, `Chorus`, `Bridge`, and `Outro` the most common names, and further parts documented in the reviewed sections guide.",
 		example: { correct: '[Verse 1]', incorrect: 'Verse 1:' },
 		authority: 'staff',
 		sourceIds: ['G-SECTIONS'],
@@ -40,12 +40,12 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'section-headers',
 		title: 'Name artists in headers when voices differ',
 		statement:
-			"Every header carries artist identifiers when a solo artist's song gives parts to other artists, or when a band or group has multiple vocalists — and none when one voice performs everything: a band with one lead singer, or a solo artist singing every part.",
+			"Every header carries artist identifiers when a solo artist's song gives parts to other artists, or when a band or group has multiple vocalists, and none when one voice performs everything: a band with one lead singer, or a solo artist singing every part.",
 		example: { correct: '[Verse 1: Avery]' },
 		authority: 'staff',
 		sourceIds: ['G-SECTIONS'],
 		relatedRuleIds: ['performer.header-required'],
-		note: 'In between, identifiers are allowed but not required: songs by several primary artists or an artist-and-producer duo, and one-singer songs whose intro, outro, or interludes are sampled. The linter checks the mechanical half — a section with styled voices in its lyrics and no legend in its header; whether a song needs identifiers at all is a judgment about the release.'
+		note: 'In between, identifiers are allowed but not required: songs by several primary artists or an artist-and-producer duo, and one-singer songs whose intro, outro, or interludes are sampled. The linter checks the mechanical half: a section with styled voices in its lyrics and no legend in its header; whether a song needs identifiers at all is a judgment about the release.'
 	},
 	{
 		id: 'guidance.section-headers.voice-order',
@@ -63,7 +63,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 			'performer.unused-legend-slot',
 			'performer.redundant-markup'
 		],
-		note: 'The linter checks the mechanics of the four slots — their order, that only the supported italic and bold tags carry them, and that the legend and the lyrics agree about which are in use; which artist earned which slot is a count of lines only the transcriber can make.'
+		note: 'The linter checks the mechanics of the four slots: their order, that only the supported italic and bold tags carry them, and that the legend and the lyrics agree about which are in use; which artist earned which slot is a count of lines only the transcriber can make.'
 	},
 	{
 		id: 'guidance.section-headers.unison-grouping',
@@ -82,7 +82,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'section-headers',
 		title: 'Parentheses sit outside voice formatting',
 		statement:
-			"Where a differentiated voice's words are parenthesized — an ad-lib or a backing line — the italic or bold tags wrap the words inside the parentheses, and the parentheses themselves stay unformatted.",
+			"Where a differentiated voice's words are parenthesized (an ad-lib or a backing line), the italic or bold tags wrap the words inside the parentheses, and the parentheses themselves stay unformatted.",
 		example: {
 			correct: 'We own the night (<i>We own it</i>)',
 			incorrect: 'We own the night <i>(We own it)</i>'
@@ -109,7 +109,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'section-headers',
 		title: 'Credit performers, not their characters',
 		statement:
-			'A song performed in character is identified by the performers credited on the release — which may itself credit the characters; for a musical, or a musical-style film or television show, the transcriber may use character names where those read more appropriately.',
+			'A song performed in character is identified by the performers credited on the release, which may itself credit the characters; for a musical, or a musical-style film or television show, the transcriber may use character names where those read more appropriately.',
 		authority: 'staff',
 		sourceIds: ['G-SECTIONS']
 	},
@@ -150,14 +150,14 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		example: { correct: '[Instrumental]' },
 		authority: 'staff',
 		sourceIds: ['G-INSTRUMENTAL'],
-		note: 'An instrumental version of an already-existing song is only added where it was released in some official capacity — on streaming, a box set, or similar.'
+		note: 'An instrumental version of an already-existing song is only added where it was released in some official capacity: on streaming, a box set, or similar.'
 	},
 	{
 		id: 'guidance.section-headers.hook-by-language',
 		topic: 'section-headers',
 		title: 'Check whether your language kept Hook',
 		statement:
-			"Replacing the deprecated `Hook` header with `Chorus` or `Refrain` is settled for English songs only; some international communities, German among them, still use `Hook` — so a transcription in another language follows that community's own ruling, confirmed with its community lead where it is in doubt.",
+			"Replacing the deprecated `Hook` header with `Chorus` or `Refrain` is settled for English songs only; some international communities, German among them, still use `Hook`, so a transcription in another language follows that community's own ruling, confirmed with its community lead where it is in doubt.",
 		authority: 'editorial',
 		sourceIds: ['G-SECTION-HOOK', 'G-LANG-HEADERS'],
 		relatedRuleIds: ['section.deprecated-hook'],
@@ -168,7 +168,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'section-headers',
 		title: 'Label a two-song track by Parts',
 		statement:
-			'A track that a segue divides into two distinct songs still never numbers its choruses, intros, or other non-verse parts; the split is carried by `Part` labels instead — `Part I`, `Part II`, and so on.',
+			'A track that a segue divides into two distinct songs still never numbers its choruses, intros, or other non-verse parts; the split is carried by `Part` labels instead: `Part I`, `Part II`, and so on.',
 		authority: 'editorial',
 		sourceIds: ['G-SECTION-NUMBERING'],
 		relatedRuleIds: ['section.verse-numbering'],
@@ -179,7 +179,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'section-headers',
 		title: "Check a language's headers before editing",
 		statement:
-			'Standard section headers exist in many languages, and the reviewed inventory of them is the place to check before changing a header in a song whose language is not your own — each community settles its own vocabulary.',
+			'Standard section headers exist in many languages, and the reviewed inventory of them is the place to check before changing a header in a song whose language is not your own; each community settles its own vocabulary.',
 		authority: 'staff',
 		sourceIds: ['G-LANG-PURPOSE', 'G-LANG-HEADERS'],
 		relatedRuleIds: ['section.header-language', 'section.localized-header-preference'],
@@ -201,7 +201,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'section-headers',
 		title: 'One blank line between song parts',
 		statement:
-			'A single blank line separates each song part from the header of the next — and never more than one.',
+			'A single blank line separates each song part from the header of the next, and never more than one.',
 		authority: 'lyriclint',
 		sourceIds: ['G-SECTIONS'],
 		relatedRuleIds: ['section.header-spacing', 'section.extra-blank-lines'],
@@ -212,7 +212,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'spelling',
 		title: 'Spell deliberate mispronunciations as sung',
 		statement:
-			'A word an artist mispronounces or deliberately bends — local slang, or a rhyme forced into the flow — is transcribed to reflect the pronunciation, within reason; slang built on a mispronounced word is spelled the way it is usually written online, or as it is pronounced.',
+			'A word an artist mispronounces or deliberately bends (local slang, or a rhyme forced into the flow) is transcribed to reflect the pronunciation, within reason; slang built on a mispronounced word is spelled the way it is usually written online, or as it is pronounced.',
 		authority: 'staff',
 		sourceIds: ['G-AS-SPOKEN'],
 		relatedRuleIds: ['spelling.texting-shorthand'],
@@ -232,7 +232,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'spelling',
 		title: 'An apostrophe marks the omitted side',
 		statement:
-			"When letters or a syllable are dropped from a word, the remaining characters take an apostrophe on the side of the omission — `ballin'`, `gon'` for `gonna`, `'til`, `'em` — and a contraction's apostrophe always sits on the side its letters left.",
+			"When letters or a syllable are dropped from a word, the remaining characters take an apostrophe on the side of the omission (`ballin'`, `gon'` for `gonna`, `'til`, `'em`), and a contraction's apostrophe always sits on the side its letters left.",
 		example: { correct: "Ballin' like we used to", incorrect: 'Ballin like we used to' },
 		authority: 'staff',
 		sourceIds: ['G-AS-SPOKEN', 'G-CONTRACTIONS'],
@@ -255,7 +255,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'spelling',
 		title: "Spelling follows the language's standard",
 		statement:
-			'Outside deliberate as-sung spellings, lyric text follows the standard orthography of its language — the double-checked accuracy the transcription guide asks of every lyric.',
+			'Outside deliberate as-sung spellings, lyric text follows the standard orthography of its language, the double-checked accuracy the transcription guide asks of every lyric.',
 		authority: 'lyriclint',
 		sourceIds: ['G-ADD-SONGS'],
 		relatedRuleIds: [
@@ -269,7 +269,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 			'spelling.japanese-common',
 			'spelling.korean-common'
 		],
-		note: "The per-language checks are LyricLint's own curation against external dictionaries and academies — each rule's page cites its sources — rather than a reviewed Genius list; Genius's own reviewed forms are the standardized-spellings table above."
+		note: "The per-language checks are LyricLint's own curation against external dictionaries and academies (each rule's page cites its sources) rather than a reviewed Genius list; Genius's own reviewed forms are the standardized-spellings table above."
 	},
 	{
 		id: 'guidance.spelling.reversed-vocals',
@@ -312,10 +312,10 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'capitalization',
 		title: 'Write brands conventionally, not stylized',
 		statement:
-			"A brand name takes its conventional form over its own stylization — `Chanel`, not `CHANEL`; `Adidas`, not `adidas`; `Macy's`, not `macy★s` — with no trademark marks and no decorative characters, unless the name is an acronym normally written in capitals (`GEICO`, `IMAX`); CamelCase stays where the name itself carries it (`YouTube`, `iPhone`, `eBay`), as does a symbol that is genuinely part of the name (`H&M`, `su:m37°`), and a brand that has become a generic word may be lowercased (`band-aid`, `popsicle`, `jet ski`).",
+			"A brand name takes its conventional form over its own stylization (`Chanel`, not `CHANEL`; `Adidas`, not `adidas`; `Macy's`, not `macy★s`), with no trademark marks and no decorative characters, unless the name is an acronym normally written in capitals (`GEICO`, `IMAX`); CamelCase stays where the name itself carries it (`YouTube`, `iPhone`, `eBay`), as does a symbol that is genuinely part of the name (`H&M`, `su:m37°`), and a brand that has become a generic word may be lowercased (`band-aid`, `popsicle`, `jet ski`).",
 		example: { correct: 'New Glock in my jeans', incorrect: 'New GLOCK in my jeans' },
 		authority: 'staff',
-		// The symbols annotation carries the same principle from the other side —
+		// The symbols annotation carries the same principle from the other side:
 		// decoration and ™/® go, a symbol the name itself owns stays.
 		sourceIds: ['G-CAPS', 'G-SYMBOLS'],
 		relatedRuleIds: ['symbols.special-characters']
@@ -325,7 +325,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'capitalization',
 		title: 'Earth is capital only as the planet',
 		statement:
-			'`Earth` takes a capital only when it names the planet; as the material — dirt, soil — it stays lowercase.',
+			'`Earth` takes a capital only when it names the planet; as the material (dirt, soil), it stays lowercase.',
 		authority: 'staff',
 		sourceIds: ['G-CAPS']
 	},
@@ -334,7 +334,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'capitalization',
 		title: 'Capitalize regions, not directions',
 		statement:
-			'`North`, `south`, `east`, and `west` take capitals where they designate a definite region or belong to a name — `the Deep South`, `the Eastern Seaboard` — and stay lowercase as mere directions, like westerly winds or a northern winter.',
+			'`North`, `south`, `east`, and `west` take capitals where they designate a definite region or belong to a name (`the Deep South`, `the Eastern Seaboard`), and stay lowercase as mere directions, like westerly winds or a northern winter.',
 		authority: 'staff',
 		sourceIds: ['G-CAPS']
 	},
@@ -343,7 +343,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'ad-libs',
 		title: 'Transcribe every ad-lib',
 		statement:
-			'Every ad-lib belongs in the transcription — the most complete lyrics possible are the goal — written in parentheses with its first letter capitalized.',
+			'Every ad-lib belongs in the transcription (the most complete lyrics possible are the goal), written in parentheses with its first letter capitalized.',
 		example: { correct: 'Racing down the boulevard (Skrrt)' },
 		authority: 'staff',
 		sourceIds: ['G-ADLIBS'],
@@ -353,7 +353,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 			'punctuation.parenthesis-spacing',
 			'syntax.unbalanced-parentheses'
 		],
-		note: 'The linter checks the shape once an ad-lib is written — the parentheses, the space before them, the separators between run-together ad-libs; hearing one and writing it down is the half only the transcriber can do.'
+		note: 'The linter checks the shape once an ad-lib is written: the parentheses, the space before them, the separators between run-together ad-libs; hearing one and writing it down is the half only the transcriber can do.'
 	},
 	{
 		id: 'guidance.ad-libs.echo-effects',
@@ -369,7 +369,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'ad-libs',
 		title: 'Asterisks mark produced sounds, not vocals',
 		statement:
-			'A sound effect in the production — a money counter, a gunshot — is wrapped in asterisks either side (`*beep*`); a sound the artist vocalizes with their own voice is a lyric and is written plain, without them.',
+			'A sound effect in the production (a money counter, a gunshot) is wrapped in asterisks either side (`*beep*`); a sound the artist vocalizes with their own voice is a lyric and is written plain, without them.',
 		example: { correct: "*cash register* Countin' it up all night" },
 		authority: 'staff',
 		sourceIds: ['G-SFX'],
@@ -385,7 +385,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		example: { correct: 'Lay-ee-oh-del-ay-hee, oh-del-ay-hee-hoo' },
 		authority: 'editorial',
 		sourceIds: ['G-YODELING'],
-		note: 'A yodeling page also takes the `Yodel` tag. Yodels draw on a small set of recurring syllables — `dee`, `del`, `ee`, `ho`, `la`, `lay`, `oh`, `oo`, `ro`, `yo` — while scatting is free-form and has no such set, so only its segmentation is conventional. The dash itself is the hyphen convention stated with the other dash rules.'
+		note: 'A yodeling page also takes the `Yodel` tag. Yodels draw on a small set of recurring syllables (`dee`, `del`, `ee`, `ho`, `la`, `lay`, `oh`, `oo`, `ro`, `yo`), while scatting is free-form and has no such set, so only its segmentation is conventional. The dash itself is the hyphen convention stated with the other dash rules.'
 	},
 	{
 		id: 'guidance.punctuation.unmarked-question',
@@ -417,14 +417,14 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		example: { correct: 'Turn it up!', incorrect: 'Turn it up!!' },
 		authority: 'staff',
 		sourceIds: ['G-QE-MARKS'],
-		note: 'Mechanically checkable, so a candidate for a linter rule — which this entry would then name as checking it.'
+		note: 'Mechanically checkable, so a candidate for a linter rule, which this entry would then name as checking it.'
 	},
 	{
 		id: 'guidance.punctuation.brand-name-marks',
 		topic: 'punctuation',
 		title: "Never double a brand name's own mark",
 		statement:
-			"A line that would take a question or exclamation mark of its own — from its grammatical structure or its apparent excitement — and ends on a brand name already carrying one (`Guess Who?`, `Yahoo!`, `Chips Ahoy!`) does not take a second: the name's single mark holds for the line.",
+			"A line that would take a question or exclamation mark of its own (from its grammatical structure or its apparent excitement) and ends on a brand name already carrying one (`Guess Who?`, `Yahoo!`, `Chips Ahoy!`) does not take a second: the name's single mark holds for the line.",
 		example: {
 			correct: 'Have you ever played Guess Who?',
 			incorrect: 'Have you ever played Guess Who??'
@@ -442,7 +442,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		authority: 'staff',
 		sourceIds: ['G-QUOTES'],
 		relatedRuleIds: ['quotes.typewriter'],
-		note: "The linter checks only the glyphs — typewriter quotation marks, never curly; whether a passage is quoted speech, a named title, or a mentioned word is the transcriber's reading."
+		note: "The linter checks only the glyphs: typewriter quotation marks, never curly; whether a passage is quoted speech, a named title, or a mentioned word is the transcriber's reading."
 	},
 	{
 		id: 'guidance.punctuation.nordic-guillemets',
@@ -454,28 +454,28 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		authority: 'lyriclint',
 		sourceIds: ['G-TYPEWRITER'],
 		relatedRuleIds: ['quotes.typewriter'],
-		note: "This is the Nordic communities' convention as reported to LyricLint, not yet backed by a registered Genius page — so the claim carries LyricLint's name. While a Nordic language is selected the linter turns every other double quote into a guillemet, previewing the straight ones because they carry no direction."
+		note: "This is the Nordic communities' convention as reported to LyricLint, not yet backed by a registered Genius page, so the claim carries LyricLint's name. While a Nordic language is selected the linter turns every other double quote into a guillemet, previewing the straight ones because they carry no direction."
 	},
 	{
 		id: 'guidance.punctuation.performance-hyphens',
 		topic: 'punctuation',
 		title: 'Hyphenate scatting and stutters',
 		statement:
-			'Hyphens join rapidly spoken non-lyrical vocalization — scatting — and the repeated fragments of a stuttered word; a stutter produced artificially, by effects, sampling, or scratching, may be left out.',
+			'Hyphens join rapidly spoken non-lyrical vocalization (scatting) and the repeated fragments of a stuttered word; a stutter produced artificially, by effects, sampling, or scratching, may be left out.',
 		example: { correct: "D-d-don't say it twice" },
 		authority: 'staff',
 		// The yodeling annotation states the same hyphen for a scat or yodel
 		// run, so it seconds this half of the dashes annotation.
 		sourceIds: ['G-DASHES', 'G-YODELING'],
 		relatedRuleIds: ['punctuation.dropped-word-dash'],
-		note: 'The em-dash half of the dashes annotation — a dash for a dropped word or line, never followed by a comma — is checked by the linter outright.'
+		note: 'The em-dash half of the dashes annotation (a dash for a dropped word or line, never followed by a comma) is checked by the linter outright.'
 	},
 	{
 		id: 'guidance.lines.bar-per-line',
 		topic: 'lines',
 		title: 'Transcribe line by line, not in paragraphs',
 		statement:
-			"Lyrics are transcribed line by line, each line ending where the musical phrase does — in most songs the snare marks the count, and the words landing on it show where a bar's lines break — because a long prose-like run hides where lines stop and how the rhyme scheme runs, especially on a phone.",
+			"Lyrics are transcribed line by line, each line ending where the musical phrase does (in most songs the snare marks the count, and the words landing on it show where a bar's lines break), because a long prose-like run hides where lines stop and how the rhyme scheme runs, especially on a phone.",
 		authority: 'staff',
 		sourceIds: ['G-LINES'],
 		relatedRuleIds: ['line.prose-density'],
@@ -486,7 +486,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'lines',
 		title: 'Spoken sections break into lines too',
 		statement:
-			'A spoken intro, interlude, or outro is transcribed line by line like everything else, split where the speaker pauses and where sentences begin and end — never as one paragraph.',
+			'A spoken intro, interlude, or outro is transcribed line by line like everything else, split where the speaker pauses and where sentences begin and end, never as one paragraph.',
 		authority: 'staff',
 		sourceIds: ['G-LINES']
 	},
@@ -495,7 +495,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'lines',
 		title: 'Type repeated lyrics out in full',
 		statement:
-			'A section the song repeats — a returning chorus, a refrain — is typed out in full at every occurrence, and so are lyrics repeated inside one section: a header or a count never stands in for words the song sings again, so nobody reading along has to scroll back to find them.',
+			'A section the song repeats (a returning chorus, a refrain) is typed out in full at every occurrence, and so are lyrics repeated inside one section: a header or a count never stands in for words the song sings again, so nobody reading along has to scroll back to find them.',
 		authority: 'staff',
 		sourceIds: ['G-REPEATS'],
 		relatedRuleIds: ['repeat.placeholder', 'section.unlinked-repeat'],
@@ -521,7 +521,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'lines',
 		title: 'No doubled spaces or hidden characters',
 		statement:
-			'Lyric text keeps exactly one ordinary space between words and carries no invisible characters — the clean, concise text the transcription guide asks for.',
+			'Lyric text keeps exactly one ordinary space between words and carries no invisible characters, the clean, concise text the transcription guide asks for.',
 		example: { correct: 'Hold on tight', incorrect: 'Hold  on tight' },
 		authority: 'lyriclint',
 		sourceIds: ['G-ADD-SONGS'],
@@ -533,7 +533,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'censored-unknown',
 		title: 'Transcribe the explicit version',
 		statement:
-			'A transcription follows the explicit version of a song, so a censor mask belongs only where the recording itself censors the word — which even explicit versions occasionally do.',
+			'A transcription follows the explicit version of a song, so a censor mask belongs only where the recording itself censors the word, which even explicit versions occasionally do.',
 		authority: 'staff',
 		sourceIds: ['G-CENSORED']
 	},
@@ -554,7 +554,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'censored-unknown',
 		title: "A lyric you can't make out is [?]",
 		statement:
-			'A lyric nobody can decipher yet is represented by a question mark in brackets — `[?]` — and only that form: parentheses are avoided because they already mark ad-libs on Genius.',
+			'A lyric nobody can decipher yet is represented by a question mark in brackets (`[?]`) and only that form: parentheses are avoided because they already mark ad-libs on Genius.',
 		example: {
 			correct: 'Counting every [?] till the morning comes',
 			incorrect: 'Counting every (?) till the morning comes'
@@ -569,7 +569,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'numbers',
 		title: 'Spell numbers out',
 		statement:
-			'Numbers are spelled out rather than written as digits, and a multiple of 100 is spelled as it is pronounced — `a hundred`, or `hunnid` where that is what is sung.',
+			'Numbers are spelled out rather than written as digits, and a multiple of 100 is spelled as it is pronounced: `a hundred`, or `hunnid` where that is what is sung.',
 		example: {
 			correct: 'I got five of them waiting on me',
 			incorrect: 'I got 5 of them waiting on me'
@@ -589,7 +589,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		authority: 'staff',
 		sourceIds: ['G-NUMBERS'],
 		relatedRuleIds: ['numbers.decade-apostrophe'],
-		note: "A decade is one of the digit-kept forms, and the linter checks its written shape: the apostrophe stands in for the century before the digits — `'90s` — never after them."
+		note: "A decade is one of the digit-kept forms, and the linter checks its written shape: the apostrophe stands in for the century before the digits (`'90s`), never after them."
 	},
 	{
 		id: 'guidance.numbers.times',
@@ -606,7 +606,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'non-english',
 		title: 'Non-English songs may open with a header',
 		statement:
-			"A song not in English may open with one extra bracketed header for findability — the word `lyrics` translated into the song's own language, the song's name, and any featured artists — and an English song never carries one.",
+			"A song not in English may open with one extra bracketed header for findability (the word `lyrics` translated into the song's own language, the song's name, and any featured artists), and an English song never carries one.",
 		example: { correct: '[Letra de "Golondrina" ft. Avery]' },
 		authority: 'staff',
 		sourceIds: ['G-NON-ENGLISH'],
@@ -618,7 +618,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'non-english',
 		title: 'Romanized lyrics live on their own page',
 		statement:
-			"Romanized lyrics never join the song's primary page: they get a separate page credited to Genius Romanizations, titled with the artist's name, the song's title, and `(Romanized)`, carrying the release date, audio links, and tags — and omitting featured artists, writers, producers, and every other role.",
+			"Romanized lyrics never join the song's primary page: they get a separate page credited to Genius Romanizations, titled with the artist's name, the song's title, and `(Romanized)`, carrying the release date, audio links, and tags, and omitting featured artists, writers, producers, and every other role.",
 		authority: 'staff',
 		sourceIds: ['G-ROMANIZED']
 	},
@@ -636,7 +636,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'sourcing',
 		title: 'Never copy lyrics from another site',
 		statement:
-			'Lyrics are transcribed, never copied from another lyric website — that is plagiarism. The one exception is lyrics the artist or their team released themselves, on Bandcamp, a video description, press notes, or liner notes; official sheets still carry mistakes, so even those are checked for completeness and accuracy and reformatted to Genius standards before they stand.',
+			'Lyrics are transcribed, never copied from another lyric website; that is plagiarism. The one exception is lyrics the artist or their team released themselves, on Bandcamp, a video description, press notes, or liner notes; official sheets still carry mistakes, so even those are checked for completeness and accuracy and reformatted to Genius standards before they stand.',
 		authority: 'staff',
 		sourceIds: ['G-ADD-SONGS']
 	},
@@ -645,7 +645,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		topic: 'sourcing',
 		title: 'A page follows the streaming version',
 		statement:
-			"A song's page transcribes the streaming release, so lyrics only a video version carries go in the Q&A rather than into the words; where a video or an album cut differs substantially — different verses, say — it earns a page of its own, titled with `(Video Version)` or `(Album Version)` after the song's title.",
+			"A song's page transcribes the streaming release, so lyrics only a video version carries go in the Q&A rather than into the words; where a video or an album cut differs substantially (different verses, say), it earns a page of its own, titled with `(Video Version)` or `(Album Version)` after the song's title.",
 		example: { correct: 'Golondrina (Video Version)' },
 		authority: 'staff',
 		sourceIds: ['G-STREAMING']
@@ -679,11 +679,11 @@ export function guidanceTopics(): Array<{
 
 /**
  * The guidelines a rule's page links, derived from the same `relatedRuleIds`
- * the entries' own meta lines draw — one mapping, read from both ends, so the
+ * the entries' own meta lines draw: one mapping, read from both ends, so the
  * rule page and the topic page cannot disagree about which convention a rule
  * checks. Landmarks count too: `spelling.standardized`'s guideline is the
  * standardized-spellings table itself, and its anchor is derived through
- * `entryAnchor` exactly as an entry's is — a no-op for every landmark id today,
+ * `entryAnchor` exactly as an entry's is, a no-op for every landmark id today,
  * and one derivation rather than two conventions that happen to agree.
  * Entries come out in catalog order;
  * a rule no entry names comes out empty, which is the page drawing nothing.

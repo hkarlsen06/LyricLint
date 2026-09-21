@@ -22,7 +22,7 @@ type Matches = { count: number; index: number; current?: MatchRange };
 const NO_MATCHES: Matches = { count: 0, index: 0 };
 
 /**
- * How many matches there are and which one the user is on — the one fact a find
+ * How many matches there are and which one the user is on, the one fact a find
  * bar owes its reader, and the thing CodeMirror's own panel never says.
  *
  * The current match is the selection where the selection *is* a match, and the
@@ -73,7 +73,7 @@ function scanMatches(state: EditorState): Matches {
  * is handed back and forth between the diagnostic card and the popover and a
  * third owner would clear whichever of them is open.
  *
- * The removal carries no wash of its own — the match already has a highlight
+ * The removal carries no wash of its own: the match already has a highlight
  * saying where it is, and a second fill over the first is two marks for one fact.
  */
 function preview(state: EditorState): DecorationSet {
@@ -145,7 +145,7 @@ function command(className: string, label: string, run: () => void): HTMLButtonE
  * group moves the reader through the document and changes nothing, the right
  * group changes the document, and the way out sits at the far end.
  *
- * Nothing here draws while it has nothing to do — no step controls under one
+ * Nothing here draws while it has nothing to do: no step controls under one
  * match, no `Replace all 1` beside the press that already does that, no count
  * before there is a query. What is left in the common case, which is finding
  * without replacing, is a field and a number.
@@ -207,8 +207,8 @@ class FindPanel implements Panel {
 		this.dom.className = 'll-find';
 		this.dom.addEventListener('keydown', (event) => this.keydown(event));
 		// No close button. The action tray's magnifier is this bar's visible way out
-		// — it toggles, it sits directly above the row's own right end, and it draws
-		// accent while the bar is open — so an `✕` here would be a second control
+		// (it toggles, it sits directly above the row's own right end, and it draws
+		// accent while the bar is open), so an `✕` here would be a second control
 		// for a press the user already has, in the row with least space for one.
 		// `Escape` is the third way, as it is for every surface in the workbench.
 		this.dom.append(finding, ...(view.state.readOnly ? [] : [replacing]));
@@ -230,7 +230,7 @@ class FindPanel implements Panel {
 	}
 
 	/**
-	 * The diff is drawn on the current match, so `Replace` has to act on that one —
+	 * The diff is drawn on the current match, so `Replace` has to act on that one,
 	 * and `replaceNext` only replaces where the selection is already the match it
 	 * found. Selecting it first is what keeps the press and the preview honest.
 	 */
@@ -302,7 +302,7 @@ const searchReplaceTheme = EditorView.theme({
 	/*
 	 * The bar runs *under* the action tray rather than below it: the tray floats
 	 * over the document's top-right corner and costs no height, so stacking this
-	 * beneath it would charge the document for both — which is what it did, and
+	 * beneath it would charge the document for both, which is what it did, and
 	 * what made the pair look like two bands of chrome for one job.
 	 *
 	 * What that means here is that the tray covers the right end of this row, so
@@ -406,7 +406,7 @@ const searchReplaceTheme = EditorView.theme({
 	},
 	/*
 	 * A match is not a finding. The old wash was `--color-warning-soft`, which is
-	 * the warning severity's own color — a yellow band over lyric text in a linter
+	 * the warning severity's own color: a yellow band over lyric text in a linter
 	 * means the linter said something about it. Matches take the accent instead,
 	 * and the one the reader is on is marked the way this editor marks everything
 	 * else: an underline, not a second fill.

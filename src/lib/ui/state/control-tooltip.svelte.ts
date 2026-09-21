@@ -5,7 +5,7 @@ interface ControlHint {
 	label: string;
 	/**
 	 * The keystroke, already written the way it is pressed on this platform.
-	 * Omitted where the control has none — the box then carries the label alone.
+	 * Omitted where the control has none, and the box then carries the label alone.
 	 */
 	shortcut?: string;
 }
@@ -20,8 +20,8 @@ interface ShownHint extends ControlHint {
  *
  * Held here rather than per control, because hover and focus are separate: a
  * pointer crossing one control while the keyboard sits on another would
- * otherwise leave two boxes up. It also means the markup exists once — see
- * `ControlTooltip.svelte` — instead of being repeated by every surface that
+ * otherwise leave two boxes up. It also means the markup exists once (see
+ * `ControlTooltip.svelte`) instead of being repeated by every surface that
  * wants to name its controls.
  */
 let shown = $state<ShownHint | undefined>();
@@ -75,7 +75,7 @@ export function hideControlHint(): void {
  * Where the box goes, measured from the control it describes.
  *
  * `position: fixed`, so both decisions are against the viewport rather than
- * against whatever scroll port or overlay the control is sitting in — the
+ * against whatever scroll port or overlay the control is sitting in: the
  * action tray is inside the editor region's grid, the link action is in an
  * anchored picker, and the transport is inside a horizontal scroller. A box in
  * any one's flow would grow the thing it annotates.
@@ -115,8 +115,8 @@ export function placeControlHint(
  *   by Tab has had its name asked for just as plainly as one under a pointer.
  * - **The box is `aria-hidden`, not `aria-describedby`.** Both facts in it are
  *   already the control's own accessible name and `aria-keyshortcuts`, so
- *   describing would announce each twice. Where that is *not* true — where the
- *   visible text is the only copy — the citation's `aria-describedby` is the
+ *   describing would announce each twice. Where that is *not* true, where the
+ *   visible text is the only copy, the citation's `aria-describedby` is the
  *   right shape instead. This is the one case where the direction reverses.
  *
  * It is an attachment rather than a wrapper component on purpose: the transport

@@ -1,10 +1,10 @@
 /** Layered abuse limits. The minute throttles live in Worker Rate Limiting
- * bindings (approximate, fast); everything here that is exact — daily counts,
- * concurrency, spend — is enforced by the QuotaCounter Durable Object. */
+ * bindings (approximate, fast); everything here that is exact (daily counts,
+ * concurrency, spend) is enforced by the QuotaCounter Durable Object. */
 export const LIMITS = {
 	/** Provider requests per minute per anonymous browser session (rate-limit
-	 * binding). One logical user turn may legitimately spend five requests — the
-	 * initial call plus four draft-tool continuations — so leave room for six
+	 * binding). One logical user turn may legitimately spend five requests (the
+	 * initial call plus four draft-tool continuations), so leave room for six
 	 * conversational turns before treating the traffic as a burst. */
 	sessionPerMinute: 30,
 	/** Requests per minute per hashed IP (rate-limit binding). Keep room for

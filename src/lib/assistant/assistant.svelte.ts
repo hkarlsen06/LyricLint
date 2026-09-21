@@ -51,7 +51,7 @@ export interface AssistantDeps {
 	ruleSetVersion: string;
 	corpusHash: string;
 	/** The lock manager conversations are written under, supplied by the shipped
-	 * wiring — see `browserChatLocks`. Absent or `null`, writes are unguarded,
+	 * wiring (see `browserChatLocks`). Absent or `null`, writes are unguarded,
 	 * which is what a browser with no Web Locks gets anyway. */
 	locks?: LockManager | null;
 	/** Test seams for the otherwise appMetadata-backed permission decision. */
@@ -76,7 +76,7 @@ const FAILURE_MESSAGES = {
 		'The app and assistant are on different versions. Reload to get the latest app. If this continues, try again after the update finishes.',
 	challenge_required: 'Quick check that you are human, then your question goes through.',
 	challenge_failed: 'The check did not pass. Try it again.',
-	request_in_progress: 'One question at a time — the last one is still being answered.',
+	request_in_progress: 'One question at a time. The last one is still being answered.',
 	rate_limited: 'A little fast. Wait a moment and try again.',
 	daily_limit_reached: 'The daily limit for this browser is used up. It resets at midnight UTC.',
 	spend_limit_reached: 'The assistant has reached its daily budget. It resets at midnight UTC.',
@@ -143,8 +143,8 @@ function phaseFor(calls: AssistantToolCallRecord[]): AssistantToolSession['phase
  *
  * A turn parked on an unanswered tool call is not an interrupted request: it
  * waits on a person rather than on the network, and everything its
- * continuation needs — the calls, the outcomes recorded so far, and every
- * round's `providerItems` — is on the record, so the request the decision
+ * continuation needs (the calls, the outcomes recorded so far, and every
+ * round's `providerItems`) is on the record, so the request the decision
  * sends is byte for byte the one the lost session would have sent. A turn cut
  * off mid-stream has none of that, and is swept.
  */
@@ -157,7 +157,7 @@ function decisionPending(
 	if (!turns || !latest || callsAcknowledged(latest.calls)) return undefined;
 	// `liveToolSuffix` throws on a round with no provider items, and a resume
 	// that throws is a worse answer than the sweep this would spare the turn
-	// from — the completing patch strips them, so only a live turn has them.
+	// from. The completing patch strips them, so only a live turn has them.
 	return turns.every((turn) => turn.providerItems) ? latest.calls : undefined;
 }
 
@@ -249,7 +249,7 @@ function atomicProposalEdit(
 
 /**
  * The span a proposal's edits cover, from the first change's start to the
- * last one's end — which is the whole of what the card's diff is about,
+ * last one's end, which is the whole of what the card's diff is about,
  * shared context aside. Undefined where a proposal changes nothing, since
  * there is then nothing to scroll to.
  */
@@ -336,15 +336,15 @@ export function createAssistantState(deps: AssistantDeps) {
 	/**
 	 * A reload cannot resume the provider round a streaming answer was in the
 	 * middle of, so a `pending` record in a chat about to be drawn is orphaned. A
-	 * turn parked on an unanswered tool call is a different thing — it waits on
-	 * the user, not on the network — so it is spared and re-seated instead.
+	 * turn parked on an unanswered tool call is a different thing: it waits on
+	 * the user, not on the network, so it is spared and re-seated instead.
 	 *
 	 * Swept one chat at a time, when that chat is loaded for display, rather than
 	 * across the database at boot. The database is shared by every tab, and a
 	 * global sweep is another tab's live stream marked interrupted the moment
 	 * somebody opens the assistant on `/rules/`. Scoped, a chat nobody has opened
 	 * is left alone, and a turn that really did die is still marked the next time
-	 * anyone looks at it — which is the only moment the state is read.
+	 * anyone looks at it, which is the only moment the state is read.
 	 */
 	async function openChat(
 		repo: AssistantChatRepository,
@@ -378,7 +378,7 @@ export function createAssistantState(deps: AssistantDeps) {
 
 	/**
 	 * A spared turn comes back with its prompt still drawn, and `toolSession` is
-	 * what every decision control checks before it does anything — without it
+	 * what every decision control checks before it does anything. Without it
 	 * the Allow, Deny, Approve and Reject the transcript redraws are dead
 	 * controls above a sentence saying the turn is over. Only the last message
 	 * can hold one: a turn is answered or abandoned before the next question.
@@ -439,9 +439,9 @@ export function createAssistantState(deps: AssistantDeps) {
 		const code = cause instanceof AssistantError ? cause.code : 'provider_error';
 		if (code !== 'challenge_required') {
 			// A Turnstile challenge is routine; everything else the user only ever
-			// sees as the worded FAILURE_MESSAGES entry. The cause — a client-side
+			// sees as the worded FAILURE_MESSAGES entry. The cause (a client-side
 			// bug, or the protocol layer's detail ("interrupted" vs "did not
-			// finish" vs the worker's own error text) — is invisible everywhere
+			// finish" vs the worker's own error text)) is invisible everywhere
 			// unless it is named here.
 			console.error('assistant_turn_failed', cause);
 		}
@@ -456,12 +456,12 @@ export function createAssistantState(deps: AssistantDeps) {
 			message.id === assistantMessageId ? { ...message, ...update } : message
 		);
 		// A patch routinely carries values read back out of `messages`, which are
-		// `$state` proxies — and IndexedDB's structured clone refuses a proxy, so
+		// `$state` proxies, and IndexedDB's structured clone refuses a proxy, so
 		// the write dies as a DataCloneError mid-turn. Snapshot at this one choke
 		// point rather than at every call site that might forget.
 		// SAFETY: `$state.snapshot` returns `update`'s own shape with the `$state`
 		// proxies removed, and a message record carries only structured-cloneable
-		// data — so the unwrap loses nothing the declared type still claims.
+		// data, so the unwrap loses nothing the declared type still claims.
 		const patch = $state.snapshot(update) as Partial<AssistantMessageRecord>;
 		await (await repository()).updateMessage(assistantMessageId, patch);
 	}
@@ -527,7 +527,7 @@ export function createAssistantState(deps: AssistantDeps) {
 		const turn: AssistantToolTurnRecord = { calls, providerItems: response.providerItems };
 		if (streamed && streamed.blocks.length > 0) turn.narration = streamed;
 		// The live answer slot resets with the turn recorded, or a round that
-		// streams nothing shows — and would re-record — the previous narration.
+		// streams nothing shows, and would re-record, the previous narration.
 		await patchMessage(assistantMessageId, {
 			toolTurns: [...priorTurns, turn],
 			answer: undefined
@@ -818,9 +818,9 @@ export function createAssistantState(deps: AssistantDeps) {
 		 *
 		 * Every question asked from that field starts its own chat, because that
 		 * field is not in a conversation. `initialize()` re-seats the last chat the
-		 * user had open — which is what the workbench panel and the modal's own
+		 * user had open, which is what the workbench panel and the modal's own
 		 * composer want, since both are looking at the transcript they are adding
-		 * to — so a question typed on the rule reference landed at the foot of a
+		 * to, so a question typed on the rule reference landed at the foot of a
 		 * conversation the reader had not seen, possibly from another day, and the
 		 * model answered it with that history as context. `newChat()` writes no
 		 * record; `send()` is what creates one, so an empty question leaves the
@@ -841,7 +841,7 @@ export function createAssistantState(deps: AssistantDeps) {
 		// None of these three refuse on `toolSession` any more, and dropping that
 		// term unlocks exactly one state: a turn waiting on a decision. A round
 		// actually in flight is `busy`, which still refuses. A decision is not in
-		// flight — nothing is running, the record holds everything, and a session
+		// flight: nothing is running, the record holds everything, and a session
 		// restored at boot would otherwise trap the panel in a conversation whose
 		// question the user no longer wants to answer.
 		async newChat(): Promise<void> {
@@ -860,7 +860,7 @@ export function createAssistantState(deps: AssistantDeps) {
 			const repo = await repository();
 			currentAttempt = undefined;
 			// Opening a conversation is the moment its orphaned turns are drawn, so
-			// it is the moment they are swept — see `openChat`.
+			// it is the moment they are swept (see `openChat`).
 			await openChat(repo, id);
 			failure = undefined;
 			challengePending = false;
@@ -880,7 +880,7 @@ export function createAssistantState(deps: AssistantDeps) {
 		},
 
 		/**
-		 * Resolves `true` only when the question was consumed — a request actually
+		 * Resolves `true` only when the question was consumed: a request actually
 		 * started. A refusal a caller could only discover after an await (the
 		 * conversation held by another tab) resolves `false`, so a composer that
 		 * cleared itself optimistically can hand the question back.
@@ -907,7 +907,7 @@ export function createAssistantState(deps: AssistantDeps) {
 			// The lock is taken before the first row is written, so a conversation
 			// another tab is answering in takes nothing from this one: no question,
 			// no placeholder, no `updatedAt`. A chat created just above cannot be
-			// held anywhere — its id is minted in this call — so only a send into an
+			// held anywhere (its id is minted in this call), so only a send into an
 			// existing conversation can be refused here.
 			const outcome = await withConversationLock(chatId, async () => {
 				const user = await repo.addMessage({
@@ -965,7 +965,7 @@ export function createAssistantState(deps: AssistantDeps) {
 
 		registerDraftBridge(bridge: AssistantDraftBridge): () => void {
 			// Registration runs inside the workspace's own $effect, and this guard
-			// reads the very state the registration writes — untracked, or the
+			// reads the very state the registration writes; untracked, or the
 			// effect depends on itself and boot never settles.
 			untrack(() => {
 				const nextDraftId = bridge.draftId();
@@ -1101,7 +1101,7 @@ export function createAssistantState(deps: AssistantDeps) {
 			// usually cannot see, so a diff drawn in silence is a card claiming an
 			// edit with no evidence anywhere on screen. The reveal is what makes
 			// the preview readable, and it comes after the preview for the reason
-			// `revealDiagnostic` states — CodeMirror applies queued scrolls in its
+			// `revealDiagnostic` states: CodeMirror applies queued scrolls in its
 			// measure phase, so the deliberate placement has to be the last one
 			// asked for. It moves no caret and no selection.
 			const span = editedSpan(resolved.edit);
@@ -1117,7 +1117,7 @@ export function createAssistantState(deps: AssistantDeps) {
 		/**
 		 * Show where a `show_lyrics` reference points: the selection wash moves
 		 * onto the quoted range and the viewport scrolls to it, exactly as a
-		 * proposal's preview reveals its diff — minus the diff, because a
+		 * proposal's preview reveals its diff, minus the diff, because a
 		 * reference changes nothing.
 		 *
 		 * Deliberately not gated on the tool session: a proposal is an offer that
@@ -1148,7 +1148,7 @@ export function createAssistantState(deps: AssistantDeps) {
 export type AssistantState = ReturnType<typeof createAssistantState>;
 
 /** The production wiring: Dexie behind a lazy import, the real API client,
- * the shipped ruleset version, and the browser's own lock manager — this is the
+ * the shipped ruleset version, and the browser's own lock manager. This is the
  * one construction where two writers into a conversation are two tabs. */
 export function createDefaultAssistantState(): AssistantState {
 	return createAssistantState({

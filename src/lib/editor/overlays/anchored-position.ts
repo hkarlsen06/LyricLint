@@ -23,7 +23,7 @@ export function preferredControlPlacement(
  * The inline style for a `position: fixed` card anchored to a document range.
  *
  * A card that only ever hangs *below* its anchor runs off the bottom of the
- * window as soon as the anchored line is near it — which is most of the time in
+ * window as soon as the anchored line is near it, which is most of the time in
  * an editor people scroll to the end of. So the side is chosen from whichever
  * has more room, and the space on that side is published as `--ll-anchor-space`
  * for the card's own `max-height` to fold into its cap.

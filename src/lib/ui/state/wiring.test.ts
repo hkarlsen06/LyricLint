@@ -101,7 +101,7 @@ describe('UI wiring', () => {
 		expect(numbering(false)).toBe(0);
 		expect(numbering(true)).toBe(1);
 		// Absent the option, a caller is one looking at a document nobody is typing
-		// into — a test, or the landing page's demo.
+		// into: a test, or the landing page's demo.
 		expect(
 			filterForEditorState(snapshot, diagnostics).filter(
 				(diagnostic) => diagnostic.ruleId === 'section.verse-numbering'
@@ -116,7 +116,7 @@ describe('UI wiring', () => {
 		expect(isTypingChange('', 'a')).toBe(true);
 		expect(isTypingChange('Hold on', 'Hold on ')).toBe(true);
 		expect(isTypingChange('Hold on\r', 'Hold on\r\n')).toBe(true);
-		// A deletion is typing too — backspacing through a word must not publish a
+		// A deletion is typing too, because backspacing through a word must not publish a
 		// shape finding on every character on the way out.
 		expect(isTypingChange('Hold on', 'Hold o')).toBe(true);
 		// A paste, a draft opening, the sample.
@@ -235,7 +235,7 @@ describe('UI wiring', () => {
 		controller.onSnapshot({ ...controller.snapshot, revision: 3, parsed, diagnostics });
 
 		// The card that starts expanded previews itself on mount, which happens
-		// while the editor is still the bootstrap handle — it cannot draw a diff.
+		// while the editor is still the bootstrap handle, so it cannot draw a diff.
 		// Dropping the request there would leave an Apply button with nothing to
 		// explain it, so the request waits for the real editor.
 		controller.previewFix(diagnostic!, fix!);
@@ -325,7 +325,7 @@ describe('UI wiring', () => {
 			{ text: 'Lead', ids: ['a'] },
 			{ text: 'Echo', ids: ['b'] },
 			{ text: 'on', ids: ['a'] },
-			// A pair wrapping only plain text is the plain voice's own aside — no
+			// A pair wrapping only plain text is the plain voice's own aside, and no
 			// hole is punched into a wash that was making a true claim.
 			{ text: 'Keep (a plain aside) whole', ids: ['a'] },
 			// Mixed content: the parens are neutral while the plain words inside
@@ -380,7 +380,7 @@ describe('UI wiring', () => {
 
 	// What the strip's `Lyrics synced` claims. The lines a run would tap are the
 	// editor's own stampable ones, so headers and blanks may not hold the claim
-	// back — and an anchor on a header may not stand in for a missing lyric line.
+	// back, and an anchor on a header may not stand in for a missing lyric line.
 	test('a lyric is timed when every stampable line has an anchor', () => {
 		const text = '[Verse 1]\nFirst line\n\nSecond line';
 		expect(
@@ -404,8 +404,8 @@ describe('UI wiring', () => {
 				{ line: 4, time: 5 }
 			])
 		).toBe(true);
-		// A multi-line annotation's opening line is sung text, so it wants a time
-		// — and it may not read as a header that would excuse it from one.
+		// A multi-line annotation's opening line is sung text, so it wants a time,
+		// and it may not read as a header that would excuse it from one.
 		const annotated = '[Verse 1]\n[Det er for mange\nOg ærlig, tre stykker](35524264)';
 		expect(everyLyricLineTimed(annotated, [{ line: 2, time: 1 }])).toBe(false);
 		expect(
@@ -419,7 +419,7 @@ describe('UI wiring', () => {
 	// The strip's skip control draws off this answer, and it mirrors the editor's
 	// own `lyricSyncSkipTarget`: a skip is real exactly when the first untimed
 	// lyric line at or after the caret has a *timed* lyric line between it and the
-	// caret — that predecessor is where the jump lands.
+	// caret: that predecessor is where the jump lands.
 	test('timed lines are skippable only when the jump would actually move', () => {
 		// Lines: 1 header, then First…Fifth on lines 2–6.
 		const text = '[Verse 1]\nFirst\nSecond\nThird\nFourth\nFifth';
@@ -438,14 +438,14 @@ describe('UI wiring', () => {
 		// The caret stands on the gap itself: tap it, do not jump over it.
 		expect(timedLinesSkippable(text, timedToTheGap, text.indexOf('Fifth'))).toBe(false);
 
-		// Two gaps, at `Second` and `Fifth` — the split-line song this is for.
+		// Two gaps, at `Second` and `Fifth`, the split-line song this is for.
 		const twoGaps = [
 			{ line: 2, time: 10 },
 			{ line: 4, time: 30 },
 			{ line: 5, time: 40 }
 		];
 		// Resume already stands directly before the first gap, and a jump to the
-		// second would leave the first behind the caret — a line the run never
+		// second would leave the first behind the caret, a line the run never
 		// comes back to.
 		expect(timedLinesSkippable(text, twoGaps, text.indexOf('First'))).toBe(false);
 		// Past the first gap, the second is reachable across the timed lines.
@@ -470,7 +470,7 @@ describe('UI wiring', () => {
 	});
 
 	// The strip's sync label draws off this answer before the press, so it has to
-	// be the same question the editor's own `selectionScope` asks at entry — both
+	// be the same question the editor's own `selectionScope` asks at entry, and both
 	// come down to `isLyricLine` over the lines the selection touches.
 	test('a selection scopes a sync run only where it touches a lyric line', () => {
 		const text = '[Verse 1]\nFirst line\n\nSecond line';

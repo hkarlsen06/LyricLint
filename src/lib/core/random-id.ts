@@ -2,7 +2,7 @@
  * The one place a new id is minted.
  *
  * `crypto.randomUUID` is **secure-context only**, so it does not exist over
- * plain `http://` on a LAN address — which is exactly how the workbench is
+ * plain `http://` on a LAN address, which is exactly how the workbench is
  * opened on a phone during development. Unguarded, it threw inside the boot
  * sequence and the page came up as "Local storage is unavailable", naming the
  * wrong subsystem entirely.

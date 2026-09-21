@@ -4,7 +4,7 @@ import { diagnostic, hasUnsupportedMarkup, maskedMarkupText } from './utils.js';
 /**
  * Words, bounded by what a letter is rather than by `\b`. That escape is ASCII,
  * so `Ærlig` began at its second character and counted as lowercase, and `Café`
- * stopped at `Caf` — the two ways this rule misread every accented language it
+ * stopped at `Caf`: the two ways this rule misread every accented language it
  * was pointed at. A combining mark belongs to the letter in front of it.
  */
 const WORD = /(?<![\p{L}\p{M}'’-])[\p{L}][\p{L}\p{M}'’-]*/gu;
@@ -29,7 +29,7 @@ export const capitalizationTitleCaseRule: RuleDefinition = {
 	fixability: 'none',
 	sourceIds: ['G-CAPS'],
 	// Section-scoped: the rule needs two title-cased candidates in one section and
-	// then reports on both, so typing line N+1 decides whether line N is flagged —
+	// then reports on both, so typing line N+1 decides whether line N is flagged,
 	// and `line` cannot help, because the card lands on a line the caret is not on.
 	settlesOn: 'document',
 	check(document) {

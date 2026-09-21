@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/section-links.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/section-links.md. Read it before changing this file, and update it with any behavior change.
 import { invertedEffects } from '@codemirror/commands';
 import {
 	Annotation,
@@ -84,7 +84,7 @@ export const setSectionLinksEffect = StateEffect.define<readonly SectionLink[]>(
  * *before* this transaction's changes.
  *
  * Before, because the effect travels in the same transaction as any edit it
- * comes with — one press has to be one undo — and the picker chose its headers
+ * comes with (one press has to be one undo), and the picker chose its headers
  * against the document it was looking at. The field maps them.
  *
  * One effect covers linking, re-linking and unlinking: every named header
@@ -109,7 +109,7 @@ const replacePassageStateEffect = StateEffect.define<PassageState>();
  * The whole list rather than one group's, because the caller already holds the
  * state it needs to compute it and a field that had to work out which runs
  * belonged to the group being changed would have to parse the document to find
- * out — twice, once here and once in the caller.
+ * out, twice, once here and once in the caller.
  */
 export const setLinkHolesEffect = StateEffect.define<readonly TextRange[]>();
 
@@ -143,7 +143,7 @@ export const pastedSectionMetadata = Annotation.define<boolean>();
  * coordinates of the document the effect lands in.
  *
  * This is the history's, not the picker's. Undo restores the *words* by
- * reversing changes, and a `StateField` reversed nothing — so deleting a linked
+ * reversing changes, and a `StateField` reversed nothing, so deleting a linked
  * section and pressing undo brought the section back with the link silently
  * gone, which is a half-reversal and the worst kind. The runs travel with the
  * membership for the same reason: undoing the press that made two lines agree
@@ -302,7 +302,7 @@ export const sectionLinkField = StateField.define<RangeSet<LinkValue>>({
  * The rule is one line and it is the whole invariant: a run survives a change
  * that is **contained** in it and dies to a change that merely **overlaps** it.
  *
- * Contained is the user editing the words they had already set aside — the run
+ * Contained is the user editing the words they had already set aside: the run
  * absorbs it and nothing is carried to the peers. Overlapping is an edit that
  * reached across the run's edge, which is the user writing over a difference,
  * and `expandOverHoles` has already widened the mirrored span to swallow the
@@ -649,8 +649,8 @@ export const typeOnlyHereField = StateField.define<TypeOnlyHereState | undefined
  * Make undo reverse the links along with the words.
  *
  * Every history event carries the groups and their runs as they stood before
- * it, so undoing anything — a deleted section, a difference closed, an unlink
- * that moved no text at all — puts the shape back with the text. Redo works out
+ * it, so undoing anything (a deleted section, a difference closed, an unlink
+ * that moved no text at all) puts the shape back with the text. Redo works out
  * of the same machinery: the undo transaction records its own before-state on
  * the way past.
  *
@@ -711,7 +711,7 @@ function memberShape(
  * Header offsets in every group, read off the membership ranges.
  *
  * Takes the parse rather than reaching for one, so a caller that already holds
- * it — which is every caller on a hot path — pays for one.
+ * it (which is every caller on a hot path) pays for one.
  */
 function memberGroups(state: EditorState, parsed: ParsedDocument): number[][] {
 	const links = state.field(sectionLinkField, false);
@@ -760,23 +760,23 @@ export function linkedPeerHeaders(
  * How far down two linked members a run may pair lines by position.
  *
  * `linkedFill` dates a repeat's lines from a peer's by index, and that
- * arithmetic assumes the two copies share a line structure — which the merge
+ * arithmetic assumes the two copies share a line structure, which the merge
  * model deliberately does not require: a chorus carrying a line its peer lacks
  * is the shape the whole feature was rebuilt for. Every line at or after such a
  * difference pairs with the wrong peer line, and the time it would take is
- * plausible and wrong by an amount nobody can see — the automatic anchor
+ * plausible and wrong by an amount nobody can see, the automatic anchor
  * stamp's failure, arriving through the link. Nothing downstream can catch it:
  * the derived times still increase, so the monotonicity guard passes.
  *
  * A shared run is byte-identical in every member by construction, so pairing is
- * provably safe up to the first divergent run that moves a line boundary — one
+ * provably safe up to the first divergent run that moves a line boundary, one
  * whose text, in either member, contains a line break. A word-level difference
  * (`my love` against `my friend`) moves nothing and pairs on, which is the
  * common case the fill must keep.
  *
  * It aligns the pair afresh rather than reading the stored runs, and that is
- * the semantics rather than caution. Stored intent is the mirror's question —
- * a mistake against a decision — and the fill is not asking it: what pairs a
+ * the semantics rather than caution. Stored intent is the mirror's question
+ * (a mistake against a decision), and the fill is not asking it: what pairs a
  * line with a line is the text as it stands, and a record written without runs
  * (`{ lines: [...] }`, every draft from before differences existed) describes
  * exactly the group this most needs to be true of.
@@ -1153,7 +1153,7 @@ export function linkDifferencesFor(
 			// The **shared runs** either side, not the rest of the line.
 			//
 			// Clipped to the line, the context stopped at whatever line boundary each
-			// copy happened to have — and a run that spans lines ends on a different
+			// copy happened to have, and a run that spans lines ends on a different
 			// line in each copy, so the text drawn beside it was different text. On
 			// screen that put a word inside one copy's run and in another copy's
 			// context, with the insertion caret sitting in front of a word the other
@@ -1213,14 +1213,14 @@ function winningWording(
  *
  * This is the correction the whole feature turned on. A group used to be one
  * body repeated, so linking meant overwriting every copy from the one in front
- * of the user — which made a chorus that differed by a single line unlinkable,
+ * of the user, which made a chorus that differed by a single line unlinkable,
  * because the only offer on the table destroyed the difference the user meant
  * to keep. Linking now writes nothing at all by default: `alignBodies` works
  * out which words the copies already share, those become the shared runs, and
  * everything else is set aside as each copy's own.
  *
- * Making copies agree is still available and is now expressed in the same call
- * — `keepDifferent[i] === false` collapses difference `i` to one wording — so
+ * Making copies agree is still available and is now expressed in the same call:
+ * `keepDifferent[i] === false` collapses difference `i` to one wording, so
  * the destructive act is something the user asks for per difference rather than
  * the price of linking at all.
  */
@@ -1251,7 +1251,7 @@ export function linkSections(view: EditorView, choice: SectionLinkChoice): numbe
 	const shaped = members.map((member) => ({ ...member, holes: [...member.holes] }));
 
 	// The answer about existing differences is resolved against the shape the
-	// card was showing, *before* a new one is added — inserting first would shift
+	// card was showing, *before* a new one is added: inserting first would shift
 	// every index the user's ticks were given against, silently, and collapse the
 	// wrong difference.
 	const changes: TextEdit[] = [];
@@ -1397,7 +1397,7 @@ function addDifference(
 				)
 	);
 	// All or none. A run that landed in some copies and not others would leave the
-	// group with different counts, which every translation downstream refuses —
+	// group with different counts, which every translation downstream refuses:
 	// the link would go quiet rather than fail, which is the worse failure.
 	if (added.some((range) => !range)) {
 		return false;

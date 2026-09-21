@@ -43,18 +43,18 @@ describe('SiteSourceFold', () => {
 		await render(SiteSourceFold, { sources: two });
 
 		// Folded: the disclosure is the only thing on the line, and neither
-		// citation is in the document at all — a hidden link would still be a
-		// tab stop.
+		// citation is in the document at all, because a hidden link would
+		// still be a tab stop.
 		const disclosure = page.getByRole('button', { name: 'Sources' });
 		await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false');
 		expect(document.querySelectorAll('a')).toHaveLength(0);
 
 		await disclosure.click();
 		await expect.element(disclosure).toHaveAttribute('aria-expanded', 'true');
-		// The label carries no state — the chevron and `aria-expanded` do — so
+		// The label carries no state (the chevron and `aria-expanded` do), so
 		// the control does not rewrite itself under the pointer that pressed it.
 		expect(disclosure.element().textContent?.trim()).toBe('Sources');
-		// Unfolded, each citation is the inline one exactly — the page title it
+		// Unfolded, each citation is the inline one exactly: the page title it
 		// leads with, plus whatever `SourceCitation` says about the press after
 		// it, which is that component's own copy rather than this one's.
 		const links = [...document.querySelectorAll('a')];
@@ -93,7 +93,7 @@ describe('SiteSourceFold', () => {
 
 	// A long one folds, and the label is the count: `Checked by` introduces the
 	// run and stays outside the button, so the button names only what is behind
-	// it — and the run it reveals is the same run the inline branch draws.
+	// it, and the run it reveals is the same run the inline branch draws.
 	it('folds a long run behind its own count, keeping the prefix outside the button', async () => {
 		expect(longestRuleRun.length).toBeGreaterThan(INLINE_RULE_IDS);
 		await render(SiteSourceFold, {

@@ -105,7 +105,7 @@ export function createTestWorkbench(options?: {
 	recentLanguages?: readonly string[];
 	/**
 	 * Give this workbench audio. Off by default, because a controller with a media
-	 * store is one more thing running behind every unrelated assertion — and
+	 * store is one more thing running behind every unrelated assertion, and
 	 * because the player has to be a stub: the real one builds an `<audio>`
 	 * element and can fetch Google's IFrame API.
 	 */

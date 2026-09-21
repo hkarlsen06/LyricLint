@@ -6,8 +6,8 @@ import { diagnostic, replacementFix } from './utils.js';
  * The run of blank lines between two sections, expressed as the range that has
  * to go for one of them to be left.
  *
- * Blank lines belong to no section — the parser closes the current one on each
- * of them — so the whole separator is the text between the previous section's
+ * Blank lines belong to no section (the parser closes the current one on each
+ * of them), so the whole separator is the text between the previous section's
  * last line and the next section's first, and it is always some number of line
  * endings with optional whitespace between them. One ending means the header is
  * adjacent, which is `section.header-spacing`'s finding; two mean exactly one
@@ -54,7 +54,7 @@ export const sectionExtraBlankLinesRule: RuleDefinition = {
 			const section = document.sections[index];
 			const extra = extraBlankLineRange(document, index);
 			// The blank lines themselves are the finding and are also the one range
-			// nothing can be drawn on — an underline over them marks empty rows. The
+			// nothing can be drawn on, since an underline over them marks empty rows. The
 			// mark goes on the section they sit above, exactly as the inverse rule
 			// marks the header it wants a blank line before.
 			const anchor = section?.header ?? section?.lines[0];

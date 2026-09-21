@@ -5,7 +5,7 @@ import type { TransportAction } from './media-player.svelte.js';
  * The transport triad, bound to the window rather than to the editor.
  *
  * It began as a CodeMirror keymap, which meant it only answered while the caret
- * was in the document — and the moment anything else had focus, a scrubber, a
+ * was in the document, and the moment anything else had focus, a scrubber, a
  * severity chip, the draft's name, the tape could not be stopped. That is the
  * wrong half of the loop to serve. Transcribing is listen, pause, type, back up,
  * replay, and the pause is wanted most at exactly the moments the user has
@@ -19,7 +19,7 @@ import type { TransportAction } from './media-player.svelte.js';
 /**
  * Physical keys, because the argument for J K L is physical: they are three keys
  * beside one another with pause in the middle, the shape every video editor uses.
- * `key` is the fallback for the environments — and the synthetic events — that
+ * `key` is the fallback for the environments (and the synthetic events) that
  * report a character but no `code`.
  */
 const transportKeys = new Map<string, TransportAction>([
@@ -52,7 +52,7 @@ export function transportModifier(platform = currentPlatform()): 'Control' | 'Al
  * types characters, and Alt on Windows and Linux, where Control-J/K/L belong to
  * the browser. Ctrl-Alt remains the universal fallback.
  *
- * Shift and Meta are excluded rather than ignored — `Ctrl-Alt-Shift-K` is a
+ * Shift and Meta are excluded rather than ignored: `Ctrl-Alt-Shift-K` is a
  * different keystroke, and a handler that answered to supersets of its own
  * binding would swallow one.
  */
@@ -70,7 +70,7 @@ export function matchTransportAction(
 	}
 	if (event.metaKey || event.shiftKey) return undefined;
 	// AltGr is reported as Control **and** Alt on Windows and X11, which is the
-	// universal fallback's own combination — so on a layout where AltGr+L types a
+	// universal fallback's own combination, so on a layout where AltGr+L types a
 	// character (Polish `ł`), claiming it here would make that letter untypeable
 	// anywhere in the workbench for as long as audio is attached, because this
 	// listener is in the capture phase and prevents what it answers. A modifier
@@ -91,7 +91,7 @@ export function matchTransportAction(
  * The Escape family drives the transport, and it is the cluster a transcriber
  * can actually reach for in the heat of the moment. Escape is the keyboard's one
  * large key that can never write a character into the document, and neither can
- * it while a modifier is held — so a fumbled press costs nothing, where a fumbled
+ * it while a modifier is held, so a fumbled press costs nothing, where a fumbled
  * `Alt-J` lands a letter in somebody's lyric that they now have to find and
  * erase, at exactly the moment they had no attention to spare. Bare Escape
  * toggles, Shift+Escape backs up, and Alt+Escape (Option+Escape) goes forward:
@@ -104,13 +104,13 @@ export function matchTransportAction(
  * of its own binding would swallow a keystroke somebody else had a use for.
  *
  * The family is the bottom of the Escape stack, never the top. Every other Escape
- * in the workbench means "close the surface on top" — dismiss a popover, cancel
- * a find, end a sync run, reset the draft's name — and each of those claims the
+ * in the workbench means "close the surface on top": dismiss a popover, cancel
+ * a find, end a sync run, reset the draft's name. Each of those claims the
  * event by preventing its default or stopping its propagation. So the binding
  * reads `defaultPrevented` and stands down, and it stands down for an open modal
  * by the press's target rather than by the flag, because a native `<dialog>`
- * closes on Escape without reliably marking the keydown. What is left — an
- * Escape with nothing above it to close — is the case this exists for: the caret
+ * closes on Escape without reliably marking the keydown. What is left, an
+ * Escape with nothing above it to close, is the case this exists for: the caret
  * is just sitting in the document, and the tape needs to stop.
  */
 export function matchEscapeAction(event: KeyboardEvent): TransportAction | undefined {
@@ -125,7 +125,7 @@ export function matchEscapeAction(event: KeyboardEvent): TransportAction | undef
 /**
  * Whether the press landed inside a modal that owns Escape for its own close.
  * A native `<dialog>` and a Bits UI dialog (`role="dialog"`) both close on
- * Escape, and the first does it without setting `defaultPrevented` — so this is
+ * Escape, and the first does it without setting `defaultPrevented`, so this is
  * read off the target, which is trapped inside the open dialog either way.
  */
 function targetInDialog(target: EventTarget | null): boolean {
@@ -153,7 +153,7 @@ function isBareSpace(event: KeyboardEvent): boolean {
 }
 
 /**
- * Whether a space on this element types a character or presses a control —
+ * Whether a space on this element types a character or presses a control,
  * the two meanings a run's tap must not take away.
  *
  * Deliberately narrower than `ownsSpace`. The toggle defers to every input,
@@ -190,7 +190,7 @@ interface TransportShortcutOptions {
 	transport: (action: TransportAction) => boolean;
 	/**
 	 * Time a line, and say whether a run was under way to time it in. While one
-	 * is, a bare space is the tap wherever it lands — the run's one gesture
+	 * is, a bare space is the tap wherever it lands, and the run's one gesture
 	 * outranks the toggle, and it claims the scrubber the toggle defers to.
 	 * False leaves the keystroke to the toggle, exactly as before.
 	 */
@@ -198,7 +198,7 @@ interface TransportShortcutOptions {
 	/**
 	 * Load a source that is remembered but not yet attached, and say whether there
 	 * was one to load. A bare Escape spends this when nothing is playing: the tape
-	 * is not here yet, so the reach-for key brings it — the same press the strip's
+	 * is not here yet, so the reach-for key brings it, the same press the strip's
 	 * `Load …` / `Reconnect …` control makes. False leaves the keystroke alone.
 	 */
 	load?: () => boolean;
@@ -214,7 +214,7 @@ interface TransportShortcutOptions {
 /**
  * Listen for the triad anywhere in the window. Returns the teardown.
  *
- * The capture phase, so nothing between the press and here can swallow it first —
+ * The capture phase, so nothing between the press and here can swallow it first:
  * CodeMirror's own keymap runs on the content element and would otherwise have
  * the first word on a key it no longer binds.
  */
@@ -226,8 +226,8 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 			: (options.mediaSession ?? (browser ? navigator.mediaSession : undefined));
 
 	// Whether the space bar now down is one this listener answered. A repeat can
-	// no longer ask — the question is `transport`, and asking it would run the
-	// action — so the press that could ask is what records the answer.
+	// no longer ask, because the question is `transport` and asking it would run the
+	// action, so the press that could ask is what records the answer.
 	let claimedSpace = false;
 
 	function handle(event: Event): void {
@@ -260,7 +260,7 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 		// middle key would start and stop the track dozens of times a second and
 		// come to rest wherever the last repeat happened to land, so it answers
 		// once per press. A repeat of a modifier combination has no default worth
-		// taking — but a bare space does, and it is the page scrolling: the first
+		// taking, but a bare space does, and it is the page scrolling: the first
 		// press pauses the tape, and every repeat after it would run the document
 		// out from under the reader still holding the key. Only a space this
 		// listener actually claimed is held on to, or a held space with nothing
@@ -291,13 +291,13 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 	// defer to everything: this listener is in the bubble phase, so every
 	// surface-level Escape handler in the window has already run and either
 	// prevented the default or stopped the event before it arrives here. What
-	// reaches this is an Escape nobody else wanted — the caret sitting in the
-	// document — which is precisely the press that means "stop the tape".
+	// reaches this is an Escape nobody else wanted, the caret sitting in the
+	// document, which is precisely the press that means "stop the tape".
 	function handleEscape(event: Event): void {
 		// SAFETY: registered for `keydown` alone, exactly as `handle` is.
 		const keystroke = event as KeyboardEvent;
-		// Something above claimed it — a popover, a find bar, a sync run, the draft
-		// title's own reset — so leave the keystroke alone.
+		// Something above claimed it (a popover, a find bar, a sync run, the draft
+		// title's own reset), so leave the keystroke alone.
 		if (keystroke.defaultPrevented) return;
 		const action = matchEscapeAction(keystroke);
 		if (action === undefined) return;
@@ -314,7 +314,7 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 			return;
 		}
 		// Nothing playing took the press. A bare Escape then loads a source that is
-		// remembered but waiting on a gesture — the tape is not here yet, and the
+		// remembered but waiting on a gesture. The tape is not here yet, and the
 		// reach-for key is what brings it. The nudges have no such fallback: there
 		// is nothing to step through until something is loaded.
 		if (action === 'toggle' && options.load?.()) {

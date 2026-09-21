@@ -219,7 +219,7 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 	});
 
 	// No `preventDefault: true` on that binding, because the option prevents the
-	// default even when the command returns false — and it returns false whenever
+	// default even when the command returns false, and it returns false whenever
 	// no shell is listening, which would swallow the keystroke in an editor that
 	// never bound it. This is the same trap the sync-mode bindings document.
 	it('lets Ctrl+Alt+U through when no shell is listening', async () => {
@@ -282,7 +282,7 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 	});
 
 	// `Mod-Shift-.` is `Mod-.` one modifier up: the unshifted chord opens the
-	// nearest fix, the shifted one walks the findings — and it wraps, because a
+	// nearest fix, the shifted one walks the findings, and it wraps, because a
 	// "next" that dead-ends on the last row is a press that reads as broken. It
 	// rides the same window listener as its unshifted sibling, so it answers
 	// from the panel as well as the document.
@@ -320,7 +320,7 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 	});
 
 	// The first press lands focus on the leading fix and draws a box over it
-	// naming `⌘.` as that control's own keystroke — so the second press has to
+	// naming `⌘.` as that control's own keystroke, so the second press has to
 	// apply, or the disclosure is a lie exposed by the very keystroke it
 	// teaches. The apply is bound on the button itself and the window's listener
 	// stands down for a press landing on the claimant, so it stays one
@@ -343,7 +343,7 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 	});
 
 	// The keystroke is taught on the diagnostic row, and the row lives in the
-	// panel — where the caret is not. So `Mod-.` is bound to the window beside
+	// panel, where the caret is not. So `Mod-.` is bound to the window beside
 	// `Mod-F` and answers wherever it is pressed; an editor-only binding answered
 	// exactly where the tooltip was not being read.
 	it('opens the available fix with Mod+. from outside the editor', async () => {
@@ -563,7 +563,7 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 	});
 
 	// The transport triad is the shell's, bound to the window so it answers while
-	// the caret is anywhere — including here. What the editor owes it is passage:
+	// the caret is anywhere, including here. What the editor owes it is passage:
 	// the keystroke has to reach the window unclaimed, leaving the document and
 	// the caret exactly where they were, because a transport key is pressed
 	// mid-word.

@@ -61,8 +61,8 @@ describe('the assistant dialog', () => {
 		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 
-		// One modal, three entry points — the rule reference, the guidance
-		// catalog and the workbench — so a title naming the rules alone was
+		// One modal, three entry points: the rule reference, the guidance
+		// catalog and the workbench. So a title naming the rules alone was
 		// false from two of them and argued with its own subtitle. The name
 		// says who is being asked; the line under it says what they cover.
 		const heading = container.querySelector('.assistant-dialog__heading')!;
@@ -88,7 +88,7 @@ describe('the assistant dialog', () => {
 		});
 
 		// The card is a title over one meta line: severity, fix behavior, and the
-		// reviewed source — all resolved from the local corpus, never from model
+		// reviewed source, all resolved from the local corpus, never from model
 		// output. The raw rule id and the corpus explanation are deliberately
 		// absent: both are the linter's voice, not an answer.
 		const preview = container.querySelector('.assistant-rule')!;
@@ -105,13 +105,13 @@ describe('the assistant dialog', () => {
 		expect(rulePage?.getAttribute('rel')).toBe('noopener noreferrer');
 
 		// The rule's reviewed source rides the meta line, linked, with the cited
-		// section and its verified date in the link's tooltip — the citation
+		// section and its verified date in the link's tooltip, the citation
 		// idiom the diagnostic card uses.
 		const sourceLink = preview.querySelector('a.assistant-rule__source');
 		expect(sourceLink?.textContent).toContain('Use song part headers');
 		expect(sourceLink?.getAttribute('title')).toContain('verified');
 
-		// Two rules cited across three blocks — one of them twice — and the
+		// Two rules cited across three blocks, one of them twice, and the
 		// collected section draws each once, after the whole answer: a card
 		// after every paragraph chopped the answer into fragments.
 		expect(container.querySelectorAll('.assistant-rule')).toHaveLength(2);
@@ -127,7 +127,7 @@ describe('the assistant dialog', () => {
 
 		// The tie between a passage and its rule is a superscript number. The
 		// first and last blocks cite rule 1; the example block cites rule 2, and
-		// its mark rides the example's own corner — dropping example marks is how
+		// its mark rides the example's own corner. Dropping example marks is how
 		// a number went missing from a real answer.
 		const refs = container.querySelectorAll('.assistant-block__refs');
 		expect(refs).toHaveLength(3);
@@ -152,7 +152,7 @@ describe('the assistant dialog', () => {
 		const sending = assistant.send('Slow question?');
 		await waitFor(() => expect(ask).toHaveBeenCalled());
 		// The application's one wait-with-no-measurable-end indicator, not a second
-		// one of this surface's own — which is also what keeps it moving under
+		// one of this surface's own, which is also what keeps it moving under
 		// `prefers-reduced-motion` rather than freezing into a drawing.
 		await waitFor(() => expect(container.querySelector('.loading-mark')).not.toBeNull());
 		expect(container.querySelector('.loading-mark [role="status"]')!.textContent).toBe('Answering');
@@ -244,7 +244,7 @@ describe('the assistant dialog', () => {
 		const link = citation.querySelector('a')!;
 		expect(link.getAttribute('href')).toBe(source.url);
 
-		// A source is a lookup beside the answer being read, so it opens a tab —
+		// A source is a lookup beside the answer being read, so it opens a tab,
 		// and the note saying so rides the link's own name, as it does on every
 		// other external link here.
 		expect(link.getAttribute('target')).toBe('_blank');
@@ -355,7 +355,7 @@ describe('the assistant dialog', () => {
 		});
 
 		// Whose turn it is is carried by layout, not by a printed "You"/"Assistant"
-		// caption — those stay sr-only for readers who cannot see the layout.
+		// caption; those stay sr-only for readers who cannot see the layout.
 		const userTurn = container.querySelector('.assistant-turn[data-role="user"]')!;
 		expect(userTurn.textContent).toContain('How do I mark a chorus?');
 		expect(userTurn.querySelector('.sr-only')?.textContent).toContain('You');
@@ -379,7 +379,7 @@ describe('the assistant dialog', () => {
 		expect(row.textContent).toContain('First question?');
 
 		// Two presses in one place: the trash arms a confirm that takes its slot.
-		// The live region has to be the SAME node across the arming — a region
+		// The live region has to be the SAME node across the arming: a region
 		// mounted already holding the question announces nothing.
 		const liveRegion = row.querySelector('[aria-live]')!;
 		expect(liveRegion.textContent?.trim()).toBe('');
@@ -389,7 +389,7 @@ describe('the assistant dialog', () => {
 		expect([...row.querySelectorAll('button')].map((button) => button.textContent?.trim())).toEqual(
 			['Cancel', 'Delete']
 		);
-		// The confirm carries the subject in its accessible name — focus lands on
+		// The confirm carries the subject in its accessible name. Focus lands on
 		// it the moment it is armed, and a bare "Delete" would point at nothing.
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete First question?' }));
 		await waitFor(() => expect(assistant.chats).toHaveLength(0));

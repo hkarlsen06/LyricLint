@@ -52,14 +52,14 @@ export function shotViewport(scene) {
 
 /**
  * The grammar shot's document. One Harper finding and nothing else, so the
- * hovered popover — message, Harper citation, previewed fix — is the whole
+ * hovered popover (message, Harper citation, previewed fix) is the whole
  * picture. `I has` is the disagreement; every other line is clean, the header
  * is unnumbered because a single `[Verse 1]` raises `section.verse-numbering`
  * on the `1`, and the lines are short so the crop hugs the popover instead of
  * trailing empty editor to the right of it.
  *
  * **It runs past the popover's foot on purpose.** The still crops to the card
- * and stops, so four lines were enough for it — but the loop's crop is the
+ * and stops, so four lines were enough for it, but the loop's crop is the
  * union across time, and it has to hold a card that is only open for half of
  * it. At four lines the frames either side of that were two thirds empty
  * editor, which reads as a document that has run out rather than as one being
@@ -88,8 +88,8 @@ I keep it folded in the door`;
 
 /**
  * Wait for the workbench to be the workbench: the editor present, and the boot
- * screen — which owns the window above every layer in the scale, including
- * anything a script could otherwise wait on inside the shell — gone.
+ * screen, which owns the window above every layer in the scale, including
+ * anything a script could otherwise wait on inside the shell, gone.
  */
 export async function waitForWorkbench(page) {
 	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
@@ -102,7 +102,7 @@ export async function waitForWorkbench(page) {
  * Populate the product-shot roster before its tagged document is pasted.
  *
  * The roster comes first so the pasted chorus's legend resolves against real
- * performers instead of arriving as unresolved voices — the same order the
+ * performers instead of arriving as unresolved voices, the same order the
  * landing page's own copy tells a reader to work in.
  */
 export async function preparePerformerRoster(page) {

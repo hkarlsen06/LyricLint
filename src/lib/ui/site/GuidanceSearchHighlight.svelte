@@ -3,7 +3,7 @@
 	import SearchHighlight from './SearchHighlight.svelte';
 
 	/**
-	 * A string with the guidance catalog's live query marked in it —
+	 * A string with the guidance catalog's live query marked in it:
 	 * `RuleSearchHighlight`'s twin, bound to this section's own tokens. The
 	 * topic pages draw every string a search can match through this, so a
 	 * guideline opened out of a search says which of its words matched, exactly

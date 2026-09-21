@@ -2,7 +2,7 @@
  * Which rule IDs belong to Harper, in a module that costs nothing to import.
  *
  * These lived in `harper.ts` beside the integration that produces them, which
- * is where they read best — until the panel's sort needed to know whether a
+ * is where they read best, until the panel's sort needed to know whether a
  * finding came from Harper. `harper.ts` statically pulls the language registry
  * and the spelling table on its way to the WASM bridge, and
  * `diagnostics/order.ts` is imported by the editor as well as the shell, so

@@ -198,7 +198,7 @@ describe('line anchors and the playhead', () => {
 
 	// The playhead ticks several times a second for the length of a song. The
 	// column's `lineMarkerChange` is keyed on `currentFrom`, so a tick that stays
-	// inside one line has to leave that value alone — otherwise this feature costs
+	// inside one line has to leave that value alone, otherwise this feature costs
 	// a rebuild per tick for a picture that changes once a line.
 	it('holds `currentFrom` still while the playhead stays inside one anchor', () => {
 		const state = stateWith([

@@ -10,7 +10,7 @@ Genius guideline that backs it, and copy clean markup back out.
 
 ![The LyricLint workbench: a transcription in the editor with a diagnostic open in the linter panel, its cited Genius guideline, and its fix previewed in the document as a diff.](static/workbench.png)
 
-Transcribing for Genius means getting a pile of conventions right by hand —
+Transcribing for Genius means getting a pile of conventions right by hand:
 bracketed section headers, performer markup in literal HTML, ad-libs in
 parentheses, curly apostrophes, unknown lyrics as `[?]`. LyricLint knows the
 conventions so you can spend your attention on the song.
@@ -20,7 +20,7 @@ conventions so you can spend your attention on the song.
 ### Every finding cites the guideline behind it
 
 Diagnostics are grouped by severity and sorted so the ones worth fixing lead.
-Each one carries the Genius guideline it comes from, as a link — so a finding
+Each one carries the Genius guideline it comes from, as a link, so a finding
 you disagree with is one you can go and check rather than one you have to take
 on faith. Rules that are judgment calls say so, and offer no automatic fix.
 
@@ -45,13 +45,13 @@ press, not a different workflow.
 ![Selecting part of a lyric line opens the performer picker. Choosing one voice for the phrase and then both voices for the rest of the section writes the section header's legend and wraps the phrase in italics markup, with each performer's colour running down the gutter.](static/workbench-performers.gif)
 
 Every performer keeps a colour so you can see who sings each passage at a
-glance — and **the colour is display only.** It never reaches the markup you copy
+glance, and **the colour is display only.** It never reaches the markup you copy
 out, which stays exactly what Genius expects.
 
 ### Grammar and spelling, on your device
 
 [Harper](https://writewithharper.com/) runs beside the Genius rules as a local
-proofreader — no network, no account. Its findings arrive as ordinary
+proofreader with no network and no account. Its findings arrive as ordinary
 diagnostics, and where a reviewed rule already covers a token, the reviewed one
 wins, so the panel never argues with itself.
 
@@ -60,10 +60,10 @@ wins, so the panel never argues with itself.
 ### Transcribe against the audio
 
 Attach a local audio file, a YouTube video, or an Apple Music song, and the
-transport sits under the document — where it is operated by keyboard rather than
+transport sits under the document, where it is operated by keyboard rather than
 looked at:
 
-- `F7` / `F8` / `F9` — back, play/pause, forward, with `Ctrl`+`Alt`+`J`/`K`/`L`
+- `F7` / `F8` / `F9` for back, play/pause, forward, with `Ctrl`+`Alt`+`J`/`K`/`L`
   as a fallback on keyboards without media keys.
 - A resume backs up two seconds, because the words either side of a pause are
   the hardest to place.
@@ -78,11 +78,11 @@ timestamp jumps the audio there.
 ### Headers in the language you are transcribing
 
 Section headers are checked against reviewed vocabulary for English, Norwegian,
-Arabic, German, Spanish, French, Japanese, and Korean — so `[Refreng]` and
+Arabic, German, Spanish, French, Japanese, and Korean, so `[Refreng]` and
 `[코러스]` are both recognised as a chorus.
 
 **A repeated chorus can be linked** so a fix lands in every copy at once, while
-the words the copies genuinely differ on stay different — named explicitly
+the words the copies genuinely differ on stay different, named explicitly
 rather than quietly overwritten.
 
 ### Local first
@@ -97,9 +97,9 @@ rather than quietly overwritten.
   LyricLint's answering service, which forwards it to OpenAI through Cloudflare
   AI Gateway. If the assistant asks to read the open 'scribe, it is sent only
   after your explicit per-'scribe choice; the same consent gates edit proposals.
-  Conversations are stored in your browser only — see
+  Conversations are stored in your browser only; see
   [/privacy/](https://lyriclint.com/privacy/).
-- `Delete all local data` in Preferences means it — drafts and assistant
+- `Delete all local data` in Preferences means it: drafts and assistant
   chats alike.
 
 ## Development
@@ -164,11 +164,11 @@ transcription, because it ships in the bundle and on every social card.
 
 ## Documentation
 
-- [`docs/rules.md`](docs/rules.md) — the rule catalog and the sources behind it
-- [`docs/architecture.md`](docs/architecture.md) — how the pieces fit together
-- [`docs/performer-tagging.md`](docs/performer-tagging.md) — the markup model
-- [`docs/roadmap.md`](docs/roadmap.md) — what is planned
-- [`AGENTS.md`](AGENTS.md) — conventions for working in this repository
+- [`docs/rules.md`](docs/rules.md) is the rule catalog and the sources behind it
+- [`docs/architecture.md`](docs/architecture.md) explains how the pieces fit together
+- [`docs/performer-tagging.md`](docs/performer-tagging.md) documents the markup model
+- [`docs/roadmap.md`](docs/roadmap.md) covers what is planned
+- [`AGENTS.md`](AGENTS.md) holds conventions for working in this repository
 
 ## Security
 

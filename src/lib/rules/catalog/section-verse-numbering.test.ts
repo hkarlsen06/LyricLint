@@ -57,7 +57,7 @@ describe('section.verse-numbering', () => {
 	});
 
 	// A repeated verse is one verse, and Genius leaves a song with one verse
-	// unnumbered — so the missing numbers here are correct.
+	// unnumbered, so the missing numbers here are correct.
 	it('says nothing where the song has one distinct verse sung twice', () => {
 		expect(findings('[Verse]\nFirst\n\n[Chorus]\nHold\n\n[Verse]\nFirst')).toEqual([]);
 	});

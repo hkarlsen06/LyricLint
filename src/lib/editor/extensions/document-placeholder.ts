@@ -11,14 +11,14 @@ import { editorContextField, setEditorContextEffect } from './editor-state.js';
  * The editor opened as a black field with a caret in it and nothing anywhere
  * naming what belonged there. This is the ghost of a correct transcription
  * standing in that space: two section headers around a line of guidance, so the
- * shape of the document — bracketed headers, a blank line between sections — is
+ * shape of the document (bracketed headers, a blank line between sections) is
  * legible before the first keystroke rather than after the first diagnostic.
  *
  * The headers are the selected language's own terms, because a header is
  * document content and the language picker is what decides it: under Norwegian
  * the ghost reads `[Vers 1]`, not a shape the linter would then complain about.
  * The line between them is the one piece of chrome here and stays English, as
- * the status bar does — it is the application talking, not the document.
+ * the status bar does: it is the application talking, not the document.
  *
  * The whole thing is `aria-hidden`. A screen reader cannot see a ghost, and
  * announcing four fragments of it as though they were text would be worse than
@@ -81,7 +81,7 @@ class DocumentPlaceholderWidget extends WidgetType {
 
 	// A caret beside the ghost stands at the ghost's first row, one row tall.
 	// Taking the widget out of flow (see the theme below) keeps the *native*
-	// caret a single row, because the browser sizes that caret to the line box —
+	// caret a single row, because the browser sizes that caret to the line box,
 	// but anything that asks CodeMirror where position 0 is (`coordsAtPos`, and
 	// through it the drawn caret layer) falls back to this widget's own client
 	// rect, which is still four rows tall however it is positioned. So the
@@ -122,7 +122,7 @@ export const documentPlaceholderField = StateField.define<DecorationSet>({
  *
  * And out of flow: the browser draws the native caret at the height of the line
  * box it stands in, so an inline-block ghost four rows tall gave the empty
- * document a caret four rows tall — a blue bar taller than the text it sat
+ * document a caret four rows tall, a blue bar taller than the text it sat
  * beside, which is the one thing on an empty screen that must not shout. Taken
  * out of flow the ghost keeps its static position (it still starts exactly
  * where the caret is) while line 1's box stays a single row, and the caret with
@@ -140,8 +140,8 @@ export const documentPlaceholderTheme = EditorView.baseTheme({
 	},
 	// Muted, not disabled: the ghost carries an instruction a first-time user has
 	// to be able to read, and `--color-text-disabled` on `--color-surface` sits
-	// under the 4.5:1 AA floor in both schemes (4.38:1 light, 3.61:1 dark) —
-	// disabled is the tone for text nothing asks anyone to read. Muted clears it
+	// under the 4.5:1 AA floor in both schemes (4.38:1 light, 3.61:1 dark).
+	// Disabled is the tone for text nothing asks anyone to read. Muted clears it
 	// at ~7.3:1 in both and is still plainly not the document's own ink.
 	'.ll-placeholder': {
 		position: 'absolute',

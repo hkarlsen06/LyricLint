@@ -12,5 +12,5 @@ bun.lockb
 docs/
 fixtures/
 
-# Vendored anti-slop oxlint plugin — kept in upstream's own formatting for diffing
+# Vendored anti-slop oxlint plugin, kept in upstream's own formatting for diffing
 tools/oxlint/anti-slop/

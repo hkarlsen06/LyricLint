@@ -412,8 +412,8 @@ describe('workspace backup', () => {
 		expect(await destination.draftIgnores.get('a')).toMatchObject({
 			keys: ['diagnostic:local']
 		});
-		// The restore wrote through the store, so a reload's fresh hydration —
-		// a new store over the same database — sees the imported ignores too.
+		// The restore wrote through the store, so a reload's fresh hydration (a
+		// new store over the same database) sees the imported ignores too.
 		const rehydrated = await createDraftIgnoreStore(destination);
 		expect(rehydrated.list(importedCollision?.id as string)).toEqual(['diagnostic:a']);
 		sourceBackup.destroy();
@@ -422,7 +422,7 @@ describe('workspace backup', () => {
 
 	/*
 	 * `assistantDraftAccess:<id>` names a draft, and an import may not land its
-	 * drafts under the ids they were written with — so imported verbatim, a read
+	 * drafts under the ids they were written with, so imported verbatim, a read
 	 * decision answered for whichever local draft happened to hold the old id,
 	 * and one whose draft never made it into the import stayed as an orphan
 	 * nothing sweeps, because deleting a draft clears only its own key.

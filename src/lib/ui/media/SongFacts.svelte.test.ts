@@ -9,7 +9,7 @@ import { createFeedbackState } from '../state/feedback.svelte.js';
 
 /*
  * The list exists to be retyped into another page's fields, and Genius takes one
- * writer at a time — so every value here is a press, and a writers row is one
+ * writer at a time, so every value here is a press, and a writers row is one
  * press per name. What the tests below defend is the line staying exactly the
  * string the catalogue gave us while that happens.
  */
@@ -57,7 +57,7 @@ describe('creditSegments', () => {
 	/*
 	 * The whole safety argument for cutting a credit up at all. `SongDetails.writers`
 	 * is passed through unsplit because a name this application has rewritten is
-	 * worse than the one it was given — so this may only move where a press lands,
+	 * worse than the one it was given, so this may only move where a press lands,
 	 * never what the row says.
 	 */
 	it('joins back to the string it was given', () => {
@@ -117,8 +117,8 @@ describe('SongFacts', () => {
 
 	/*
 	 * Measured rather than trusted, because the failure looks exactly like working
-	 * markup: a name and its own comma separated by a space — `Kristiansen ,
-	 * Kristofer` — is what this line becomes the moment anything gets between the
+	 * markup: a name and its own comma separated by a space (`Kristiansen ,
+	 * Kristofer`) is what this line becomes the moment anything gets between the
 	 * pieces. A `gap` on the row would do it, as would a piece moved out of the
 	 * block whose edges the compiler trims. The spacing here is the credit string's
 	 * own punctuation and nothing else.

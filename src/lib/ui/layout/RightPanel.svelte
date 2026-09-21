@@ -72,7 +72,7 @@
 	});
 
 	// The badge shows a bare numeral, so its accessible name is the only place
-	// the noun appears — and "1 visible diagnostics" is exactly the kind of thing
+	// the noun appears, and "1 visible diagnostics" is exactly the kind of thing
 	// a screen reader user hears in full. Local for the same reason as the status
 	// bar's helper in Workspace.svelte: tab chrome is always English, so the
 	// lyric-language packs under $lib/languages do not apply.
@@ -97,8 +97,8 @@
 
 	/*
 	 * The Linter tab is a tab and nothing else. It used to carry the severity
-	 * filters as well — pressed a second time from inside the linter, it showed
-	 * or hid the chips — which took three handlers to get right (pointerdown
+	 * filters as well: pressed a second time from inside the linter, it showed
+	 * or hid the chips. That took three handlers to get right (pointerdown
 	 * ahead of Bits UI's focus activation, a separate keydown path because Bits
 	 * UI prevents the click that would otherwise follow Enter) and was found by
 	 * nobody, because a tab advertises switching panels and nothing else. The
@@ -167,7 +167,7 @@
 
 		<div class="right-panel__content">
 			<!-- The pane fills the body it sits in rather than hugging its content, so
-		     a panel that pins something to its foot — the linter's recent drafts —
+		     a panel that pins something to its foot, such as the linter's recent drafts,
 		     has a foot to pin it to. -->
 			<div class="right-panel__body">
 				<Tabs.Content value="linter" class="right-panel__pane">

@@ -8,7 +8,7 @@ import { diagnostic, replacementFix } from './utils.js';
 
 /**
  * A whole line that is nothing but a song-part name, optionally numbered and
- * optionally followed by a colon — the shape lyric sites and word processors
+ * optionally followed by a colon: the shape lyric sites and word processors
  * use where Genius wants `[Verse 1]`.
  */
 const PROSE_LABEL = /^(?<name>\p{L}[\p{L} '’-]*?)(?:\s+(?<ordinal>\d+))?\s*(?<colon>:)?$/u;
@@ -16,7 +16,7 @@ const PROSE_LABEL = /^(?<name>\p{L}[\p{L} '’-]*?)(?:\s+(?<ordinal>\d+))?\s*(?<
 /**
  * A ceiling on what `PROSE_LABEL` is even shown. The pattern's lazy name group
  * sits in front of two optional trailing groups, which is polynomial against a
- * long run of spaces that never reaches a digit or a colon — measured at 2.1s
+ * long run of spaces that never reaches a digit or a colon, measured at 2.1s
  * for a single 32,000-character line, on a rule that runs per line per
  * keystroke. The longest reviewed song-part term is a few dozen characters, and
  * a label is one of those plus an ordinal, so nothing this rule can recognize
@@ -69,15 +69,15 @@ function isAllCaps(name: string): boolean {
  *
  * It is exported because such a line is not a lyric, and two other rules read
  * every line as one. `section.header-missing` reported the section it heads as
- * headerless — two cards on one line, the leading one saying there is no header
- * beside one quoting the header — and `numbers.spell-out` offered to write its
+ * headerless, so two cards landed on one line, the leading one saying there is no
+ * header beside one quoting the header, and `numbers.spell-out` offered to write its
  * ordinal out, so a pasted `Verse 1:` was told to become `Verse one:`. Both are
  * this shape's own findings arriving as somebody else's, and the answer to both
  * is the same one press: `Use [Verse 1]`.
  *
  * One predicate rather than a copy per consumer, because what counts as a
- * written-out header is exactly the set this rule is about to offer a fix for —
- * three answers to that would disagree the first time a language pack gained a
+ * written-out header is exactly the set this rule is about to offer a fix for.
+ * Three answers to that would disagree the first time a language pack gained a
  * term.
  */
 export function isProseHeaderLine(line: LyricLine, language: string): boolean {
@@ -166,8 +166,8 @@ interface ProseHeader {
 
 /**
  * A recognized part name alone on a line is not enough on its own: a lyric can
- * be the single word “Chorus”. One of three marks has to be present — a
- * trailing colon, a number, or shouting caps — which is what every real scraped
+ * be the single word “Chorus”. One of three marks has to be present (a
+ * trailing colon, a number, or shouting caps), which is what every real scraped
  * transcription carries and what a one-word lyric does not.
  */
 function proseHeader(

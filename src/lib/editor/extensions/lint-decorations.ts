@@ -19,7 +19,7 @@ import { pressed } from './widget-press.js';
  * editor a severity is read aloud rather than drawn.
  *
  * Spelled out here rather than imported: `SeverityTag.svelte` derives them
- * inside a component, so there is nothing to import — and this list is what a
+ * inside a component, so there is nothing to import, and this list is what a
  * screen reader hears, which `manual-review` is not.
  */
 const severityWord = {
@@ -116,7 +116,7 @@ class DiagnosticBadge extends WidgetType {
 	 * already said where the user is going.
 	 *
 	 * It listens on the document rather than the editor, since most of what is
-	 * "anywhere else" — the panel, the toolbar, the transport — is outside it. The
+	 * "anywhere else" (the panel, the toolbar, the transport) is outside it. The
 	 * badge and its items are exempt: the menu has to survive being pressed, and
 	 * the badge is its own way back out.
 	 */
@@ -184,7 +184,7 @@ class DiagnosticBadge extends WidgetType {
 				activate();
 			});
 			// Enter and Space are the press, and what a press asks for is the card
-			// that can be read and answered — the previewing one bare focus opened
+			// that can be read and answered. The previewing one bare focus opened
 			// offers no `Close` and would go on a mouse movement nobody made.
 			pressed(badge, () => {
 				const diagnostic = lead();
@@ -200,7 +200,7 @@ class DiagnosticBadge extends WidgetType {
 		menu.className = 'll-diagnostic-cluster-menu';
 		menu.hidden = true;
 		// A group of buttons rather than a `menu` of `menuitem`s: those semantics
-		// announce arrow-key navigation, and there is none here — the items are
+		// announce arrow-key navigation, and there is none here: the items are
 		// ordinary buttons reached with Tab. A disclosure is what this is, so
 		// `aria-expanded` on the badge is the whole of what it needs.
 		menu.setAttribute('role', 'group');
@@ -499,7 +499,7 @@ function diagnosticForUnderline(
 /**
  * Both range ends count as hits. A one-character underline is the common case,
  * and its right half maps to the range's end offset, which strict containment
- * would reject — the pointer would then sit on the underline with no card.
+ * would reject. The pointer would then sit on the underline with no card.
  */
 function diagnosticAtPosition(
 	diagnostics: readonly Diagnostic[],
@@ -721,7 +721,7 @@ export const lintDecorationTheme = EditorView.baseTheme({
 		color: 'var(--color-canvas)'
 	},
 	// `--ll-focus` was never defined anywhere, so this ring had been rendering in
-	// its literal fallback — an off-palette orange at a width the focus tokens
+	// its literal fallback, an off-palette orange at a width the focus tokens
 	// did not control.
 	'.ll-diagnostic-badge:focus-visible': {
 		outline: 'var(--focus-ring-width) solid var(--color-focus)',

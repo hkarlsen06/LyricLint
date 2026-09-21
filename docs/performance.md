@@ -1,4 +1,4 @@
-# Performance measurements — September 2026
+# Performance measurements, September 2026
 
 These changes target native lint CPU time, redundant startup downloads and repeated CI lint
 work. Baseline source: `2c170e1`. Measurements are local Linux runs using Bun 1.3.14,

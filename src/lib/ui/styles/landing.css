@@ -5,8 +5,8 @@
  * levels, and a rule that a border has to be earning something. This page is
  * the one surface that is not being operated, and it is laid out for a reader
  * who has never heard of the product and will decide in one screen. So it keeps
- * the system's material vocabulary — the same tokens, the same three button
- * tiers, the same "a boundary separates something from something" test — and
+ * the system's material vocabulary (the same tokens, the same three button
+ * tiers, the same "a boundary separates something from something" test) and
  * spends it on a wider ramp than the workbench has any use for.
  *
  * The composition is four moves, and each one is answering a way the previous
@@ -34,7 +34,7 @@
 	 * The marketing display ramp, which is deliberately not the UI ramp.
 	 *
 	 * `--font-size-3xl` is the largest thing in the system and is sized for a
-	 * headline sitting in a column of prose — it tops out at 2.5rem, which reads
+	 * headline sitting in a column of prose: it tops out at 2.5rem, which reads
 	 * as a heading rather than as a claim when it is the only thing on a screen.
 	 * These three steps exist for this page alone and are fluid for the reason
 	 * that one is: a single size cannot serve a 320px phone and a monitor, and a
@@ -58,13 +58,13 @@
 
 	position: relative;
 	/* Over the noise film, which is fixed at `--layer-editor-panel`. The page's
-	   own overlays — the demo's diagnostic popover — sit above both. */
+	   own overlays (the demo's diagnostic popover) sit above both. */
 	z-index: var(--layer-editor-panel);
 	width: 100%;
 }
 
 /* The structural width. Wider than any measure here, because what it is sizing
-   is an arrangement — a screenshot, a run of cells, two columns — rather than a
+   is an arrangement (a screenshot, a run of cells, two columns) rather than a
    line of text. Every run of prose inside it caps itself again. */
 .lp-container {
 	width: 100%;
@@ -85,7 +85,7 @@
  * The measure goes on the heading itself, not on the block around it.
  *
  * `ch` resolves against the element's own font, so a cap set on the wrapper is
- * a cap in *body* text — about 400px — and the display-sized heading inside it
+ * a cap in *body* text (about 400px), and the display-sized heading inside it
  * then breaks into three short lines in a narrow column with half the page
  * empty beside it. Set here it is 24 characters of the heading's own size,
  * which is two lines at every width this page is read at.
@@ -145,7 +145,7 @@
  */
 .lp-hero {
 	position: relative;
-	/* The claim gets a band of clear canvas above it before it speaks — the
+	/* The claim gets a band of clear canvas above it before it speaks: the
 	   reference composition spends ~120px there, and the difference between that
 	   and a section's ordinary padding is the difference between a page opening
 	   and a page continuing. */
@@ -161,8 +161,8 @@
  * There is deliberately nothing behind the headline.
  *
  * The field behind the claim has been several things, each less than the last.
- * A lit grid of hairlines — the reference composition's backdrop, and the
- * backdrop of every dev-tool landing page of its generation — said
+ * A lit grid of hairlines (the reference composition's backdrop, and the
+ * backdrop of every dev-tool landing page of its generation) said
  * infrastructure about a page that is about a song. Rows of the brand's
  * waveform kept the template's texture with the shape swapped; ruled lines had
  * already failed the same way. A radial amber wash was the last candidate and
@@ -170,15 +170,15 @@
  * half of the template the grid came from. This design language is flat fills
  * and hairlines with nothing atmospheric anywhere else in the system, so the
  * hero is what the rest of the system is: the canvas, bare. The depth is
- * carried by the content — the drifting corrections, and the shot below with
+ * carried by the content: the drifting corrections, and the shot below with
  * the bloom that has a functional job.
  */
 
 /*
  * The corrections drifting over the canvas.
  *
- * They began as four chips of bare notation — the bracketed header, the ad-lib
- * parentheses, the unknown-lyric marker, the performer tag — which was the
+ * They began as four chips of bare notation (the bracketed header, the ad-lib
+ * parentheses, the unknown-lyric marker, the performer tag), which was the
  * reference composition's floating-logos gesture with the strings swapped. What
  * floats now is the *action*: two chips, each holding a flagged form over the
  * form the linter writes it as, with the editor's own wavy underline under the
@@ -188,7 +188,7 @@
  *
  * The flagged line is muted and the fixed line carries the full text color,
  * because the output is the thing being sold. The underline is the warning
- * amber the editor draws it in — the squiggle is a shape cue, not a color one,
+ * amber the editor draws it in. The squiggle is a shape cue, not a color one,
  * and both chips are `aria-hidden` decoration: each correction is made again in
  * prose and in the live demo further down, so nothing is carried by these
  * alone.
@@ -239,7 +239,7 @@
  * query at the foot of this file) because there is no outside left.
  *
  * Downwards: the product shot occupies the bottom half of this section, and it
- * is the evidence — nothing may drift over it. So the chips are confined to the
+ * is the evidence: nothing may drift over it. So the chips are confined to the
  * top ~40%, which is the band holding the headline and the actions. Every
  * string stays short for the sideways reason: a fifth mark reading
  * `[Chorus: Avery & Blair]` was cut from the old set rather than repositioned,
@@ -259,7 +259,7 @@
 }
 
 /* The drift is one keyframe shared by both chips, offset so they are never in
-   step — two things moving together reads as the page scrolling rather than as
+   step: two things moving together reads as the page scrolling rather than as
    chips floating. Motion here answers nothing the reader did, so it goes
    entirely under `prefers-reduced-motion`. */
 @media (prefers-reduced-motion: no-preference) {
@@ -315,13 +315,13 @@
  * bordered, so the pair still reads as a ranking rather than two answers to
  * "what do I do now". The rule reference is a step away as the fact line's
  * first entry. The closing CTA draws its own pair after the argument: by then
- * both destinations — the workbench and the repository behind it — are
+ * both destinations (the workbench and the repository behind it) are
  * earned, and two buttons side by side read as a choice rather than a hedge.
  */
 .lp-hero__actions {
 	/* A single centred grid column rather than a flex column: grid items
 	   stretch to the column's width, so the two stacked buttons share the
-	   widest one's box instead of each shrink-wrapping its own label — two
+	   widest one's box instead of each shrink-wrapping its own label: two
 	   centred buttons of unequal width stacked on each other read as a row
 	   that broke. */
 	display: grid;
@@ -332,7 +332,7 @@
 /* The invite wears Discord's identity color instead of the bordered tier's
    quiet fill, which disappeared into the hero's canvas next to the contrast
    action above it. The livery is the destination's, not a fourth tier of
-   ours — nothing else may take this fill. */
+   ours. Nothing else may take this fill. */
 .lp-hero__discord.button {
 	background: var(--color-discord);
 	color: var(--color-discord-ink);
@@ -351,7 +351,7 @@
 
 /* The largest targets on the page and the only ones the reader came to press.
    Same silhouette as every other button in the system, at the size this
-   surface calls for — a marketing page's one action is pressed from further
+   surface calls for: a marketing page's one action is pressed from further
    away than a toolbar's, so it steps past the control ramp's `lg`. */
 .lp-hero__actions .button,
 .lp-cta__actions .button {
@@ -377,8 +377,8 @@
  * ── The product shot ────────────────────────────────────────────────────────
  *
  * A picture of the workbench, flat on the page. It was tilted a couple of
- * degrees back for a while — the screen-standing-in-space gesture every
- * dev-tool hero of its generation opens with — and untilting it is a decision,
+ * degrees back for a while (the screen-standing-in-space gesture every
+ * dev-tool hero of its generation opens with), and untilting it is a decision,
  * not a loss of nerve: the site header is drawn at exactly the workbench
  * toolbar's height so that arriving at the tool reads as the same window, and a
  * screenshot hovering in perspective is the one element that undid that
@@ -388,7 +388,7 @@
  *
  * - **The frame declares the image's aspect ratio and the image fills it.**
  *   Without that the page reflows by several hundred pixels when the PNG
- *   arrives — directly under the headline, which is the worst place on the site
+ *   arrives, directly under the headline, which is the worst place on the site
  *   for the layout to move.
  * - **The border is inside the radius, drawn by the same element that clips.**
  *   A wrapper with its own rounding one border-width outside a rounded child
@@ -399,8 +399,8 @@
  * - **The glow is behind it, not on it.** A shadow alone under a near-black
  *   screenshot on a near-black page is invisible; what separates the two is a
  *   soft bloom cast onto the page from behind the frame's own edges, which is
- *   also what makes the shot read as lit. The bloom is the warning-soft amber —
- *   the mark's hue, the same light the waveform above sheds — where it used to
+ *   also what makes the shot read as lit. The bloom is the warning-soft amber
+ *   (the mark's hue, the same light the waveform above sheds) where it used to
  *   be the accent's blue-on-dark, which lit the evidence in a color the brand
  *   never claimed.
  */
@@ -476,7 +476,7 @@
 	margin: var(--space-7) 0 0;
 }
 
-/* Beside copy in a split, the column already places it — the margin above is
+/* Beside copy in a split, the column already places it: the margin above is
    for the standalone form, under a run of prose. */
 .lp-split .lp-shot--detail {
 	margin: 0;
@@ -521,7 +521,7 @@
 	align-content: start;
 	/* The hairline is on every cell's start edges and the run clips, so the ones
 	   that land on the outside are cut off by `overflow: hidden` rather than
-	   having to be selected away — which is what makes this correct at any
+	   having to be selected away, which is what makes this correct at any
 	   column count `auto-fit` happens to resolve to. */
 	box-shadow:
 		calc(-1 * var(--border-width)) 0 0 var(--color-border),
@@ -542,7 +542,7 @@
 
 /* The community section's action row under its copy. The Discord widget
    beside it carries the join action in its own footer, so the row holds only
-   the repository button — bordered tier, because the page's one contrast
+   the repository button, bordered tier, because the page's one contrast
    action is opening the workbench. It stays a wrapping flex row so a second
    door can rejoin it without relayout. */
 .lp-join {
@@ -635,9 +635,9 @@
 }
 
 /*
- * A quiet panel. It earns its border the way `.site-sample` does — it holds a
+ * A quiet panel. It earns its border the way `.site-sample` does: it holds a
  * different material from the prose beside it, either a verbatim piece of a
- * document or a reproduction of one of the workbench's own surfaces — and it is
+ * document or a reproduction of one of the workbench's own surfaces, and it is
  * never nested inside anything else that has one.
  */
 /*
@@ -652,7 +652,7 @@
  * `grid-template-columns: minmax(0, 1fr)` is what keeps a `white-space: pre`
  * body from widening the entire page. A block in normal flow contributes its
  * *min-content* width to its parent, and the min-content of preformatted text is
- * its longest line — so the sample of copied-out markup propagated a ~570px
+ * its longest line, so the sample of copied-out markup propagated a ~570px
  * floor all the way up through `.lp-container` and `main` to `.site`, and every
  * section on the page laid out 180px wider than a 390px phone. The `overflow-x:
  * auto` on the body did not save it: a scroll container still reports that
@@ -725,7 +725,7 @@
  * diagnostic card's meta line: the convention as an instruction, the form it
  * wants over the form it corrects, and the entry's standing underneath.
  * Markup rather than a screenshot so it stays legible at any width and in the
- * accessible tree — the verdict marks are `aria-hidden` with `sr-only` labels
+ * accessible tree: the verdict marks are `aria-hidden` with `sr-only` labels
  * beside them, and the flagged form is struck through as well as marked,
  * because colour is never the only cue.
  */
@@ -800,7 +800,7 @@
 }
 
 /* Inside a panel the list is the panel's whole body, so it takes the inset the
-   body would have had — the panel's head already draws the boundary and a
+   body would have had: the panel's head already draws the boundary and a
    second box around the list would be the nesting this system forbids. */
 .lp-panel .lp-points {
 	padding: var(--space-5);
@@ -884,7 +884,7 @@
 	/*
 	 * The floating marks go entirely, and this is the width they have to go at.
 	 * They are placed in the container's outer margins, which is the only band
-	 * the centred headline never reaches — below this the headline takes the
+	 * the centred headline never reaches. Below this the headline takes the
 	 * full width and there is no outer margin left, so every mark would land on
 	 * the words it is decorating.
 	 */
@@ -896,7 +896,7 @@
 @media (max-width: 32rem) {
 	/* Two centred buttons of unequal width stacked on each other read as a row
 	   that broke rather than as a column that was meant. Below the width where
-	   they stop fitting they are a column on purpose, at one width — which is
+	   they stop fitting they are a column on purpose, at one width, which is
 	   also the larger touch target. The hero's actions are already a column at
 	   every width, so only the closing pair changes here. */
 	.lp-cta__actions {

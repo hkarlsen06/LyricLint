@@ -1,5 +1,5 @@
 /**
- * Turnstile, loaded only when the backend has actually asked for a challenge —
+ * Turnstile, loaded only when the backend has actually asked for a challenge,
  * the same rule every third-party script here follows: nothing contacts anyone
  * until a press needs it. The site key is committed like the Spotify client id
  * (it is not a secret and resolves at build time); `PUBLIC_TURNSTILE_SITE_KEY`

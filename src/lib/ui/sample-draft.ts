@@ -3,7 +3,7 @@
  *
  * A linter is unrecognizable until it has found something, so the fastest way
  * to explain this one is to let it run. The lyrics are invented, and the
- * problems in them are deliberate and chosen for range rather than volume —
+ * problems in them are deliberate and chosen for range rather than volume,
  * along two axes at once:
  *
  * - **Both fix kinds.** Two curly quotes the fixer can settle mechanically,

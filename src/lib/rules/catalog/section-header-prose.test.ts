@@ -75,7 +75,7 @@ describe('section.header-prose', () => {
 
 	// `PROSE_LABEL`'s lazy name group in front of two optional trailing groups is
 	// polynomial against a long run of spaces that never reaches a digit or a
-	// colon — measured at 2.1s for one 32,000-character line, on a rule that runs
+	// colon, measured at 2.1s for one 32,000-character line, on a rule that runs
 	// per line per keystroke. The length ceiling is what makes that impossible;
 	// the bound here is generous because what it is proving is termination.
 	it('refuses a line no reviewed label could be, before the pattern sees it', () => {

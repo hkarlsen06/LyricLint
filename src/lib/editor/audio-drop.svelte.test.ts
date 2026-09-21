@@ -7,8 +7,8 @@ import EditorPane from './EditorPane.svelte';
 
 /*
  * Dropping the song on the lyrics attaches it. The half of this that matters is
- * everything the editor must NOT do: the drops CodeMirror already handled — a
- * text file read in at the caret, a selection or a URL dragged in — go through
+ * everything the editor must NOT do: the drops CodeMirror already handled (a
+ * text file read in at the caret, a selection or a URL dragged in) go through
  * untouched, and nothing is prevented until the drag has been recognized.
  */
 
@@ -201,7 +201,7 @@ describe('dropping audio on the editor', () => {
 	});
 
 	// No media store on the draft yet. The editor asked, was told no, and the
-	// event goes on to CodeMirror as if this feature were not installed — which
+	// event goes on to CodeMirror as if this feature were not installed, which
 	// is what claims it here (a file drop is CodeMirror's own case, and it
 	// discards this one's bytes as binary rather than pasting them in).
 	it('falls through when the shell will not take the file', async () => {

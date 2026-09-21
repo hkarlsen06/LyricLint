@@ -3,7 +3,7 @@
 	import SearchHighlight from './SearchHighlight.svelte';
 
 	/**
-	 * A string with the rule reference's live query marked in it — the shared
+	 * A string with the rule reference's live query marked in it: the shared
 	 * `SearchHighlight` bound to this section's own tokens, so the dozen call
 	 * sites on a rule page never name the token source themselves. Everything
 	 * about the marking, its whitespace discipline included, is the base's; the

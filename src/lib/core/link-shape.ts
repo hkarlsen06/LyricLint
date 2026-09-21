@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/section-links.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/section-links.md. Read it before changing this file, and update it with any behavior change.
 import type { Section, TextRange } from '$lib/core/types.js';
 import { alignPassages, passageLexicon } from './link-passages.js';
 
@@ -7,7 +7,7 @@ import { alignPassages, passageLexicon } from './link-passages.js';
  * they are each allowed to sing their own way.
  *
  * A group used to be one body repeated, so a chorus that differed by a single
- * line could not be linked at all — the only offer was to overwrite it. Here a
+ * line could not be linked at all, and the only offer was to overwrite it. Here a
  * member's body is a partition into alternating **shared runs** and
  * **divergent runs**, and the two facts that make the whole feature work are:
  *
@@ -15,7 +15,7 @@ import { alignPassages, passageLexicon } from './link-passages.js';
  * - the shared text between run `k-1` and run `k` is identical in every member.
  *
  * So a position in shared text is expressible in coordinates every member
- * agrees on — "so many characters into the shared run after hole 3" — which is
+ * agrees on ("so many characters into the shared run after hole 3"), which is
  * what lets an edit made in one copy be carried to the others without either
  * one being rewritten wholesale.
  *
@@ -107,7 +107,7 @@ export function comparableSectionBody(section: Section): string {
  * Words and line breaks, with the whitespace between them left as glue.
  *
  * Words rather than characters, because a character alignment finds `to` inside
- * `tonight` and `together` and calls it a common anchor — a shared run nobody
+ * `tonight` and `together` and calls it a common anchor, a shared run nobody
  * would recognise as shared, which then propagates edits the user never asked
  * to propagate. Line breaks are tokens of their own so the alignment keeps a
  * lyric's line structure instead of drifting words across it.
@@ -227,12 +227,12 @@ function spanFor(
  *
  * A run begins where the last matched word ended, so `my love` against
  * `my friend` opens the difference at the space and reports ` love` against
- * ` friend` — a difference whose first character is the same in both copies,
+ * ` friend`, a difference whose first character is the same in both copies,
  * which is the one thing a difference is not.
  *
  * Whitespace only, and never a letter. `love` against `lover` share four
  * characters, and trimming those would end the shared run in the middle of a
- * word — the coincidental anchor that tokenizing by word exists to prevent,
+ * word, the coincidental anchor that tokenizing by word exists to prevent,
  * arriving through the back door. A run where one member has nothing is left
  * alone, because there is no character there to be shared.
  */
@@ -270,7 +270,7 @@ function trimSharedWhitespace(
  *
  * Dropped together or kept together, never per member: a run that is empty in
  * one copy and a whole word in another is exactly the difference worth
- * recording — `there tonight` against `there`, where one of them simply stops.
+ * recording: `there tonight` against `there`, where one of them simply stops.
  * Keeping the empty side is what gives that difference somewhere to be typed.
  */
 function holesBetween(shared: readonly TextRange[][], bodies: readonly string[]): TextRange[][] {
@@ -305,7 +305,7 @@ function wholeBodies(bodies: readonly string[]): TextRange[][] {
  * This runs when a link is made, and never again on its own: an alignment
  * recomputed on every edit cannot tell a mistake from a decision. Fix a typo in
  * one copy and a live aligner has to guess whether the copies were meant to
- * converge or to diverge further — guess one way and it eats a difference the
+ * converge or to diverge further: guess one way and it eats a difference the
  * user meant, guess the other and the typo stays in one copy for good. So this
  * decides the shape once and the shape is then kept as stored intent.
  *
@@ -323,7 +323,7 @@ export function alignBodies(bodies: readonly string[]): TextRange[][] {
 	const partners = tokens.slice(1).map((other) => lcsPairs(base, other));
 
 	// A base token is shared only where *every* other body matched it, and a run
-	// only continues where every body's partner index advances with it — two
+	// only continues where every body's partner index advances with it. Two
 	// matched tokens that are adjacent here but not there have something between
 	// them somewhere, which is a difference.
 	const runs: { first: number; last: number }[] = [];
@@ -436,8 +436,8 @@ export interface HoleSpan extends TextRange {
  * Widen a span until neither end is inside a divergent run, and say which runs
  * that swallowed.
  *
- * An edit that reaches into a difference — retyping a line that contains one,
- * deleting across it — is the user writing over words that were deliberately
+ * An edit that reaches into a difference (retyping a line that contains one,
+ * deleting across it) is the user writing over words that were deliberately
  * their own, so the difference goes and the words become shared. Widening is
  * what makes that expressible: both ends then sit in shared text, where every
  * member has the same coordinates.
@@ -472,7 +472,7 @@ export function expandOverHoles(holes: readonly TextRange[], from: number, to: n
  * handful of characters that changed, and that is a correctness property rather
  * than a convenience. A shared run is identical in every member *by definition*,
  * so writing the whole of it is idempotent where the group is in step and
- * repairs it where it is not — while carrying only the edited slice trusts every
+ * repairs it where it is not, while carrying only the edited slice trusts every
  * offset inside the run to already line up, and quietly leaves the copies
  * disagreeing forever the first time one does not.
  *
@@ -505,7 +505,7 @@ export function holeContaining(
  *
  * Both ends are measured from the nearest divergent run rather than from the
  * top of the body, because the distance between two holes is shared text and is
- * therefore the same number in every member — while the holes themselves are
+ * therefore the same number in every member, while the holes themselves are
  * different lengths and would throw off anything counted past them.
  */
 export function translateSpan(

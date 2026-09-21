@@ -1,8 +1,8 @@
-# Roadmap — August 2026 to July 2027
+# Roadmap: August 2026 to July 2027
 
 This is the optimistic reading of the next year: what LyricLint looks like if the pace of the
 first weeks holds and nothing external refuses us. It is written against what is actually in the
-tree in August 2026 — 60 enabled rules, 8 reviewed language packs,
+tree in August 2026: 60 enabled rules, 8 reviewed language packs,
 four audio sources, a rule reference derived from the linter, and a workbench that already syncs,
 anchors, and links.
 
@@ -12,17 +12,17 @@ storage or synchronization**. The optional assistant can read a 'scribe only acr
 explicit consent boundary. Everything below is a local-first tool getting better at the job a
 transcriber is already doing by hand.
 
-Each quarter states a theme, what ships, and the gate that proves it — because this project's
+Each quarter states a theme, what ships, and the gate that proves it, because this project's
 definition of done has always been a test rather than a demo.
 
 ---
 
-## Q1 · August–October 2026 — The timings become an output
+## Q1 · August–October 2026: The timings become an output
 
 **Theme: everything the workbench already knows is currently trapped in it.**
 
 Line anchors are the clearest case. Sync mode times a whole song, the anchors survive reload, the
-timestamp column corrects them a quarter second at a time — and none of it leaves the browser in
+timestamp column corrects them a quarter second at a time, and none of it leaves the browser in
 any form. A transcriber who has timed a song has done real work that the application cannot yet
 hand back.
 
@@ -30,7 +30,7 @@ hand back.
 
 - **Timed export.** `.lrc` first, because it is the format every karaoke and player tool reads,
   then WebVTT for the same anchors. The export sits with `Export .txt` in the tools panel, draws
-  only where the draft has anchors, and copies the same canonical text the clipboard does — a
+  only where the draft has anchors, and copies the same canonical text the clipboard does. A
   timed export that disagrees with the plain one is two documents.
 - **Timed import.** An `.lrc` dropped on the editor is a document and a set of anchors in one
   edit, which is how a transcriber brings work in from elsewhere and picks up where sync mode
@@ -40,30 +40,30 @@ hand back.
   actually is: Portuguese, Italian, Dutch, Russian, Turkish, Polish, Swedish, Danish, Finnish,
   Indonesian, Hindi, Chinese.
 - **The Apple Music rate question is answered.** `docs/` records it as unverified: whether
-  `playbackRate` holds on a DRM-protected full track rather than a preview. It is either real —
-  and Apple becomes the recommended remote source, because it is the only one with a rate and no
-  allowlist — or `rates` narrows to `[1]` and the picker grows Spotify's third fact. Either way it
+  `playbackRate` holds on a DRM-protected full track rather than a preview. It is either real, in
+  which case Apple becomes the recommended remote source, because it is the only one with a rate and
+  no allowlist, or `rates` narrows to `[1]` and the picker grows Spotify's third fact. Either way it
   stops being a maybe.
 
 **Gate:** a Norwegian song timed in sync mode, exported as `.lrc`, re-imported into an empty
-draft, and byte-identical on both sides — anchors included — in `e2e/`.
+draft, and byte-identical on both sides, anchors included, in `e2e/`.
 
 ---
 
-## Q2 · November 2026–January 2027 — The album, not the song
+## Q2 · November 2026–January 2027: The album, not the song
 
 **Theme: nobody transcribes one song.**
 
 The drafts list is a flat list ordered by `updatedAt`, which is right for seven drafts and wrong
 for the forty a transcriber accumulates over an album and its features. Everything a project needs
-already exists per draft — the roster, the language, the attached audio — and is retyped for each
+already exists per draft (the roster, the language, the attached audio) and is retyped for each
 one.
 
 **Ships:**
 
 - **Collections.** A group of drafts sharing a roster, a language, and an attached release. The
   drafts menu groups by it; the switcher opens within it. A collection is not a new record type
-  the way a draft is — it is a field on `DraftRecord` and an index, so the three copiers and
+  the way a draft is. It is a field on `DraftRecord` and an index, so the three copiers and
   `copySectionLinks` learn one more field and nothing else changes.
 - **The roster outlives the draft.** A featured artist typed once is offered on the next song in
   the collection. The roster stays per draft as the source of truth; what is shared is the
@@ -75,7 +75,7 @@ one.
 - **Rule reference reaches 80 pages** and gains the one thing it cannot derive: a short
   worked example per rule family, in the language pack the reader has selected.
 - **The phone stops apologizing.** The touch notice says a desktop will be quicker, and for
-  editing that is true — but timing a song is one finger tapping in rhythm, which the phone is
+  editing that is true, but timing a song is one finger tapping in rhythm, which the phone is
   *better* at than a trackpad. Sync mode gets a phone-first pass: the tap target takes the row, the
   reading line holds, and the notice's wording changes from "quicker on a desktop" to naming the
   one job the phone is best at.
@@ -85,7 +85,7 @@ spelling in track nine, and `workbench.test.ts` proves no draft's own roster was
 
 ---
 
-## Q3 · February–April 2027 — Meeting the transcriber where the lyrics go
+## Q3 · February–April 2027: Meeting the transcriber where the lyrics go
 
 **Theme: the last step is still a copy and a paste into somebody else's textarea.**
 
@@ -97,13 +97,13 @@ their own machine.
 **Ships:**
 
 - **A browser extension that lints in place.** The Genius editor gets the same underlines, the
-  same cards, the same fixes — because it is the same rule engine, bundled, with no network call
+  same cards, the same fixes, because it is the same rule engine, bundled, with no network call
   and no account. The extension is a second front end over `src/lib/rules/`, which is why that
   directory has never been allowed to import the editor or the shell.
 - **Round trip.** `Open in LyricLint` from a Genius editing page, and `Send back` when the
   transcription is clean. The lyric travels through the user's own clipboard and their own tab,
   never through us.
-- **Shareable drafts with no server.** A draft encoded into a URL fragment — compressed, never
+- **Shareable drafts with no server.** A draft encoded into a URL fragment, compressed, never
   sent, since a fragment is not transmitted in an HTTP request. Two transcribers can pass a
   work-in-progress back and forth without either of them having an account, and the privacy claim
   in the footer stays true word for word.
@@ -116,7 +116,7 @@ DevTools trace showing zero requests to anything.
 
 ---
 
-## Q4 · May–July 2027 — Stewardship
+## Q4 · May–July 2027: Stewardship
 
 **Theme: a linter is only as good as the freshness of what it cites, and community annotations
 change under you.**
@@ -135,14 +135,14 @@ the honest position is that some of them are now wrong.
   age is asking to be trusted on nothing.
 - **Language packs 20 → 40**, with the review unit unchanged: one annotation, one human, one
   reviewed pack. Half the inventory, and the half where the transcribers are.
-- **Rules 80 → 100**, with the tier discipline held — every judgment call a `suggestion` with a
+- **Rules 80 → 100**, with the tier discipline held: every judgment call a `suggestion` with a
   `preview` fix, and `collectSafeFixes` still touching only what is mechanically safe.
 - **Optional encrypted sync**, and it is optional in the strong sense: off by default, a key the
   user holds, and a workbench that is exactly as functional with it off as it is today. The
-  local-first promise is not that syncing is impossible — it is that nothing depends on it.
+  local-first promise is not that syncing is impossible; it is that nothing depends on it.
 
 **Gate:** the sync job runs against the live annotation set, opens a diff, and the suite still
-passes on the *previous* snapshot — proving a Genius outage or an edited annotation cannot
+passes on the *previous* snapshot, proving a Genius outage or an edited annotation cannot
 interrupt anybody's editing.
 
 ---
@@ -156,7 +156,7 @@ interrupt anybody's editing.
 | Audio sources | 4 | 4 (deliberately) |
 | Outputs | Genius markup, `.txt` | + `.lrc`, `.vtt`, cover art, song facts |
 | Surfaces | Web workbench | + browser extension, phone-first sync |
-| Reaches a network | YouTube, Spotify, Apple, the rules assistant — each opted into | unchanged |
+| Reaches a network | YouTube, Spotify, Apple, the rules assistant (each opted into) | unchanged |
 
 ## What stays off the roadmap, and why it is written down
 
@@ -165,8 +165,8 @@ interrupt anybody's editing.
   tool's value is that a person heard the words.
 - **Lyrics on a server.** Not in analytics, not in error telemetry, not in a sync default. The
   footer's claim is load-bearing. The rules assistant (shipped August 2026) does not move this
-  line: it can read a draft only after the user grants access to that draft, per draft and revocable
-  — a boundary its own tests pin.
+  line: it can read a draft only after the user grants access to that draft, per draft and
+  revocable, a boundary its own tests pin.
 - **AI edits to the document.** _Superseded 2026-08-01:_ “The assistant explains rules; it does not
   hold a pen. Fixes stay deterministic, reviewed, and pressed by the user.” The assistant now
   proposes word-level edits instead. The user approves each one separately, and an approval lands
@@ -175,7 +175,7 @@ interrupt anybody's editing.
   needs, and every one of them is a third party whose terms this repository has had to read.
 - **Accounts as a requirement.** Optional in Q4 means optional forever.
 - **Collaborative editing.** Two carets in one document is a different product, and the Q3 share
-  link answers the actual need — passing work to somebody — for a fraction of the cost.
+  link answers the actual need, passing work to somebody, for a fraction of the cost.
 
 ## The three risks this plan is optimistic about
 

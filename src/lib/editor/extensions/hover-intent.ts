@@ -10,8 +10,8 @@ const hoverIntentDelay = 110;
 /**
  * The wait a pointer serves before something in the editor reveals itself.
  *
- * Every pointer route onto a surface shares this — the severity underline, the
- * count badge at the end of the line, and the `⇄` beside a linked header — so a
+ * Every pointer route onto a surface shares this (the severity underline, the
+ * count badge at the end of the line, and the `⇄` beside a linked header), so a
  * pointer crossing a crowded line meets one rule rather than a different one per
  * target. A marker that opened on the bare `pointerenter` was the odd one out:
  * a mouse flying across the document to reach the panel dragged a card open

@@ -32,9 +32,9 @@
 	<h2>What the rules assistant transmits</h2>
 	<p>
 		The assistant answers questions about the transcription guidelines. When you press <em>Ask</em>,
-		the question you typed — plus the recent turns of that same conversation, up to a bounded window
-		— is sent to LyricLint's answering service, a Cloudflare Worker, which forwards it to OpenAI's
-		API through Cloudflare AI Gateway. Anything else depends on one explicit permission:
+		the question you typed, plus the recent turns of that same conversation, up to a bounded window,
+		is sent to LyricLint's answering service, a Cloudflare Worker, which forwards it to OpenAI's API
+		through Cloudflare AI Gateway. Anything else depends on one explicit permission:
 	</p>
 	<ul>
 		<li>
@@ -50,7 +50,7 @@
 			session-derived identifier, preventing a cached answer from being served to another anonymous
 			session. OpenAI prompt caching may temporarily retain model-internal cache tensors for the
 			reviewed rules prefix. OpenAI's API data-retention terms still apply. LyricLint retains
-			operational metadata only — status, latency, token counts, request id, and hashed abuse
+			operational metadata only: status, latency, token counts, request id, and hashed abuse
 			identifiers.
 		</li>
 	</ul>
@@ -75,7 +75,7 @@
 		<li>OpenAI generates assistant answers from the text the service forwards.</li>
 		<li>
 			Attaching audio from YouTube, Spotify, or Apple Music loads that provider's player, per
-			session, only after you choose it — exactly as before the assistant existed.
+			session, only after you choose it, exactly as before the assistant existed.
 		</li>
 	</ul>
 
@@ -83,12 +83,12 @@
 	<p>
 		Assistant conversations can be deleted one at a time inside the assistant, and
 		<em>Delete all local data</em> in the workbench's Preferences panel removes every 'scribe and every
-		conversation from this browser. The workspace backup exports transcriptions only — chat history is
+		conversation from this browser. The workspace backup exports transcriptions only. Chat history is
 		never part of a backup file.
 	</p>
 
 	<p class="site-aside">
-		Questions about any of this are welcome — the whole workbench is
+		Questions about any of this are welcome. The whole workbench is
 		<a href="https://github.com/hkarlsen06/LyricLint" rel="external">documented in the open</a>.
 	</p>
 </main>

@@ -3,7 +3,7 @@
  * check, behind the planned `/guidelines/` pages and the assistant corpus's
  * guidance section.
  *
- * An entry is one checkable claim in LyricLint's own words — never quoted
+ * An entry is one checkable claim in LyricLint's own words, never quoted
  * Genius prose, for the corpus's own reason: a quotation would be hand-written
  * content with no generator to re-derive it, over annotations that change.
  * The paraphrase is the human interpretation the source policy already
@@ -12,7 +12,7 @@
  *
  * An entry states the convention whether or not the linter checks it: the
  * catalog is the conventions and the rules are the checks, and
- * `relatedRuleIds` is the one mapping tying the two — the entry's meta line
+ * `relatedRuleIds` is the one mapping tying the two: the entry's meta line
  * draws it as "Checked by", and each named rule's page links back through
  * `guidanceForRule`. What must still not exist is two *entries* stating one
  * claim, which is `isProseHeaderLine`'s failure arriving in the catalog.
@@ -61,8 +61,8 @@ export const guidanceTopicOrder: readonly GuidanceTopic[] = [
  * landmark is a reviewed claim about what Genius wants, drawn on the page a
  * reader arrives at, and one drawn without a tier or a citation is the single
  * section of this catalog asking to be taken on trust. The standardized
- * spellings led the spelling topic — the first thing the catalog's first topic
- * says — with neither, while every prose entry under it named both.
+ * spellings led the spelling topic (the first thing the catalog's first topic
+ * says) with neither, while every prose entry under it named both.
  */
 export interface GuidanceTopicLandmark {
 	id: string;
@@ -92,7 +92,7 @@ export const guidanceTopicLandmarks: GuidanceTopicLandmarkTable = {
 			title: 'The standardized spellings',
 			statement: 'The reviewed preferred forms and the spellings the guide corrects.',
 			// The table is `spelling.standardized`'s data, and that rule reads the
-			// staff-tier standardized-spellings annotation — so the lookup's
+			// staff-tier standardized-spellings annotation, so the lookup's
 			// standing is the annotation's, cited at the same id the rule cites.
 			authority: 'staff',
 			sourceIds: ['G-SPELLING'],
@@ -119,7 +119,7 @@ export interface RuleGuidelineLink {
  * An entry's standing: a source tier, or LyricLint's own advisory.
  *
  * `lyriclint` is for a convention that is LyricLint's own preference rather
- * than anything a Genius source states — the blank line between song parts,
+ * than anything a Genius source states: the blank line between song parts,
  * the text-hygiene checks. Such an entry still cites sources, but as
  * *context* the preference reads from rather than as backing, so the
  * source-equality rule does not apply to it, and its note names the claim as
@@ -129,7 +129,7 @@ export type GuidanceAuthority = SourceAuthority | 'lyriclint';
 
 /**
  * A verbatim illustration, in the rule reference's own labeled-pair shape. A
- * sample holds only text as it would stand in a document — prose explaining a
+ * sample holds only text as it would stand in a document. Prose explaining a
  * sample belongs in the statement or the note, because inside the sample face
  * it reads as part of the very thing being quoted.
  */
@@ -142,11 +142,11 @@ interface GuidanceExample {
 
 /** One reviewed transcription convention, checked by rules or not at all. */
 export interface GuidanceEntry {
-	/** `guidance.<topic>.<slug>` — stable, and the anchor on the topic page. */
+	/** `guidance.<topic>.<slug>`, stable, and the anchor on the topic page. */
 	id: string;
 	topic: GuidanceTopic;
 	/**
-	 * States what the guideline says, as a compressed instruction — the
+	 * States what the guideline says, as a compressed instruction, in the
 	 * register of Genius's own guide items ("Use standardized spellings"), and
 	 * deliberately NOT the rule reference's failure-naming register. A rules
 	 * reader arrives with a symptom and wants its rule; a guidelines reader
@@ -160,24 +160,24 @@ export interface GuidanceEntry {
 	/**
 	 * LyricLint's reviewed paraphrase of the convention. Never quoted prose.
 	 *
-	 * A literal form the sentence *names* rather than uses goes in backticks —
-	 * `` `gon'` for `gonna` ``, `` the word `lyrics` ``, `` `'90s` `` — and the
+	 * A literal form the sentence *names* rather than uses goes in backticks (
+	 * `` `gon'` for `gonna` ``, `` the word `lyrics` ``, `` `'90s` ``), and the
 	 * topic page sets those in its code face (`CodeProse.svelte`). Unmarked, a
 	 * form is a word of the sentence and the reader has to work out which:
 	 * `` `and` rather than `an'` `` reads as a conjunction until the face says
 	 * it is being quoted. A whole line belongs in `example` instead, which is
-	 * the sample face and a different claim — this is for the forms a sentence
+	 * the sample face and a different claim. This is for the forms a sentence
 	 * has to carry inside itself.
 	 */
 	statement: string;
-	/** Invented illustrations — never a real transcription's lyrics. */
+	/** Invented illustrations, never a real transcription's lyrics. */
 	example?: GuidanceExample;
 	/**
 	 * The trustworthiness claimed for this entry. Must equal the highest tier
 	 * among the cited sources: promotion is adding the confirming higher-tier
 	 * source to `sourceIds`, never editing this field alone, and
 	 * `guidance.test.ts` enforces the equality structurally. The exception is
-	 * `lyriclint`, whose sources are context rather than backing — see
+	 * `lyriclint`, whose sources are context rather than backing; see
 	 * `GuidanceAuthority`.
 	 */
 	authority: GuidanceAuthority;
@@ -186,7 +186,7 @@ export interface GuidanceEntry {
 	 * Linter rules that check this convention, in whole or in part. This is
 	 * the one mapping between the two references: the entry's meta line draws
 	 * it as "Checked by", and each named rule's own page links back to this
-	 * entry through `guidanceForRule` — adding a rule id here is what gives
+	 * entry through `guidanceForRule`. Adding a rule id here is what gives
 	 * that rule's page its guideline link.
 	 */
 	relatedRuleIds?: readonly string[];

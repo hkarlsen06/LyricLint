@@ -131,7 +131,7 @@ function setup() {
  */
 describe('YouTube transport arithmetic', () => {
 	// The address is derived from the id rather than asked for, so the cover is
-	// known before Google's player is — and it costs the opt-in nothing.
+	// known before Google's player is, and it costs the opt-in nothing.
 	it('reports a cover the moment the video is attached', async () => {
 		const { attach, player } = setup();
 		await attach();
@@ -210,7 +210,7 @@ describe('YouTube transport arithmetic', () => {
 
 	// The gap this whole source exists to hide. `seekTo` crosses a postMessage
 	// bridge, so the next `getCurrentTime` still answers with where the user just
-	// left — and arithmetic read off that answer moves four seconds for a back-2
+	// left, and arithmetic read off that answer moves four seconds for a back-2
 	// and a resume, which is the failure the local-file transport is written to
 	// avoid in the first place.
 	it('reads its own target back while the player is still catching up', async () => {
@@ -331,7 +331,7 @@ describe('YouTube playback rates', () => {
 		video.ready({ duration: 200 });
 
 		// 2 is not on the workbench's list and 0.75 is not on the source's, so
-		// neither is offered — a rate the user can press and not hear is worse
+		// neither is offered: a rate the user can press and not hear is worse
 		// than one rate fewer.
 		expect(player.availableRates).toEqual([0.5, 1]);
 	});

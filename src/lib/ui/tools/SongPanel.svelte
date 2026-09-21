@@ -31,7 +31,7 @@
 	const artwork = $derived(controller.media?.player.artwork);
 	const details = $derived(controller.media?.player.songDetails);
 	/**
-	 * Whether any of the facts *this list draws* are known — the list's own
+	 * Whether any of the facts *this list draws* are known: the list's own
 	 * predicate, so the section gate and the list cannot disagree. Artist and
 	 * title are not asked for here, because the toolbar and the cover band both
 	 * already say them.
@@ -55,7 +55,7 @@
 	/**
 	 * The document in one run of facts, for the section about the files it turns
 	 * into. A count worth stating is one that could have been otherwise, so each
-	 * waits until it has something to report — an empty draft states nothing at
+	 * waits until it has something to report; an empty draft states nothing at
 	 * all. Local on purpose: the codebase has no shared pluralizer, and these
 	 * are panel chrome in English rather than lyric text.
 	 */
@@ -109,7 +109,7 @@
 		elsewhere has to paste: its facts, its cover and its link.
 
 		It leads, because it is the one section here that comes and goes with the
-		attachment — a section that is only sometimes there leads or it is somewhere
+		attachment; a section that is only sometimes there leads or it is somewhere
 		different on every draft. Each fact draws only where it exists. Attaching
 		itself lives in the workbench: the tray's note glyph while nothing is
 		attached, the strip's pencil once something is. Nothing else here
@@ -203,7 +203,7 @@
 		is not here at all: the toolbar carries it as the window's one contrast
 		action, and a second copy of it in a panel was a second command for a press
 		the user already has. `current draft` is gone from the label rather than
-		shortened for room — the toolbar names the draft.
+		shortened for room; the toolbar names the draft.
 	-->
 	<section>
 		<h2>Document</h2>
@@ -228,7 +228,7 @@
 
 	<!--
 		Everything about the draft's timings in one place: the export, and the way to
-		clear them. Drawn only where there is something to write — a draft with no
+		clear them. Drawn only where there is something to write; a draft with no
 		timings is offered neither, the same rule `availableRates` and the cover
 		section follow.
 
@@ -236,7 +236,7 @@
 		choice is which container, and the command is still one press. The delete is
 		the destructive confirm-in-place, in the section it belongs to rather than
 		beside `Delete all local data`, which is a different scope and now a different
-		tab — the two were only ever together because both are destructive.
+		tab; the two were only ever together because both are destructive.
 	-->
 	{#if timing}
 		<section>

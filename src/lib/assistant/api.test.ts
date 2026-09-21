@@ -58,7 +58,7 @@ function stalledFetcher() {
 
 /**
  * The watchdog only ever fires against a wedged connection, so every test here
- * runs on virtual time — a real one would take three minutes to establish that
+ * runs on virtual time. A real one would take three minutes to establish that
  * something did *not* happen.
  */
 it('preserves a ruleset mismatch as a distinct failure', async () => {
@@ -182,7 +182,7 @@ describe('assistant answer stream inactivity', () => {
 			fetcher
 		});
 		// A watchdog that outlived its turn would abort a controller nothing is
-		// reading — invisible here, and a leak per question in the workbench.
+		// reading, invisible here, and a leak per question in the workbench.
 		expect(vi.getTimerCount()).toBe(0);
 	});
 });
@@ -245,8 +245,8 @@ describe('assistant answer streaming', () => {
 	});
 
 	/**
-	 * Validation can shorten a block — a trailing citation run is stripped after
-	 * every delta of it has already been sent — and the client assembles purely
+	 * Validation can shorten a block (a trailing citation run is stripped after
+	 * every delta of it has already been sent), and the client assembles purely
 	 * from deltas, so the close carries the validated text where it differs.
 	 * Streaming is the only mode production uses, so without this the strip was
 	 * invisible exactly where it matters.
@@ -301,7 +301,7 @@ describe('assistant answer streaming', () => {
 	 * missing from the transcript for good. Only an *open* block can hold any:
 	 * a close already forces its own publish.
 	 *
-	 * What the turn finally resolves to is deliberately not asserted here — the
+	 * What the turn finally resolves to is deliberately not asserted here. The
 	 * worker leaves a narration block open on a tool round, and what the reader
 	 * does with that is a separate question from whether the text reached the
 	 * surface before the calls did.
@@ -350,8 +350,8 @@ describe('assistant answer streaming', () => {
 
 	/**
 	 * NDJSON is newline-delimited, not newline-terminated. A stream whose last
-	 * line arrives without one used to leave a whole event — the `done` carrying
-	 * the quota — in the buffer, and the turn failed with the entire answer in
+	 * line arrives without one used to leave a whole event (the `done` carrying
+	 * the quota) in the buffer, and the turn failed with the entire answer in
 	 * hand.
 	 */
 	it('reads a final line that arrives without a trailing newline', async () => {
@@ -443,7 +443,7 @@ describe('assistant answer streaming', () => {
 	it('reads the worker ordering: every block opens before any block closes', async () => {
 		// The worker cannot close a block before validation, so a multi-block
 		// answer streams all its block_starts first and every block_done arrives
-		// at the end, oldest block first — with the validated kind on the close.
+		// at the end, oldest block first, with the validated kind on the close.
 		const events = [
 			{ type: 'start', requestId: 'req-q', scope: 'mixed' },
 			{ type: 'block_start', kind: 'general' },

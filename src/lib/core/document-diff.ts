@@ -6,10 +6,10 @@ import { isSectionHeaderLine } from './parser.js';
 /*
  * The comparison behind the toolbar's Compare dialog: the page's lyrics as the
  * user pasted them against the document as it stands. It lives in `core`
- * because it is arithmetic over two strings — no CodeMirror, no shell.
+ * because it is arithmetic over two strings (no CodeMirror, no shell).
  *
  * The comparison itself is `charDiffSegments`, one flat character diff over
- * the whole text with newlines as ordinary characters — the shape Genius
+ * the whole text with newlines as ordinary characters, the shape Genius
  * draws, which is the diff transcribers already read. This module's job is
  * folding that flat stream into display rows and hunks, and writing the
  * sentences for what a row cannot show at reading size.
@@ -22,7 +22,7 @@ import { isSectionHeaderLine } from './parser.js';
 
 /**
  * One row of a hunk's display, in reading order. Every row except `gap`
- * carries `at`, the current-document offset a press on it parks the caret at —
+ * carries `at`, the current-document offset a press on it parks the caret at,
  * computed here, where the walk already knows the offsets, so the dialog
  * and the editor cannot disagree about where a line is.
  */
@@ -56,7 +56,7 @@ interface DiffHunk {
 	to: number;
 	rows: readonly DiffRow[];
 	/**
-	 * Sentences for differences the rows cannot show at reading size — trailing
+	 * Sentences for differences the rows cannot show at reading size: trailing
 	 * whitespace, doubled spaces, invisible characters, quote marks that fold to
 	 * the same glyph. A red line and a green line that render identically read
 	 * as a broken diff; the sentence is what carries those changes.
@@ -111,7 +111,7 @@ function stripInvisibles(text: string): string {
  * Whether a whitespace-only change is trailing depends on where the segment
  * sits, so the caller says whether this one closes the line. The character
  * diff hands text common to both sides back to shared context, which is why
- * the comparison here is on emptiness rather than on collapsing runs — by the
+ * the comparison here is on emptiness rather than on collapsing runs: by the
  * time a doubled space reaches a segment, the shared single space is already
  * gone from both sides of it.
  */
@@ -123,7 +123,7 @@ function describeSegment(deleted: string, inserted: string, closesLine: boolean)
 		const isThere = inserted.includes(character);
 		if (wasThere && !isThere) {
 			// A clean swap for the character's own replacement is the commonest
-			// shape — it is what the safe fix writes — and "removed" would leave
+			// shape (it is what the safe fix writes), and "removed" would leave
 			// the space it became unaccounted for.
 			const swapped = deleted.split(character).join(entry.replacement);
 			notes.push(
@@ -187,7 +187,7 @@ function describeRow(segments: readonly DiffSegment[]): string[] {
 /**
  * Changes this close together share one hunk. A hunk draws one unchanged
  * neighbour to each side, so two changes separated by up to this many kept
- * lines would draw the entire gap anyway — split across two cards, with the
+ * lines would draw the entire gap anyway, split across two cards, with the
  * section header and its ellipsis printed a second time over the lower one.
  * Coalesced, the kept lines appear once, as context between the changes.
  */
@@ -201,9 +201,9 @@ interface ChangeRowInfo {
 
 /**
  * Fold the flat character diff into display rows, keeping only the rows that
- * carry a change. Rows break at every newline whichever side it came from — a
+ * carry a change. Rows break at every newline whichever side it came from (a
  * deleted newline ends a struck row without advancing the current document,
- * which is how wholly removed lines fall out of a flat stream — and a row's
+ * which is how wholly removed lines fall out of a flat stream), and a row's
  * segments carry the shared text of its own line, so a changed row is
  * self-contained for the dialog.
  */
@@ -404,7 +404,7 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 		// A blank neighbour is dropped rather than drawn: "(blank line)" as
 		// orientation orients nobody, and the placeholder is only owed where a
 		// blank line is itself the change. Blank lines do not earn the ellipsis
-		// either — an ⋯ standing for nothing but the spacing between sections
+		// either: an ⋯ standing for nothing but the spacing between sections
 		// reads as lyrics being hidden.
 		const neighbourAbove = firstLine - 1;
 		if (neighbourAbove >= 0 && neighbourAbove < currentLines.length) {
@@ -436,7 +436,7 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 		let previousNext = firstLine;
 		for (const info of cluster) {
 			// Kept lines between two coalesced changes. Blank ones are dropped
-			// like a blank neighbour — the line numbers carry the skip.
+			// like a blank neighbour. The line numbers carry the skip.
 			for (let lineIndex = previousNext; lineIndex < info.line; lineIndex += 1) {
 				if (!isBlank(lineIndex)) rows.push(contextRow(lineIndex));
 			}

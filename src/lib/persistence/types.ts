@@ -44,12 +44,12 @@ export type DraftCreateInput = Partial<DraftRecord>;
  * `handle` is a `FileSystemFileHandle` where the browser has one, which is what
  * lets a reopened draft offer the same file back in a single press. Where it
  * does not (Firefox and Safari have no `showOpenFilePicker`), only `name` and
- * `size` survive, and reconnecting means picking the file again — so the type
+ * `size` survive, and reconnecting means picking the file again, so the type
  * carries the name whether or not it carries a handle, and nothing downstream
  * may assume a handle is present.
  *
  * A YouTube source is none of that: it is an eleven-character id and nothing
- * else. `source` is the discriminant, and it is **optional on purpose** —
+ * else. `source` is the discriminant, and it is **optional on purpose**:
  * every record written before YouTube existed is a local file, so absence reads
  * as `'file'` and the live `version(2)` table needs no migration and no new
  * index. The union is spelled out here rather than imported from the transport,
@@ -72,7 +72,7 @@ export interface MediaHandleRecord {
 	 * would fail as a 404 somewhere far from here.
 	 */
 	trackId?: string;
-	/** The Apple Music catalogue song id — digits, and a fourth alphabet again. */
+	/** The Apple Music catalogue song id: digits, and a fourth alphabet again. */
 	songId?: string;
 	/** Structured-cloneable, so Dexie stores it directly. Never serialized to JSON. */
 	handle?: FileSystemFileHandle;
@@ -82,7 +82,7 @@ export interface MediaHandleRecord {
 	 * Transcription is not listening: a draft is left at the line being worked on
 	 * and picked up there tomorrow, so coming back to 0:00 means scrubbing through
 	 * a song already transcribed to find the place. Kept beside the file rather
-	 * than on the draft for the same reason as everything else here — the draft
+	 * than on the draft for the same reason as everything else here, since the draft
 	 * record stays JSON.
 	 */
 	position?: number;
@@ -167,7 +167,7 @@ export type DraftRepository = Omit<CoreDraftRepository, 'create' | 'duplicate'> 
 	create(draft: DraftCreateInput): Promise<DraftRecord>;
 	duplicate(id: string, newId?: string): Promise<DraftRecord>;
 	/**
-	 * Every draft whole, newest first — the same order `list` reports.
+	 * Every draft whole, newest first, in the same order `list` reports.
 	 *
 	 * Startup recovery reads each draft's text to decide what to sweep, and did
 	 * it as a `list` followed by a `get` per row: N+1 round trips at boot for
@@ -181,7 +181,7 @@ export type DraftRepository = Omit<CoreDraftRepository, 'create' | 'duplicate'> 
  *
  * A table of its own rather than a field on `DraftRecord`, because an ignore
  * is written by a press in the panel, not by the autosave that follows the
- * text — the same reason the playhead lives in `mediaHandles`. The keys are
+ * text, the same reason the playhead lives in `mediaHandles`. The keys are
  * the occurrence identities `diagnostics/ignore.ts` builds, kept sorted so a
  * row's contents are comparable across saves.
  */

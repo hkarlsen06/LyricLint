@@ -5,7 +5,7 @@
  * guide and the index are sibling columns under the section's layout, so there
  * is nothing for one to hand the other. The guide's check links write here on
  * hover and on focus, and the index answers by marking that rule's row and
- * bringing it into the column — the run and the list are the same rules in two
+ * bringing it into the column. The run and the list are the same rules in two
  * shapes, and the hover is the reader asking which row a check is.
  *
  * The guide page clears it when it is destroyed: pressing a check navigates

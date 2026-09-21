@@ -37,7 +37,7 @@ export interface ImportedVoiceGroup extends VoiceGroup {
  *
  * A styled slot with no header entry contributes nothing here: that state is
  * an unknown voice, derived where it is needed (`unaccountedStyledSlots`) and
- * never given a roster identity — extraction used to mint `Unresolved voice N`
+ * never given a roster identity. Extraction used to mint `Unresolved voice N`
  * records for it, which is the rejected design `docs/subsystems/performers.md`
  * records.
  */

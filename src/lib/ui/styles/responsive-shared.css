@@ -9,7 +9,7 @@
 
 /*
  * Nothing a finger can type into may be smaller than 16px, because Safari on iOS
- * answers a focus on a smaller field by zooming the page in — and it does not
+ * answers a focus on a smaller field by zooming the page in, and it does not
  * zoom back out. That reads as the app lurching every time the caret is placed,
  * and it is the whole reason this block exists.
  *
@@ -30,7 +30,7 @@
 @media (pointer: coarse) {
 	:root {
 		/* The editor's default is `lg` now (tokens.css), so this is a floor rather
-		   than a step up — kept so the token can never drop back under the zoom
+		   than a step up, kept so the token can never drop back under the zoom
 		   threshold on a coarse pointer without this block refusing it. */
 		--font-size-editor: var(--font-size-lg);
 	}

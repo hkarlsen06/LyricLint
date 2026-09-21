@@ -7,7 +7,7 @@
 	// surface saying what it did.
 	//
 	// The lockup is parked closed and inert. Everything that moves is the wave, and
-	// `wave-loop.ts` owns that — this is only the mounting.
+	// `wave-loop.ts` owns that; this is only the mounting.
 	import AppWordmark from '../layout/AppWordmark.svelte';
 	import { runWave } from './wave-loop.js';
 

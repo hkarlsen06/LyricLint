@@ -13,7 +13,7 @@
 	}: {
 		action: AssistantLinkActionRecord;
 		assistant: AssistantState;
-		/** Whether this turn still holds the live tool session — see the same
+		/** Whether this turn still holds the live tool session. See the same
 		 * prop on `AssistantToolTurn`. */
 		decidable: boolean;
 	} = $props();

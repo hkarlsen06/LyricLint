@@ -21,7 +21,7 @@
 
 	$effect(() => () => clearTimeout(copiedTimer));
 
-	/** A track name is a filename here, and `Artist — Track` is full of nothing a
+	/** A track name is a filename here, and its artist and title contain nothing a
 	 *  file system minds except the separators. */
 	function filename(): string {
 		return `${(name ?? 'Album art').replace(/[\\/:*?"<>|]/gu, '-').trim()}.jpg`;
@@ -51,7 +51,7 @@
 
 <!--
 	Copying the cover's address and saving its bytes, as one pair wherever the
-	cover is offered — the Song panel's metadata section and the artwork dialog
+	cover is offered: the Song panel's metadata section and the artwork dialog
 	both render this rather than mirroring two buttons by hand, so the labels,
 	the copied confirmation and the fallback behaviour cannot drift apart.
 -->

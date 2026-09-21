@@ -53,7 +53,7 @@ export const adlibParenthesesRule: RuleDefinition = {
 					const word = match.groups.word ?? '';
 					// Only the titlecased form is a finding. A lowercase trailing ad-lib
 					// is the lead's own line at least as often as a backing vocal, and
-					// only the transcriber can hear which — but a capital after a comma
+					// only the transcriber can hear which. But a capital after a comma
 					// is conventional in neither reading: part of the line it stays
 					// lowercase, behind the lead it takes parentheses and the capital
 					// moves inside them. An all-caps run is neither and is left alone.
@@ -84,7 +84,7 @@ export const adlibParenthesesRule: RuleDefinition = {
 						to: match.from + localFrom + word.length
 					};
 					const before = line.text.slice(0, match.from - line.from);
-					// An ad-lib that is the whole of a performer wrapper keeps its wrapper —
+					// An ad-lib that is the whole of a performer wrapper keeps its wrapper,
 					// but the parentheses go outside it, the form the reviewed guide's own
 					// examples write, so the wrap must not hand
 					// `performer.parenthetical-boundary` a finding of its own making.

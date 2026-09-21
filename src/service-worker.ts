@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/service-worker.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/service-worker.md. Read it before changing this file, and update it with any behavior change.
 /// <reference lib="webworker" />
 
 import { base, build, files, prerendered, version } from '$service-worker';
@@ -10,11 +10,11 @@ import { base, build, files, prerendered, version } from '$service-worker';
  *
  * - A hashed build asset is content-addressed, so its URL never changes meaning:
  *   cache-first forever, and a network copy may be cached on sight. That
- *   self-heal is what lets an old worker serve a newer deploy's page — the
+ *   self-heal is what lets an old worker serve a newer deploy's page: the
  *   page's new chunks miss the old snapshot, come from the network, and join it.
  * - A navigation is network-first. What the user sees online is the deployed
  *   site, always; the snapshot answers only when the network cannot. The
- *   worker's version therefore decides nothing about freshness — it is only
+ *   worker's version therefore decides nothing about freshness. It is only
  *   how good the offline copy is.
  * - A static or prerendered URL can change between deploys, so it belongs to
  *   this version's snapshot alone and is never written outside install, except
@@ -32,7 +32,7 @@ const toPathname = (asset: string): string => new URL(asset, worker.location.hre
 
 const immutablePaths = new Set(build.map(toPathname));
 
-// The Harper wasm is 18MB — most of the build. It is cached the first time the
+// The Harper wasm is 18MB, most of the build. It is cached the first time the
 // workbench actually loads it (the immutable strategy writes on sight), so the
 // offline promise still covers it without every landing-page visitor paying for
 // it at install.
@@ -42,7 +42,7 @@ const precachedImmutable = build.filter((asset) => !asset.endsWith('.wasm'));
  * Only the app's own pages are precached: the workbench, and the front page the
  * offline navigation fallback serves. The other ~57 prerendered pages are the
  * rule reference, ~6MB of markup that changes every deploy and that most
- * sessions never open — precaching it made install the most expensive thing
+ * sessions never open, and precaching it made install the most expensive thing
  * this application did, per visitor, per deploy. A rules page is cached when it
  * is actually read (the navigation strategy writes what it serves), which keeps
  * the pages someone uses offline without shipping the whole reference to
@@ -137,7 +137,7 @@ async function precacheApplication(): Promise<void> {
 worker.addEventListener('install', (event) => {
 	// Deliberately no skipWaiting: this worker activates only once no page from
 	// the previous version is open anywhere. Activation is when the previous
-	// snapshot is deleted, and a deploy used to do both mid-session — so a tab
+	// snapshot is deleted, and a deploy used to do both mid-session, so a tab
 	// still running the old document lost the cache its own lazy imports resolved
 	// from, and the next dynamic import rejected for the life of that document.
 	// Waiting costs nothing the user can see, because navigations are
@@ -151,7 +151,7 @@ worker.addEventListener('activate', (event) => {
 			// Network-first navigations pay the worker's own startup on every page
 			// load; preload starts the request beside the worker instead of after it.
 			await worker.registration.navigationPreload?.enable();
-			// Only this application's own caches, not every cache on the origin —
+			// Only this application's own caches, not every cache on the origin:
 			// whatever else runs here owns its own storage.
 			const names = await caches.keys();
 			await Promise.all(
@@ -180,7 +180,7 @@ async function navigation(event: FetchEvent): Promise<Response> {
 	try {
 		const preloaded: Response | undefined = await event.preloadResponse;
 		const response = preloaded ?? (await fetch(request));
-		// A page of ours that arrived whole refreshes its own offline copy — this
+		// A page of ours that arrived whole refreshes its own offline copy. This
 		// is how a visited rules page earns a place in the snapshot, and how the
 		// precached pair stays current between worker updates.
 		if (response.ok && pagePaths.has(new URL(request.url).pathname)) {

@@ -1,10 +1,10 @@
 /*
- * One flat character comparison over whole texts, newlines included — the
+ * One flat character comparison over whole texts, newlines included. It is the
  * shape Genius draws its edit diffs in, which is the display transcribers
  * reviewing lyrics already read fluently. Aligning lines first and comparing
  * within them was the tempting substitute, and it drew a different picture at
  * every altitude: a varied refrain line became a struck line plus an added
- * line, and a split line became a removal — where the flat pass shows the
+ * line, and a split line became a removal, where the flat pass shows the
  * ad-lib struck in place and the split as words that simply moved down a row.
  *
  * The pipeline is the classic one: trim the common ends, Myers over the
@@ -31,7 +31,7 @@ interface DiffRun {
 
 /**
  * Myers gives up past this many edited characters and the middle reports as
- * whole lines instead — with a full replacement as the last resort, which is
+ * whole lines instead, with a full replacement as the last resort, which is
  * also the honest answer for a paste of something else entirely. The bound is
  * what keeps the backtrack trace's memory finite.
  */
@@ -119,7 +119,7 @@ function myersOps(
 	let x = oldLength;
 	let y = newLength;
 	for (let d = found; d > 0; d -= 1) {
-		// trace[d] is the frontier after depth d-1 — the state the forward pass
+		// trace[d] is the frontier after depth d-1, the state the forward pass
 		// decided from, so the backtrack re-decides identically.
 		const previous = trace[d];
 		const k = x - y;
@@ -184,7 +184,7 @@ function splitKeepingNewlines(text: string): string[] {
 
 /**
  * Merge adjacent runs and normalise every change cluster to deletion before
- * insertion — the reading order of a change, and what pairs the two halves
+ * insertion: the reading order of a change, and what pairs the two halves
  * into one del/ins segment later.
  */
 function mergeRuns(runs: readonly DiffRun[]): DiffRun[] {
@@ -216,8 +216,8 @@ function mergeRuns(runs: readonly DiffRun[]): DiffRun[] {
 /**
  * Fold equalities shorter than the changes on both sides of them back into
  * those changes (diff-match-patch's semantic cleanup). This is what turns a
- * rewrite's coincidental shared letters — the "e" that "love" and "friend"
- * happen to agree on — back into one strike and one insertion.
+ * rewrite's coincidental shared letters (the "e" that "love" and "friend"
+ * happen to agree on) back into one strike and one insertion.
  */
 function semanticCleanup(runs: DiffRun[]): DiffRun[] {
 	let current = runs;
@@ -289,7 +289,7 @@ function boundaryScore(one: string, two: string): number {
 /**
  * Slide each single-sided edit between two equalities to its best-scoring
  * position (diff-match-patch's lossless cleanup). This is what turns
- * "One\nT[wo\nT]hree" — a correct diff nobody can read — into "[Two\n]",
+ * "One\nT[wo\nT]hree" (a correct diff nobody can read) into "[Two\n]",
  * a whole added line.
  */
 function shiftRuns(runs: DiffRun[]): DiffRun[] {
@@ -358,8 +358,8 @@ function runsToSegments(runs: readonly DiffRun[]): DiffSegment[] {
 }
 
 /**
- * A character diff can legally split a surrogate pair — two emoji share their
- * high surrogate — and a shared half-character renders as garbage. Move the
+ * A character diff can legally split a surrogate pair (two emoji share their
+ * high surrogate), and a shared half-character renders as garbage. Move the
  * stranded half into the neighbouring change, where it exists on both sides.
  */
 function fixSurrogateBoundaries(segments: DiffSegment[]): DiffSegment[] {

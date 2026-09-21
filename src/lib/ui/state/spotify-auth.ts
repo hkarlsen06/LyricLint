@@ -9,14 +9,14 @@
  * **Nothing outlives the tab, and that is deliberate.** A refresh token in
  * `localStorage` is a credential at rest in a tool whose whole promise is that
  * it keeps nothing, and it would let a page nobody has touched reach Spotify on
- * load — the exact thing `youtubeAllowed` exists to prevent. So everything here
+ * load, the exact thing `youtubeAllowed` exists to prevent. So everything here
  * lives in `sessionStorage`: the PKCE verifier and the intent across the
  * redirect, and the tokens for as long as the tab is open.
  *
  * The tokens were held in module memory first, and that was stricter than this
  * file's own stated rule rather than safer than it. Module memory dies on
  * **reload**, so every refresh of the workbench sent the user back to Spotify's
- * authorize screen for a session the browser still considered open — a full page
+ * authorize screen for a session the browser still considered open: a full page
  * redirect to re-establish something that had not actually ended. A browser
  * session survives a reload and ends with the tab, so `sessionStorage` is what
  * "session-scoped" already meant. It buys an attacker nothing either: script
@@ -30,7 +30,7 @@ const tokenEndpoint = 'https://accounts.spotify.com/api/token';
  * What the Web Playback SDK needs, and nothing beyond it.
  *
  * `streaming` is playback itself. The two `user-read` scopes are not optional
- * decoration — the SDK refuses to initialise without them, because it checks the
+ * decoration. The SDK refuses to initialise without them, because it checks the
  * account's product tier before it will hand over a device. `user-modify-playback-state`
  * is the one call the SDK cannot make for itself: starting a specific track on
  * the device it just created.
@@ -69,7 +69,7 @@ let inFlight: Promise<string | undefined> | undefined;
  *
  * **What comes back is shape-checked, not merely parsed**, and the reason is that
  * `JSON.parse` answers a great deal more than an object: `'null'` parses without
- * throwing, so a stored `null` — or `{}`, or anything else that reached this key —
+ * throwing, so a stored `null`, or `{}`, or anything else that reached this key,
  * made `spotifySignedIn()` true over a session that does not exist, and the next
  * request went out as `Bearer undefined`. A value that is not a pair of an access
  * token and an expiry is not a session, and it is cleared rather than left to be
@@ -99,7 +99,7 @@ function held(): SpotifyTokens | undefined {
  * Whether what came out of storage is a session at all.
  *
  * The shape check the doc above is about, as a parser rather than as an inline
- * narrowing: `'null'` parses without throwing, so a stored `null` — or `{}` —
+ * narrowing: `'null'` parses without throwing, so a stored `null`, or `{}`,
  * would otherwise be read back as a session and sent out as `Bearer undefined`.
  */
 function isSpotifyTokens(value: unknown): value is SpotifyTokens {
@@ -129,7 +129,7 @@ function remember(next: SpotifyTokens | undefined): void {
  * The app this build authorizes against, and **off unless a build sets one**.
  *
  * The id was hard-coded here for a while, on the reasoning that a client id is
- * public by definition — which is true, and beside the point. What settles it is
+ * public by definition, which is true, and beside the point. What settles it is
  * who can actually use the feature: extended quota has been organizations only
  * since May 2025 (a registered business, a launched service, 250,000 monthly
  * active users), so this app is capped at a hand-added allowlist forever. A
@@ -139,7 +139,7 @@ function remember(next: SpotifyTokens | undefined): void {
  *
  * So the deployed build leaves `PUBLIC_SPOTIFY_CLIENT_ID` unset and the picker
  * offers only the two answers it can honestly carry out, while a machine on the
- * allowlist sets it in `.env.development.local` and gets the third — the
+ * allowlist sets it in `.env.development.local` and gets the third, the
  * `.development.` variant specifically, because Vite loads `.env.local` for
  * `vite build` too and a local opt-in would then be baked into any bundle built
  * on that machine. Turning it back on the day the policy changes is one
@@ -151,7 +151,7 @@ function remember(next: SpotifyTokens | undefined): void {
  * `$env/dynamic/public` touches `process` at module scope, which does not exist
  * in the browser the component suite runs in and took nine unrelated test files
  * down with it. Vite resolves this at **build** time, so it has to be set where
- * the build runs — a Cloudflare Pages *runtime* variable or a `wrangler secret`
+ * the build runs. A Cloudflare Pages *runtime* variable or a `wrangler secret`
  * never reaches the bundle.
  */
 export function spotifyClientId(): string | undefined {
@@ -168,7 +168,7 @@ export function spotifyConfigured(): boolean {
  *
  * The workbench itself, so the flow needs no extra route and no popup. It must
  * match a redirect URI registered on the Spotify app exactly, trailing slash
- * included — `trailingSlash: 'always'` means this app's own URLs carry one.
+ * included, because `trailingSlash: 'always'` means this app's own URLs carry one.
  */
 function spotifyRedirectUri(): string {
 	return new URL('/workbench/', location.origin).toString();
@@ -180,7 +180,7 @@ function spotifyRedirectUri(): string {
  * Two rules, and the first is the one that costs an afternoon: **`localhost` is
  * refused as a name, not as an insecure origin.** `https://localhost:5173` is a
  * genuine TLS origin with a trusted certificate behind it, and Spotify still
- * answers `redirect_uri: Insecure` — the message is about the host, and it wants
+ * answers `redirect_uri: Insecure`. The message is about the host, and it wants
  * the loopback IP literal instead. Reading that error as a statement about the
  * scheme sends you to fix the one thing that was already right.
  *
@@ -219,13 +219,13 @@ export function spotifyRedirectAllowed(): boolean {
  * Why this origin will not do, and the exact address that will.
  *
  * It carries the URL to open rather than the rule to satisfy, because on the
- * failure this actually fires for — `localhost` over HTTPS — the rule reads as
+ * failure this actually fires for (`localhost` over HTTPS), the rule reads as
  * though it has already been met, and a user who is told "needs HTTPS" while
  * looking at a padlock will go and change the wrong thing.
  */
 export function spotifyInsecureOriginMessage(): string {
 	const port = location.port === '' ? '' : `:${location.port}`;
-	return `Spotify refuses to sign in from ${location.origin} — it rejects the name \`localhost\` even over HTTPS. Open https://127.0.0.1${port}/workbench/ instead.`;
+	return `Spotify refuses to sign in from ${location.origin}: it rejects the name \`localhost\` even over HTTPS. Open https://127.0.0.1${port}/workbench/ instead.`;
 }
 
 function base64url(bytes: ArrayBuffer): string {
@@ -248,14 +248,14 @@ async function challengeFor(verifier: string): Promise<string> {
  *
  * A full-page redirect rather than a popup: a popup is one more prerendered
  * route, a `postMessage` bridge, and a blocker to fall foul of, and the page it
- * would have saved is one the user is not typing into — attaching audio is the
+ * would have saved is one the user is not typing into. Attaching audio is the
  * one moment a reload costs nothing, because the draft is already autosaved and
  * the workbench boots back into it.
  *
  * **It says whether it is leaving**, because the one refusal here is silent
  * otherwise and it is not rare: a private window that declines `sessionStorage`
  * cannot carry the verifier across the redirect, so this returns with the page
- * still standing — and the caller went on to report an empty result. A valid
+ * still standing, and the caller went on to report an empty result. A valid
  * track link answered `No matches on Spotify` for exactly that reason. False is
  * the caller's cue to say what actually happened.
  */
@@ -315,7 +315,7 @@ async function exchange(body: Record<string, string>): Promise<SpotifyTokens> {
 		body: new URLSearchParams(body).toString()
 	});
 	// Annotated rather than asserted: `Response.json()` answers `any`, so the shape
-	// is a claim either way — and every field of it is optional, with the one that
+	// is a claim either way, and every field of it is optional, with the one that
 	// decides whether this is a session at all checked on the next line.
 	const payload: TokenResponse = await response.json().catch(() => ({}));
 	if (!response.ok || payload.access_token === undefined) {
@@ -342,7 +342,7 @@ interface SpotifyReturn {
  * Pick the sign-in back up, if this load is the one coming back from Spotify.
  *
  * Answers `undefined` on an ordinary load, which is nearly every load. The query
- * is stripped either way — a `code` left in the address bar is a credential in
+ * is stripped either way: a `code` left in the address bar is a credential in
  * the user's history and in the next screenshot they take, and it would be
  * replayed on the following reload.
  */
@@ -413,8 +413,8 @@ export function spotifySignedIn(): boolean {
 /**
  * A usable access token, refreshed if the one in hand has aged out.
  *
- * The SDK asks for this every time it needs one — including an hour into a
- * session, which is well inside a transcription — so the refresh is not
+ * The SDK asks for this every time it needs one, including an hour into a
+ * session, which is well inside a transcription, so the refresh is not
  * optional the way it would be for a one-shot API call. Concurrent callers share
  * one refresh, because the SDK and a `play` call routinely want a token in the
  * same tick and Spotify invalidates a refresh token once it has been spent.
@@ -440,7 +440,7 @@ export async function spotifyAccessToken(): Promise<string | undefined> {
 		})
 		.catch(() => {
 			// A refused refresh is a session that is over, so it is cleared from
-			// storage too — otherwise every later reload rehydrates a dead token and
+			// storage too, because otherwise every later reload rehydrates a dead token and
 			// spends a network round trip discovering that again.
 			remember(undefined);
 			return undefined;

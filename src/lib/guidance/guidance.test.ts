@@ -51,11 +51,11 @@ describe('guidance catalog', () => {
 	});
 
 	// Promotion is evidence: raising an entry's tier means adding the
-	// confirming higher-tier source, never editing the tier alone — so the
+	// confirming higher-tier source, never editing the tier alone, so the
 	// claimed authority must equal the best its sources can back. The
 	// `lyriclint` advisories are the exception the type documents: their
 	// sources are context rather than backing, so what they owe instead is a
-	// note naming the claim as LyricLint's own — an advisory whose entry reads
+	// note naming the claim as LyricLint's own: an advisory whose entry reads
 	// like a sourced convention is a Genius name on a claim no source states.
 	it('claims exactly the authority its sources establish', () => {
 		for (const claim of claims) {
@@ -89,7 +89,7 @@ describe('guidance catalog', () => {
 
 	// The rule pages read the same mapping backwards, so the derivation is
 	// pinned from that end too: an entry, a landmark, and the empty answer for
-	// a rule nothing names — the state a rule page draws no link in.
+	// a rule nothing names, which is the state a rule page draws no link in.
 	it('resolves a rule to its guideline links in both shapes', () => {
 		expect(guidanceForRule('numbers.spell-out')).toEqual([
 			{
@@ -107,7 +107,7 @@ describe('guidance catalog', () => {
 
 		// One derivation for both shapes: a landmark's fragment comes out of
 		// `entryAnchor` exactly as an entry's does. It is a no-op for every
-		// dotless landmark id today, which is the point — the two anchors cannot
+		// dotless landmark id today, which is the point, because the two anchors cannot
 		// come to be derived differently the first time one gains a segment.
 		for (const [topic, landmarks] of Object.entries(guidanceTopicLandmarks)) {
 			for (const landmark of landmarks) {
@@ -121,7 +121,7 @@ describe('guidance catalog', () => {
 		}
 	});
 
-	// A title states what the guideline says, compressed — the register of
+	// A title states what the guideline says, compressed, in the register of
 	// Genius's own guide items, not the rule reference's failure-naming: a
 	// guidelines reader searches for the convention they are wondering about,
 	// not for a symptom. The statement is the full sentence beneath it.
@@ -138,7 +138,7 @@ describe('guidance catalog', () => {
 
 	// The forms a sentence names rather than uses are backticked in the data and
 	// set in the code face by `CodeProse`, so an unpaired marker is a grave
-	// accent reaching the reader with the rest of the sentence behind it — and a
+	// accent reaching the reader with the rest of the sentence behind it, and a
 	// marker in a title is one the index draws raw, since a row is a plain
 	// string. Both look exactly like ordinary prose in a diff.
 	it('marks quoted forms in prose, and never in a title', () => {

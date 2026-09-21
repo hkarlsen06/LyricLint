@@ -120,7 +120,7 @@ describe('overlay state', () => {
 
 describe('overlay mutual exclusion', () => {
 	// The union replaced four independent booleans plus a legend record. These
-	// are the combinations that were previously representable — two overlays at
+	// are the combinations that were previously representable: two overlays at
 	// once, or a legend step surviving into an overlay that cannot show it.
 	for (const from of openings) {
 		for (const to of openings) {
@@ -277,7 +277,7 @@ describe('dismissed selections', () => {
 
 	// The one path nobody pressed. A double-clicked word is most often a word
 	// about to be typed over, so the card that draws itself beside it may not
-	// take the caret out of the document — the aimed presses may, because
+	// take the caret out of the document. The aimed presses may, because
 	// neither has a pointer behind it to drive the roster with.
 	it('opens the uninvited card without the focus, and the aimed ones with it', () => {
 		expect(reportSelectionAnchor(closedOverlaySession(), anchor()).session.overlay).toMatchObject({
@@ -403,7 +403,7 @@ describe('performer assignment', () => {
 	});
 
 	// Step two answers a different question than step one, so what it hands back
-	// is the section's voice — the selection's own was chosen a step earlier and
+	// is the section's voice. The selection's own was chosen a step earlier and
 	// has to survive the second press.
 	it('carries the selection voice through the section-voice step', () => {
 		const open = askSectionVoice(openPerformerPicker(closedOverlaySession(), selection, true), [

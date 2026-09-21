@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
  * second design system: its own monospace stack, its own performer palette on
  * different hues from the roster's, raw font weights and radii, and literal
  * fallback colors left over from an abandoned warm scheme. One of those
- * fallbacks was live — `--ll-focus` is defined nowhere, so a focus ring had been
+ * fallbacks was live: `--ll-focus` is defined nowhere, so a focus ring had been
  * rendering in a hardcoded orange.
  *
  * These tests are the guard rail. They read the theme sources as text, because
@@ -103,8 +103,8 @@ describe('editor theme token policy', () => {
 	 * cell, the performer bar and the anchor all address a lyric line by sitting
 	 * against one visual row, so a wrapped line draws one lyric line as two rows
 	 * with one number and one timestamp cell beside the pair. At a prose-width
-	 * 76ch that happened to ordinary lines — a lead vocal with a parenthesized
-	 * ad-lib after it runs to about 80 characters routinely — and because the cap
+	 * 76ch that happened to ordinary lines (a lead vocal with a parenthesized
+	 * ad-lib after it runs to about 80 characters routinely), and because the cap
 	 * is carried by end padding rather than a `max-width`, the active-line wash
 	 * went on running to the edge of a pane a third wider than the text, so the
 	 * editor appeared to wrap with visible room to spare.

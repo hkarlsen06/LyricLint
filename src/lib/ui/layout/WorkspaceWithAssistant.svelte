@@ -3,7 +3,7 @@
 	 * Test host: a workspace under a real assistant context.
 	 *
 	 * `useAssistantState` reads a module-private symbol, so the only way to hand
-	 * the workspace an assistant is the door production uses —
+	 * the workspace an assistant is the door production uses:
 	 * `provideAssistantState` in a parent. Tests render this instead of mocking
 	 * the assistant module.
 	 */
@@ -16,7 +16,7 @@
 		...workspace
 	}: { assistant: AssistantState } & ComponentProps<typeof Workspace> = $props();
 
-	// Context is set once, at init — the initial value is the point.
+	// Context is set once, at init, and the initial value is the point.
 	// svelte-ignore state_referenced_locally
 	provideAssistantState(assistant);
 </script>

@@ -17,7 +17,7 @@ function faces(container: HTMLElement): string[] {
 }
 
 /**
- * A stand-in for a section's search-marking snippet — the real ones render
+ * A stand-in for a section's search-marking snippet. The real ones render
  * `SearchHighlight`, whose own marking is pinned beside it. What is under test
  * here is that the snippet reaches every segment, inside the face and out.
  */
@@ -30,7 +30,7 @@ function marker() {
 describe('CodeProse', () => {
 	it('sets the backticked forms in the code face and nothing else', async () => {
 		const container = await draw({
-			text: "the omission — `ballin'`, `gon'` for `gonna` — and a contraction's apostrophe"
+			text: "the omission, `ballin'`, `gon'` for `gonna`, and a contraction's apostrophe"
 		});
 
 		expect(faces(container)).toEqual(["ballin'", "gon'", 'gonna']);
@@ -39,7 +39,7 @@ describe('CodeProse', () => {
 	it('adds not one character to the sentence, and draws no marker', async () => {
 		// The whole reason the template is one unbroken line: a formatter that
 		// breaks it puts a newline between two segments, which in a sentence is a
-		// space where the punctuation was — and it looks exactly like working
+		// space where the punctuation was, and it looks exactly like working
 		// markup. The markers are the other half, since a backtick reaching the
 		// reader is the grave accent this face exists to replace.
 		const container = await draw({
@@ -66,7 +66,7 @@ describe('CodeProse', () => {
 		// The complaint this answers: the face alone read as small text rather
 		// than as quoted text. The fill is what says where a form starts and
 		// stops, and the floor is what keeps a form inside an already-small
-		// lookup note from dropping under the smallest type on the site — a plain
+		// lookup note from dropping under the smallest type on the site. A plain
 		// `0.9em` there looks exactly like working CSS.
 		const container = await draw({ text: 'a multiple of 100 is spelled `a hundred`' });
 		const form = container.querySelector('.site-form')!;
@@ -85,12 +85,12 @@ describe('CodeProse', () => {
 	it('marks the query inside the face as well as outside it', async () => {
 		// A form is the word most likely to have been searched for, so a face that
 		// swallowed the marking would lose the highlight on the one word the query
-		// was about — which is the whole reason this takes a snippet rather than
+		// was about, which is the whole reason this takes a snippet rather than
 		// drawing the segments itself.
-		const container = await draw({ text: "the omission — `gon'` for `gonna`", mark: marker() });
+		const container = await draw({ text: "the omission, `gon'` for `gonna`", mark: marker() });
 
 		expect([...container.querySelectorAll('mark')].map((hit) => hit.textContent)).toEqual([
-			'the omission — ',
+			'the omission, ',
 			"gon'",
 			' for ',
 			'gonna'

@@ -13,7 +13,7 @@
 	 * row may be armed at a time, and closing the surface has to abandon it.
 	 *
 	 * One implementation for every list that offers a way out of one of its
-	 * rows — the drafts menu, the linter panel's recent drafts, the performer
+	 * rows: the drafts menu, the linter panel's recent drafts, the performer
 	 * roster. `label` is the only thing that differs between them, because a
 	 * draft is deleted and a performer is removed from a roster.
 	 */
@@ -33,7 +33,7 @@
 	let confirmButton = $state<HTMLButtonElement | undefined>();
 
 	// The confirm replaces the trigger, so the press that armed it has to carry
-	// focus across the swap — otherwise a keyboard user is dropped on the body
+	// focus across the swap, or a keyboard user is dropped on the body
 	// mid-decision.
 	$effect(() => {
 		if (pending) confirmButton?.focus();
@@ -56,7 +56,7 @@
 	</button>
 	<!-- The visible label is the verb alone, because the row it sits in is the
 	     subject. Focus lands here the moment the confirm is armed, though, and
-	     what a screen reader then reads is the button's name on its own — a bare
+	     what a screen reader then reads is the button's name on its own: a bare
 	     "Delete" pointing at nothing. The subject rides the accessible name for
 	     the same reason it rides the trigger's. -->
 	<button

@@ -51,7 +51,7 @@ export function createInMemoryDraftRepository(
 		},
 		/**
 		 * Import provenance and the creation date are the record's, not the
-		 * snapshot's — the same two fields the real repository refuses to take
+		 * snapshot's, the same two fields the real repository refuses to take
 		 * from a save. A double that let a snapshot overwrite them would agree
 		 * with a bug the real one rejects.
 		 */
@@ -68,14 +68,14 @@ export function createInMemoryDraftRepository(
 			const draft = drafts.get(id);
 			if (!draft) throw new Error(`'Scribe ${id} was not found.`);
 			// A rename touches the row, and the drafts list is ordered by
-			// `updatedAt` — the real repository stamps it, so this one does too.
+			// `updatedAt`, and the real repository stamps it, so this one does too.
 			drafts.set(id, { ...draft, title, updatedAt: new Date().toISOString() });
 		},
 		async duplicate(id, newId) {
 			const source = drafts.get(id);
 			if (!source) throw new Error(`'Scribe ${id} was not found.`);
 			const now = new Date().toISOString();
-			// ` copy`, as the real repository writes it — the announcement after a
+			// ` copy`, as the real repository writes it: the announcement after a
 			// duplicate strips exactly this suffix.
 			const duplicate = {
 				...cloneDraft(source),
@@ -92,8 +92,8 @@ export function createInMemoryDraftRepository(
 			if (currentId === id) currentId = undefined;
 		},
 		async deleteAll() {
-			// The real repository resets to the initial state — preferences and
-			// recent languages included — so the stub keeps the same meaning.
+			// The real repository resets to the initial state, preferences and
+			// recent languages included, so the stub keeps the same meaning.
 			drafts.clear();
 			currentId = undefined;
 			preferences.clear();
@@ -129,7 +129,7 @@ export function createInMemoryDraftRepository(
  * Attached-audio storage with no IndexedDB behind it.
  *
  * Tests and the contract harness use this; nothing here holds a real file
- * handle, which is exactly right — the browser is the only thing that can mint
+ * handle, which is exactly right: the browser is the only thing that can mint
  * one, so a fake that pretended to would be testing itself.
  */
 export function createInMemoryMediaRepository(
@@ -146,7 +146,7 @@ export function createInMemoryMediaRepository(
 		 * Spread, never destructured field by field.
 		 *
 		 * This used to list the fields it kept, and it silently dropped `trackId`
-		 * the day a third source was added — a test double that quietly loses a
+		 * the day a third source was added, and a test double that quietly loses a
 		 * field is worse than no double at all, because it makes the suite agree
 		 * with the bug. The real repository has to enumerate (it stamps
 		 * `attachedAt` and Dexie wants a clean record); this one has no such

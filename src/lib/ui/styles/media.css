@@ -10,8 +10,8 @@
 
 /*
 	The row scrolls sideways rather than dropping controls off its end. Every
-	control here is `flex: none` on purpose — a transport glyph that shrank would
-	stop being aimable — so in a narrow window the sync button, the track's name
+	control here is `flex: none` on purpose (a transport glyph that shrank would
+	stop being aimable), so in a narrow window the sync button, the track's name
 	and the detach control simply left the strip, silently, clipped by the editor
 	column. There is no second place any of them appear. Scrolling keeps the row
 	one line tall, which is what the strip is worth, and keeps every control
@@ -150,11 +150,11 @@
 }
 
 /*
- * The cover, in the video's band and under the video's rules — chrome, a hairline
+ * The cover, in the video's band and under the video's rules: chrome, a hairline
  * over it, flush with the column.
  *
  * The picture is the surface here rather than a thing inside one. This band used
- * to be a chrome bar with a cover under it — a whole row of the panel's height
+ * to be a chrome bar with a cover under it: a whole row of the panel's height
  * spent on two facts and one control, above a picture with four unused corners.
  * The facts sit on the artwork now, and the row that is left is the folded state.
  *
@@ -176,7 +176,7 @@
 
 /*
  * The thumbnail is the way to the full-size picture, so it is a button rather
- * than a box — no border and no fill of its own, because the press target *is*
+ * than a box: no border and no fill of its own, because the press target *is*
  * the picture, and a frame around it would be a card inside the row.
  */
 .media-artwork__thumb {
@@ -217,7 +217,7 @@
 }
 
 /*
- * Title over artist, centred against the thumbnail — the song is what the row
+ * Title over artist, centred against the thumbnail: the song is what the row
  * is about and the artist qualifies it. These two lines *are* the row, with a
  * whole thumbnail's height to fill, which is why they sit a step up from
  * caption type.
@@ -264,7 +264,7 @@
 
 /*
  * The full-size picture, behind a press on the thumbnail. Looking at artwork is
- * a detour from transcribing, which is what a modal is for — and the dialog is
+ * a detour from transcribing, which is what a modal is for, and the dialog is
  * where the two artwork commands ride, under the picture they act on.
  *
  * The width caps against the viewport's *height* as well as its width, because
@@ -333,8 +333,8 @@
 	The glyph, centred, and nothing under it.
 
 	It carried the one-modifier keystroke as a caption for as long as that
-	keystroke had nowhere else to live. It has somewhere now — the shared tooltip
-	that names the control anyway (`describeControl`) — and printed in both places
+	keystroke had nowhere else to live. It has somewhere now, the shared tooltip
+	that names the control anyway (`describeControl`), and printed in both places
 	it was the same fact twice, six pixels apart, in the shortest row in the
 	window.
 
@@ -343,7 +343,7 @@
 	control in it is `--control-height-md` plus the row's padding, and that comes
 	to exactly the same. Anything stacked under a glyph again has to fit inside one
 	`md` control, and `MediaStrip.svelte.test.ts` measures it against a sibling
-	rather than trusting the arithmetic — every pixel this row takes is a pixel off
+	rather than trusting the arithmetic: every pixel this row takes is a pixel off
 	the document above it.
 */
 .media-strip__transport-button {
@@ -380,13 +380,13 @@
  * `MediaAttribution.svelte` is the single markup, so these are sized once.
  *
  * Spotify's mark is the one place in this stylesheet a literal color is
- * right — the same exception the favicon takes.
+ * right, the same exception the favicon takes.
  *
  * It is a third party's brand asset, not a tone from our palette, and their
  * guidelines fix both the color and the floor: Spotify green on a dark surface,
  * and never below 21px. A semantic token here would be the design system
  * claiming ownership of something it does not own, and would drift the moment
- * the theme moved. `flex: none` for the same reason — the mark may not be
+ * the theme moved. `flex: none` for the same reason: the mark may not be
  * squeezed by a long track name, which is exactly what the name beside it is
  * set up to do to its neighbours.
  */
@@ -401,7 +401,7 @@
 
 /* No underline and no color change: the mark is the affordance, and recoloring
    a brand asset on hover is the thing their guidelines forbid outright. There
-   was a `:hover` here doing exactly that, directly under this sentence — and it
+   was a `:hover` here doing exactly that, directly under this sentence, and it
    was also a second literal green in the one place this stylesheet allows one. */
 
 /*
@@ -418,7 +418,7 @@
  * Spotify's mark is also spared.
  *
  * The height matches the Spotify mark's 21px rather than the row's, so the two
- * attributions sit on one line and neither costs the strip any height — which is
+ * attributions sit on one line and neither costs the strip any height, which is
  * the constraint the shortcut captions are already measured against.
  */
 .media-attribution__apple {
@@ -438,7 +438,7 @@
  * The one bordered control in the row, and it earns the step up.
  *
  * Set quiet, it was a word in the same muted type as the readouts either side of
- * it, in the shortest row in the window — the entry point to a whole mode,
+ * it, in the shortest row in the window: the entry point to a whole mode,
  * indistinguishable from the track's name. Everything else here is a transport
  * glyph the user already knows how to find or a number they read; this is the
  * only thing in the strip that starts something, so it is the only thing in the
@@ -470,7 +470,7 @@
 }
 
 /* The tap and the way out, in the slot the file name gives up while a run is
-   under way. The tap is bordered like the sync control beside it — both are
+   under way. The tap is bordered like the sync control beside it: both are
    commands rather than readouts, and the row's contrast tier belongs to play.
    Its width is the pointer's business; see `responsive.css`. */
 .media-strip__tap {
@@ -479,8 +479,8 @@
 }
 
 /* The skip past already-timed lines, drawn only while a run has somewhere to
-   skip to. It sits before the tap so the tap keeps its place next to the hint —
-   responsive.css hides `Esc stops` off that adjacency — and it never takes the
+   skip to. It sits before the tap so the tap keeps its place next to the hint
+   (responsive.css hides `Esc stops` off that adjacency), and it never takes the
    row's slack: the control found without looking is the tap, not this one. */
 .media-strip__skip {
 	flex: none;
@@ -501,15 +501,15 @@
  * The scrubber takes the slack between the two ends, which is what keeps the
  * strip from being one control marooned in half a row of empty gutter.
  *
- * It has to opt out of the shared `input` silhouette in controls.css — a range
- * with a border, a fill and a 2rem min-height draws a box around a track — so
+ * It has to opt out of the shared `input` silhouette in controls.css (a range
+ * with a border, a fill and a 2rem min-height draws a box around a track), so
  * every one of those is reset here rather than weakened there.
  *
  * It is drawn rather than left to `accent-color`, because the browser's stock
  * range is the one dated control in the most-operated row of the window: a
  * thick track, no elapsed side, and a thumb sized for a settings page. The
- * drawn one is the transport idiom every player has taught — a thin track, the
- * played half filled in accent, a round thumb that grows under the pointer —
+ * drawn one is the transport idiom every player has taught (a thin track, the
+ * played half filled in accent, a round thumb that grows under the pointer),
  * and the fill's stop is `--seek-fill`, fed by the component from the same
  * `currentTime` mirror the readouts print. The input's own box stays a full
  * control height, so the thin track costs nothing in aimability.
@@ -577,7 +577,7 @@
 }
 
 /* The grown thumb is the scrubber answering the pointer that is about to drag
-   it — hover, the drag itself, and keyboard focus all mean the same aim. The
+   it: hover, the drag itself, and keyboard focus all mean the same aim. The
    growth is a transform, so nothing in the row reflows under the pointer. */
 .media-strip__seek:hover:not(:disabled)::-webkit-slider-thumb,
 .media-strip__seek:active:not(:disabled)::-webkit-slider-thumb,

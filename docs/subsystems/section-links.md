@@ -350,13 +350,13 @@ asserting actual passages and exclusions instead of the legacy fallback hole cou
 > precedence; retained UX, discovery, and data-loss incidents explain the decisions that survived.
 
 A song's second chorus is its first chorus, so transcribing it means typing the same lines
-again — and the mistake that follows is the one nobody catches: one of them has a typo, or a
+again, and the mistake that follows is the one nobody catches: one of them has a typo, or a
 correction lands in one and not the others, and the page ships with two versions of a line that is
 sung once. Linking is the answer.
 
 **A group used to be one body repeated, and that was the whole problem.** Linking overwrote every
 copy from the one the picker was opened on, and the mirror rewrote each peer's entire body on every
-edit — so the commonest shape in pop music, two choruses that are identical apart from the last
+edit, so the commonest shape in pop music, two choruses that are identical apart from the last
 line, could not be linked at all. The only offer on the table destroyed the difference the
 transcriber meant to keep, and the linter deliberately went quiet rather than make it. The feature
 worked exactly where it was least needed.
@@ -367,8 +367,8 @@ alternating **shared runs** and **divergent runs**, and two facts hold at all ti
 - every member has the same number of divergent runs, and
 - the shared text between run `k-1` and run `k` is identical in every member.
 
-Which means a position in shared text is expressible in coordinates every member agrees on — _so
-many characters into the run after hole 3_ — and that one property is what everything else is built
+Which means a position in shared text is expressible in coordinates every member agrees on (_so
+many characters into the run after hole 3_), and that one property is what everything else is built
 out of. An edit made in one copy is carried to the others by translating its span; nobody's body is
 rewritten wholesale, and nobody's own words are touched.
 
@@ -377,7 +377,7 @@ half of the invariant is true by construction rather than by two lists agreeing.
 
 **Linking therefore writes nothing.** `alignBodies` works out what the copies already share, that
 becomes the shared runs, and everything else is set aside as each copy's own. Pressing `Link` on two
-choruses that differ by a line changes not one character of the document — it only says that from
+choruses that differ by a line changes not one character of the document; it only says that from
 now on they move together, apart from the words named in the card. Making copies actually agree is
 available through an explicit whole-version choice or individual differences, so replacing lyrics
 is something the user requests rather than the price of linking at all.
@@ -387,8 +387,8 @@ is something the user requests rather than the price of linking at all.
 intentional variations, because those are the parts a transcriber ordinarily repeats verbatim. A
 verse repeats its shape and not its words, so verses are not offered merely for both being verses.
 But any headed section can open the picker, and a differently named section is offered when the
-aligner says it shares at least half of the shorter body. That admits the real cross-name case — an
-Intro whose lyrics return under Chorus or Outro — without filling the card with structurally similar
+aligner says it shares at least half of the shorter body. That admits the real cross-name case, an
+Intro whose lyrics return under Chorus or Outro, without filling the card with structurally similar
 but lyrically unrelated verses. The person still confirms the selected candidates; similarity never links them automatically.
 
 **Existing peers bypass discovery.** After an Intro and Chorus are linked, `Edit this section only`
@@ -399,22 +399,22 @@ into the candidate list regardless of its current score.
 **The kind is the language pack's `semanticPart`, never the spelling.** That is what makes this work
 in every supported language without a word of it being written twice: `[Hook]` and `[Refreng]` and
 `[코러스]` are all `chorus`, and `Chorus 2` matches `Chorus` because the ordinal is stripped by the
-same `headerSemanticKey` the section picker uses for positional numbering — one answer to "is this a
+same `headerSemanticKey` the section picker uses for positional numbering, one answer to "is this a
 chorus", exported from `languages/registry.ts`, because two would disagree the first time a pack
 gained a term. **English is consulted second**, not instead: Genius pages in every language carry
-English headers routinely — `ja` is an English pack outright, `no` lists `Chorus` beside `Refreng` —
+English headers routinely (`ja` is an English pack outright, `no` lists `Chorus` beside `Refreng`),
 so a German draft with `[Chorus]` in it links exactly like one with `[Hook]`, while the selected pack
 still wins where the two disagree.
 
 #### The alignment is decided once, and that is not an optimisation
 
-The tempting design is to re-derive the shape on every edit — git-style, re-diff and see what lines
+The tempting design is to re-derive the shape on every edit: git-style, re-diff and see what lines
 up. It is wrong, and the reason is worth stating because it will be proposed again.
 
 **Git can re-align because it has three versions.** Base, ours, theirs: it knows which side moved.
 Here there is no stored common ancestor, so a live aligner has to guess whether an edit meant the
 copies to converge or to diverge further. Fix a typo in one chorus and it must decide whether you
-were making them agree — in which case it should propagate — or writing a deliberate variation, in
+were making them agree, in which case it should propagate, or writing a deliberate variation, in
 which case it must not. **A diff cannot tell a mistake from a decision.** Guess one way and it eats a
 difference the user meant to keep; guess the other and the typo stays in one copy for good.
 
@@ -426,7 +426,7 @@ numbers of runs, where every translation downstream would refuse anyway.
 Three things about the aligner itself:
 
 - **It matches words and line breaks, never characters.** A character-level alignment finds the `to`
-  inside both `tonight` and `together` and calls it a common anchor — a shared run nobody would
+  inside both `tonight` and `together` and calls it a common anchor, a shared run nobody would
   recognise as shared, which then propagates edits the user never asked to propagate. Line breaks are
   tokens of their own so a lyric's line structure survives instead of words drifting across it.
 - **Matched tokens are not enough; the text between them is verified.** The whitespace between
@@ -434,7 +434,7 @@ Three things about the aligner itself:
   A run whose full span is not byte-identical in every member is not a shared run.
 - **Whitespace at a run's edges is handed back to the shared text.** A run begins where the last
   matched word ended, so `my love` against `my friend` opens the difference at the space and reports
-  ` love` against ` friend` — a difference whose first character is the same in both copies, which is
+  ` love` against ` friend`, a difference whose first character is the same in both copies, which is
   the one thing a difference is not. **Whitespace only, never a letter**: `love` and `lover` share
   four characters, and trimming those would end the shared run mid-word, which is the coincidental
   anchor that tokenizing by word exists to prevent arriving through the back door.
@@ -448,7 +448,7 @@ An edit lands in one member's body. What happens next is two lines:
   linkable at all.
 - **A change that merely _overlaps_ a run took that run with it, in every copy.** Retyping a line
   that contains a difference, or deleting across one, is the user writing over words that were
-  deliberately their own — so the difference ends, the words become shared, and the mirrored span is
+  deliberately their own, so the difference ends, the words become shared, and the mirrored span is
   widened to swallow the same run everywhere.
 
 `carryHoles` in the field and `expandOverHoles` in the mirror name **the same set from opposite
@@ -456,13 +456,13 @@ ends**, which is why the counts stay equal without anything having to count them
 
 **Which puts the whole invariant at the mercy of every edit reporting its own size honestly, and one
 did not.** An edit's range is a claim about what the user wrote over, and the two rules above are
-read off nothing else — so an edit that says it replaced more than it did ends differences nobody
+read off nothing else, so an edit that says it replaced more than it did ends differences nobody
 touched. `transformLine` in `performers/transform.ts` renders a lyric line whole, every piece
 concatenated, and used to hand back `{ from: line.from, to: line.to }` for it. Tagging a performer
 on an ad-lib that exists in one chorus only is an insertion of two tags around five characters; it
 arrived as a claim to have rewritten the line, so the difference died and the ad-lib was copied into
 every other copy. Silently, with the source line correct, and only visible on the peer the user was
-not looking at. It was reported from a real transcription, on an ad-lib in the middle of a line —
+not looking at. It was reported from a real transcription, on an ad-lib in the middle of a line;
 the position decides nothing, and the trailing one that looked fine was fine only because it had
 been styled before the sections were linked.
 
@@ -476,13 +476,13 @@ worse than the long one it replaces.
 
 The fix is deliberately in the transform and not in the mirror. An exemption for performer markup
 would be a second rule beside the containment one, and the copy that drifted would be the one nobody
-is looking at — while the honest range is owed to line anchors and to undo granularity anyway. The
+is looking at, while the honest range is owed to line anchors and to undo granularity anyway. The
 pair in `section-links.svelte.test.ts` pins both halves: an ad-lib tagged in one copy stays there
 whichever position it sits in, and a performer tagged on **shared** words still reaches every copy.
 `transform-boundaries.test.ts` pins the seeds themselves, so a rewrite that goes back to claiming
 whole lines fails there rather than in somebody's second chorus.
 
-**A run's ends map outwards** — `from` backwards, `to` forwards — so it is greedy at its edges:
+**A run's ends map outwards** (`from` backwards, `to` forwards), so it is greedy at its edges:
 typing at the end of a word that was deliberately this copy's own leaves it this copy's own. The
 containment rule agrees with this by construction, because an insertion at either edge is contained.
 
@@ -491,7 +491,7 @@ correctness rather than convenience. A shared run is identical in every member _
 writing all of it is idempotent where the group is in step and **repairs** it where it is not.
 Carrying only the edited slice trusts every offset inside the run to already line up, and leaves the
 copies disagreeing forever the first time one does not. It is also what makes a group with no
-differences behave exactly as the old whole-body link did — one run, the whole body, replaced — so
+differences behave exactly as the old whole-body link did (one run, the whole body, replaced), so
 a draft saved before any of this still mirrors the way it always did.
 
 Four things it still refuses, and the refusals are the design:
@@ -504,7 +504,7 @@ Four things it still refuses, and the refusals are the design:
 - **Membership is a range over the header's own line, never a point at its start.** The distinction
   `line-anchors.ts` documents at length: a point sits on the _boundary_ of the deletion that removes
   the line, so a deleted section would leave its membership behind for whatever line moved up into
-  its place. Erasure is detected the same way — map the start forward, map the end backward, and if
+  its place. Erasure is detected the same way: map the start forward, map the end backward, and if
   they meet, every character it described is gone.
 - **A group with fewer than two members is not a group.** Delete a linked section and the rest carry
   on; delete all but one and the link is simply off. That is also what makes unlinking one effect
@@ -544,8 +544,8 @@ terminal break before a header, shared terminal lyric, and local terminal lyric.
 **A break at the end of a lyric line is a middle break that parses as two sections.** Splitting
 `Hold` mid-word keeps one section, but pressing Enter at the line's end inserts before the break
 already there, so `Hold\nNever` becomes `Hold\n\nNever`: a blank physical line, which closes the
-section and leaves a headerless tail. The bare break still mirrors — every peer splits the same
-way and the group stays in step on its truncated bodies — but the terminal extension must not
+section and leaves a headerless tail. The bare break still mirrors (every peer splits the same
+way and the group stays in step on its truncated bodies), but the terminal extension must not
 answer the fill that follows. It would carry the whole tail (`\nNew\nNever`) to each peer's body
 end, duplicating the `Never` the peer already holds, and the copies read as two separate sections
 from then on. The fill is therefore its own path (`medialGapFill`): only the filled gap travels,
@@ -566,7 +566,7 @@ represents that choice. Thus every visible wording action can produce the absenc
 names. **The group, never the document** supplies the fallback: an unticked copy is outside the
 user's decision.
 
-#### Setting words aside by hand is a selection and a press — and the press was retired
+#### Setting words aside by hand is a selection and a press, and the press was retired
 
 The former `requestSectionLink` popover could offer a lyric selection as a new difference.
 Its old `Mod-Shift-L` chord now enables `Edit this section only` instead, which covers the ordinary
@@ -803,13 +803,13 @@ panel under the same gesture would replace a decision while the user was only cr
 control and fix-preview widgets must preserve the same exact `text/plain` clipboard output;
 the clipboard contract does not depend on the decoration type.
 The run is drawn as a **dotted** underline because every other underline in the editor is wavy and belongs
-to a diagnostic — this is not a finding, it is a note about what an edit here will and will not
+to a diagnostic; this is not a finding, it is a note about what an edit here will and will not
 reach. A run that is empty in this copy draws nothing, because there is nothing there to draw on;
 the Linking panel is where those are named. `Editing this section only` is reserved for the explicit mode,
 not inferred from whichever divergent run happens to contain the caret.
 
-**The mark on the header stayed as it was, and that is a decision.** `⇄` means one thing — this
-section moves with others — and giving linkable-but-unlinked headers a dimmer copy of it would
+**The mark on the header stayed as it was, and that is a decision.** `⇄` means one thing, that this
+section moves with others, and giving linkable-but-unlinked headers a dimmer copy of it would
 separate a warning from an invitation by tone alone, which is what the severity glyphs were reworked
 to stop doing.
 
@@ -817,15 +817,15 @@ to stop doing.
 
 `section.unlinked-repeat` used to name only the copies that **already agreed**, and at the time the
 reason was sound: linking overwrote, so pointing at a chorus that genuinely differed was an
-invitation to destroy the difference. Two rounds of narrowing went into keeping that offer honest —
+invitation to destroy the difference. Two rounds of narrowing went into keeping that offer honest:
 first the whole song part had to match, then the most-repeated wording had to.
 
 All of it is gone, because the hazard is. Linking keeps what the copies disagree on, so there is no
-wording left for a suggestion to endanger — and the song the rule was quietest about is exactly the
+wording left for a suggestion to endanger, and the song the rule was quietest about is exactly the
 one this rebuild was for. The narrowing was silence on the common case, bought against a risk that
 no longer exists.
 
-**So the song part is the group now — but only where the copies have something in common.** The
+**So the song part is the group now, but only where the copies have something in common.** The
 widening went one step too far in its first version, and the report was a diagnostic offering to
 link two pre-choruses with _completely different_ words. Those share nothing, so linking them ties
 no text together at all: every word is a difference, the mirror can never carry an edit, and the
@@ -834,7 +834,7 @@ are decisions rather than tuning:
 
 - **Half of the shorter copy**, as a fraction rather than a count, so it means the same for a
   two-line pre-chorus and a twelve-line one. Against the _shorter_ one, so a copy that repeats
-  another in full and then carries on still qualifies — the short one is wholly inside the long one,
+  another in full and then carries on still qualifies: the short one is wholly inside the long one,
   which is exactly what linking is for.
 - **Some pair, never all of them together.** A song whose first and last chorus match while the
   middle one departs shares almost nothing across all three, and is still two choruses worth
@@ -876,7 +876,7 @@ and a ready rule catalog, so a transient false finding fails even when the final
 
 **The suppression is in the shell, not in `RuleContext`.** Linked sections keep their shared runs
 identical by construction, so the rule would fire on its own result forever unless something knew
-about the links — and `filterForEditorState` in `wiring.ts` is where that already happens, because it
+about the links, and `filterForEditorState` in `wiring.ts` is where that already happens, because it
 runs on every snapshot while the lint itself is memoized on the document. A link made or taken off
 changes no text, so a rule that learned about links through its context would keep the answered
 suggestion on screen until the next keystroke.
@@ -894,21 +894,21 @@ every occurrence has membership, but no correction crosses from one group to the
 An effects-only transaction deliberately emits none (`update-bridge.ts`: the shell reacts to snapshots
 by re-applying context, so emitting there would be a cycle), and a link changes no text. This worked
 by accident for as long as the only way to make one was the card, which collapses the selection on
-its way out — and a selection change _is_ a snapshot. Restoring a draft's links collapses nothing, so
+its way out, and a selection change _is_ a snapshot. Restoring a draft's links collapses nothing, so
 a reload came back with the suggestion still on every linked section and it went away on the user's
 first press in the document. `republishForSectionLinks` in `Workspace.svelte` is the explicit ask,
 from the two places links move without an edit: `onSectionLinksChanged`, and the `$effect` that hands
-a newly mounted editor its handle. It costs nothing it did not already cost — the lint is memoized on
+a newly mounted editor its handle. It costs nothing it did not already cost: the lint is memoized on
 the document, so it re-filters diagnostics already computed, and the snapshot it re-adopts is byte for
 byte the one in hand, so no save is dirtied.
 
-**That hand-off runs `untrack`ed, and it has to.** It reads back what it has just written — the
-editor's own anchors and links — and an editor holding those in reactive state re-enters the effect
+**That hand-off runs `untrack`ed, and it has to.** It reads back what it has just written (the
+editor's own anchors and links), and an editor holding those in reactive state re-enters the effect
 forever. CodeMirror does not, so the real pane never showed it; `MockEditorPane` does, and did.
 
 **The mock publishes its handle a microtask after mount for the same reason.** The real pane awaits a
 dynamic import of CodeMirror before it has anything to hand over, so the shell's first lint runs
-_before_ the draft's links are re-seated — which is the entire bug. A mock that assigned its handle
+_before_ the draft's links are re-seated, which is the entire bug. A mock that assigned its handle
 at init reversed that order and hid it: the first version of this test passed against the unfixed
 shell.
 
@@ -933,7 +933,7 @@ it is emitted whenever links exist rather than only where the field actually cha
 comparing would mean reading the new state from inside the facet that state is still being built for.
 
 **Links are saved on the draft as header line numbers**, exactly as `LineAnchor` is and for the same
-reason — an offset shifts on every keystroke earlier in the document, a line does not. **The numbers
+reason: an offset shifts on every keystroke earlier in the document, a line does not. **The numbers
 are read off the live mapped ranges at save time, never stored and then shifted.** A divergent run is
 written the same way, as a line and a column at each end: a column as well as a line because a
 difference can be part of a line, which is the case the whole feature was rebuilt for. **Zero width
@@ -947,13 +947,13 @@ gained a second field was dropped in silence by both.
 
 **And there is a fourth, which this section did not name and which is the one that actually shipped
 the bug.** `writeRecord` in `ui/state/draft-store.svelte.ts` assembles the record every autosave
-writes, and it rebuilt each link as `{ lines: [...link.lines] }` too — so the differences were
+writes, and it rebuilt each link as `{ lines: [...link.lines] }` too, so the differences were
 correct in the editor, correct in `sectionLinksFor`, correct on the way into the repository's own
 copiers, and thrown away by the one step in between. On screen that is a link whose divergent runs
 are marked while you work and gone on the next reload, with nothing anywhere reporting a failure.
 
 There is one `copySectionLinks` in `persistence/copy.ts` now, used by all four. **The rule is not
-"there are three copiers" — it is that a `DraftRecord` field is only as safe as the least careful
+"there are three copiers"; it is that a `DraftRecord` field is only as safe as the least careful
 place that rebuilds one**, and the way to find them is `grep` for the field's siblings rather than
 trust a list. `workbench.test.ts` drives the _real_ copier in its editor stub for exactly this
 reason: a stub that listed the fields it kept would hide this whole class of bug, and it did.
@@ -971,23 +971,23 @@ to recover from; `section-links.svelte.test.ts` pins that two-step boundary. A r
 now has the evidence described in “A Genius refresh carries forward the links the draft already
 knows” above. A carrying clipboard can instead supply its own validated links.
 
-**`Mod-Shift-L` belongs to `Edit this section only` now, and the picker's ways in are the pointer's own** —
+**`Mod-Shift-L` belongs to `Edit this section only` now, and the picker's ways in are the pointer's own**:
 the `⇄` marker and the diagnostic's guided action. The chord opened this card for a while, and a
 whole card arriving under a keystroke read as the workbench doing something nobody asked; toggling
 the section-local mode is the aimed answer, and the Linking panel teaches the chord beside
 the `Edit this section only` switch and in its tooltip. Pressing it again turns the mode
 off without reconciling the differences made while it was on; see the type-only-here section above.
 `Mod-Shift` and
-deliberately not the `Ctrl-Alt` family the rest of the editor's commands live in — `Ctrl-Alt-L` is
+deliberately not the `Ctrl-Alt` family the rest of the editor's commands live in, because `Ctrl-Alt-L` is
 the transport's forward key, bound to the window, and two implementations of one keystroke is how
 every nudge came to fire twice. The keymap binding and the panel's own key handler run the same
 `typeOnlyHere` machinery, and the aimed press names its refusal out loud.
 
-Implementation: `src/lib/core/link-shape.ts` (the aligner and the run arithmetic — pure, no
+Implementation: `src/lib/core/link-shape.ts` (the aligner and the run arithmetic: pure, no
 CodeMirror, tested as arithmetic in `link-shape.test.ts`). **It lives in `core` rather than beside
 the editor because the rule asks it too**, and a rule may not import the editor: two answers to "how
 alike are these copies" is one more than the number that can stay in agreement, `src/lib/editor/section-links.ts` (the
-predicates and the body range — no CodeMirror either, so `EditorPane` may import it without pulling
+predicates and the body range, with no CodeMirror either, so `EditorPane` may import it without pulling
 the editor into the landing page's bundle), `src/lib/editor/extensions/section-links.ts` (the two
 fields, the mirror, the decorations), and `ui/linking/LinkingDetail.svelte`. **`linkableSemantic` lives in
 `languages/registry.ts`**, beside the `headerSemanticKey` it is built on, because the rule and the
@@ -996,10 +996,10 @@ the rule share `comparableSectionBody`, `linkBodySimilarity`, the half-body thre
 automatic-discovery ceiling from `core/link-shape.ts`; two answers to “how alike are these” would
 make the workbench disagree with itself. The rule is
 `rules/catalog/section-unlinked-repeat.ts`, its
-action is `onLinkSections` on `DiagnosticActions.svelte` — wired to the panel by `startSectionLink`
+action is `onLinkSections` on `DiagnosticActions.svelte`, wired to the panel by `startSectionLink`
 in `EditorPane.svelte` and by `linkDiagnosticSections` on the controller.
 
 **A body is measured from the end of the header line, not from the first lyric.** That one offset is
-what makes an empty `[Chorus 3]` take a peer's words with no special case — replacing an empty range
+what makes an empty `[Chorus 3]` take a peer's words with no special case: replacing an empty range
 at the end of a header line with `"\nHold on tight"` is an ordinary edit, while a body measured from
 the first lyric of a section that has none has no position to describe at all.

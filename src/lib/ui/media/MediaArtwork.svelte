@@ -21,7 +21,7 @@
 	 * and gating the whole band on one left that song anonymous for as long as it
 	 * was attached: the strip does not name a catalogue source (`drawsCoverBand`
 	 * hands that job here), so nothing on screen said what was playing and neither
-	 * mark was drawn — a standing attribution breach on the one surface both
+	 * mark was drawn, a standing attribution breach on the one surface both
 	 * Spotify and Apple require it on.
 	 *
 	 * So the row draws on the *name*, and the picture only decides whether there
@@ -33,7 +33,7 @@
 	 * Artist and title apart, with the one-line name as the fallback.
 	 *
 	 * Both catalogue sources report the two fields, but the name lands with the
-	 * attachment and the details land with the read behind it — so for that moment,
+	 * attachment and the details land with the read behind it, so for that moment,
 	 * and for any source that reports no details at all, the row says the one
 	 * thing it actually knows rather than an empty half.
 	 */
@@ -65,8 +65,8 @@
 	song and source link beside the controls makes their ownership explicit.
 	YouTube keeps its visible frame in the sidebar.
 
-	**The compact row is the only shape.** This band used to expand into a stage —
-	the full-width picture with the facts and a second transport scrimmed onto it —
+	**The compact row is the only shape.** This band used to expand into a stage,
+	the full-width picture with the facts and a second transport scrimmed onto it,
 	behind a fold the controller remembered per workspace. What the stage actually
 	spent was two hundred pixels of the findings column on a picture nobody
 	operates, and what it carried (a second copy of the transport) was a row of
@@ -74,14 +74,14 @@
 	title over artist, and the mark at the far end.
 
 	**Looking at the picture bigger is a press on the picture.** The thumbnail is
-	a button and the full-size cover opens in a modal — a modal because looking at
+	a button and the full-size cover opens in a modal, because looking at
 	artwork is a detour from transcribing, and the way back is every way out a
 	dialog already has. The dialog also carries the two artwork commands the Song
 	panel offers, through the same `ArtworkActions` component, so the pair cannot
 	drift between the two surfaces.
 
 	**It never folds a video.** YouTube keeps its own player in this band
-	(`drawsCoverBand`), whose embed terms want it visible — this row is only ever
+	(`drawsCoverBand`), whose embed terms want it visible. This row is only ever
 	the catalogue sources' answer.
 -->
 {#if cover || named}
@@ -98,7 +98,7 @@
 			>
 				<!--
 					Decorative, and deliberately so. The track is named in the row beside
-					it, so an alt describing it would announce the same fact twice — and
+					it, so an alt describing it would announce the same fact twice, and
 					there is nothing else in a cover for a screen reader to have. The
 					button carries the name the press needs.
 				-->

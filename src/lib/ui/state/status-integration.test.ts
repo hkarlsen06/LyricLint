@@ -25,8 +25,8 @@ const record: DraftRecord = {
 /**
  * A hole the autosave's status callback reads the controller out of.
  *
- * The two are built in the wrong order for a direct reference — the controller
- * takes the autosave controller as a dependency — so the callback closes over
+ * The two are built in the wrong order for a direct reference (the controller
+ * takes the autosave controller as a dependency), so the callback closes over
  * this instead and finds it filled by the time a status can arrive.
  */
 interface ControllerRef {
@@ -90,8 +90,8 @@ describe('real autosave + workbench status integration', () => {
 	});
 
 	/*
-	 * A save that stops landing on its own reached exactly one surface — the
-	 * toolbar's readout, which is 13px of static text and not a live region — so
+	 * A save that stops landing on its own reached exactly one surface, the
+	 * toolbar's readout, which is 13px of static text and not a live region, so
 	 * persistence could fail in the background with no warning at all to a screen
 	 * reader. It is reported on the way *into* the state and not on every report
 	 * of it: the status is re-read by the store's own poll and again by the
@@ -149,7 +149,7 @@ describe('real autosave + workbench status integration', () => {
 
 	/*
 	 * The first-timer's whole question. A new visitor types, waits, and opens the
-	 * drafts menu to find out whether any of it is safe — and the menu read a list
+	 * drafts menu to find out whether any of it is safe, and the menu read a list
 	 * fetched once at boot, so it said "No saved 'scribes yet" over a record
 	 * already on disk until a reload or some other draft operation happened to
 	 * re-read it. The toolbar deliberately draws nothing while saving is going

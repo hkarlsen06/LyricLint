@@ -101,7 +101,7 @@
 		controller.setTitle(input.value);
 	}
 
-	// Same slot, same tier, label following the state — as with `Paste lyrics`.
+	// Same slot, same tier, label following the state, as with `Paste lyrics`.
 	// The confirmation is the button itself, so nothing else has to appear to say
 	// the copy landed; it reverts on its own because there is no other way out.
 	let copied = $state(false);
@@ -160,7 +160,7 @@
 		<div class="draft-switcher">
 			<!-- The `<label for>` is the whole of the name. It carried an identical
 			     `aria-label` beside it, which outranks the element and made the label
-			     markup that nothing ever read — two mechanisms for one name is one of
+			     markup that nothing ever read. Two mechanisms for one name is one of
 			     them free to drift. The label is the one kept, because it is what
 			     every other field in the workbench uses. -->
 			<label class="sr-only" for="draft-title">'Scribe title</label>
@@ -178,7 +178,7 @@
 		</div>
 		<!-- Starting a draft is the one command that acts on no document, so it sits
 		     with the draft's own name rather than in the strip of commands that act
-		     on this one — in the slot the save glyph used to hold. -->
+		     on this one, in the slot the save glyph used to hold. -->
 		{#if !phone.current}
 			<button
 				type="button"
@@ -193,7 +193,7 @@
 		<!-- Nothing is drawn while saving is going well: a disk glyph that is always
 		     there reports a state that never changes, and the slot went to the plus.
 		     The readout stays in the accessible tree throughout, and a failed save
-		     is the one state that draws — with its words and an alert glyph, so the
+		     is the one state that draws, with its words and an alert glyph, so the
 		     state the user must act on is carried neither by red alone nor by the
 		     silence that means everything is fine. -->
 		<span
@@ -213,14 +213,14 @@
 
 	<!-- The command strip holds only what acts on this document: its language,
 	     then the contrast tier anchoring the right edge. Navigation left it for
-	     the draft's own name, and creation left it for the same neighbourhood —
-	     what remains here is the one action that bounds the session's work, last
+	     the draft's own name, and creation left it for the same neighbourhood.
+	     What remains here is the one action that bounds the session's work, last
 	     in reading order and last in the tab order.
 
 	     Which end of the work it bounds depends on whether there is any. On an
 	     empty document `Copy lyrics` is the loudest thing on the screen pointing
 	     at the exit, so the slot holds `Paste lyrics` until the document has
-	     something in it. Same slot, same tier, label following the state — the
+	     something in it. Same slot, same tier, label following the state, so the
 	     surface never carries two contrast actions, and the user is never offered
 	     the end of a job they have not started. -->
 	<div class="document-toolbar__commands">

@@ -13,7 +13,7 @@ describe('randomId', () => {
 	});
 
 	/**
-	 * An insecure context — `http://` on a LAN address, which is how the workbench
+	 * An insecure context: `http://` on a LAN address, which is how the workbench
 	 * is opened on a phone during development. `randomUUID` simply is not there,
 	 * and an id still has to be minted or the boot sequence throws.
 	 */

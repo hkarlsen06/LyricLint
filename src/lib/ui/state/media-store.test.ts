@@ -16,7 +16,7 @@ import { remoteLoadTimeoutMs } from './media-remote-policy.js';
  * `beginSpotifySignIn` ends in `location.assign`, which in a test is the runner
  * navigating away; `spotifyRedirectAllowed` reads a `location` the node half of
  * the suite does not have. The store injects exactly that slice
- * (`spotifyAuth`), so everything else in the module is the real thing — the
+ * (`spotifyAuth`), so everything else in the module is the real thing: the
  * parser, the configured check and the token store are all untouched.
  */
 const spotifyFlow = { signedIn: false, leaves: true };
@@ -98,7 +98,7 @@ function setup(
 	if (options.loadMusicKit) playerDeps.loadMusicKit = options.loadMusicKit;
 	if (options.spotify) {
 		// A `Player` with no listeners on it: `connect` throws, the load gives up,
-		// and the attachment still runs its bookkeeping — which is the half these
+		// and the attachment still runs its bookkeeping, which is the half these
 		// tests are about.
 		playerDeps.loadSpotifySdk = async () => ({ Player: class {} }) as never;
 		playerDeps.spotifyToken = async () => 'token';
@@ -196,7 +196,7 @@ describe('media store across sessions', () => {
 	 * And the re-pick writes that position back down, which it did not.
 	 *
 	 * `remember` used to read `pendingPosition` off the module, and every caller
-	 * runs `adopt()` first — which clears it. So the record was rewritten with no
+	 * runs `adopt()` first, which clears it. So the record was rewritten with no
 	 * position at all, and `flushPosition`'s dedup then refused to repair it,
 	 * because `claim` had already recorded 90 as the last number written. On a
 	 * browser with no picker API this branch *is* the reconnect: reopen a draft,
@@ -410,7 +410,7 @@ describe('media store across sessions', () => {
 
 	/**
 	 * The one storage failure this store used to swallow. Silent, a draft that has
-	 * audio opens with no strip, no pending row and no explanation — which reads
+	 * audio opens with no strip, no pending row and no explanation, which reads
 	 * as the attachment having been thrown away rather than as a read that failed.
 	 */
 	it('says so when the remembered audio cannot be read back at all', async () => {
@@ -462,7 +462,7 @@ describe('the YouTube opt-in', () => {
 	});
 
 	// Once in a session is once. Having said yes, a user switching between drafts
-	// is not asked again — the same trade the file path makes with a permission
+	// is not asked again, the same trade the file path makes with a permission
 	// the browser has already granted.
 	it('opens the next video without asking a second time', async () => {
 		const repository = createInMemoryMediaRepository();
@@ -512,7 +512,7 @@ describe('the YouTube opt-in', () => {
 	});
 
 	// The playhead is the same durable fact whichever source it belongs to, and
-	// the write path is the same one — the transport reports, the store writes.
+	// the write path is the same one: the transport reports, the store writes.
 	it('remembers where a video was left, the way it remembers a file', async () => {
 		const { media, repository } = setup();
 		await media.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
@@ -552,7 +552,7 @@ describe('the YouTube opt-in', () => {
 
 describe('a draft on a Spotify track', () => {
 	// The symptom this pins: a reload came back with no audio and no sign there
-	// had been any — not even the pending bar that says which track it wants.
+	// had been any, not even the pending bar that says which track it wants.
 	it('comes back as a pending track after a reload', async () => {
 		const repository = createInMemoryMediaRepository();
 		const { media } = setup({ repository });
@@ -567,7 +567,7 @@ describe('a draft on a Spotify track', () => {
 		expect(next.media.pendingName).toBe('Mul — Sensommer');
 		expect(next.media.pendingSource).toBe('spotify');
 		expect(next.media.trackId).toBe('4cOdK2wGLETKBW3PvgPWqT');
-		// Not signed in, so nothing has been loaded — the press is what pays.
+		// Not signed in, so nothing has been loaded: the press is what pays.
 		expect(next.player.attached).toBe(false);
 	});
 
@@ -575,7 +575,7 @@ describe('a draft on a Spotify track', () => {
 	 * The sign-in round trip, and what it used to cost.
 	 *
 	 * `resumeSignIn` comes back holding the link and nothing else, so the attach
-	 * behind it named the record after the URL and wrote no position at all — the
+	 * behind it named the record after the URL and wrote no position at all, so the
 	 * draft lost the title Spotify had already given it and reopened at 0:00. The
 	 * pending record is this same track's, so both are already in hand; they only
 	 * had to be read before `adoptTrack` cleared them.
@@ -656,7 +656,7 @@ describe('a draft on an Apple Music song', () => {
 	 * (see `authorizeAppleMusic`), so `reconnect` never reached its `finally` and
 	 * `busy` stayed true for the rest of the session. Nothing about that looks like
 	 * a sign-in problem from the outside: the reconnect control span forever, no
-	 * artwork ever arrived, and — three surfaces away — the picker's search button
+	 * artwork ever arrived, and, three surfaces away, the picker's search button
 	 * is disabled on `busy`, so Apple Music search read as broken in a dialog the
 	 * user had not even had open when it happened.
 	 *
@@ -666,7 +666,7 @@ describe('a draft on an Apple Music song', () => {
 	it('hands the workbench back when the sign-in window is blocked', async () => {
 		const nativeOpen = (globalThis as { open?: unknown }).open;
 		// Node has no `window.open`, and its absence means "nothing to watch" rather
-		// than "refused" — so a browser that refuses has to be supplied to be tested.
+		// than "refused", so a browser that refuses has to be supplied to be tested.
 		(globalThis as { open?: unknown }).open = () => null;
 
 		try {
@@ -701,7 +701,7 @@ describe('a draft on an Apple Music song', () => {
 /**
  * MusicKit for a subscriber this origin has never signed in on.
  *
- * `authorize` opens a window and then waits on it, exactly as the real one does —
+ * `authorize` opens a window and then waits on it, exactly as the real one does,
  * which, when the window was refused, is a promise that never settles.
  */
 function stubMusicKitRefusingSignIn() {
@@ -853,7 +853,7 @@ describe('a press made while a reconnect is still waiting', () => {
 	 * Detaching during a permission prompt has to win.
 	 *
 	 * `reconnect` reads the handle before it awaits, so the continuation held a
-	 * reference to audio the user had thrown away in the meantime — and it
+	 * reference to audio the user had thrown away in the meantime, and it
 	 * attached it, and wrote its record back. The prompt is the window: it is open
 	 * for as long as somebody takes to answer a browser dialog, and the row it was
 	 * pressed from is still on screen with the pending row it left behind in it.
@@ -899,7 +899,7 @@ describe('a press made while a reconnect is still waiting', () => {
  * A third-party script that never runs must not take the picker with it.
  *
  * Both loaders resolve on a callback the script makes, so an ad blocker, a
- * content policy or a stalled CDN leaves the promise pending — and with it every
+ * content policy or a stalled CDN leaves the promise pending, and with it every
  * `finally` behind it. `busy` is the one that hurts: it is what disables the
  * picker, three surfaces away from the press that hung, which is the same shape
  * of fault a blocked Apple sign-in produced.

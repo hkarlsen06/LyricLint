@@ -19,7 +19,7 @@
 
 	/**
 	 * The baseline persists with the draft, so a review can run against a page
-	 * that has moved on since the paste — the age is therefore stated where the
+	 * that has moved on since the paste, so the age is stated where the
 	 * diff is being trusted, with the repair beside it, rather than warned about
 	 * after the copy has already been made.
 	 */
@@ -50,7 +50,7 @@
 
 	/**
 	 * A paste from another editor arrives with that editor's line endings, and
-	 * usually with the trailing newline a select-all drags along — neither is a
+	 * usually with the trailing newline a select-all drags along. Neither is a
 	 * difference anybody made, so neither may reach the diff.
 	 */
 	function adoptBaseline(): void {
@@ -66,8 +66,8 @@
 	}
 
 	/**
-	 * The press that makes the modal a review rather than a report: every row —
-	 * context and header included — closes the surface and parks the caret at
+	 * The press that makes the modal a review rather than a report: every row,
+	 * context and header included, closes the surface and parks the caret at
 	 * that line in the editor. Unlike a diagnostic card's press, the editor
 	 * takes focus: the diagnostic idiom protects a caret the user never placed,
 	 * and this caret is exactly where they aimed, on a line they pressed in
@@ -75,8 +75,8 @@
 	 */
 	function revealRow(at: number): void {
 		close();
-		// A closing modal restores focus to its trigger — synchronously on some
-		// engines, a task later on WebKit — so editor focus taken in the same
+		// A closing modal restores focus to its trigger, synchronously on some
+		// engines and a task later on WebKit, so editor focus taken in the same
 		// tick is either trampled or lands while the page is still leaving the
 		// dialog's inert state. Either way CodeMirror's cursor layer goes on
 		// drawing an unfocused view: a caret that types but cannot be seen. One
@@ -92,7 +92,7 @@
 	/** The character position under a point, on whichever API this engine has. */
 	function caretFromPoint(x: number, y: number): { node: Node; offset: number } | undefined {
 		// SAFETY: the widening only adds two optional members, and each is called
-		// through its own presence check below — nothing here claims a capability
+		// through its own presence check below, and nothing here claims a capability
 		// this engine was not asked about first.
 		const doc = document as Document & {
 			caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null;
@@ -111,13 +111,13 @@
 
 	/**
 	 * Where in the document a press landed, to the character where the browser
-	 * can say and to the row's own line where it cannot — a keyboard activation
+	 * can say and to the row's own line where it cannot. A keyboard activation
 	 * carries no point at all, and a press on the gutter or the padding names
 	 * the line rather than a character in it.
 	 *
 	 * Each rendered piece of a row carries its own document length, so the tap
 	 * resolves by summing the pieces before the one under the pointer and
-	 * adding the offset inside it. A del run carries zero — its characters are
+	 * adding the offset inside it. A del run carries zero: its characters are
 	 * not in the document, so a tap on one lands at the boundary its deletion
 	 * left behind. A removed row has no line at all and always names the point
 	 * the removal left.
@@ -152,7 +152,7 @@
 	<!-- The ask is what makes the comparison unambiguous: a paste into the
 				     editor is working text, a paste here is the page's version, and no
 				     heuristic has to tell the two apart. Asked at review time, the
-				     baseline is also current by construction — the clipboard was just
+				     baseline is also current by construction, since the clipboard was just
 				     loaded from the page about to be updated. -->
 	<div class="compare-dialog__ask">
 		<p>
@@ -182,10 +182,10 @@
 {:else if diff}
 	{#if diff.identical}
 		<div class="compare-dialog__ask">
-			<p>Your 'scribe matches the page exactly — there is nothing to update on Genius.</p>
+			<p>Your 'scribe matches the page exactly, so there is nothing to update on Genius.</p>
 			<p class="compare-dialog__age">
 				{#if baselineStale}
-					Baseline from {baselineDate} — the page may have changed since; replace it to be sure.
+					Baseline from {baselineDate}, and the page may have changed since; replace it to be sure.
 				{:else}
 					Baseline from {baselineDate}.
 				{/if}
@@ -203,10 +203,11 @@
 					     is only pressable is a control nobody discovers. -->
 		<div class="compare-dialog__meta">
 			<div>
-				<p>{summary} — press any line to put the caret on it in your 'scribe.</p>
+				<p>{summary}. Press any line to put the caret on it in your 'scribe.</p>
 				<p class="compare-dialog__age">
 					{#if baselineStale}
-						Baseline from {baselineDate} — the page may have changed since; replace it to be sure.
+						Baseline from {baselineDate}, and the page may have changed since; replace it to be
+						sure.
 					{:else}
 						Baseline from {baselineDate}.
 					{/if}
@@ -219,13 +220,13 @@
 		<ul class="compare-diff" aria-label="Changes against the page">
 			<!-- Keyed by position: a hunk has no identity of its own, and two
 						     removed rows near the document's end legitimately collapse to
-						     the same offset and line label — a key built from those
+						     the same offset and line label, and a key built from those
 						     crashed the render as a duplicate. -->
 			<!-- No "Line N" heading over a hunk: the card starts at the section
 						     header, several lines above the change the heading would name,
 						     so any one number over the card is wrong for most of its rows.
 						     The number rides each row instead, in the editor's own gutter
-						     idiom — and a removed line, which has no line in the document
+						     idiom, and a removed line, which has no line in the document
 						     any more, honestly draws none. -->
 			{#each diff.hunks as hunk, hunkIndex (hunkIndex)}
 				<li class="compare-diff__hunk">
@@ -288,7 +289,7 @@
 {/if}
 
 <style>
-	/* The ask is prose and a paste area directly on the dialog — the dialog is
+	/* The ask is prose and a paste area directly on the dialog, and the dialog is
 	   already the surface, so nothing in it is boxed. */
 	.compare-dialog__ask {
 		display: flex;
@@ -309,7 +310,7 @@
 		border-radius: var(--radius-control);
 		background: var(--color-control);
 		color: var(--color-text);
-		/* Lyric text, so the lyric face — matching the editor the lines came from. */
+		/* Lyric text, so the lyric face, matching the editor the lines came from. */
 		font-family: var(--font-lyrics);
 		font-size-adjust: var(--font-lyrics-size-adjust);
 		font-size: var(--font-size-md);
@@ -344,7 +345,7 @@
 
 	/* The baseline's age is a fact about the comparison, in the meta idiom:
 	   muted, small, under the count it qualifies. The staleness nudge stays in
-	   the sentence rather than becoming a tinted box — a warning reads as prose
+	   the sentence rather than becoming a tinted box: a warning reads as prose
 	   in the section it belongs to. */
 	.compare-dialog__age {
 		margin: var(--space-0-5) 0 0;
@@ -370,7 +371,7 @@
 		padding-top: var(--space-2);
 	}
 
-	/* Every line is its own press, so every line is its own button — the row
+	/* Every line is its own press, so every line is its own button; the row
 	   that lights up is exactly the line the caret will land on. Spacing
 	   differences have to occupy their own width, so every row keeps its
 	   whitespace; the invisible ones are what the notes line is for. */
@@ -383,7 +384,7 @@
 		border-radius: var(--radius-sm);
 		background: transparent;
 		color: var(--color-text);
-		/* Lyric text, so the lyric face — matching the editor the lines came from. */
+		/* Lyric text, so the lyric face, matching the editor the lines came from. */
 		font-family: var(--font-lyrics);
 		font-size-adjust: var(--font-lyrics-size-adjust);
 		font-size: var(--font-size-sm);

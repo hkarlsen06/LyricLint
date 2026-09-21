@@ -8,7 +8,7 @@ import { WORKBENCH_LOCK_NAME, guardWorkbenchTab } from './tab-guard.js';
  * The real one cannot: every page in a test process is the same profile, so a
  * genuine "held elsewhere" needs a second browser context and the guard's whole
  * decision would be untestable. The stub records every request in order, which
- * is what pins the one sequencing rule that matters — the blocking request is
+ * is what pins the one sequencing rule that matters: the blocking request is
  * only ever issued after the probe has come back empty.
  */
 function stubLocks({ heldElsewhere = false } = {}) {

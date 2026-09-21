@@ -15,7 +15,7 @@ describe('wavePath', () => {
 	/**
 	 * The span is the whole reason this is computed rather than translated. A wave
 	 * that travels by sliding a longer path has to overrun its box and be clipped,
-	 * so it widens and loses the round caps the mark ends in — visibly, on the
+	 * so it widens and loses the round caps the mark ends in, visibly, on the
 	 * frame the animation starts. Here the ends cannot move: they are not a
 	 * function of the phase.
 	 */
@@ -37,7 +37,7 @@ describe('wavePath', () => {
 
 	/**
 	 * And phase zero is the mark itself. The mark's path is a quadratic
-	 * approximation of this sine, so the two are not identical — but they agree at
+	 * approximation of this sine, so the two are not identical, but they agree at
 	 * the points that describe the curve, which is what lets the animation start
 	 * and end without a transition into or out of it.
 	 */

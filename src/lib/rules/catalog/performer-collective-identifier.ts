@@ -123,7 +123,7 @@ function legendNames(header: SectionHeader, text: string): LegendName[] {
 
 /**
  * The written-out performer names a collective identifier stands for: every
- * other name in the same legend, first appearance order, deduplicated — or,
+ * other name in the same legend, first appearance order, deduplicated, or,
  * where the identifier is the whole legend, the draft's own roster.
  */
 function expansionNames(
@@ -167,7 +167,7 @@ function expansionFix(
 	if (group.ambiguousAmpersands.length === 0) {
 		edits.push({ from: group.nameRange.from, to: group.nameRange.to, insert: expansion });
 		// The expansion is a joint group, and the unison guideline separates
-		// groups with commas alone — so a serial ampersand in front of the
+		// groups with commas alone, so a serial ampersand in front of the
 		// identifier becomes the comma the written-out form wants.
 		if (group.separatorBefore && group.separatorBefore.includes('&')) {
 			edits.push({ from: group.from - group.separatorBefore.length, to: group.from, insert: ', ' });
@@ -224,7 +224,7 @@ export const performerCollectiveIdentifierRule: RuleDefinition = {
 					continue;
 				}
 				// The first name of a shared style run has nothing in front of it to
-				// stay joined to, so the rewrite has no shape to offer — flag only.
+				// stay joined to, so the rewrite has no shape to offer, so flag only.
 				const expandable = name.group.ambiguousAmpersands.length === 0 || name.segmentIndex > 0;
 				const expansion = expandable ? expansionNames(name, names, context, kind) : undefined;
 				diagnostics.push(

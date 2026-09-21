@@ -32,7 +32,7 @@
 <!-- The expanded card and the editor's popover are the same diagnostic seen from
      two places, so everything below the heading comes from the shared
      components: reasoning, then the decision. The audit trail is no longer a
-     block down here — it is the citation on the head's meta line, and what this
+     block down here. It is the citation on the head's meta line, and what this
      footer used to spell out is that link's tooltip. -->
 <div class="diagnostic-details">
 	<p class="diagnostic-explanation">{diagnostic.explanation}</p>

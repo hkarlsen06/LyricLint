@@ -19,32 +19,32 @@ that send `Accept: application/x-ndjson` receive answer text as the model writes
 it. Scope, block starts, and text deltas are soft-gated by a tolerant partial
 parse; citation-bearing block completions and the final quota event are emitted
 only after the complete answer passes validation. A `block_done` carries a
-`text` field where validation did not merely extend what was streamed — a
-stripped trailing citation run is the one thing that does — and the client
+`text` field where validation did not merely extend what was streamed (a
+stripped trailing citation run is the one thing that does), and the client
 replaces that block's assembled text with it. A provider or validation
 failure after streaming starts is an in-stream `error` event, and no `done`
 event follows it.
 
 ## Layout
 
-- `src/index.ts` — router, CORS, the layered checks, and the answer pipeline.
-- `src/schema.ts` — request validation and the structured-answer gate (unknown
+- `src/index.ts`: router, CORS, the layered checks, and the answer pipeline.
+- `src/schema.ts`: request validation and the structured-answer gate (unknown
   rule ids, duplicate or excessive citations, scope/citation combinations).
-- `src/quota-do.ts` — the `QuotaCounter` Durable Object: exact daily counts,
+- `src/quota-do.ts`: the `QuotaCounter` Durable Object, with exact daily counts,
   concurrency slots, and spend accounting per hashed identifier.
-- `src/identity.ts` — Turnstile verification, the signed anonymous session
+- `src/identity.ts`: Turnstile verification, the signed anonymous session
   cookie, and the HMAC hashing that keeps raw IPs out of storage and metrics.
-- `src/provider.ts` — the OpenAI Responses call through the Gateway (model and
+- `src/provider.ts`: the OpenAI Responses call through the Gateway (model and
   reasoning settings from `src/config.ts`, `store: false`, strict JSON schema
   output, prompt cache keyed on ruleset version + corpus hash).
-- `generated/rules-context.json` and `generated/rules-context-data.ts` — the
+- `generated/rules-context.json` and `generated/rules-context-data.ts`: the
   knowledge corpus and its cast-free TypeScript loading form. The producer owns
   their dependency-free contract in `src/lib/rules/assistant-corpus-types.ts`;
   `bun run assistant:corpus` at the repository root copies that contract here
   as `generated/rules-context.ts` and writes both artifacts deterministically.
   Parity tests in `src/lib/rules/assistant-corpus.test.ts` (root suite) fail
   when the copy or corpus is stale.
-- `eval/` — the versioned release-gate evaluation set and its runner.
+- `eval/`: the versioned release-gate evaluation set and its runner.
 
 ## What the corpus is, and what it is deliberately not
 
@@ -53,7 +53,7 @@ rule against its reviewed `invalid` policy example. That is right for a rule
 that is a judgment and wrong for one that is a **table**, because a page is
 written about the occurrence in front of the reader. `spelling.standardized`
 arrived here as the single pair `Imma` → `I'ma`, so the assistant, asked what
-the standardized spellings are, answered with one pair — correctly, and
+the standardized spellings are, answered with one pair: correctly, and
 uselessly.
 
 `lookups` is the rest of those seven rules: the reviewed spellings, the common
@@ -71,16 +71,16 @@ for what the assistant is allowed to say:
   are detected like an alternate and named by no reviewed guideline. Merged
   into `instead` they would read as Genius policy, which is the one thing the
   developer instructions forbid.
-- **`fix` is per entry.** A rule's `fixability` is a ceiling — most reviewed
+- **`fix` is per entry.** A rule's `fixability` is a ceiling (most reviewed
   spellings are a one-press fix under `spelling.standardized`'s `preview`
-  ceiling — so reporting the rule's kind for a whole table would tell the
+  ceiling), so reporting the rule's kind for a whole table would tell the
   visitor every spelling needs confirming.
 
 **A source is still a pointer, and no Genius prose is stored.** `sources.ts`
 holds an id, a URL, a page and section title, and a verified date; nothing in
 this repository quotes a guideline. Transcribing some would make it the only
 hand-written content in an artifact whose entire design is that it is
-generated and hash-checked — there would be no generator to re-derive it, and
+generated and hash-checked. There would be no generator to re-derive it, and
 `docs/rules.md` already states that community annotations change and that live
 scraping is not part of the editing path. If reviewed excerpts are ever wanted,
 they belong on `SourceReference` beside `lastVerifiedAt`, so re-verifying a
@@ -113,7 +113,7 @@ what happens on the round after that is the difference between an assistant
 that finishes and one that throws away everything it did. The Worker used to
 call the model with tools still offered and then refuse the call that asked for
 one: the model has no way to know a budget exists, so it asked, and the turn
-died as an `invalid_answer` — which the browser words as _the model returned an
+died as an `invalid_answer`, which the browser words as _the model returned an
 answer that failed validation_. A turn that had read the 'scribe, applied two
 headers and gone back for fresh line numbers ended with nothing shown.
 
@@ -121,7 +121,7 @@ So the budget is spent one call earlier, and quietly: with the rounds gone, the
 provider is called with **no tools** and `FINAL_ROUND_INSTRUCTION` appended
 after the cache breakpoint, so the only thing the model can do is answer with
 what it has and say what is still outstanding. `toolsAvailable` on the request
-keeps its own separate meaning throughout — it is what a `draft-work` answer is
+keeps its own separate meaning throughout: it is what a `draft-work` answer is
 validated against, and a turn that used tools is still a turn that used them.
 The prompt states the ceiling as well, because a model that knows what a round
 costs spends them differently. The refusal in `index.ts` stays as a backstop for
@@ -130,8 +130,8 @@ a provider that offers tools anyway; it is no longer a path a turn can reach.
 The same failure had a second cause on the browser side, and it is written down
 in `src/lib/core/text-anchors.ts`: an anchor's line number is measured against
 the 'scribe the model read, so applying the first proposal in a batch moves the
-lines under every proposal after it, and between repeated verses — whose
-neighbours are identical — the rest were then refused as ambiguous. They were
+lines under every proposal after it, and between repeated verses (whose
+neighbours are identical) the rest were then refused as ambiguous. They were
 the model's own correct proposals, invalidated by the linter applying the ones
 before them, and the rounds spent re-proposing them are what exhausted the
 budget above. Each anchor is pinned to the copy it landed on when its call
@@ -143,7 +143,7 @@ copies is unchanged.
 ```bash
 bun install
 bun run check     # tsc
-bun run test      # vitest — validation, quotas, sessions, structured output
+bun run test      # vitest: validation, quotas, sessions, structured output
 bun run dev       # wrangler dev (see below)
 bun run deploy    # request a retry of the coordinated CI deployment
 ```
@@ -183,7 +183,7 @@ for credential setup, the exact bootstrap exception, and recovery limits.
 
 ## Configuration
 
-Vars (in `wrangler.jsonc`): `ASSISTANT_DISABLED` (the kill switch — flip to
+Vars (in `wrangler.jsonc`): `ASSISTANT_DISABLED` (the kill switch; flip to
 `"true"` in the dashboard to refuse new requests with `service_disabled`, no
 frontend deploy needed), `ALLOWED_ORIGIN` (a comma-separated exact allowlist),
 `TURNSTILE_ALLOW_LOCALHOST` (keep `"false"` outside local development),
@@ -301,4 +301,4 @@ fails.
 5. Watch metadata-only metrics (Analytics Engine dataset
    `rules_assistant_metrics`); alert at 50/80/100% of the daily budget.
 6. The kill switch is the answer to provider instability, unexpected spend, or
-   abuse — it needs no deploy in either direction.
+   abuse, and it needs no deploy in either direction.

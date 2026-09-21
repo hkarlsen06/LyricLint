@@ -25,7 +25,7 @@
 	/**
 	 * Timing the whole lyric, which is a transport activity and therefore lives in
 	 * the transport. Optional because the editor owns the mode and a strip rendered
-	 * without one — the tests do this — has nothing to toggle.
+	 * without one (the tests do this) has nothing to toggle.
 	 */
 	interface LyricSyncControl {
 		readonly active: boolean;
@@ -34,7 +34,7 @@
 		/**
 		 * A selection is standing, so the press scopes the run to it: the first
 		 * tap times the selection's first line, and timing its last ends the run.
-		 * It outranks `complete` in the label — a user who has selected lines over
+		 * It outranks `complete` in the label: a user who has selected lines over
 		 * a fully timed song is asking to re-time exactly those.
 		 */
 		readonly scopesSelection?: boolean;
@@ -46,7 +46,7 @@
 		 */
 		readonly canSkip?: boolean;
 		toggle(): void;
-		/** One tap of a run. The same command `Space` runs — see `tapLyricSync`. */
+		/** One tap of a run. The same command `Space` runs. See `tapLyricSync`. */
 		tap(): void;
 		/** Jump the run to the last timed line before the next untimed one. */
 		skip?(): void;
@@ -54,7 +54,7 @@
 
 	/**
 	 * Following the playhead. Shown only when the song has enough timed lines for
-	 * a scroll to mean anything — one anchor scrolls nowhere.
+	 * a scroll to mean anything: one anchor scrolls nowhere.
 	 */
 	interface FollowControl {
 		readonly available: boolean;
@@ -100,7 +100,7 @@
 	});
 
 	// NaN until the browser has read the file's metadata, and a scrubber with no
-	// range is a control that cannot be aimed — so it waits rather than pretending
+	// range is a control that cannot be aimed, so it waits rather than pretending
 	// to span a second.
 	const seekable = $derived(Number.isFinite(player.duration) && player.duration > 0);
 
@@ -116,13 +116,13 @@
 	 * Keep the caret where the user put it.
 	 *
 	 * Focus moves on `mousedown`, so preventing its default is what stops a press
-	 * here from taking focus off the document — and on a phone, focus leaving the
+	 * here from taking focus off the document, and on a phone, focus leaving the
 	 * document is the keyboard closing. The loop this row exists for is listen,
 	 * pause, type: a pause that dismissed the keyboard would cost a tap to bring it
 	 * back and a scroll to find the line again, every single time.
 	 *
 	 * Buttons only. A `<select>` and a `range` need their default press to open and
-	 * to drag, so the rate control and the scrubber are left alone — they are also
+	 * to drag, so the rate control and the scrubber are left alone. They are also
 	 * the two controls here that are aimed rather than tapped, where losing the
 	 * keyboard is the smaller cost.
 	 *
@@ -136,7 +136,7 @@
 	 *
 	 * An attachment rather than an inline handler because the row is a `<div>`: a
 	 * mouse handler written on it is an interactive element with no role, and the
-	 * honest answer is that the row is not interactive — its buttons are, and this
+	 * honest answer is that the row is not interactive: its buttons are, and this
 	 * listens on their behalf.
 	 */
 	function keepFocus(node: HTMLElement) {
@@ -154,7 +154,7 @@
 	 * Publish this row's height, so a toast can clear it.
 	 *
 	 * The toast region is `position: fixed`, centred on the window, and mounted by
-	 * the app layout — nowhere near this element in the tree — so nothing in CSS
+	 * the app layout, nowhere near this element in the tree, so nothing in CSS
 	 * can tell it how tall this row currently is. Left at the status bar's height
 	 * alone, a toast raised while audio is attached lands over the transport: the
 	 * one row a transcriber is operating while everything that raises a toast is
@@ -166,7 +166,7 @@
 	 * coarse pointer where every `.button` steps up to `--control-height-lg`, and
 	 * taller again while a decode error wraps across it.
 	 *
-	 * On `<html>`, beside `--keyboard-top`, and removed on teardown — a height left
+	 * On `<html>`, beside `--keyboard-top`, and removed on teardown. A height left
 	 * behind holds every later toast above a strip that is no longer drawn, which
 	 * is this same bug wearing the other hat.
 	 */
@@ -218,7 +218,7 @@
 	for as long as a file is attached, and a persistent box over the document
 	occludes the thing being transcribed.
 
-	It draws nothing until there is something to control — the parent renders it
+	It draws nothing until there is something to control, and the parent renders it
 	only then. An empty transport is the same failure as a status bar full of
 	zeroes: chrome reporting a state that could not have been otherwise.
 
@@ -260,7 +260,7 @@
 				<!-- The value is clamped to the range that exists, and it is the same
 			     `seekable` the range is drawn from rather than a second condition.
 			     A restored position is reported the moment a draft opens, before the
-			     metadata that says how long the song is — so an unclamped `112` was
+			     metadata that says how long the song is, so an unclamped `112` was
 			     handed to an element still spanning one second, the browser clamped
 			     the DOM value to 1, and Svelte never pushed it again because
 			     `currentTime` had not changed since the value it cached. The thumb
@@ -328,7 +328,7 @@
 
 					<!--
 				Timing the whole lyric. It sits here because syncing is a transport
-				activity — you press play and tap along — and because this row only
+				activity (you press play and tap along) and because this row only
 				exists once there is something to tap along to.
 
 				While a run is under way the slot beside it stops naming the file and
@@ -362,8 +362,8 @@
 										player.loop?.end !== undefined
 											? `Stop loop: ${formatTime(player.loop.start)}–${formatTime(player.loop.end)}`
 											: player.loop
-												? `Loop from ${formatTime(player.loop.start)} to here — play or seek ahead to set the end`
-												: 'Loop from here — mark the start of a passage to repeat'
+												? `Loop from ${formatTime(player.loop.start)} to here: play or seek ahead to set the end`
+												: 'Loop from here: mark the start of a passage to repeat'
 								}))}
 							>
 								<Repeat aria-hidden="true" size={14} strokeWidth={2.4} />
@@ -418,11 +418,11 @@
 					still the same control and still one press: `runStart` reads a fully
 					timed lyric as a fresh pass from the top, which is the only sensible
 					reading of pressing sync on finished work. The checkmark is the state
-					and the title is what the press does — a readout that could not be
+					and the title is what the press does; a readout that could not be
 					pressed would take away the only way to re-time a song.
 
-					A standing selection renames the press before it is made — `Sync
-					selection` — because the scope is decided at entry, and a label that
+					A standing selection renames the press before it is made, to `Sync
+					selection`, because the scope is decided at entry, and a label that
 					only changed afterwards would be a control doing something it never
 					offered. It outranks the finished state: selected lines over a fully
 					timed song are a request to re-time exactly those lines.
@@ -466,7 +466,7 @@
 						{#if sync.canSkip && sync.skip}
 							<!--
 						The way past lyrics that are already timed. A song synced once and
-						then edited — a line split into several, in more than one place — is
+						then edited (a line split into several, in more than one place) is
 						timed everywhere except the new lines, and a run walking towards the
 						next one re-listens through whole verses that are already right.
 						The press lands the run on the last timed line before the next
@@ -476,7 +476,7 @@
 
 						It draws only while there is somewhere to skip to. Offered over a
 						song with no gap ahead it would be a press that does nothing, which
-						is the failure `availableRates` exists to prevent — and its own
+						is the failure `availableRates` exists to prevent, and its own
 						disappearance after the last gap is the one sign the run gives that
 						nothing ahead still wants a time.
 					-->
@@ -491,7 +491,7 @@
 						{/if}
 						<!--
 					The tap itself, because a finger has no `Space`. It takes the slot the
-					hint took — the run's instruction is now the thing you press, which is
+					hint took: the run's instruction is now the thing you press, which is
 					shorter to read and is the only way to drive a run on a phone.
 
 					It is a control on every pointer rather than one that appears under a
@@ -503,11 +503,11 @@
 					looking.
 
 					`Space` and `Enter` both activate a focused button, and both are the
-					run's own keys — so a press here leaves the keyboard path working
+					run's own keys, so a press here leaves the keyboard path working
 					exactly as it did, on the button instead of in the document.
 
 					The visible label is one word and a mark, and the mark is the
-					tapping hand — the gesture the button exists for, drawn as every
+					tapping hand, the gesture the button exists for, drawn as every
 					touch UI already draws it. A target pressed in rhythm is found by
 					shape, not by reading three words, and the word beside the glyph
 					confirms rather than instructs. The stopwatch would tie this to
@@ -537,8 +537,8 @@
 					here for a source that does not.
 
 					**The condition is the source kind and not `player.artwork`, which is the
-					bug this replaces.** A catalogue source is named before its cover arrives —
-					the read that fetches one is a round trip behind the attach — so keying on
+					bug this replaces.** A catalogue source is named before its cover arrives,
+					because the read that fetches one is a round trip behind the attach, so keying on
 					the picture put the title and the badge in this row for as long as that
 					took and then moved them to the band underneath. What the user sees is the
 					name flashing into the shortest row in the window and leaving again, which
@@ -561,7 +561,7 @@
 			this row exists to serve. Detaching is a decision about what the
 			draft's song is, not a transport operation, so it lives in the audio
 			dialog beside every other answer to that question
-			(`MediaPicker.svelte`), behind the same deliberate press — for a
+			(`MediaPicker.svelte`), behind the same deliberate press, for a
 			remembered source no less than an attached one.
 		-->
 			</div>
@@ -573,7 +573,7 @@
 			label plus a generic "Reconnect" would be two controls' worth of words
 			for one control.
 		-->
-			<!-- A bare Escape loads the pending source — the fallback under the
+			<!-- A bare Escape loads the pending source, the fallback under the
 		     transport's toggle, which the listener binds while a source is merely
 		     pending. The keystroke was in `aria-keyshortcuts` alone, which made it
 		     the one binding in the workbench nothing on screen could teach; the

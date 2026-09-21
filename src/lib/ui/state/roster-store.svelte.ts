@@ -131,7 +131,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			}));
 
 			// Extraction used to answer a styled slot with no header entry by
-			// minting a real `Unresolved voice N` performer — an identity for a
+			// minting a real `Unresolved voice N` performer, an identity for a
 			// voice whose whole point is having none, and a pressable stranger in
 			// every picker. The state is derived now, but drafts saved while the
 			// minting ran still carry the records, so the same moment that created

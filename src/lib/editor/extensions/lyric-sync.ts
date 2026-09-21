@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/line-anchors.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/line-anchors.md. Read it before changing this file, and update it with any behavior change.
 import { EditorState, Prec, StateEffect, StateField } from '@codemirror/state';
 import type { Extension, Line, TransactionSpec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
@@ -20,7 +20,7 @@ import { linePairingLimits, linkedPeerHeaders } from './section-links.js';
  * Timing a whole lyric by tapping along with the song.
  *
  * Automatic stamping only ever anchors lines typed *while* the audio runs, so a
- * draft pasted in from somewhere else has nothing — which is most drafts. This is
+ * draft pasted in from somewhere else has nothing, which is most drafts. This is
  * the way to time one: press play, tap a key at the start of each line, and the
  * caret walks down the document ahead of you.
  *
@@ -28,7 +28,7 @@ import { linePairingLimits, linkedPeerHeaders } from './section-links.js';
  * without thinking about it, which rules out a chord; and a bare `Space` is only
  * free while the run owns it, which the mode's own keymap sees to at the highest
  * precedence. Every way out is loud: `Escape`, the strip's own control, running
- * off the end of the document — and writing a word, which ends the run and lets
+ * off the end of the document, and writing a word, which ends the run and lets
  * the character land where it was typed.
  *
  * **This is the one place the audio is allowed to move the document.** Everywhere
@@ -41,26 +41,26 @@ import { linePairingLimits, linkedPeerHeaders } from './section-links.js';
  * How far ahead of the press the anchor is written, in seconds.
  *
  * Every human tap lands late. Without this, jumping to a line starts just after
- * its first syllable — the annoying direction, because the word you came back to
+ * its first syllable, the annoying direction, because the word you came back to
  * check is the one you miss. A small constant biases the error the other way,
  * where it costs a moment of the previous line's tail and nothing else.
  *
  * It is small because one number is serving two jobs that want opposite things.
  * A *seek* wants a lead; a *follow* wants none, and the marked cell and the
  * document scroll that hangs off it are read against the audio continuously
- * rather than once. At 120ms — where this started — the mark landed visibly
+ * rather than once. At 120ms (where this started) the mark landed visibly
  * ahead of the line being sung, which is roughly where a visual event leading
  * audio stops reading as simultaneous. 50ms is under that and still keeps a
  * jump off the first syllable.
  *
  * If the lead is ever wanted back for seeking, the answer is a second constant
- * spent at the four places that seek to an anchor — the timestamp press, the
- * line-number press, `Ctrl-Alt-Enter` and `stepBack` — and not this one growing.
+ * spent at the four places that seek to an anchor (the timestamp press, the
+ * line-number press, `Ctrl-Alt-Enter` and `stepBack`), and not this one growing.
  * An anchor is a claim about when a line started, and it should stay one.
  *
  * **It is a wall-clock quantity, so the tap spends it in track time by
  * multiplying by the playback rate.** The lateness it compensates belongs to a
- * hand, and a hand is no later at 0.5× — but the track only advances half as
+ * hand, and a hand is no later at 0.5×, but the track only advances half as
  * far during that lateness, so the fixed 50ms would over-correct every anchor
  * written at a practice rate and stamp them early. Slowing the tape down is
  * exactly what a transcriber does when the lines come too fast to tap, so the
@@ -76,7 +76,7 @@ const armEffect = StateEffect.define<boolean>();
 /** Internal: this section has had its timings written from a linked peer. */
 const markFilledEffect = StateEffect.define<number>();
 
-/** Internal: this run ends on the line starting here — it covers a selection. */
+/** Internal: this run ends on the line starting here: it covers a selection. */
 const scopeEffect = StateEffect.define<number>();
 
 interface LyricSyncState {
@@ -97,7 +97,7 @@ interface LyricSyncState {
 	 *
 	 * One fill per section per run, and that is what makes the way out real: a
 	 * user who does not want the copied rhythm presses the section's first line
-	 * number, which sends the tape and the caret back there — and a tap that
+	 * number, which sends the tape and the caret back there, and a tap that
 	 * filled the section a second time would take the escape hatch away on the
 	 * very press it exists for. Bare offsets rather than mapped positions,
 	 * because a document change ends the run and clears this with it.
@@ -107,7 +107,7 @@ interface LyricSyncState {
 	 * Where this run stops: the start of the last line it may time, or undefined
 	 * for a pass over the whole song.
 	 *
-	 * A run entered over a selection covers the selection and nothing else — the
+	 * A run entered over a selection covers the selection and nothing else: the
 	 * selection is the one gesture that deliberately names a region, so the run
 	 * ends the moment that line is timed, exactly as an unscoped run ends on the
 	 * document's last stampable line. A bare offset for `filled`'s reason: a
@@ -164,7 +164,7 @@ interface LyricSyncOptions {
 	 * A tap asks three things at the moment of the press: where the tape is
 	 * (`liveTime()`, the source's own playhead rather than the mirrored readout),
 	 * how fast it is running (the offset is a wall-clock quantity, spent in track
-	 * time), and whether it is running at all — a paused tape still reports its
+	 * time), and whether it is running at all: a paused tape still reports its
 	 * parked position, and a tap spent against that would stamp the pause's own
 	 * moment onto the next line, wrong by the length of the pause.
 	 */
@@ -173,7 +173,7 @@ interface LyricSyncOptions {
 	 * Put the tape at `time`.
 	 *
 	 * Stepping back is the one thing in a run that moves the audio, and it moves
-	 * it the same way every other seek in the workbench does — which is to say it
+	 * it the same way every other seek in the workbench does, which is to say it
 	 * plays from there, because a run that is being backed up is a run in
 	 * progress.
 	 */
@@ -181,8 +181,8 @@ interface LyricSyncOptions {
 	/**
 	 * The mode turned on or off, however it happened.
 	 *
-	 * `startAt` is where the audio has to be for the run to line up with the caret
-	 * — 0 for a fresh pass, the resumed line's own time for a half-timed song, and
+	 * `startAt` is where the audio has to be for the run to line up with the caret:
+	 * 0 for a fresh pass, the resumed line's own time for a half-timed song, and
 	 * absent when the tape must be left where the user parked it: a
 	 * selection-scoped run with no timed line above the selection has no moment of
 	 * its own to name, and the user's own placement is the only honest answer.
@@ -196,14 +196,14 @@ interface LyricSyncOptions {
 	 *
 	 * `announce` reaches the `sr-only` live region and nothing else, which is the
 	 * right channel for every other thing a run says: entering, resuming, stepping
-	 * back and stopping are all loud on screen already — the rail, the caret and
+	 * back and stopping are all loud on screen already: the rail, the caret and
 	 * the times say them. Filling a section from a linked peer is not. Several
 	 * lines are dated at once, the caret jumps past them, and the tape moves,
 	 * without a press having asked for any of it, so the one thing it owes is a
 	 * sentence saying what it did and how to undo the decision.
 	 *
 	 * Both are called, because the toast region is not a live region and either
-	 * alone loses an audience — the same split `report` in `editor-session` makes.
+	 * alone loses an audience, the same split `report` in `editor-session` makes.
 	 */
 	notify(message: string): void;
 }
@@ -242,8 +242,8 @@ interface LinkedFill {
  * Time the rest of a linked section from the copy that is already timed.
  *
  * A chorus is typed once and sung three times, so a run that has timed the first
- * one already knows the shape of the other two: the words are the same words —
- * that is what a link *is* — and what is left to establish is where in the song
+ * one already knows the shape of the other two: the words are the same words
+ * (that is what a link *is*), and what is left to establish is where in the song
  * this repeat starts, which is exactly what the tap that walks into it says. So
  * the tap dates the first line and the peer's own intervals date the rest.
  *
@@ -260,18 +260,18 @@ interface LinkedFill {
  *   that line, and nothing about it asks for the rest to be written for them.
  * - **Only from a copy that comes earlier.** A later peer is the same words and
  *   would date this section just as well, but a section written by the one below
- *   it reads as the document filling itself in backwards — and the run has not
+ *   it reads as the document filling itself in backwards, and the run has not
  *   been there yet, so its times are the ones the user is on their way to
  *   correcting.
  * - **It stops at the peer's first gap** rather than skipping over it. Dating the
  *   lines after a hole would leave an untimed line behind the caret, which is a
  *   line the run never comes back to; stopping there hands the tapping back.
- * - **It stops where the peer's own times go backwards.** Everything downstream —
- *   the marked cell, the step back, the follow — reads anchors as ordered, and a
+ * - **It stops where the peer's own times go backwards.** Everything downstream
+ *   (the marked cell, the step back, the follow) reads anchors as ordered, and a
  *   peer with broken data must not spread it.
  * - **It stops where the copies' line structures part ways.** The pairing is by
- *   line index, and a copy carrying a line its peer lacks — the shape the link
- *   model was rebuilt for — puts every later line against the wrong peer line.
+ *   line index, and a copy carrying a line its peer lacks (the shape the link
+ *   model was rebuilt for) puts every later line against the wrong peer line.
  *   `linePairingLimits` says how far the two structures agree, and past that the
  *   tapping is handed back, exactly as at a gap. A word-level difference moves
  *   no line boundary and fills on.
@@ -354,13 +354,13 @@ function linkedFill(
  *
  * The way out is half the message rather than a nicety. Nothing else on screen
  * says that these times were derived, and the section may well be the one place
- * this song departs from itself — so the sentence that reports the shortcut is
+ * this song departs from itself, so the sentence that reports the shortcut is
  * also the only place the user is told they can refuse it.
  */
 function fillMessage(fill: LinkedFill): string {
 	const name = fill.label || 'The linked section';
 	const from = fill.peerLabel || 'its earlier copy';
-	return `${name} timed from ${from} — ${fill.anchors.length + 1} lines. Press a line number to time it by hand instead.`;
+	return `${name} timed from ${from}: ${fill.anchors.length + 1} lines. Press a line number to time it by hand instead.`;
 }
 
 function end(view: EditorView, options: LyricSyncOptions, message: string): boolean {
@@ -374,7 +374,7 @@ function end(view: EditorView, options: LyricSyncOptions, message: string): bool
  *
  * **The caret lands on the line that was just timed, not on the one coming
  * next.** A tap is a claim about the line starting *now*, so the row that lights
- * up has to be the row whose time just changed — that is the whole of the
+ * up has to be the row whose time just changed: that is the whole of the
  * feedback for the press, and read on the following line it is feedback about the
  * wrong thing. It is also what the user is doing between taps: reading along with
  * the line they are hearing, to check that the words match the music.
@@ -388,7 +388,7 @@ function end(view: EditorView, options: LyricSyncOptions, message: string): bool
  *
  * Exported because a finger has no `Space`. The transport's tap control is bound
  * to the command itself rather than to a synthesised key event, so the two paths
- * cannot drift into meaning different things — and everything the tap has to get
+ * cannot drift into meaning different things, and everything the tap has to get
  * right (the offset, the deferred advance, ending on the last line) is written
  * once, here.
  */
@@ -403,16 +403,16 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 		}
 
 		// **A tap against a paused tape is refused, and the run holds.** The
-		// transcription loop is listen, pause, think — and the transport keys are
+		// transcription loop is listen, pause, think, and the transport keys are
 		// bound to the window, so the tape can be stopped mid-run without the mode
 		// ending. What a pause must not do is take taps: `liveTime()` goes on
 		// reporting wherever the tape was parked, so a tap spent there would write
-		// the pause's own moment onto the next line — wrong by however long the
+		// the pause's own moment onto the next line, wrong by however long the
 		// pause lasted, with nothing on screen saying so, which is the automatic
 		// stamp's failure arriving through `F8`. Refusing changes nothing visible
 		// at all, so the sentence goes out on both channels: `announce` for the
 		// live region, `notify` for a toast, because either alone loses an
-		// audience. The key is still claimed — `Space` belongs to the run, paused
+		// audience. The key is still claimed: `Space` belongs to the run, paused
 		// or not, and must not fall through to the document.
 		if (!reading.playing) {
 			const message = 'Sync is paused. Press play to keep tapping.';
@@ -424,14 +424,14 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 
 		const caret = view.state.doc.lineAt(view.state.selection.main.head);
 		// **The caret's line is not a promise that it can be timed.** A run ends on
-		// the document changing, and a selection change is not one — so between
+		// the document changing, and a selection change is not one, so between
 		// entering a run and its first tap the user can click a section header or a
 		// blank line, and an un-armed tap taken at face value would stamp it. Every
 		// downstream reader assumes that cannot happen: the linked fill pairs by
 		// stampable line, the gutter draws no cell beside structure, and the skip
 		// walks stampable lines only. So the un-armed tap walks forward from the
-		// caret's own line exactly as an armed one walks forward from the line below
-		// — and a caret already on a lyric line is what `stampableFrom` hands back
+		// caret's own line exactly as an armed one walks forward from the line below,
+		// and a caret already on a lyric line is what `stampableFrom` hands back
 		// unchanged, which is every ordinary tap.
 		const line = stampableFrom(view.state, sync.armed ? caret.number + 1 : caret.number);
 		if (!line) return end(view, options, 'Every line is timed. Sync finished.');
@@ -468,7 +468,7 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 		view.dispatch({
 			effects: [
 				// It overwrites, because timing a song is the act of replacing whatever
-				// the last pass got wrong — a sync that refused would do nothing on a
+				// the last pass got wrong: a sync that refused would do nothing on a
 				// second run over a part-timed draft, which is the common case.
 				anchorLineEffect.of({ pos: line.from, time: at }),
 				// One transaction for the whole section, so the fill is one undo and one
@@ -481,7 +481,7 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 				// The wash moves with the caret, in the same transaction.
 				//
 				// The marked line is the last anchor at or before the *playhead*, and the
-				// playhead the field holds is `currentTime` — a `timeupdate`-fed mirror,
+				// playhead the field holds is `currentTime`, a `timeupdate`-fed mirror,
 				// up to a tick stale. A tap stamps its line at `liveTime` minus the tap
 				// offset, so whenever the mirror is more than that behind, the line just
 				// timed sorts *after* the playhead on record: the caret moved, and the
@@ -490,7 +490,7 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 				// the two are read against each other.
 				//
 				// So the tap publishes the reading it already has. This is not a guessed
-				// position — `playback().time` is `liveTime()`, the source's own playhead
+				// position: `playback().time` is `liveTime()`, the source's own playhead
 				// read at the moment of the press, which is strictly fresher than the
 				// mirror it replaces, and the next tick can only confirm it.
 				//
@@ -499,7 +499,7 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 				// would land on the section's first line while the caret sat on its last,
 				// and the follow listener would scroll to one and then the other.
 				setPlayheadEffect.of(fill?.lastTime ?? time),
-				// A scoped run nudges nearest-edge instead of holding a reading line —
+				// A scoped run nudges nearest-edge instead of holding a reading line:
 				// nothing moves while the landed line is visible, which it is in every
 				// selection short of a viewport, and a taller one still keeps its
 				// caret on screen.
@@ -512,7 +512,7 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 		if (fill) {
 			// The tape goes where the caret went. A run is one pass over the document
 			// against one pass of the audio, and the section between them has just been
-			// answered — leaving the user to listen through a chorus that is already
+			// answered: leaving the user to listen through a chorus that is already
 			// timed is asking them to wait for a tap they are not going to make.
 			options.onSeek(fill.lastTime);
 			const message = fillMessage(fill);
@@ -520,7 +520,7 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 			options.notify(message);
 		}
 
-		// Nothing left to time, so the run is over — and it ends here rather than on
+		// Nothing left to time, so the run is over, and it ends here rather than on
 		// a further tap, because a press that only stopped the mode would be a press
 		// the user made expecting to time something. A scoped run's "nothing left"
 		// is the selection's own last line, timed just now.
@@ -542,20 +542,20 @@ export function lyricSyncTap(options: LyricSyncOptions) {
  * Without a way back one fumble means restarting the run, because every later tap
  * lands on the wrong line. It clears the line it leaves rather than merely
  * stepping off it, so that line is genuinely un-timed and the next tap writes it
- * fresh — and it goes back to the previous line, which is still timed and is
+ * fresh, and it goes back to the previous line, which is still timed and is
  * therefore still `armed`.
  *
  * **The tape backs up with the caret**, to the time that previous line already
  * carries. A run is one pass over the document against one pass of the audio, so
  * a step back that moved only the caret would leave the two ends in different
- * places — the user would be looking at the line before the fumble while hearing
+ * places: the user would be looking at the line before the fumble while hearing
  * whatever came after it, and the next tap would land as wrong as the one being
  * taken back. Seeking to the stored anchor rather than to the moment of the tap
  * also carries `tapOffsetSeconds` back with it, so the line starts a beat after
  * playback resumes and there is a run-up to tap against.
  *
- * Nothing is seeked where there is no line to go back to — the first tap of a run
- * — or where the one there is carries no time of its own. There is no moment to
+ * Nothing is seeked where there is no line to go back to (the first tap of a run)
+ * or where the one there is carries no time of its own. There is no moment to
  * go to, so the tap comes off and the audio is left where it is rather than being
  * sent somewhere invented.
  */
@@ -590,7 +590,7 @@ function stepBack(options: LyricSyncOptions) {
  *
  * `undefined` is most of the answer, and each branch is a refusal rather than a
  * miss. No untimed line ahead means there is nothing to skip to. An untimed
- * line whose predecessor is the caret's own line — or the caret line itself —
+ * line whose predecessor is the caret's own line (or the caret line itself)
  * means the run is already aimed at it: the next tap times that line, and a
  * jump would move nothing or, worse, leave an untimed line behind the caret,
  * which is a line the run never comes back to.
@@ -600,7 +600,7 @@ function stepBack(options: LyricSyncOptions) {
  * broken, which is the failure `availableRates` exists to prevent.
  */
 export function lyricSyncSkipTarget(state: EditorState): { line: Line; time: number } | undefined {
-	// A scoped run's skip may not reach past its own boundary — the strip hides
+	// A scoped run's skip may not reach past its own boundary: the strip hides
 	// the control for those runs, and this is the same refusal kept where the
 	// command lives, so a caller that never learned about scopes cannot jump one.
 	const until = state.field(lyricSyncField, false)?.until;
@@ -626,13 +626,13 @@ export function lyricSyncSkipTarget(state: EditorState): { line: Line; time: num
 /**
  * Jump a run past the lines that are already timed.
  *
- * A song synced once and then edited — a long line split into two, in several
- * places — is timed everywhere except the new lines, and a resumed run only
+ * A song synced once and then edited (a long line split into two, in several
+ * places) is timed everywhere except the new lines, and a resumed run only
  * knows how to pick up before the *first* gap. Reaching the later ones meant
  * listening through whole verses that were already right, or aiming a
  * line-number press by eye. This is that jump as one press: the caret lands on
  * the last timed line before the next untimed one, `armed`, and the tape goes
- * to that line's own anchor — so there is a whole line of run-up to tap
+ * to that line's own anchor, so there is a whole line of run-up to tap
  * against, exactly as a resumed run gives itself.
  *
  * The seek goes through `onSeek`, the hook every other jump to an anchor uses,
@@ -669,7 +669,7 @@ export function lyricSyncSkip(options: LyricSyncOptions) {
  * A press on an anchored line's number plays from that moment, and outside a run
  * that is the whole of what it does. Inside one it cannot be: the caret is where
  * the next tap lands, so a tape that moved without it would leave the two ends of
- * the run in different places — which is the failure `stepBack` seeks for, met
+ * the run in different places, which is the failure `stepBack` seeks for, met
  * from the other side.
  *
  * It is the way out of a section filled from a linked peer, and the only one:
@@ -678,7 +678,7 @@ export function lyricSyncSkip(options: LyricSyncOptions) {
  * wrote rather than the user's own tap.
  *
  * Called only from the line-number press, which is already narrowed to lines that
- * carry a time — so nothing here promises a rewind on a row the pointer cursor
+ * carry a time, so nothing here promises a rewind on a row the pointer cursor
  * says nothing about.
  */
 export function syncMoveTo(view: EditorView, pos: number): boolean {
@@ -691,12 +691,12 @@ export function syncMoveTo(view: EditorView, pos: number): boolean {
 		// that already has a time, so the next tap belongs to the one after it.
 		//
 		// It was disarmed once, on the reading that the press names the line the user
-		// wants timed — and that tap could not have timed anything. The seek goes to
+		// wants timed, and that tap could not have timed anything. The seek goes to
 		// the pressed line's own stored anchor, so a tap against it can only rewrite
 		// the moment it just rewound to, to within the reaction it takes to make it:
 		// the caret does not move, the cell redraws the same `m:ss`, and the press
 		// reads as swallowed. Every tap after it then works, which is the shape this
-		// was reported in — one dead press per jump.
+		// was reported in: one dead press per jump.
 		//
 		// A line whose time is actually wrong is not fixable that way either. Wrong
 		// late means the rewind starts *after* the line began, so its opening is gone
@@ -720,8 +720,8 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 		// The reading-line hold exists for a pass over the whole song, where the
 		// caret descends out of view; a scoped run's lines were on screen when the
 		// user selected them, so pulling the document to a reading position on
-		// entry — or on every playhead crossing while the run plays through its
-		// few lines — is a jump nobody asked for, right after they carefully put
+		// entry (or on every playhead crossing while the run plays through its
+		// few lines) is a jump nobody asked for, right after they carefully put
 		// a selection where they were looking. The run's own moves use a
 		// nearest-edge nudge instead, which scrolls nothing while the line is
 		// visible; this facet is what stands the follow listener down.
@@ -739,8 +739,8 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 		// could fix it. `Space` is freed by the run's own keymap, at the highest
 		// precedence, which is where it was always being freed.
 		//
-		// So a keystroke that would write something is read as what it plainly is —
-		// the user has stopped tapping and started transcribing — and the run gets
+		// So a keystroke that would write something is read as what it plainly is
+		// (the user has stopped tapping and started transcribing), and the run gets
 		// out of the way. The shell pauses the tape on the way out, as it does for
 		// every other exit.
 		//
@@ -748,8 +748,8 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 		// which keys mean typing.** That is what keeps it one rule rather than a
 		// list: a dead key, an IME composition, a paste, a drop, and a fix applied
 		// from the panel are all edits, and every one of them ends the run. Nothing
-		// has to be excluded either, because the keys the run owns — `Space`,
-		// `Enter`, `Backspace`, `ArrowUp` — are taken at the highest precedence and
+		// has to be excluded either, because the keys the run owns (`Space`,
+		// `Enter`, `Backspace`, `ArrowUp`) are taken at the highest precedence and
 		// change no text, so they never reach here.
 		//
 		// An extender rather than a filter, because the effect has to ride the very
@@ -772,7 +772,7 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 		//
 		// **No `preventDefault: true` on any of these.** That option prevents the
 		// default even when the command returns *false*, so it would swallow the
-		// space bar, backspace and the up arrow in an editor that is not syncing —
+		// space bar, backspace and the up arrow in an editor that is not syncing,
 		// which is to say, almost always. Returning true already prevents the
 		// default, and returning false is exactly the case that must not.
 		Prec.highest(
@@ -801,7 +801,7 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 				options.onChange(false);
 				// The one exit that arrives without having been asked for. `end`
 				// speaks for the three deliberate ones, and this is the transaction
-				// the user typed — which is loud on screen and silent to a screen
+				// the user typed, which is loud on screen and silent to a screen
 				// reader, so it is the one that needs saying out loud.
 				if (update.docChanged) options.announce('Sync stopped: the document changed.');
 				return;
@@ -810,8 +810,8 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 			// Where the tape has to start, decided here rather than in the shell,
 			// because the anchors are the editor's and this is the one moment their
 			// answer matters to anyone else. `armed` on entry means exactly one
-			// thing: the run begins on a line that already has a time — a resumed
-			// pass, or a scoped run entering with a run-up — so that is the moment
+			// thing: the run begins on a line that already has a time (a resumed
+			// pass, or a scoped run entering with a run-up), so that is the moment
 			// to play from. A scoped run with no such line names no moment at all:
 			// the tape stays where the user parked it, which is the only position
 			// anybody deliberately chose.
@@ -847,7 +847,7 @@ function firstUntimed(state: EditorState): Line | undefined {
 }
 
 /**
- * Where a run begins, and whether that line is already timed — `armed`, so the
+ * Where a run begins, and whether that line is already timed: `armed`, so the
  * first tap advances off it rather than rewriting it. No line at all is a
  * document with nothing stampable in it.
  */
@@ -863,7 +863,7 @@ interface LyricSyncRunStart {
  * resumes on the **last line that already has a time**, `armed`, so the first tap
  * advances onto the first untimed line exactly as any other tap would. Landing
  * directly on the untimed line instead would mean tapping its opening syllable
- * from a standing start, with no run-up to hear it coming — and a whole line of
+ * from a standing start, with no run-up to hear it coming, and a whole line of
  * run-up is what makes the rhythm findable again.
  *
  * A song with nothing timed, and a song timed all the way through, both start
@@ -884,12 +884,12 @@ function runStart(state: EditorState): LyricSyncRunStart {
 /**
  * The lines a selection would scope a run to, if it names any.
  *
- * A selection is the one gesture that deliberately names a region — a caret is
+ * A selection is the one gesture that deliberately names a region: a caret is
  * parked somewhere after every interaction and carries no intent, which is why
  * the caret was refused this job. The scope is the stampable lines the
  * selection touches: headers and blanks inside it are skipped exactly as a
  * full pass skips them, and a selection touching none falls back to an
- * ordinary run, which is also what the strip's label promised in that state —
+ * ordinary run, which is also what the strip's label promised in that state:
  * both read the same `isLyricLine` underneath, so the two cannot drift.
  *
  * A selection ending exactly at a line's start does not include that line:
@@ -916,7 +916,7 @@ function selectionScope(state: EditorState): { first: Line; last: Line } | undef
 /**
  * Turn the mode on or off from outside.
  *
- * The caret and the tape have to begin in the same place — a run is one pass over
+ * The caret and the tape have to begin in the same place: a run is one pass over
  * the lyric against one pass of the audio, so starting the tape at 0:00 and the
  * caret at whichever line was last clicked would time the wrong lines from the
  * first press. Which place that is comes from `runStart`; the shell learns the
@@ -932,12 +932,12 @@ export function setLyricSync(view: EditorView, active: boolean): void {
 	// A standing selection scopes the run to its own lines: the first tap times
 	// the selection's first line, and timing its last ends the run. Where the
 	// stampable line directly above the selection already has a time, the run
-	// enters resume-style — caret on that line, armed, tape sent to its anchor —
+	// enters resume-style (caret on that line, armed, tape sent to its anchor),
 	// so there is a whole line of run-up to tap against, exactly as a resumed
 	// pass gives itself. Where it has none, the run starts disarmed on the
 	// selection's first line and the tape is left alone (see `onChange`):
 	// wherever the user parked it is the only position anybody chose, and the
-	// worst a badly parked tape costs is waiting, never a wrong anchor — a tap
+	// worst a badly parked tape costs is waiting, never a wrong anchor: a tap
 	// stamps `liveTime()`, so it is true whenever it is made. Entering collapses
 	// the selection, which is also what consumed it: the run is its answer.
 	const scope = selectionScope(view.state);
@@ -949,7 +949,7 @@ export function setLyricSync(view: EditorView, active: boolean): void {
 		view.dispatch({
 			// Order matters twice here: `setLyricSyncEffect` disarms and drops the
 			// scope as it enters, so both the scope and any arming have to follow it.
-			// No reading-line hold on the way in — the selection was on screen when
+			// No reading-line hold on the way in: the selection was on screen when
 			// the user made it, and entry throwing the document to a reading
 			// position is the scroll this mode has no use for. The nearest-edge
 			// nudge moves nothing while the start line is visible and covers the one
@@ -979,7 +979,7 @@ export function setLyricSync(view: EditorView, active: boolean): void {
 }
 
 export const lyricSyncTheme = EditorView.baseTheme({
-	// The mode is modal — `Space` is the tap rather than a character — so it has
+	// The mode is modal (`Space` is the tap rather than a character), so it has
 	// to look like somewhere else. Typing still lands, and ends the run as it
 	// does. A rail down the text's own edge, not a tint over it: the words are
 	// what the user is reading against the music.

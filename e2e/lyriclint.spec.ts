@@ -523,7 +523,7 @@ test('the unified guide has one entrance and exposes check metadata and language
 
 	await page.goto('/guidelines/checks/spelling-arabic-common/');
 	// The page is named for what the rule catches rather than for the one
-	// misspelling its reviewed example happens to carry — the index row that
+	// misspelling its reviewed example happens to carry, and the index row that
 	// opens it says the same words. The message is still on the page, under the
 	// example that produces it.
 	await expect(page).toHaveTitle('A non-standard Arabic spelling · LyricLint');
@@ -542,7 +542,7 @@ test('the unified guide has one entrance and exposes check metadata and language
 	await expect(page.locator('pre[lang="ar"][dir="rtl"]')).toHaveCount(2);
 
 	// A rule page names the convention behind it in the guidance catalog, and
-	// the press lands the topic page on the entry itself — the reverse of the
+	// the press lands the topic page on the entry itself, the reverse of the
 	// entry's own "Checked by" ids, derived from the same mapping.
 	await page.goto('/guidelines/checks/numbers-spell-out/');
 	await page
@@ -704,7 +704,7 @@ test('a guidelines deep link lands on its entry, and a search marks its words', 
 	page
 }) => {
 	// A guideline is a fragment on its topic's page, and the landing re-centers
-	// the whole entry — the double-rAF deferral in the topic page is the one
+	// the whole entry. The double-rAF deferral in the topic page is the one
 	// behavior there that was measured rather than reasoned into, and this is
 	// its only end-to-end pin. The native hash jump parks the heading at
 	// `scroll-margin-top`, ~72px under the masthead; centered, the third entry
@@ -712,7 +712,7 @@ test('a guidelines deep link lands on its entry, and a search marks its words', 
 	await page.goto('/guidelines/punctuation/#doubled-exclamation');
 	// `data-current` is the page's own mark, read off the hash; a full-page
 	// arrival is the one navigation where `:target` also holds, so both are
-	// asserted here — the router-navigation press further down is where
+	// asserted here; the router-navigation press further down is where
 	// `:target` never updates and the mark is all there is.
 	const washed = page.locator('.guidelines__entry[data-current]');
 	await expect(washed).toHaveCount(1);
@@ -720,12 +720,12 @@ test('a guidelines deep link lands on its entry, and a search marks its words', 
 	await expect(washed.locator('h2')).toHaveText('One exclamation mark at a time');
 	// And the wash actually paints here: on a wide screen the index stands
 	// beside the page, so the washed entry and the marked row say one thing
-	// together. The stacked width is where it stands down — the phone group
+	// together. The stacked width is where it stands down, and the phone group
 	// pins that half.
 	expect(await washed.evaluate((el) => getComputedStyle(el, '::before').content)).not.toBe('none');
 	// The topic page no longer closes with a `Checked by the linter` run: the
 	// entries' own meta lines carry the rules now, and every rule page links its
-	// guideline back — re-adding the trailing family list is the regression.
+	// guideline back, so re-adding the trailing family list is the regression.
 	await expect(page.getByRole('heading', { name: 'Checked by the linter' })).toHaveCount(0);
 	await expect
 		.poll(async () => {
@@ -743,7 +743,7 @@ test('a guidelines deep link lands on its entry, and a search marks its words', 
 	await expect(current).toContainText('One exclamation mark at a time');
 	await expect(current).toBeInViewport();
 
-	// The topic's own name keeps everything under its heading — the query that
+	// The topic's own name keeps everything under its heading, unlike the query that
 	// used to drop every guidance entry and answer with linter rows alone. The
 	// seventh row is the ad-libs entry, whose meta line names
 	// `punctuation.parenthesis-spacing` among the rules that check its shape.
@@ -753,7 +753,7 @@ test('a guidelines deep link lands on its entry, and a search marks its words', 
 	expect(await entryRows.count()).toBeGreaterThan(0);
 
 	// And the page a search opens says which of its words matched, exactly as a
-	// rule page does — including inside the invented sample, which may not have
+	// rule page does, including inside the invented sample, which may not have
 	// gained a character for it. Scoped to the washed entry: the topic page
 	// carries one `Incorrect` sample per entry that has one, so the bare
 	// locator resolves several and fails strict mode.
@@ -768,7 +768,7 @@ test('a guidelines deep link lands on its entry, and a search marks its words', 
 });
 
 test('pressing an entry from the index washes it on the first press', async ({ page }) => {
-	// Pressing an index row from the index page — or from the other topic — is
+	// Pressing an index row from the index page, or from the other topic, is
 	// the router's navigation, a `pushState`, and `:target` only updates on a
 	// native fragment navigation: for a while the first press drew no wash, and
 	// the reader had to press another entry and come back (a same-path hash
@@ -783,7 +783,7 @@ test('pressing an entry from the index washes it on the first press', async ({ p
 	await expect(washed).toHaveCount(1);
 	await expect(washed.locator('h2')).toHaveText('One exclamation mark at a time');
 
-	// And from one topic straight to the other — the path changes, the hash
+	// And from one topic straight to the other: the path changes, the hash
 	// arrives with it, and the wash has to land on the pressed entry, not stay
 	// where the last one was.
 	const crossTopic = page
@@ -827,7 +827,7 @@ test('the topic directory narrows browsing before showing entries', async ({ pag
 
 test('a practical question opens its convention and reveals its row', async ({ page }) => {
 	// The welcome page's topic list is in the detail column, so pressing a
-	// topic there says nothing about the list — which is then parked wherever
+	// topic there says nothing about the list, which is then parked wherever
 	// it was, the top for a fresh load, with the arrived-at topic's rows
 	// marking themselves several screens below the fold to nobody. The reveal
 	// has to run for this arrival exactly as for a deep link: `pressedARow`
@@ -873,16 +873,16 @@ test('pressing a row the reader can see moves the list by nothing', async ({ pag
 test('the spelling topic lists the standardized spellings, and the finder searches them', async ({
 	page
 }) => {
-	// The table is drawn from the same `ruleLookupTable` the rule page loads —
-	// one data source, two surfaces — so the row count is the reviewed table's
+	// The table is drawn from the same `ruleLookupTable` the rule page loads
+	// (one data source, two surfaces), so the row count is the reviewed table's
 	// own, not a hand-written excerpt that would go stale beside it.
 	await page.goto('/guidelines/spelling/');
 	const rows = page.locator('.rules__lookup-row');
 	await expect(rows.first()).toBeVisible();
 	expect(await rows.count()).toBeGreaterThan(20);
 
-	// A spelling the page lists has to answer the finder — the citation lesson,
-	// arriving here for lookup tables — and the open page marks the form. The
+	// A spelling the page lists has to answer the finder (the citation lesson,
+	// arriving here for lookup tables) and the open page marks the form. The
 	// index draws no linter rows any more, so what the query lands on is the
 	// standardized-spellings landmark, through `spelling.standardized`'s own
 	// lookup terms folded into its haystack.
@@ -933,7 +933,7 @@ test('a fragment naming nothing falls back to the lead, and a landmark washes', 
 	page
 }) => {
 	// A fragment is somebody else's string, so one that resolves to no heading
-	// must not be published as the reading position — that left the index
+	// must not be published as the reading position. That left the index
 	// marking no row at all until the next scroll event. The lead section is
 	// what a topic opened with no fragment lands on, and it is the honest answer
 	// here too.
@@ -946,8 +946,8 @@ test('a fragment naming nothing falls back to the lead, and a landmark washes', 
 		page.locator('.guidelines__entry[data-current], .guidelines__landmark[data-current]')
 	).toHaveCount(0);
 
-	// A landmark is a deep-link target exactly as an entry is — the index and
-	// every rule page's guideline link both name its anchor — so it takes the
+	// A landmark is a deep-link target exactly as an entry is (the index and
+	// every rule page's guideline link both name its anchor), so it takes the
 	// same arrival wash through the same pair of marks.
 	await page.goto('/guidelines/spelling/#standardized-spellings');
 	await expect(page.locator('.guidelines__landmark[data-current]')).toHaveCount(1);
@@ -976,14 +976,14 @@ test('sitemap lists every public page including the workbench', async ({ request
 	expect(sitemapResponse.headers()['content-type']).toMatch(/(?:application|text)\/xml/u);
 
 	const sitemap = await sitemapResponse.text();
-	// The home page, the rule index, and one page per rule — so this number moves
+	// The home page, the rule index, and one page per rule, so this number moves
 	// by one every time a rule ships. It read 52 against 55 rules for three
 	// releases, which is what a bare figure with nothing saying what it counts
 	// costs; the arithmetic is written out so the next mismatch is legible.
 	const rulePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/checks\/[^/]+\/<\/loc>/gu) ?? [];
 	expect(rulePages).toHaveLength(60);
-	// One page per guidance topic — this number moves when `guidanceTopicTitles`
+	// One page per guidance topic, so this number moves when `guidanceTopicTitles`
 	// gains a topic with entries, which docs/guidelines.md tells the contributor.
 	const guidelinePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/[^/]+\/<\/loc>/gu) ?? [];
@@ -1010,7 +1010,7 @@ test('sitemap lists every public page including the workbench', async ({ request
  * The Content-Security-Policy, pinned where it can actually fail.
  *
  * Every page is prerendered, so the policy rides in a `<meta http-equiv>` that
- * SvelteKit writes from `csp` in `vite.config.ts` — and the three grants below
+ * SvelteKit writes from `csp` in `vite.config.ts`, and the three grants below
  * are the ones whose loss looks exactly like working code. A missing
  * `wasm-unsafe-eval` or `worker-src blob:` takes Harper out silently, leaving a
  * workbench that lints natively and simply never proofreads; and a `style-src`
@@ -1050,7 +1050,7 @@ test('the prerendered policy admits the workbench and refuses everything else', 
 	expect(csp).not.toContain("'unsafe-eval'");
 
 	// CodeMirror's StyleModule, Svelte's transitions and the boot screen's style
-	// attribute are all inline and none can be hashed under a meta policy — and a
+	// attribute are all inline and none can be hashed under a meta policy, and a
 	// hash in this directive is what would switch `unsafe-inline` off.
 	const styleSrc = /style-src ([^;]*)/u.exec(csp)?.[1] ?? '';
 	expect(styleSrc).toContain("'unsafe-inline'");
@@ -1324,7 +1324,7 @@ test.describe('document editing', () => {
 
 	/**
 	 * A `.sr-only` live region inside an expanded diagnostic card once scrolled the
-	 * whole app shell away — toolbar and status bar off screen, with no scrollbar
+	 * whole app shell away, toolbar and status bar off screen, with no scrollbar
 	 * and no wheel gesture to bring them back. Two independent causes, both pinned
 	 * here against a probe shaped like that live region rather than against whichever
 	 * component currently ships one: an absolutely positioned box escaped the panel's
@@ -1371,7 +1371,7 @@ test.describe('phone reference sections', () => {
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
 	test('the stacked index leads with a finder a finger can focus', async ({ page }) => {
-		// The stack leads with the index at the index view — measured the other
+		// The stack leads with the index at the index view. Measured the other
 		// way round, the whole guide stood above the search field, ten phone
 		// viewports of prose between a reader and the section's primary control.
 		await page.goto('/guidelines/');
@@ -1381,7 +1381,7 @@ test.describe('phone reference sections', () => {
 		// And the field computes at least 16px under a coarse pointer, or iOS
 		// Safari answers the focus by zooming the page in and never back out.
 		// The element-selector raise in `responsive.css` loses to any class that
-		// sizes a field, which is exactly how this one shipped at 13px — the
+		// sizes a field, which is exactly how this one shipped at 13px, and the
 		// class-level restatement is what this pins. Emulation cannot reproduce
 		// the zoom itself; the size is the whole mechanism.
 		expect(
@@ -1415,7 +1415,7 @@ test.describe('phone reference sections', () => {
 
 	test('the arrival wash stands down where the index is not beside the page', async ({ page }) => {
 		// The wash exists to tie the washed entry to the marked row in the index
-		// column — one selection, said by both columns at once. Stacked, the
+		// column: one selection, said by both columns at once. Stacked, the
 		// list is `display: none` under an open page, so there is no row on
 		// screen to agree with, and the paint stands down; the mark itself
 		// stays, because the index reads the same state when the reader goes
@@ -1450,7 +1450,7 @@ test.describe('phone reference sections', () => {
 test.describe('phone', () => {
 	// A phone is a coarse pointer *and* a small viewport, so the emulation has to
 	// set both: `hasTouch` is what makes `(pointer: coarse)` match. Upright, the
-	// workbench is served like anywhere else — stacked by the 68rem breakpoint,
+	// workbench is served like anywhere else, stacked by the 68rem breakpoint,
 	// not gated away.
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
@@ -1500,8 +1500,8 @@ test('offline reopen from cache via the service worker', async ({ page, context 
 
 /**
  * The offline snapshot is the app, not the site: `/` and `/workbench/` are precached
- * and the 60 rule reference pages — most of the deploy by bytes, re-fetched
- * per visitor per deploy when they were precached — are not. A rules page joins
+ * and the 60 rule reference pages (most of the deploy by bytes, re-fetched
+ * per visitor per deploy when they were precached) are not. A rules page joins
  * the snapshot by being read, which is the navigation strategy writing what it
  * serves. Both halves are pinned: re-adding the reference to the precache is
  * the specific cost regression, and losing the runtime write would quietly
@@ -1572,7 +1572,7 @@ test('the offline snapshot precaches the app and admits the guide when read', as
  * The error page's way out has to be a new document.
  *
  * This screen is on the reader precisely because the client runtime failed, and
- * the failure is usually a rejected dynamic import — which the browser caches
+ * the failure is usually a rejected dynamic import, which the browser caches
  * against that module's URL, so a client-side navigation re-imports it and fails
  * instantly, forever. The button then does nothing on the one screen whose whole
  * job is offering a way out.

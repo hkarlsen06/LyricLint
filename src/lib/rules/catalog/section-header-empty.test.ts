@@ -27,7 +27,7 @@ describe('section.header-empty', () => {
 	it('marks the brackets, not a point between them', () => {
 		const input = '[]\nA lyric';
 		// `section.header-unrecognized` covered the empty name part, which is a
-		// zero-width range — an underline that draws nothing over the one line the
+		// zero-width range, an underline that draws nothing over the one line the
 		// card is about.
 		expect(markedText(input, checkRule(rule, input))).toEqual(['[]']);
 	});

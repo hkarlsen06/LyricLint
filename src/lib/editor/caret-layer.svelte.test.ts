@@ -7,7 +7,7 @@ import EditorPane from './EditorPane.svelte';
 
 /*
  * The caret is drawn in a layer above the document's fills, because the native
- * one paints under any child with a background — on a performer-tinted line it
+ * one paints under any child with a background: on a performer-tinted line it
  * typed into the right place and could not be seen.
  */
 
@@ -64,8 +64,8 @@ describe('the drawn caret', () => {
 			expect(getComputedStyle(caret!).display).toBe('block');
 		});
 
-		// Above the content, so no line fill — performer tint, fix preview,
-		// active-line wash — can paint over it.
+		// Above the content, so no line fill (performer tint, fix preview,
+		// active-line wash) can paint over it.
 		const caretLayer = editor.querySelector<HTMLElement>('.ll-caret-layer')!;
 		expect(Number(getComputedStyle(caretLayer).zIndex)).toBeGreaterThan(1);
 

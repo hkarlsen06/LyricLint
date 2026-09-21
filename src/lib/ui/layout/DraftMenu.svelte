@@ -36,7 +36,7 @@
 </script>
 
 <!-- The keydown is on the `<details>` rather than on the popover inside it,
-     because Escape has to be caught wherever focus is standing — including on
+     because Escape has to be caught wherever focus is standing, including on
      the summary, which is outside the popover. The element is not being made
      interactive: it hosts one handler for the surface it *is*, exactly as it
      hosts the outside-press attachment beside it. -->
@@ -49,7 +49,7 @@
 	<!-- svelte-ignore a11y_no_redundant_roles -->
 	<!-- A chevron, not a hamburger, and it hangs off the draft's own name rather
 	     than off the far end of the command strip: the field says which draft this
-	     is, and the disclosure beside it says which others there are. Icon only —
+	     is, and the disclosure beside it says which others there are. Icon only:
 	     the name lives in the accessible name and the native tooltip. -->
 	<summary
 		class="button--quiet icon-button draft-menu__trigger"

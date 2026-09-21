@@ -51,7 +51,7 @@
 	let database: LyricLintDatabase | undefined;
 	let backup: WorkspaceBackupController | undefined;
 	// Held for the life of this tab and given up in `onDestroy`, after the final
-	// flush has landed and the database is closed — never in the mount cleanup,
+	// flush has landed and the database is closed, never in the mount cleanup,
 	// which returns while that flush is still in flight.
 	let guard: TabGuard | undefined;
 	const feedback = useFeedbackState();
@@ -96,7 +96,7 @@
 		 *
 		 * The boot is deferred rather than reloaded. Everything below already runs
 		 * after an await and carries a `cancelled` flag, so waiting costs one more
-		 * line — where a `location.reload()` on the way in would throw away the
+		 * line, where a `location.reload()` on the way in would throw away the
 		 * document the user is looking at to reach a state this page can simply
 		 * enter.
 		 */
@@ -108,14 +108,14 @@
 		const held = guard.held;
 
 		// Resolve whether this origin's storage survives eviction, and take the
-		// silent grant where the browser already reports one. Never shows UI —
+		// silent grant where the browser already reports one. Never shows UI, since
 		// the prompting path waits for the control in Preferences → Local data.
 		void ensurePersistentStorage();
 
 		void (async () => {
 			try {
 				// Nothing may touch local storage before this resolves. On the ordinary
-				// path — no other tab — it is already resolved and costs a microtask.
+				// path (no other tab) it is already resolved and costs a microtask.
 				await held;
 				if (cancelled) return;
 				tabBusy = false;
@@ -170,7 +170,7 @@
 					onActiveTabChange: (tab) => {
 						const next = urlForRightPanelTab(page.url, tab);
 						// SAFETY: `URL.search` is empty or opens with `?`, and `URL.hash` is
-						// empty or opens with `#` — so this is one of exactly the three route
+						// empty or opens with `#`, so this is one of exactly the three route
 						// shapes named here, which a template literal type cannot express.
 						const target = `/workbench/${next.search}${next.hash}` as
 							'/workbench/' | `/workbench/?${string}` | `/workbench/#${string}`;
@@ -210,8 +210,8 @@
 	});
 
 	// Leaving the page is the other last moment, and the only one the
-	// `visibilitychange` flush above never sees: a client-side navigation — the
-	// `About LyricLint` link in the status bar is one press away from the caret —
+	// `visibilitychange` flush above never sees: a client-side navigation (the
+	// `About LyricLint` link in the status bar is one press away from the caret)
 	// hides nothing and unloads nothing. Closing the database under the autosave's
 	// own ~250ms debounce lost the last edit and left the deferred write to throw
 	// against a closed connection, so the flush comes first and the close waits for
@@ -222,7 +222,7 @@
 	// the whole reason it is released here rather than in the mount cleanup: the
 	// cleanup returns while this flush is still in flight, so a lock released
 	// there would let the next tab boot and read a database this one is still
-	// writing — which is the loss the guard exists to prevent, arrived at from
+	// writing, which is the loss the guard exists to prevent, arrived at from
 	// the teardown side.
 	onDestroy(() => {
 		if (!browser) return;

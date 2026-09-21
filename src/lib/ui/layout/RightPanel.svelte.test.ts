@@ -85,7 +85,7 @@ describe('RightPanel', () => {
 	// The panes are flex columns so the linter can pin its foot to the bottom of
 	// the panel. Bits UI hides the inactive ones with the `hidden` attribute, and
 	// a `display` declaration that does not exclude them outranks the rule that
-	// honours it — all four panels stack into one column.
+	// honours it, and all four panels stack into one column.
 	test('draws only the active pane despite the panes being flex columns', async () => {
 		const { controller } = createTestWorkbench();
 		await render(RightPanel, { controller, assistant: panelAssistant() });
@@ -137,8 +137,8 @@ describe('RightPanel', () => {
 		expect(input.value).toBe('An unfinished question');
 	});
 
-	// The pane carries chrome at both ends — the chat tray above, the composer
-	// below — so it fits the body rather than growing it. Grown, the body becomes
+	// The pane carries chrome at both ends (the chat tray above, the composer
+	// below) so it fits the body rather than growing it. Grown, the body becomes
 	// the scroll port for the whole pane and both controls leave the screen: the
 	// tray off the top, the composer under the fold.
 	test('scrolls the assistant transcript alone and pins the tray and composer', async () => {
@@ -353,7 +353,7 @@ describe('RightPanel', () => {
 		const filters = () => screen.queryByRole('group', { name: 'Filter diagnostics by severity' });
 
 		// The chips used to hang off a second press on this tab from inside the
-		// linter — undiscoverable, and three handlers deep to work around Bits UI's
+		// linter: undiscoverable, and three handlers deep to work around Bits UI's
 		// activation order. They are simply on screen now.
 		expect(filters()).toBeTruthy();
 
@@ -455,8 +455,8 @@ describe('RightPanel', () => {
 		expect(getComputedStyle(row).padding).toBe('0px');
 		expect(head.getBoundingClientRect().width).toBe(row.getBoundingClientRect().width);
 
-		// The button no longer contains the head — the meta line ends in a link,
-		// and an <a> inside a <button> is invalid — so it stretches its hit area
+		// The button no longer contains the head (the meta line ends in a link,
+		// and an <a> inside a <button> is invalid) so it stretches its hit area
 		// over the head instead. A press in the head's padding, well outside the
 		// button's own box, still lands on the button.
 		const headBox = head.getBoundingClientRect();
@@ -511,7 +511,7 @@ describe('RightPanel', () => {
 			control
 		);
 
-		// So does the slack beside the last decision — a lone control in half a row
+		// So does the slack beside the last decision: a lone control in half a row
 		// of empty gutter is card, not a dead zone.
 		const ignoreBox = ignore.getBoundingClientRect();
 		const rowBox = row.getBoundingClientRect();
@@ -595,7 +595,7 @@ describe('RightPanel', () => {
 		);
 	});
 
-	// An ignore is per occurrence, so one rule set aside twice is two rows — and
+	// An ignore is per occurrence, so one rule set aside twice is two rows, and
 	// the rule's name is the same on both of them. The flagged text is the only
 	// thing that tells them apart, and the ignore key already carries it.
 	test('distinguishes matching ignored words by their current section and line and reveals without restoring', async () => {
@@ -718,7 +718,7 @@ describe('RightPanel', () => {
 	});
 
 	// One list, two answers. The summary carries both counts and each row says
-	// which it is — but only here, where the footer holds both kinds.
+	// which it is, but only here, where the footer holds both kinds.
 	test('counts accepted occurrences apart from ignored ones, and restores either', async () => {
 		const text = '[Chor]\nOne line';
 		const header = diagnostic({
@@ -786,8 +786,8 @@ describe('RightPanel', () => {
 		expect(calls.sectionHeaderRequestCount).toBe(1);
 	});
 
-	// The editor now carries the instructions — a ghost transcription where the
-	// caret is, and Paste lyrics in the toolbar — so the panel says what it will
+	// The editor now carries the instructions (a ghost transcription where the
+	// caret is, and Paste lyrics in the toolbar) so the panel says what it will
 	// do rather than repeating how to feed it, and offers the sample instead.
 	test('says what it is waiting for, and offers the sample, while the document is empty', async () => {
 		const { controller } = createTestWorkbench({ text: '   \n\n', diagnostics: [] });
@@ -946,7 +946,7 @@ describe('RightPanel', () => {
 
 	// The video is the panel's last band: below the ignored-rules footer, which
 	// belongs to the linter alone, and directly above the workspace status bar.
-	// Ordering by scope is what keeps it still — a picture placed above a bar that
+	// Ordering by scope is what keeps it still: a picture placed above a bar that
 	// only exists inside one tab would move whenever the user changed tabs.
 	test('hangs the video at the foot of the panel and pushes the ignored-rules bar up', async () => {
 		const finding = diagnostic({
@@ -983,7 +983,7 @@ describe('RightPanel', () => {
 	});
 
 	// It is outside the panes on purpose. Inside one it would be destroyed and
-	// rebuilt on every tab switch — a black flash and a lost playhead each time.
+	// rebuilt on every tab switch: a black flash and a lost playhead each time.
 	test('keeps the same video element across a tab switch', async () => {
 		const { controller } = withAudio();
 		await render(RightPanel, { controller, assistant: panelAssistant() });

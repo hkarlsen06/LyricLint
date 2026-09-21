@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/rules-catalog.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/rules-catalog.md. Read it before changing this file, and update it with any behavior change.
 import type {
 	Diagnostic,
 	DiagnosticFix,
@@ -18,12 +18,12 @@ const maximumFixes = 3;
 
 /**
  * Every rule ID a Harper finding can arrive under. These are the one set of
- * rules in the shipped rule set with no catalog entry and no reference page —
- * Harper's suggestions cite Harper — so the rule-set manifest is checked against
+ * rules in the shipped rule set with no catalog entry and no reference page
+ * (Harper's suggestions cite Harper), so the rule-set manifest is checked against
  * the registry plus exactly these, and `ruleIdFor` may return nothing else.
  *
  * They are declared in `harper-ids.ts` and re-exported here, so that a module
- * that only needs to *recognise* one — the panel's sort does — can ask without
+ * that only needs to *recognise* one, as the panel's sort does, can ask without
  * importing this file's WASM bridge. Every existing importer still reads them
  * from here.
  */
@@ -84,17 +84,17 @@ type HarperEngineFactory = () => Promise<HarperEngine>;
  *
  * - `AvoidCurses` censors. Its leading suggestions for an uncensored vocal
  *   are `****` and euphemisms, and lyrics are transcribed exactly as
- *   performed — censored only where the recording itself censors.
+ *   performed, censored only where the recording itself censors.
  * - The expanders rewrite informal register into prose. The catalog owns
  *   that decision per token: `spelling.texting-shorthand` expands only what
  *   nobody sings the letters of, and `spelling.standardized` answers `cuz`
  *   and `tho` behind reviewed gates. Harper's blanket family therefore
- *   either duplicates a native rule — which already wins the shared range —
+ *   either duplicates a native rule, which already wins the shared range,
  *   or contradicts a reviewed refusal: `OMG` stays as sung, and a `cuz` that
  *   means cousin is not `because`.
  * - `CauseItIsBecause` fires on the *preferred* form. `'Cause it is` reaches
  *   Harper with its elision apostrophe tokenized away as punctuation and
- *   comes back `Prefer because it is` — a finding on the exact spelling the
+ *   comes back `Prefer because it is`, a finding on the exact spelling the
  *   reviewed data standardizes toward.
  * - `FootInchMinuteSecondSymbols` wants Unicode primes in `5'2"`. Lyric
  *   typography belongs to the quotes rules, and Genius lyrics are plain
@@ -201,7 +201,7 @@ export function projectLyricsForHarper(document: ParsedDocument): HarperProjecti
 			// The one masked thing that is lyric content rather than Genius
 			// structure. Harper tokenizes `'90s` as a number followed by a
 			// one-letter word and spell-checks the `s`, so every decade-shaped
-			// token with an apostrophe — right or wrong — belongs to the catalog:
+			// token with an apostrophe, right or wrong, belongs to the catalog:
 			// `numbers.decade-apostrophe` reports the wrong forms and nothing
 			// needs to report the right ones.
 			decadeApostropheTokenPattern.lastIndex = 0;
@@ -283,8 +283,8 @@ function appliesToLyrics(lint: HarperLint): boolean {
 	// through many physical lines without sentence punctuation, so those findings
 	// describe the transcription form rather than a problem in the lyrics.
 	//
-	// Regionalism prefers one dialect's form over another's — `take a look`
-	// over `have a look`, `to date` over `till date` — and a lyric performed
+	// Regionalism prefers one dialect's form over another's (`take a look`
+	// over `have a look`, `to date` over `till date`), and a lyric performed
 	// in a dialect is transcribed in it. The kind is dropped whole rather than
 	// rule by rule, so a Harper upgrade that adds a new dialect preference
 	// stays quiet without an edit to `disabledHarperLints`.
@@ -304,7 +304,7 @@ function foldApostrophes(word: string): string {
 
 /**
  * Harper tokenizes a word's edge apostrophes as punctuation, so a form its own
- * imported dictionary endorses — `lil'`, `'til` — reaches it as the bare token
+ * imported dictionary endorses (`lil'`, `'til`) reaches it as the bare token
  * and comes back as a spelling finding whose leading suggestion is the very
  * word already in the document. Applying that fix rewrites only the token and
  * leaves the document's apostrophe outside the edit, which re-creates the
@@ -332,7 +332,7 @@ function isApostropheEdgedDictionaryWord(
 
 /**
  * A trailing elision apostrophe after an `-in` token is a g-dropped form the
- * transcriber marked deliberately — `runnin'`, `sippin'`, `somethin'` — and
+ * transcriber marked deliberately (`runnin'`, `sippin'`, `somethin'`), and
  * the as-spoken guideline keeps it. Harper's dictionary cannot hold every
  * dropped `g`, and what it guesses instead is never the word being sung
  * (measured: `Lovin` → `Loin`, `rollin` → `roll in`, `somethin` →
@@ -402,8 +402,8 @@ function fixForSuggestion(
  * A flagged `-in` token whose own suggestion list carries the `-ing` form is a
  * g-drop typed without its elision mark: Harper's dictionary has endorsed
  * `Killing`, so `Killin` is that word as sung. The transcription-first repair
- * is the apostrophe, not the `g` — the as-spoken guideline keeps the dropped
- * `g` and marks it — so the fix Harper cannot know to offer leads the row,
+ * is the apostrophe, not the `g`, because the as-spoken guideline keeps the dropped
+ * `g` and marks it, so the fix Harper cannot know to offer leads the row,
  * the `-ing` form stays second for the vocal that really sang it, and the
  * dictionary's remaining nearest-word guesses (`Kill's`, `Kelvin`) are noise
  * once the token is understood. Synthesis happens only on the dictionary's

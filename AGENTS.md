@@ -7,9 +7,9 @@ Guidance for coding agents working in this repository. `CLAUDE.md` is a symlink 
 LyricLint is a SvelteKit (Svelte 5, runes) workbench for linting Genius lyric transcriptions.
 Reference docs: `PRODUCT.md`, `DESIGN.md`, and `docs/`.
 
-Adding entries to the guidance catalog behind `/guidelines/` — turning supplied screenshots or
+Adding entries to the guidance catalog behind `/guidelines/` (turning supplied screenshots or
 pasted Genius guideline text into reviewed entries, registering sources with their authority
-tier, and verifying annotation acceptance states — follows **`docs/guidelines.md`** exactly.
+tier, and verifying annotation acceptance states) follows **`docs/guidelines.md`** exactly.
 
 ## Read relevant subsystem guidance
 
@@ -63,7 +63,7 @@ clean machine.
 ### Two TypeScripts are installed on purpose
 
 `typescript` stays on 6 and `@typescript/native` is 7, aliased (`npm:typescript@7`). That is not a
-half-finished migration — it is the arrangement svelte-check documents. TS 7 ships no JS compiler
+half-finished migration. It is the arrangement svelte-check documents. TS 7 ships no JS compiler
 API, so **svelte-check** refuses to start and **typescript-eslint** throws on a naive bump.
 `bun run check` opts in with `--tsgo`; `bun run lint` is untouched.
 
@@ -85,7 +85,7 @@ merge commit unless the user explicitly requests one or rebasing would rewrite s
 
 **Do not run `git checkout -- <file>` (or `git restore <file>`) unless you have just checked that
 the file contains no changes but your own.** It discards everything uncommitted in that file, and
-work that was never staged is not recoverable — not from the reflog, not from a stash.
+work that was never staged is not recoverable: not from the reflog, not from a stash.
 
 This working tree is normally carrying a large set of the user's own modified files, so any file
 worth experimenting in is likely to already hold work that is not yours. Backing an experiment out
@@ -94,12 +94,12 @@ Where you know in advance that you are about to try something you may abandon, `
 file first and restore it after.
 
 The cost of getting this wrong is not a rerun. It is somebody's unsaved afternoon, and the only
-place it may still exist is their editor's undo buffer — so if it happens, say so immediately and
+place it may still exist is their editor's undo buffer, so if it happens, say so immediately and
 tell them to check that before you offer to rebuild anything from memory.
 
 ## Parallel work
 
-Parallelize independent work with subagents where it saves time or improves quality —
+Parallelize independent work with subagents where it saves time or improves quality:
 independent subsystems, rule families, doc plus code plus test triples. Keep messages to other
 agents legible, with proper spacing between words, since a human may read them.
 
@@ -133,7 +133,7 @@ checklists belong in the routed documents above.
 - **A `DraftRecord` field is only as safe as the least careful place that rebuilds one.**
   Grep for the new field's siblings across every copier (`docs/subsystems/drafts.md` names
   them); `persistence.test.ts` round-trips every optional field.
-- **Every transient surface dismisses on Escape, its own control, and an outside press** —
+- **Every transient surface dismisses on Escape, its own control, and an outside press**:
   use `dismissOnOutside` from `src/lib/interaction/dismiss.ts`, never a hand-rolled listener.
 - **Copied lyrics stay exact.** Decorations must not change the document or its `text/plain`
   clipboard output. Marks and widgets are implementation choices; previews and controls must
@@ -150,8 +150,16 @@ checklists belong in the routed documents above.
   Deliberate actions such as copying may confirm in place without moving neighboring content.
   Refusals must be visible and announced; use the shared feedback state when the action has no
   local error surface.
-- **Nothing a finger types into is smaller than 16px** — new fields inherit from the body or
+- **Nothing a finger types into is smaller than 16px**: new fields inherit from the body or
   name `--font-size-editor` (`docs/subsystems/responsive.md`).
+
+## Prose
+
+No em dashes (U+2014) anywhere the project writes for a reader: docs, `AGENTS.md`, code comments,
+UI copy, rule messages, commit messages, and agent hand-offs. Rewrite the sentence with a comma,
+colon, period, or parentheses. The character stays only where it is data: a rule that inspects
+or proposes one, a lyric fixture, song metadata, a placeholder glyph. `src/lib/prose-em-dash.test.ts` scans the
+repo and keeps the reviewed counts of those data exceptions.
 
 ## Testing
 
@@ -166,7 +174,7 @@ Assert the absence of removed controls when their duplication was the regression
 The renderer is `vitest-browser-svelte`, and nothing else mounts a component.
 `render`, `rerender`, and `unmount` are asynchronous in renderer v3; await them, including
 through shared setup helpers, before inspecting or interacting with the component.
-`@testing-library/dom` is the query and event layer beside it, for tests whose assertions inspect real elements —
+`@testing-library/dom` is the query and event layer beside it, for tests whose assertions inspect real elements,
 `within(view.container)` scoping in particular, which the browser locators have no equivalent
 for. It is configured once in `vitest-setup-client.ts`, where `eventWrapper: flushSync` and an
 `asyncWrapper` that awaits `tick()` teach it Svelte's flush boundaries. Adding a second component

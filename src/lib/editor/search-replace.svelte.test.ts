@@ -89,7 +89,7 @@ describe('find and replace', () => {
 	});
 
 	// The action tray's magnifier and `Mod-F` are the same command, because the
-	// handle runs CodeMirror's own panel — the shortcut was folklore until the tray
+	// handle runs CodeMirror's own panel: the shortcut was folklore until the tray
 	// drew it, and two implementations of one command is how they come to disagree
 	// about which field ends up focused.
 	//
@@ -111,7 +111,7 @@ describe('find and replace', () => {
 	});
 
 	// Three things open and close this panel and only one is the tray's own press,
-	// so the panel reports rather than being asked — a glyph that only knew about
+	// so the panel reports rather than being asked: a glyph that only knew about
 	// its own presses would burn accent over a bar `Escape` had already closed.
 	it('reports every open and close to the shell', async () => {
 		const openStates: boolean[] = [];
@@ -125,8 +125,8 @@ describe('find and replace', () => {
 		expect(openStates).toEqual([true, false]);
 	});
 
-	// The tray's magnifier is this bar's visible way out — it toggles, it sits over
-	// the row's own right end, and it draws accent while the bar is open — so an
+	// The tray's magnifier is this bar's visible way out (it toggles, it sits over
+	// the row's own right end, and it draws accent while the bar is open), so an
 	// `✕` here would be a second control for a press the user already has, in the
 	// row with least space for one. Re-adding it is the regression this pins.
 	it('carries no close button, and still closes on Escape', async () => {
@@ -164,7 +164,7 @@ describe('find and replace', () => {
 		await expect.poll(() => document.querySelector('.ll-find__status')?.textContent).toBe('1 of 1');
 		expect(page.getByRole('button', { name: 'Next match' }).elements()).toHaveLength(0);
 		// The commands arrive with the diff that explains them, so an empty
-		// replacement offers nothing — and one match is one press, never `all 1`.
+		// replacement offers nothing, and one match is one press, never `all 1`.
 		expect(page.getByRole('button', { name: 'Replace', exact: true }).elements()).toHaveLength(0);
 		await page.getByRole('textbox', { name: 'Replace with' }).fill('Song');
 		await expect

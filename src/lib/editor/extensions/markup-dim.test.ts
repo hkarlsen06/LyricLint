@@ -17,8 +17,8 @@ function dimmedRanges(text: string): { from: number; to: number; slice: string }
 
 describe('markup dim', () => {
 	it('dims an annotation wrapper and leaves the fragment as lyric text', () => {
-		// The whole span is preserved, editable text — an annotation stripped
-		// from a transcription destroys it on Genius — so the delimiters recede
+		// The whole span is preserved, editable text (an annotation stripped
+		// from a transcription destroys it on Genius), so the delimiters recede
 		// instead of hiding: the `[` and the `](id)` take the muted markup face,
 		// and the sung words between them keep the lyric one.
 		const text = '[Intro]\n[Patrick](35524236) har ikke';

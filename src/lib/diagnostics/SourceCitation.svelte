@@ -7,8 +7,8 @@
 	import { safeExternalUrl } from './source-url.js';
 
 	/**
-	 * How the title is drawn, for a surface with something to say about it —
-	 * `SourceLink.svelte`'s own arrangement, for its reason: the guidance topic
+	 * How the title is drawn, for a surface with something to say about it,
+	 * matching `SourceLink.svelte`'s own arrangement, for its reason: the guidance topic
 	 * pages search their citations along with everything else, so the page a
 	 * search opens has to be able to mark the words that matched, and this
 	 * component may not reach for the marker itself because the linter's popover
@@ -30,7 +30,7 @@
 	let anchor = $state<HTMLElement>();
 
 	// Above the link, not below it. Below was where it began, and in the
-	// unfolded sources list — citations stacked one per row — a box under the
+	// unfolded sources list, where citations stack one per row, a box under the
 	// hovered link landed exactly on the next citation, hiding the very link
 	// the pointer was travelling to. Above, it can only cover text already
 	// read. `translateY(-100%)` does the height arithmetic, so nothing has to
@@ -62,7 +62,7 @@
 <!--
 	The citation as it appears on a diagnostic's meta line: the source's title as a
 	link, and nothing else on the line. What used to sit under it in the card's
-	footer — which part of the page was cited, and when it was last verified — is
+	footer (which part of the page was cited, and when it was last verified) is
 	the tooltip, because it is what a reader checks before following the link, not
 	something they need in front of them on every card.
 -->
@@ -74,7 +74,7 @@
 			The link itself opens the tooltip, on hover and on focus alike: the
 			keyboard reaches this the same way the pointer does. Escape closes it
 			without leaving the link, and stops there rather than bubbling into the
-			popover the citation may be sitting in — one Escape, one surface.
+			popover the citation may be sitting in: one Escape, one surface.
 		-->
 		<!-- The href is an external citation vetted by `safeExternalUrl`, not an app
 		     route, so there is nothing for `resolve()` to resolve. -->
@@ -96,7 +96,7 @@
 			}}
 		>
 			<!-- The mark says where the link goes, which the title beside it already
-			     says in words — decorative, so an empty alt keeps it out of the
+			     says in words, is decorative, so an empty alt keeps it out of the
 			     accessible name rather than announcing the source twice. -->
 			{#if favicon}
 				<img class="source-citation__favicon" src={favicon} alt="" />

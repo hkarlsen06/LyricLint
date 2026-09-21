@@ -2,7 +2,7 @@
  * Search terms for the linter rules the guidance entries name, derived from
  * the rule reference at prerender time. A `.server` module because
  * `reference.ts` is server-only by design (deriving it in a browser throws)
- * and must never ride into a documentation page's bundle — the guidelines
+ * and must never ride into a documentation page's bundle, so the guidelines
  * layout load reads this instead of holding the derivation.
  *
  * This is what keeps the guidance finder answering symptom queries now that

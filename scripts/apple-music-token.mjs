@@ -3,7 +3,7 @@
  * Mint the Apple Music developer token this build ships.
  *
  * The token is a JWT signed with a Media Services private key, and it expires
- * within six months — Apple's own ceiling, not a choice made here. So this is
+ * within six months, which is Apple's own ceiling, not a choice made here. So this is
  * not a one-time setup script: it runs again every time the token is rotated,
  * which is at least twice a year for as long as Apple Music is offered.
  *
@@ -14,7 +14,7 @@
  *
  *   bun run token:apple -- --key ~/path/to/AuthKey_XXXXXXXXXX.p8
  *
- * Print it, then set it where the build runs — `.env.development.local` for a
+ * Print it, then set it where the build runs: `.env.development.local` for a
  * dev session, and a Cloudflare Pages *build* variable for production. A runtime
  * variable or a `wrangler secret` never reaches the bundle, because Vite
  * resolves `import.meta.env` at build time.
@@ -26,7 +26,7 @@ import { readFileSync } from 'node:fs';
 /**
  * Neither of these is a secret: both travel inside every token this signs, in
  * the header and the payload, so they are as public as the token is. They are
- * defaults rather than required arguments for that reason — the only thing this
+ * defaults rather than required arguments for that reason, since the only thing this
  * script genuinely needs told is where the private key lives.
  */
 const defaults = {

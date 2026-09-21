@@ -86,7 +86,7 @@ describe('unknown.unresolved', () => {
 	});
 
 	// Every `[?]` is the same request, so a song with three of them draws one
-	// card carrying the count rather than three identical cards — anchored on
+	// card carrying the count rather than three identical cards, anchored on
 	// the first marker, because that is where the listening starts.
 	it('coalesces several markers into one counted card on the first', () => {
 		const input = '[Verse]\nI heard [?] tonight\nAnd [?] again\n\n[Chorus]\nStill [?]';
@@ -99,7 +99,7 @@ describe('unknown.unresolved', () => {
 	});
 
 	// Two markers on one line are still one card, which is the shape the panel
-	// complaint arrived in — Line 52 twice, saying the same sentence.
+	// complaint arrived in: Line 52 twice, saying the same sentence.
 	it('coalesces two markers on the same line', () => {
 		const diagnostics = checkRule(unknownUnresolvedRule, '[Verse]\nI heard [?] and [?]');
 

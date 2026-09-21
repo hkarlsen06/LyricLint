@@ -11,8 +11,8 @@
 
 	The four shapes have to separate at 12px *without* their color, because on the
 	meta line the glyph is the whole of the severity. Error used to be `!` in a
-	circle and suggestion `i` in one — the same ring with the bar and the dot
-	swapped, which is a coin flip at this size — so error is a cross now and the
+	circle and suggestion `i` in one, the same ring with the bar and the dot
+	swapped, which is a coin flip at this size, so error is a cross now and the
 	interiors read as four different marks: ✕, !, i, ✓.
 -->
 <svg

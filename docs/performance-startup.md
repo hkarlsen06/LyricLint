@@ -1,4 +1,4 @@
-# Editor startup — September 9, 2026
+# Editor startup, September 9, 2026
 
 The workbench now downloads and initializes the editor without waiting for optional tools or
 the boot animation to finish. The production build preloads the editor's static dependency

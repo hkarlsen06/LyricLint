@@ -216,7 +216,7 @@
 	}
 
 	// Undefined in a workspace rendered on its own, which is how every component
-	// test renders it — the control simply does not draw there.
+	// test renders it, and the control simply does not draw there.
 	const assistant = useAssistantState();
 
 	// The assistant store outlives this workspace and deliberately knows nothing
@@ -369,7 +369,7 @@
 	let harperRequest = 0;
 	let harperPending = false;
 	let harperUnavailable = false;
-	// The document Harper has actually answered for — or has nothing to say
+	// The document Harper has actually answered for, or has nothing to say
 	// about, which is the same thing to everyone downstream. See the memoized
 	// branch of `enrichSnapshot`, which is where a document can otherwise lose
 	// its request and never ask for another.
@@ -432,7 +432,7 @@
 
 	// Whether the shape of the song is worth an opinion yet. A `document`-tier
 	// rule is a claim about the whole transcription, and a transcription being
-	// typed is one whose shape is wrong the entire way down — one distinct verse
+	// typed is one whose shape is wrong the entire way down: one distinct verse
 	// until the second is written, one chorus until the repeat exists. So those
 	// findings wait for a pause rather than for a line.
 	//
@@ -456,7 +456,7 @@
 		if (settleTimer !== undefined) clearTimeout(settleTimer);
 		settleTimer = undefined;
 		if (!typing) {
-			// Text that arrived whole — a draft opened, a paste, the sample, a fix —
+			// Text that arrived whole (a draft opened, a paste, the sample, a fix)
 			// is a finished document, so its shape findings are right now.
 			documentSettled = true;
 			return;
@@ -464,8 +464,8 @@
 		documentSettled = false;
 		settleTimer = setTimeout(() => {
 			settleTimer = undefined;
-			// `documentSettled` cannot be true here — every assignment of it clears
-			// this timer first — so `destroyed` is the whole guard.
+			// `documentSettled` cannot be true here, because every assignment of it
+			// clears this timer first, so `destroyed` is the whole guard.
 			if (destroyed) return;
 			documentSettled = true;
 			// Nothing else emits a snapshot when typing merely stops, so the pause
@@ -619,7 +619,7 @@
 			const key = lintKey(snapshot);
 			if (key === lastLintKey) {
 				// A composing snapshot invalidates whatever Harper request was in
-				// flight, and a composition that is *cancelled* changes no text — so
+				// flight, and a composition that is *cancelled* changes no text, so
 				// the snapshot that follows takes this memoized path, which is the one
 				// path that never schedules, and Harper stays silent on that document
 				// until the next real edit. Nothing on screen says so either: the
@@ -681,13 +681,13 @@
 	 * Re-run the suppression over the snapshot already in hand.
 	 *
 	 * A link made, taken off, or read back out of the draft changes no text, and
-	 * an effects-only transaction deliberately emits no snapshot — so nothing
+	 * an effects-only transaction deliberately emits no snapshot, so nothing
 	 * would re-run `filterForEditorState`, which is where an answered
 	 * `section.unlinked-repeat` is hidden. It worked by accident until now:
 	 * applying the card collapses the selection, and that is a snapshot. Restoring
 	 * a draft's links at boot collapses nothing, so a reload came back with the
 	 * suggestion still on every linked section and it went away on the first press
-	 * in the document — the first selection change that emitted one.
+	 * in the document, on the first selection change that emitted one.
 	 *
 	 * Costs nothing it did not already cost: the lint is memoized on the document,
 	 * so this re-filters the diagnostics that were already computed, and the
@@ -732,7 +732,7 @@
 			controller.adoptHeaderRename(performerId, previousName, displayName),
 		onSectionHeaderRequest: () => {},
 		// `Ctrl-Alt-U`, and the action bar's own press goes through the controller
-		// directly — one implementation either way, because the edit is the
+		// directly, and it is one implementation either way, because the edit is the
 		// session's to dispatch.
 		onUnknownMarkerRequest: () => {
 			controller.insertUnknownMarker();
@@ -816,7 +816,7 @@
 			const result = assignUnknownVoice(request);
 			if (result.status === 'applied') {
 				// The chip pressed is the answer `The performer is unknown`, so the
-				// finding this edit creates arrives already accepted — a card asking
+				// finding this edit creates arrives already accepted, since a card asking
 				// the question the picker just answered is the workbench arguing
 				// with itself. Written before the edit lands: nothing can settle in
 				// between, and the next settled lint matches it to the finding.
@@ -873,7 +873,7 @@
 		// The song dropped onto the lyrics it belongs to. The editor recognized the
 		// file and knows nothing else about it; where the bytes go is the media
 		// store's business. False when the draft has no store yet, so the drop
-		// falls back to the editor's own handling rather than vanishing — and the
+		// falls back to the editor's own handling rather than vanishing. The
 		// attach is a promise this hook has no way to wait for, which is fine: it
 		// reports its own progress in the strip it is about to draw.
 		onAudioFileDropped: (file) => {
@@ -899,7 +899,7 @@
 		},
 		// The clipboard pair: what a metadata-carrying copy says about this
 		// draft's song, and what a pasted fragment's source is worth here. Both
-		// are the media store's questions — the editor has no standing in either.
+		// are the media store's questions; the editor has no standing in either.
 		onRequestMediaSource: () => controller.media?.clipboardSource(),
 		onMediaSourcePasted: (source) => {
 			void controller.media?.adoptPastedSource(source);
@@ -914,7 +914,7 @@
 			anchors = editorHandle?.getLineAnchors?.() ?? [];
 			controller.onLineAnchorsChanged();
 		},
-		// Unlinking moves no text, so this is the only thing that writes it down —
+		// Unlinking moves no text, so this is the only thing that writes it down,
 		// and the only thing that re-asks whether the suggestion it answered is
 		// still worth showing.
 		onSectionLinksChanged: () => {
@@ -951,22 +951,22 @@
 				// in the same place. That is 0 for a fresh pass and the resumed line's
 				// own time for a half-timed song; the editor decides which, because the
 				// anchors are the editor's. An absent `startAt` is the editor saying
-				// the tape must be left where the user parked it — a selection-scoped
-				// run with no timed line above the selection — so seeking anywhere,
+				// the tape must be left where the user parked it, in a selection-scoped
+				// run with no timed line above the selection, so seeking anywhere,
 				// 0 included, would destroy the one position somebody chose.
 				if (startAt !== undefined) player?.seek(startAt);
 				player?.play();
 				// On phones, focus the tap control so syncing never opens the keyboard.
 				// On desktop the tap is a keystroke, so the run cannot start with focus in the
 				// button that started it. This is a deliberate focus move into a mode
-				// the user just asked for, not the editor grabbing the caret — and it
+				// the user just asked for, not the editor grabbing the caret, and it
 				// is deferred a frame, because this hook fires synchronously inside
 				// the press that turned the mode on: the click's own default
 				// processing and the re-render the state flip schedules both run
 				// after a synchronous call, and either can take the focus straight
-				// back. Left synchronous, a run started with focus on the scrubber —
+				// back. Left synchronous, a run started with focus on the scrubber,
 				// which is where a scoped run's own design just had the user parking
-				// the tape — came up with the space bar answering nothing. One frame
+				// the tape, came up with the space bar answering nothing. One frame
 				// later the press has fully played out and nothing contests it.
 				requestAnimationFrame(() => {
 					if (!syncing) return;
@@ -981,13 +981,13 @@
 			}
 		},
 		// A toast and nothing else. The editor has already announced the same
-		// sentence — it owns the run and the message is its own — so announcing here
+		// sentence (it owns the run and the message is its own) so announcing here
 		// as well would read it into the live region twice for one event.
 		onLyricSyncNotice: (message) => void controller.feedback.addToast({ message })
 	};
 
 	let syncing = $state(false);
-	// Whether the active run covers a selection rather than the song — reported
+	// Whether the active run covers a selection rather than the song, reported
 	// by the editor with the mode itself, because the editor owns the scope.
 	let syncScoped = $state(false);
 	let following = $state(true);
@@ -1011,7 +1011,7 @@
 	// carry their own line numbers and the text is already here.
 	const allLinesTimed = $derived(everyLyricLineTimed(controller.snapshot.text, anchors));
 
-	// Whether a run standing here has timed lines to skip past — a song synced
+	// Whether a run standing here has timed lines to skip past. A song synced
 	// once and then split into more lines is timed everywhere except the new
 	// ones, and re-listening through verses that are already right is the wait
 	// the skip control exists to remove. Off the snapshot for the same reason as
@@ -1021,7 +1021,7 @@
 		timedLinesSkippable(controller.snapshot.text, anchors, controller.snapshot.selection.head)
 	);
 
-	// Whether a press on the sync control would scope the run to the selection —
+	// Whether a press on the sync control would scope the run to the selection:
 	// the same question the editor's own `selectionScope` answers on entry, off
 	// the snapshot the shell already holds, so the strip's label can say what the
 	// press will do before it is made.
@@ -1066,8 +1066,8 @@
 	};
 
 	// A handle arriving is the only thing this pass answers to, so the hand-off
-	// itself runs untracked: it reads back what it has just written — the editor's
-	// own anchors and links — and an editor that holds those in reactive state (the
+	// itself runs untracked: it reads back what it has just written (the editor's
+	// own anchors and links) and an editor that holds those in reactive state (the
 	// mock does; CodeMirror does not) would otherwise re-enter this effect forever.
 	$effect(() => {
 		const handle = editorHandle;
@@ -1088,7 +1088,7 @@
 			}
 			controller.setEditorHandle(handle);
 			// Read the anchors back on the same pass, because that call is where a
-			// remount gets the draft's own timings re-seated onto it — through
+			// remount gets the draft's own timings re-seated onto it, through
 			// `setLineAnchors`, which deliberately reports nothing (it is the draft being
 			// read back, not changed). Without this the shell's copy stays as it was left
 			// by whichever editor is being replaced, and with a paused track nothing else
@@ -1102,7 +1102,7 @@
 	});
 
 	// Re-lint when grammar checking is switched on or off. Toggling the preference
-	// changes no text, so nothing else republishes — this is the same explicit
+	// changes no text, so nothing else republishes. This is the same explicit
 	// re-adoption `republishForSectionLinks` exists for. Clearing `lastLintKey`
 	// makes the native pass recompute and `scheduleHarper` run again; when the
 	// preference is off that call early-returns, so the merged Harper findings drop
@@ -1120,13 +1120,13 @@
 	});
 
 	// The transport keys, bound to the window and not to the document. The pause
-	// is wanted most at exactly the moments the caret has left the text — reading
-	// a finding, aiming a scrubber, renaming the draft — so a binding that only
+	// is wanted most at exactly the moments the caret has left the text (reading
+	// a finding, aiming a scrubber, renaming the draft) so a binding that only
 	// answered inside the editor answered in the wrong half of the loop.
 	//
 	// Attachment and a remembered-but-unloaded source are the only reactive media
 	// values read here, so the listener follows attach, detach, and a pending
-	// source arriving or being spent — a handful of transitions, not every
+	// source arriving or being spent: a handful of transitions, not every
 	// playhead tick. It binds while there is anything to control *or* anything to
 	// load: a bare Escape brings a remembered song that is waiting on a gesture.
 	$effect(() => {
@@ -1140,7 +1140,7 @@
 				return true;
 			},
 			// The tape is remembered but not here yet, and a bare Escape is what the
-			// strip's `Load …` control makes — so the reach-for key makes it too.
+			// strip's `Load …` control makes, so the reach-for key makes it too.
 			// Nothing to load while something is attached or a load is in flight.
 			load: () => {
 				if (!media || media.player.attached || media.pendingName === undefined || media.busy) {
@@ -1149,7 +1149,7 @@
 				void media.reconnect();
 				return true;
 			},
-			// While a run is under way, a bare space is the tap wherever it lands —
+			// While a run is under way, a bare space is the tap wherever it lands,
 			// short of a surface that types or presses with it. Without this, the
 			// space bar paused the tape the moment focus left the editor, which is
 			// exactly where a scoped run's own design sends it: to the scrubber, to
@@ -1179,18 +1179,18 @@
 	// opens, and a listener bound on attach would miss one that was already up.
 	$effect(() => trackKeyboardInset());
 
-	// Where the audio is, pushed into the anchor gutter — which fills one dot and
+	// Where the audio is, pushed into the anchor gutter, which fills one dot and
 	// is the entire extent of what playback is permitted to do to the document.
 	// It is deliberately not conditional on playing: a paused track still has a
 	// position, and showing it is how the user finds their way back to it. But
 	// whether the tape is running rides along, because a pause that lasts lets
-	// the editor rest the wash across the marked line's text — the line number
+	// the editor rest the wash across the marked line's text; the line number
 	// and timestamp keep the color, which is that way back.
 	//
 	// The anchors are read on the same pass and deliberately so: an edit that
 	// shifts a timed line arrives as a document change, which `onAnchorsChanged`
 	// stays quiet for, so this tick is what re-reads them. What it must not do is
-	// *assign* them every time — the playhead arrives several times a second, and
+	// *assign* them every time. The playhead arrives several times a second, and
 	// a fresh array identity per tick re-ran `everyLyricLineTimed` (a walk of the
 	// whole text), the skip predicate, and the cue-point push over a list that had
 	// not changed since the last tap. Same lines at the same times, same array.
@@ -1382,6 +1382,6 @@
 
 <!-- One box for every control that names itself, filled by whichever one the
      pointer or the keyboard is on. It is here rather than in the app layout so
-     that a workspace rendered on its own — which is how every component test
-     renders it — still has somewhere to draw. -->
+     that a workspace rendered on its own, which is how every component test
+     renders it, still has somewhere to draw. -->
 <ControlTooltip />

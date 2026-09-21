@@ -9,14 +9,14 @@
 	// by the left bracket sweeping right.
 	//
 	// Every part of that is driven by one registered custom property,
-	// `--wm-open`, which is the only thing that transitions — the widths, the
+	// `--wm-open`, which is the only thing that transitions: the widths, the
 	// letter fan-out, the flatten, and the bracket tint are all `calc()` off it.
 	// One slider, the way an After Effects control null drives a rig: the states
 	// cannot drift apart or race, and reversing mid-flight reverses everything
 	// together. `wordmark.css` holds the arithmetic.
 	//
 	// Both halves are decoration, so the group carries the single accessible name
-	// and the letters stay out of the accessibility tree — a screen reader should
+	// and the letters stay out of the accessibility tree, since a screen reader should
 	// hear the product name, not five spans and a bracket.
 
 	// An animated lockup opens three ways: on load, under a pointer, and on a
@@ -24,8 +24,8 @@
 	// `animated={false}`; that state has no transition or interactive morph.
 	//
 	// The press is what touch needs, and `:hover` cannot stand in for it. Tapping
-	// an element that carries hover styles does apply them — which is why a tap
-	// appears to open the lockup — but they stay applied until the next tap
+	// an element that carries hover styles does apply them, which is why a tap
+	// appears to open the lockup, but they stay applied until the next tap
 	// somewhere else, so a second tap on the lockup itself changes nothing. A
 	// toggle has to be a real toggle. Once pressed, the latch outranks hover in
 	// both directions, or sticky hover would hold open the very thing the second
@@ -41,7 +41,7 @@
 	 *
 	 * Not called `intro`, which is what it is: `intro` is one of Svelte's own
 	 * `mount` options, and a prop by that name is silently taken as the option and
-	 * never reaches the component — including from every `render()` in the tests,
+	 * never reaches the component, including from every `render()` in the tests,
 	 * which then quietly exercise the default.
 	 */
 	let {
@@ -78,7 +78,7 @@
 
 	const reducedMotion = prefersReducedMotion();
 
-	// The intro's own opinion on whether the lockup is open — the one hover and the
+	// The intro's own opinion on whether the lockup is open, the one hover and the
 	// press latch both outrank. It starts at whichever end its mode begins from,
 	// so the prerendered HTML is already that state and the intro is a single flip
 	// out of it rather than an animation that has to play to be correct: `hold`
@@ -105,7 +105,7 @@
 	});
 
 	/**
-	 * The press latch. `null` is "no one has pressed it — follow the pointer",
+	 * The press latch. `null` is "no one has pressed it, follow the pointer",
 	 * which is the state a mouse leaving restores.
 	 */
 	let latched = $state<boolean | null>(null);
@@ -119,7 +119,7 @@
 
 	function releaseLatch(event: PointerEvent): void {
 		// Mouse only. A touch pointer is destroyed when the finger lifts, so
-		// `pointerleave` fires immediately after every tap — releasing here would
+		// `pointerleave` fires immediately after every tap, and releasing here would
 		// undo each press on the frame it happened.
 		if (event.pointerType === 'mouse') latched = null;
 	}
@@ -128,7 +128,7 @@
 	// type mapping, and the errors it produces point at the rune, not at here.
 	//
 	// `intro` means the intro is holding the lockup open, which for a `reveal` is
-	// a state it enters rather than leaves and then never gives up — its ending
+	// a state it enters rather than leaves and then never gives up: its ending
 	// position is open, and nothing but a press takes it back. `static` is the
 	// reduced-motion parking spot and is open too, which is the same ending both
 	// modes would have reached; the wordmark carries the most brand for the least
@@ -150,13 +150,13 @@
 
 <!-- A `span`, not a `div`: the lockup is the first word of the phone gate's
      headline, and a heading takes phrasing content only. It also decides how the
-     name is computed — a flow-content root gets spaced apart from the text
+     name is computed. A flow-content root gets spaced apart from the text
      beside it, so the heading announced as two fragments.
 
      It stays `role="img"` with a press handler rather than becoming a `button`,
      and the rule is silenced deliberately. Nothing is behind the press: it
-     changes how the brand draws itself and nothing else — no content, no state,
-     no navigation — so there is nothing a keyboard or screen-reader user is shut
+     changes how the brand draws itself and nothing else (no content, no state,
+     no navigation) so there is nothing a keyboard or screen-reader user is shut
      out of. A `button` would announce an action to everyone who cannot see the
      one thing it does, and would put a decorative toy in the workbench's tab
      order, ahead of the draft title. The image role is the honest one: this is a

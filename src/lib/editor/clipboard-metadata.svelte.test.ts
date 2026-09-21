@@ -66,8 +66,8 @@ function content(): HTMLElement {
 }
 
 /**
- * A copy is only the editor's when the live DOM selection is inside it — the
- * guard both CodeMirror's handler and this extension read — so a test that
+ * A copy is only the editor's when the live DOM selection is inside it (the
+ * guard both CodeMirror's handler and this extension read), so a test that
  * copies has to stand where a user stands: focused, with the selection synced
  * into the document.
  */
@@ -347,7 +347,7 @@ describe('paste', () => {
 	// A run is measured against the fragment's own lines, and one that does not fit
 	// them is dropped rather than clamped to the line it landed in. Pasted in front
 	// of text that was already there, the last fragment line is a prefix of a longer
-	// document line — so a payload overshooting it is claiming words the copy never
+	// document line, so a payload overshooting it is claiming words the copy never
 	// carried, which would draw a difference over the draft's own text.
 	it('drops a carried run that does not fit the fragment’s own lines', async () => {
 		const { handle, text } = await mount({ text: 'tail', selection: { anchor: 0, head: 0 } });

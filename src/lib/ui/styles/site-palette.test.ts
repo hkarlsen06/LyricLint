@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
  *
  * A custom property is inherited as its *substituted* value. `--color-control:
  * var(--color-surface)` is declared on `:root`, so it resolves against `:root`'s
- * own `--color-surface` — the light one — and what reaches `.site` is already a
+ * own `--color-surface` (the light one), and what reaches `.site` is already a
  * colour. Overriding `--color-surface` further down the tree does not reach back
  * and change it. The app's own dark scheme never meets this because it
  * redeclares the anchors on `:root` too, where every derivation re-substitutes
@@ -24,14 +24,14 @@ import { describe, expect, it } from 'vitest';
  * loses first:
  *
  *   1. every token the dark scheme redeclares is redeclared on `.site`, and
- *   2. every token derived from one of those — at any depth — is too.
+ *   2. every token derived from one of those, at any depth, is too.
  */
 
 /*
  * Comments come out first, and that is not tidiness.
  *
  * These stylesheets explain themselves at length, and the explanations quote
- * the declarations they are about — the note on `.site` contains the literal
+ * the declarations they are about: the note on `.site` contains the literal
  * text `--color-control: var(--color-surface)` with no semicolon after it. A
  * declaration matcher run over the raw file therefore starts there and swallows
  * everything up to the next `;`, taking the real declarations in between with
@@ -61,7 +61,7 @@ function declarationsIn(block: string): Map<string, string> {
 
 /**
  * The body of the first rule whose selector matches, brace-counted rather than
- * matched with a regex — `color-mix()` and nested `@media` both put braces and
+ * matched with a regex: `color-mix()` and nested `@media` both put braces and
  * parentheses inside these blocks, and a lazy `[^}]+` stops at the first one.
  */
 function ruleBody(css: string, selector: string): string {
@@ -169,7 +169,7 @@ describe('the marketing site pins a complete dark palette', () => {
 	 * `var(--the-same-base)`. `--color-chrome` is the case that killed it: it is
 	 * `var(--color-fill-subtle)` at `:root` and its own value in dark, so the
 	 * text of the two declarations differs even where the rendered colour does
-	 * not. What a token owes is to be declared at all — declared, it is a
+	 * not. What a token owes is to be declared at all. Declared, it is a
 	 * decision either way; missing, it is silently the light theme's.
 	 */
 });
@@ -177,7 +177,7 @@ describe('the marketing site pins a complete dark palette', () => {
 /*
  * The boundary of a control has to be findable, and for a long time it was not:
  * `--color-border-input` rode `--color-border-strong`, which measures 1.55:1
- * against the control fill in the dark scheme and 2.83:1 in light — under the
+ * against the control fill in the dark scheme and 2.83:1 in light, under the
  * 3:1 WCAG 1.4.11 asks of a UI component's only visible edge, on the search
  * fields that are these sections' primary control. The chips already learned
  * this (`controls.css` documents rejecting border-strong at 2.35:1) and the
@@ -186,7 +186,7 @@ describe('the marketing site pins a complete dark palette', () => {
  *
  * The math is the audit's: OKLCH → linear sRGB → WCAG relative luminance,
  * cross-checked against the stylesheet's own published figure for the accent
- * on the selection fill (3.92:1 at `site.css`'s `.site-hit` note — this
+ * on the selection fill (3.92:1 at `site.css`'s `.site-hit` note, and this
  * implementation reproduces it at 3.91).
  */
 describe('control boundaries hold 3:1 in both schemes', () => {

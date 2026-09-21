@@ -1,4 +1,4 @@
-// Decision record: docs/subsystems/editor.md — read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/editor.md. Read it before changing this file, and update it with any behavior change.
 import { redo as redoCommand, history, undo as undoCommand } from '@codemirror/commands';
 import {
 	closeSearchPanel,
@@ -151,7 +151,7 @@ export interface CreateLyricEditorOptions {
 	 *
 	 * It is off in the landing page's demo, where the editor is a fixed box a few
 	 * lines tall and the row is a quarter of it. Nothing is lost by dropping it
-	 * there — the sample's header problem is `section.header-prose`, whose fix
+	 * there: the sample's header problem is `section.header-prose`, whose fix
 	 * rewrites the line the reader is already looking at, so the repair is on the
 	 * line rather than in a control above it.
 	 */
@@ -166,7 +166,7 @@ export interface CreateLyricEditorOptions {
 	 * Whether `Mod-F` anywhere in the window opens this editor's find bar. On by
 	 * default, and the workbench wants it that way: there the editor is what the
 	 * window is for, so the browser's own find is the wrong answer to that press
-	 * wherever it is made — the tray's magnifier and `Escape` are the visible ways
+	 * wherever it is made. The tray's magnifier and `Escape` are the visible ways
 	 * back.
 	 *
 	 * It is off in the landing page's demo, where the pane is one figure inside an
@@ -177,7 +177,7 @@ export interface CreateLyricEditorOptions {
 	 * `Mod-.` rides the same gate: it too is a window-level reach into this
 	 * editor (the diagnostic row that teaches it lives in the panel, where the
 	 * caret is not), and it too belongs to the workbench and not to a figure in
-	 * an article — a marketing page popping a diagnostic card for a stray press
+	 * an article: a marketing page popping a diagnostic card for a stray press
 	 * is the same wrong answer with a different key.
 	 */
 	windowFind?: boolean;
@@ -241,8 +241,8 @@ function assertRange(range: TextRange, documentLength: number): void {
  * right outcome is a visible break, not a plausible wrong answer.
  *
  * The type in particular has to come from the tokens: hardcoding a monospace
- * stack here is what put the lyric text — the one surface the user reads for
- * hours — in a different typeface from every other mono glyph in the app.
+ * stack here is what put the lyric text (the one surface the user reads for
+ * hours) in a different typeface from every other mono glyph in the app.
  */
 const editorTheme = EditorView.theme({
 	'&': {
@@ -256,11 +256,11 @@ const editorTheme = EditorView.theme({
 		// The words' face, not the markup's: lyric text is prose, so it reads in
 		// `--font-lyrics`, and the markup spans keep `--font-mono` through the
 		// same decoration that dims them (markup-dim.ts). The gutters state
-		// `--font-mono` for themselves below — a timestamp column is tabular.
+		// `--font-mono` for themselves below: a timestamp column is tabular.
 		fontFamily: 'var(--font-lyrics)',
 		fontSize: 'var(--font-size-editor)',
 		// Inherited by everything in the editor, and a deliberate no-op on all of
-		// it except the lyric face itself — tokens.css explains the arithmetic.
+		// it except the lyric face itself: tokens.css explains the arithmetic.
 		fontSizeAdjust: 'var(--font-lyrics-size-adjust)'
 	},
 	// No focus ring around the editor: the caret and the active-line wash already
@@ -269,7 +269,7 @@ const editorTheme = EditorView.theme({
 		outline: 'none'
 	},
 	// The one time this editor draws a ring around itself. The focus ring was
-	// dropped because a full-height outline dominates the workspace — which is
+	// dropped because a full-height outline dominates the workspace, which is
 	// the property wanted here and nowhere else: what will take the file is the
 	// whole document, not a well inside it, and a drag lasts a second. So the
 	// affordance is the surface's own edge answering, rather than a tinted sheet
@@ -292,7 +292,7 @@ const editorTheme = EditorView.theme({
 		padding: 'var(--space-6) var(--space-4) var(--editor-scroll-padding) var(--space-2)',
 		// The visible caret is the drawn layer (extensions/caret-layer.ts): the
 		// native one paints under any child with a background, and this editor's
-		// lines are covered in deliberate fills — on a performer-tinted line it
+		// lines are covered in deliberate fills: on a performer-tinted line it
 		// typed into the right place and could not be seen. Transparent rather
 		// than removed, so there are not two carets where the fills are absent.
 		// Touch devices restore the native caret below: iOS also uses its color
@@ -306,13 +306,13 @@ const editorTheme = EditorView.theme({
 		padding: '0 var(--space-1)',
 		// The reading measure. The cap is carried by padding, not by a max-width
 		// on `.cm-content` or the line: percentage padding resolves against the
-		// content box, so the line's border box still spans the full pane — which
+		// content box, so the line's border box still spans the full pane, which
 		// keeps the active-line wash (an inset shadow on that box, above) painting
-		// edge to edge and keeps clicks anywhere on a row landing in the line —
+		// edge to edge and keeps clicks anywhere on a row landing in the line,
 		// while the text itself wraps at the measure. --measure-editor is the same
 		// token the mock editor's textarea caps at in ui/styles/editor.css; `ch`
-		// resolves against this element's own font — `--font-lyrics` on both
-		// surfaces now — so both cap at the same character count. The max() keeps the original --space-1 padding
+		// resolves against this element's own font (`--font-lyrics` on both
+		// surfaces now), so both cap at the same character count. The max() keeps the original --space-1 padding
 		// as the floor when the pane is narrower than the measure, and the logical
 		// property puts the slack on the away-from-text side in RTL documents too.
 		paddingInlineEnd: 'max(var(--space-1), calc(100% - var(--measure-editor)))'
@@ -335,7 +335,7 @@ const editorTheme = EditorView.theme({
 		boxShadow: 'inset 0 0 0 62.5rem var(--color-fill-subtle)'
 	},
 	// Except on the empty document. A wash marks the row you are on *among
-	// others*, and an empty document has no others for it to pick out — here it
+	// others*, and an empty document has no others for it to pick out: here it
 	// would only draw a band across the ghost's first row, cutting the four rows
 	// of one placeholder into a lit one and three unlit ones.
 	'.cm-activeLine:has(.ll-placeholder)': {
@@ -365,7 +365,7 @@ const editorTheme = EditorView.theme({
  *
  * The workbench is the other kind and has to be: its editor is one half of a
  * two-column window, so it fills the column it was given and the document
- * scrolls inside it. The landing page's demo has no column to fill — it sits in
+ * scrolls inside it. The landing page's demo has no column to fill. It sits in
  * an article, at whatever height the verse needs, and typing a fifth line should
  * lengthen it rather than start a scroller inside a box in the middle of a page
  * the reader is already scrolling.
@@ -378,8 +378,8 @@ const editorTheme = EditorView.theme({
  */
 const autoHeightTheme = EditorView.theme({
 	// `&.cm-editor` and not the bare `&` that `editorTheme` uses, because a theme
-	// mounted later does not reliably come out later in the sheet — CodeMirror's
-	// StyleModule decides that — and at equal specificity the loser is whichever
+	// mounted later does not reliably come out later in the sheet (CodeMirror's
+	// StyleModule decides that), and at equal specificity the loser is whichever
 	// one lost the coin toss. Naming the class as well outranks it outright.
 	'&.cm-editor': {
 		height: 'auto',
@@ -435,13 +435,13 @@ function prepareInitialSelection(
 /*
  * Dropping the song onto the lyrics it belongs to is what an expert reaches for
  * instead of hunting for a control in a panel. The editor therefore learns one
- * thing about audio — what a drag carrying it looks like — and hands the file
+ * thing about audio (what a drag carrying it looks like) and hands the file
  * straight out through `onAudioFileDropped`.
  *
  * Everything here is written so the drops that already worked keep working. A
  * selection dragged inside the document, a `.txt` read in at the caret, a URL:
  * CodeMirror handles all three, and it only gets to if this never claims an
- * event it is not handling. `preventDefault` on `dragover` is the trap — called
+ * event it is not handling. `preventDefault` on `dragover` is the trap: called
  * unconditionally it makes the editor the drop target for everything, so it is
  * called only once the drag has been recognized as audio.
  */
@@ -462,8 +462,8 @@ function isAudioFile(file: File): boolean {
 /**
  * Whether a drag still in flight is carrying audio.
  *
- * Mid-drag the browser withholds the bytes and the names — `items` reports
- * `kind` and `type` and nothing else — so this is the type test with the empty
+ * Mid-drag the browser withholds the bytes and the names (`items` reports
+ * `kind` and `type` and nothing else), so this is the type test with the empty
  * type allowed through, and it is deliberately the optimistic half of the pair.
  * The affordance may light for a file whose type the browser would not name;
  * the drop, which can read the name, is where that is settled, and a drop this
@@ -589,7 +589,7 @@ const lyricEditorCallbackKeySet = {
 
 export const lyricEditorCallbackKeys =
 	// SAFETY: the literal above is `as const satisfies Record<keyof LyricEditorCallbacks, true>`, so
-	// its own keys are exactly the callback names — one missing or misspelled fails to compile
+	// its own keys are exactly the callback names: one missing or misspelled fails to compile
 	// there. Only `Object.keys`'s `string[]` return loses that, which is what this restores.
 	Object.keys(lyricEditorCallbackKeySet) as (keyof LyricEditorCallbacks)[];
 
@@ -714,15 +714,15 @@ export function createLyricEditor(
 	// the pair behind is how a "disabled" feature keeps a foothold in the DOM.
 	const sectionGhosts = options.sectionGhosts ?? true;
 
-	// Held rather than passed inline, because the tap is reachable two ways — the
+	// Held rather than passed inline, because the tap is reachable two ways (the
 	// `Space` binding inside the extension, and the transport's control through
-	// the handle below — and both have to be the same command over the same
+	// the handle below), and both have to be the same command over the same
 	// options or a tap and a press would stop meaning the same thing.
 	const syncOptions = {
-		// The triple a tap needs — where the tape is, how fast it runs, and whether
+		// The triple a tap needs: where the tape is, how fast it runs, and whether
 		// it is running at all. A shell that wires only the plain time is read as
 		// playing at 1×, which is exactly the behaviour taps had before pause and
-		// rate were facts a tap could ask about — so the demo and every older
+		// rate were facts a tap could ask about, so the demo and every older
 		// harness keep working without learning the new hook.
 		playback: () => {
 			const reading = callbackProxy.onRequestMediaPlayback?.();
@@ -746,8 +746,8 @@ export function createLyricEditor(
 	const syncSkip = lyricSyncSkip(syncOptions);
 
 	// Held rather than inlined for the same reason the tap is: the line-number
-	// press is one gesture with two meanings — play from here, and, while a run is
-	// under way, tap from here — and they have to arrive in that order.
+	// press is one gesture with two meanings (play from here, and, while a run is
+	// under way, tap from here), and they have to arrive in that order.
 	const seekOnLineNumber = anchorSeekOnLineNumber({
 		onSeek: (time) => callbackProxy.onSeekMedia?.(time),
 		currentTime: () => callbackProxy.onRequestMediaTime?.()
@@ -766,14 +766,14 @@ export function createLyricEditor(
 				...anchorHintsOnLineNumbers(),
 				mousedown: (view, line, event) => {
 					// An untimed line is not this control's, so the press is left unclaimed
-					// and the run is not told about it either — a rewind on a row with no
+					// and the run is not told about it either: a rewind on a row with no
 					// pointer cursor is an affordance that works on some lines and silently
 					// not on others.
 					if (!seekOnLineNumber(view, line, event)) return false;
 					// The tape moved, so in a run the caret moves with it: the caret is
 					// where the next tap lands, and the two ends of a run cannot be in
-					// different places. The pressed line keeps the time it already had —
-					// the tap after a jump goes to the line below — which is also the way
+					// different places. The pressed line keeps the time it already had
+					// (the tap after a jump goes to the line below), which is also the way
 					// out of a section filled from a linked peer.
 					syncMoveTo(view, line.from);
 					return true;
@@ -923,7 +923,7 @@ export function createLyricEditor(
 			return;
 		}
 		// A modal owns every key that lands in it, and this listener is bound to
-		// the window in the capture phase — so over the audio picker it took the
+		// the window in the capture phase, so over the audio picker it took the
 		// press, opened a find bar behind the dialog, and left the field the user
 		// was typing a search into with no Find of its own. Read off the target,
 		// which is trapped inside the open dialog, for the transport's own reason:
@@ -944,17 +944,17 @@ export function createLyricEditor(
 	if (windowFind) window.addEventListener('keydown', openFind, true);
 	// `Mod-.` reaches this editor from the whole window for `openFind`'s reason,
 	// sharpened: the keystroke is *taught* on the diagnostic row, and the row
-	// lives in the panel — the one place the caret never is. Bound only in the
+	// lives in the panel, the one place the caret never is. Bound only in the
 	// editor's keymap it answered exactly where the tooltip was not being read.
 	// Capture plus stopPropagation keeps it one implementation: with the caret in
 	// the document, this listener runs the same command the keymap binds, before
-	// the keymap can — the transport's rule about two implementations of one
+	// the keymap can, the transport's rule about two implementations of one
 	// keystroke, honoured from the other side.
 	const openFix = (event: KeyboardEvent): void => {
 		const modifier = /Mac|iPhone|iPad|iPod/u.test(navigator.platform)
 			? event.metaKey
 			: event.ctrlKey;
-		// `event.code`, because the shifted chord never reports `.` as its key —
+		// `event.code`, because the shifted chord never reports `.` as its key.
 		// `Shift+.` is `>` on a US layout and `:` on a Nordic one. The unshifted
 		// key check stays as the fallback for synthetic events with no code.
 		const period = event.code === 'Period' || event.key === '.';
@@ -967,7 +967,7 @@ export function createLyricEditor(
 		if (target instanceof Element && target.closest('dialog, [aria-modal="true"]') !== null) {
 			return;
 		}
-		// Shifted, the chord walks to the next finding instead of opening a fix —
+		// Shifted, the chord walks to the next finding instead of opening a fix,
 		// and it wraps, in the command itself, so the window and the keymap agree.
 		if (event.shiftKey) {
 			event.preventDefault();
@@ -977,7 +977,7 @@ export function createLyricEditor(
 		}
 		// And a control that claims this keystroke answers it itself: `Mod-.`
 		// lands focus on the leading fix, whose box names `⌘.` as its own press,
-		// and `DiagnosticActions` binds the apply there — where it also covers the
+		// and `DiagnosticActions` binds the apply there, where it also covers the
 		// demo, which has no window listener. Standing down keeps one
 		// implementation of "apply" rather than two, the same rule that keeps the
 		// transport keys out of the editor's keymap.
@@ -1246,7 +1246,7 @@ export function createLyricEditor(
 		},
 		// The tap, for a pointer that has no `Space`. It does not focus the editor:
 		// the press is already in the transport, and a run driven from there stays
-		// there — the caret walks on its own and nothing is being typed.
+		// there, the caret walks on its own and nothing is being typed.
 		tapLyricSync() {
 			syncTap(view);
 		},

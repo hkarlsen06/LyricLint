@@ -15,8 +15,8 @@ function previewDiagnostic(): Diagnostic {
 		sourceIds: [],
 		// A synthetic judgment-call finding: no catalog rule sets
 		// `presumedCorrect` today (the ad-lib wrap offer that did was retired),
-		// but the shell contract it exercises — accepting leads, the fix steps
-		// down — stays pinned for the next rule that does.
+		// but the shell contract it exercises (accepting leads, the fix steps
+		// down) stays pinned for the next rule that does.
 		presumedCorrect: true,
 		fixes: [
 			{
@@ -74,7 +74,7 @@ describe('DiagnosticDetails preview flow', () => {
 		});
 
 		// An ad-lib the singer is performing as part of the line belongs exactly as
-		// it is written, so the answer that leads is that nothing is wrong — and the
+		// it is written, so the answer that leads is that nothing is wrong, and the
 		// quiet `Ignore` that used to sit after the fix is what it replaces.
 		const accept = page.getByRole('button', { name: "It's correct" });
 		const wrap = page.getByRole('button', { name: 'Wrap as (Yeah)' });
@@ -290,7 +290,7 @@ describe('DiagnosticDetails preview flow', () => {
 
 	it('answers an unnamed styled voice with the performer being unknown, not Ignore', async () => {
 		// The formatting-first transcriber's honest way out: the acceptance stands
-		// in the ignore slot — same press, same per-occurrence key — and the quiet
+		// in the ignore slot (same press, same per-occurrence key) and the quiet
 		// `Ignore` is what it replaces, exactly as `It really is unintelligible`
 		// does for a lyric nobody could make out.
 		const onIgnore = vi.fn();
@@ -318,8 +318,8 @@ describe('DiagnosticDetails preview flow', () => {
 	});
 
 	it('offers no assignment when the host cannot make one', async () => {
-		// A section that cannot take a legend — no header, or two styled voices
-		// and no plain lyrics — withholds the handler, and the card withholds the
+		// A section that cannot take a legend (no header, or two styled voices
+		// and no plain lyrics) withholds the handler, and the card withholds the
 		// button rather than showing one that only explains why it did nothing.
 		await render(DiagnosticDetails, {
 			diagnostic: {

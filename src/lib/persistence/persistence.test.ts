@@ -41,8 +41,8 @@ function closeTestDatabase(database: LyricLintDatabase): void {
 function performer(displayName = 'Renée'): PerformerRecord {
 	// `satisfies Required<…>`, not just the return type: the copiers between a
 	// draft and the disk hand-list sub-record fields too, so an optional field
-	// added to `PerformerRecord` has to reach this fixture — and through it the
-	// whole-record round trip below — or it is only as safe as the least careful
+	// added to `PerformerRecord` has to reach this fixture, and through it the
+	// whole-record round trip below, or it is only as safe as the least careful
 	// copier that rebuilds one.
 	return {
 		id: crypto.randomUUID(),
@@ -69,7 +69,7 @@ function draft(overrides: Partial<DraftRecord> & Pick<DraftRecord, 'id' | 'text'
 /**
  * A record written straight into the table, past the repository's own copiers.
  * That is how a partial write, a hand edit in devtools or a schema slip reaches
- * the boot — never through `create`, which fills every field in.
+ * the boot, never through `create`, which fills every field in.
  *
  * `updatedAt` is required rather than optional because `list` reads the
  * `updatedAt` index, and IndexedDB leaves a record missing an indexed key out
@@ -348,7 +348,7 @@ describe('draft repository', () => {
 	});
 
 	// Every source's id has to survive the trip, and `trackId` is the field a
-	// hand-written copier drops in silence — which is exactly how it was lost from
+	// hand-written copier drops in silence, which is exactly how it was lost from
 	// the in-memory double the day Spotify was added.
 	it('keeps each source and its id whole across a reopen', async () => {
 		const { database, repository } = await createRepository('media-sources');
@@ -453,7 +453,7 @@ describe('draft repository', () => {
 
 	// A video is a discriminant and an id where a file is a handle and a size, and
 	// both live in the same `version(2)` table. Neither field is indexed, so the
-	// live schema takes them without a migration — which is the whole reason the
+	// live schema takes them without a migration, which is the whole reason the
 	// discriminant is optional rather than required.
 	it('remembers a video for a draft across sessions, beside the files', async () => {
 		const name = databaseName('media-video-reopen');
@@ -519,7 +519,7 @@ describe('draft repository', () => {
 		expect(await reopenedRepository.getRecentLanguages()).toEqual(['fr', 'ja', 'es', 'de', 'no']);
 
 		// `deleteAll` is the Preferences panel's "Reset LyricLint", a return to the
-		// initial state — the history goes with the rest of the metadata. This
+		// initial state, and the history goes with the rest of the metadata. This
 		// assertion used to pin the opposite, from when the action was named
 		// `Delete all local data` and read as being about content alone.
 		await reopenedRepository.deleteAll();
@@ -650,9 +650,9 @@ describe('autosave and recovery', () => {
 	});
 
 	/*
-	 * Three separate hand-written copiers stand between a draft and the disk —
+	 * Three separate hand-written copiers stand between a draft and the disk:
 	 * `copySnapshot` in the autosave, and `copyDraft` and `createRecord` in the
-	 * repository — and every one of them lists the fields it keeps. A field added
+	 * repository, and every one of them lists the fields it keeps. A field added
 	 * to `DraftRecord` and missed by any of them is dropped in silence: that is how
 	 * `lineAnchors` came to be stripped by the autosave, so a whole synced song was
 	 * gone on reload while every layer above it looked correct.
@@ -673,8 +673,8 @@ describe('autosave and recovery', () => {
 			editorSelection: { anchor: 3, head: 7 },
 			// The sub-records carry `satisfies Required<…>` for the same reason the
 			// whole record does: the copiers hand-list these fields too, so an
-			// optional field added to any of them has to force this fixture — and
-			// the round trip below — to grow it.
+			// optional field added to any of them has to force this fixture (and
+			// the round trip below) to grow it.
 			lineAnchors: [
 				{ line: 2, time: 12.5 } satisfies Required<LineAnchor>,
 				{ line: 3, time: 30 } satisfies Required<LineAnchor>
@@ -955,7 +955,7 @@ describe('autosave and recovery', () => {
 
 	/*
 	 * Revisions are counted by the editor and start again at zero every time one
-	 * is mounted, which is what reopening a draft does — so the mark left by the
+	 * is mounted, which is what reopening a draft does, so the mark left by the
 	 * first visit stood over a second visit whose first save was revision 1, and
 	 * every save was refused until the new session out-typed the old one. A sync
 	 * run never does, because an anchor tap changes no text: a reopened draft's

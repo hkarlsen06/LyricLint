@@ -185,7 +185,7 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		safe: true,
 		// The trailing lookahead refuses an apostrophe as well as a letter, so the
 		// Italian elision `cos'è` is excluded by shape rather than by the language
-		// gate below — a token that carries its own apostrophe is not this word.
+		// gate below: a token that carries its own apostrophe is not this word.
 		pattern: new RegExp(
 			"(?<![\\p{L}\\p{N}_'’])(?:cause|couse|cos|coz)(?![\\p{L}\\p{N}_'’])",
 			'giu'
@@ -387,7 +387,7 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		safe: true,
 		pattern: word('naïve|naieve|niaive|neive'),
 		// English only. Dropping the diaeresis is an English preference, and the
-		// form this entry rewrites first — `naïve` — is the correct French
+		// form this entry rewrites first, `naïve`, is the correct French
 		// spelling, so a safe fix in a French draft is the corruption itself.
 		isSufficientContext: (context) => isEnglishLanguage(context.language)
 	},
@@ -631,7 +631,7 @@ function computeSpellingCandidates(
 
 	// A fuzzy candidate is a guess that a word is a one-edit typo of an English
 	// form, and the guess only holds where the selected language says the words
-	// are English — Norwegian “tryne” is one edit from “tryna” and a typo of
+	// are English. Norwegian “tryne” is one edit from “tryna” and a typo of
 	// nothing. The exact patterns above still match in every language, because
 	// somebody who typed “trynna” typed the English form wherever they typed it.
 	if (isEnglishLanguage(context.language)) {
