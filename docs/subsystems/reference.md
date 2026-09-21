@@ -40,6 +40,8 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   that distinction independently of color.
   Topic titles stick within their group in both panes, below the finder in the middle pane.
   Departing topic titles clip at the finder's lower edge so they cannot show through its controls.
+  Switching from the directory to entries refreshes the measured headings even when the results
+  have not changed, including when revealing the reading pane establishes the first reading position.
   Once pinned, amber text shrinks to `--font-size-xl` over `--duration-slow`; reduced motion
   changes it immediately. Invisible, inaccessible text reserves the full title's natural wrap
   independently of the sticky layer, so shrinking never moves rows or prose.

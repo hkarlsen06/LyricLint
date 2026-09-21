@@ -63,6 +63,50 @@ async function expectReachable(control: Locator) {
 }
 
 for (const width of [1440, 390]) {
+	test(`opening and scrolling the guide keeps finder titles on glass at ${width}px`, async ({
+		page,
+		browserName
+	}) => {
+		await page.setViewportSize({ width, height: 900 });
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await page.goto('/guidelines/');
+		await expect(page.locator('.site-split')).toHaveAttribute('data-scrollbars-ready', '');
+		await page.evaluate(() => document.fonts.ready);
+		// Moving across to the reader establishes a reading position and replaces
+		// the directory with entries without changing the search results.
+		await page.locator('.site-split').evaluate((strip) => {
+			strip.scrollLeft = strip.scrollWidth;
+		});
+		const index = page.locator('.site-split__index');
+		await expect(index.getByRole('heading', { name: 'All topics', exact: true })).toBeAttached();
+		if (width === 390) {
+			await page
+				.getByRole('navigation', { name: 'Guide navigation' })
+				.getByRole('button', { name: 'Topics', exact: true })
+				.click();
+		}
+		await scrollInside(index, '.guide-topic + .guide-topic', 50);
+		const title = index.locator('.guide-topic-title').nth(1);
+		await expect(title).toHaveCSS('font-size', '19px');
+		await expectPinned(title, index.locator('.site-finder'), true);
+		await expectGlassThrough(index, title);
+		await expectReachable(index.getByRole('searchbox'));
+		// Linux WebKit does not render backdrop blur even in an isolated page.
+		// Chromium verifies the painted effect, beyond the computed CSS value.
+		if (browserName === 'chromium') {
+			const clip = (await index.locator('.site-finder').boundingBox())!;
+			const blurred = await page.screenshot({ clip });
+			const override = await page.addStyleTag({
+				content: '.guide-glass::before { backdrop-filter: none !important; }'
+			});
+			try {
+				expect((await page.screenshot({ clip })).equals(blurred)).toBe(false);
+			} finally {
+				await override.evaluate((element) => element.remove());
+			}
+		}
+	});
+
 	for (const reducedMotion of ['no-preference', 'reduce'] as const) {
 		test(`guide context stays pinned without moving content at ${width}px with ${reducedMotion} motion`, async ({
 			page
@@ -271,6 +315,18 @@ for (const width of [1440, 390]) {
 					.click();
 			}
 			await expect(index.getByRole('searchbox')).toBeInViewport();
+			// Reopening the same topic replaces the directory with new heading nodes
+			// even though the result groups themselves have not changed.
+			await index.getByRole('button', { name: 'Browse topics', exact: true }).click();
+			await index
+				.getByRole('link', { name: 'Section headers and performers', exact: true })
+				.click();
+			if (width === 390) {
+				await page
+					.getByRole('navigation', { name: 'Guide navigation' })
+					.getByRole('button', { name: 'Topics', exact: true })
+					.click();
+			}
 			const group = index.locator('.guide-topic').first();
 			const indexTitle = group.locator('.guide-topic-title');
 			await index.evaluate((port) => {

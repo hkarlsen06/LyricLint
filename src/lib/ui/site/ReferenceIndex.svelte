@@ -155,7 +155,7 @@
 	class="site-split__index reference-index"
 	data-sveltekit-noscroll
 	bind:this={column}
-	use:stickyTopics={resultGroups}
+	use:stickyTopics={[directory, resultGroups]}
 	tabindex="-1"
 >
 	<div class="guide-glass" aria-hidden="true"></div>
