@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { tick } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 // The lockup's geometry is all `em` and `ch` against `--font-size-lg` in
@@ -71,6 +72,8 @@ describe('AppWordmark', () => {
 			await render(AppWordmark);
 			const element = lockup();
 			await fontsSettled();
+			// A pointer resting on the mark intentionally keeps its idle state open.
+			await userEvent.unhover(element);
 
 			// Open on mount, which is also what prerendered HTML says: the intro is
 			// a hold on the state the page loaded in, not an animation that plays.

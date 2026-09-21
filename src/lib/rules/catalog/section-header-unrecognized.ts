@@ -5,7 +5,10 @@ import {
 	reviewedLanguagePacks
 } from '$lib/languages/registry.js';
 import { headerNameIsEmpty } from '$lib/core/parser.js';
-import { localizedHeaderPreference } from './section-localized-header-preference.js';
+import {
+	hasChorusAffixes,
+	localizedHeaderPreference
+} from './section-localized-header-preference.js';
 import { diagnostic } from './utils.js';
 
 function isRecognizedHeader(name: string): boolean {
@@ -20,7 +23,10 @@ function isRecognizedHeader(name: string): boolean {
 function isNonEnglishTitleHeader(name: string, language: string, sectionIndex: number): boolean {
 	const pack = getLanguagePack(language);
 	return (
-		sectionIndex === 0 && pack.tag !== 'en' && pack.tag !== 'und' && /["“][^"”]+["”]/u.test(name)
+		sectionIndex === 0 &&
+		pack.tag !== 'en' &&
+		pack.tag !== 'und' &&
+		/^[^:"“«]*["“«][^"”»]+["”»]/u.test(name)
 	);
 }
 
@@ -38,7 +44,7 @@ function orderedSourceIds(language: string, sourceIds: readonly string[]): strin
 
 export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 	id: 'section.header-unrecognized',
-	version: 2,
+	version: 3,
 	defaultSeverity: 'manual-review',
 	fixability: 'none',
 	sourceIds: [
@@ -54,6 +60,7 @@ export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 		'G-NON-ENGLISH'
 	],
 	check(document, context) {
+		const withChorusAffixes = hasChorusAffixes(document);
 		return document.sections.flatMap((section, sectionIndex) => {
 			const header = section.header;
 			// A nameless header is not a custom one. `Review the custom section
@@ -66,8 +73,8 @@ export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 				!header ||
 				headerNameIsEmpty(header) ||
 				isRecognizedHeader(header.namePart) ||
-				localizedHeaderPreference(context.language, header.namePart) ||
-				isNonEnglishTitleHeader(header.namePart, context.language, sectionIndex)
+				localizedHeaderPreference(context.language, header.namePart, withChorusAffixes) ||
+				isNonEnglishTitleHeader(header.raw, context.language, sectionIndex)
 			) {
 				return [];
 			}

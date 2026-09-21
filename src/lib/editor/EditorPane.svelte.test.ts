@@ -77,6 +77,7 @@ async function mountEditor(options?: {
 		}
 	});
 	await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+	await vi.waitFor(() => expect(handle).toBeDefined());
 	if (!handle) {
 		throw new Error('Editor did not expose its handle.');
 	}
@@ -323,7 +324,7 @@ describe('EditorPane', () => {
 			}
 		});
 		await expect.element(textbox).toHaveAttribute('lang', 'he');
-		expect(handle).toBeDefined();
+		await vi.waitFor(() => expect(handle).toBeDefined());
 	});
 
 	it('applies a multi-change atomic edit as one undo step', async () => {
@@ -375,6 +376,7 @@ describe('EditorPane', () => {
 		// native tooltip (the hover popover is the tooltip), so it is found by the
 		// label it exposes instead.
 		await expect.element(page.getByLabelText('warning: Stale issue')).toBeVisible();
+		await vi.waitFor(() => expect(handle).toBeDefined());
 		if (!handle) {
 			throw new Error('Editor did not expose its handle.');
 		}
@@ -475,6 +477,7 @@ describe('EditorPane', () => {
 		};
 		const screen = await render(EditorPane, { props });
 		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+		await vi.waitFor(() => expect(handle).toBeDefined());
 		if (!handle) throw new Error('Editor did not expose its handle.');
 		expect(document.querySelector('.ll-performer-gutter-marker')).not.toBeNull();
 

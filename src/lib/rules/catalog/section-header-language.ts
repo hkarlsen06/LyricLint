@@ -5,7 +5,10 @@ import {
 	reviewedLanguagePacks
 } from '$lib/languages/registry.js';
 import type { RuleDefinition } from '$lib/core/types.js';
-import { localizedHeaderPreference } from './section-localized-header-preference.js';
+import {
+	hasChorusAffixes,
+	localizedHeaderPreference
+} from './section-localized-header-preference.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 interface RecognizedHeader {
@@ -55,13 +58,17 @@ export const sectionHeaderLanguageRule: RuleDefinition = {
 		'G-LANG-KO'
 	],
 	check(document, context) {
+		const withChorusAffixes = hasChorusAffixes(document);
 		const selected = getLanguagePack(context.language);
 		if (!canLintHeaderLanguage(selected)) {
 			return [];
 		}
 		return document.sections.flatMap((section) => {
 			const header = section.header;
-			if (!header || localizedHeaderPreference(context.language, header.namePart)) {
+			if (
+				!header ||
+				localizedHeaderPreference(context.language, header.namePart, withChorusAffixes)
+			) {
 				return [];
 			}
 			const canonical = selectedCanonicalTerm(selected, header.namePart);

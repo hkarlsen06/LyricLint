@@ -273,13 +273,17 @@ export function ruleLookupTables(): RuleLookupTable[] {
 		{
 			ruleId: 'section.localized-header-preference',
 			description:
-				'Song parts whose reviewed Norwegian pack prefers a Norwegian header over the ' +
-				'English one. Matched without regard to case or diacritics, and a single ' +
-				'adjacent transposition of the preferred spelling is caught too.',
+				'Norwegian header preferences. Use Chorus with Pre-Chorus or Post-Chorus sections, ' +
+				'Refreng otherwise, and keep Pre-Chorus and Post-Chorus untranslated. ' +
+				'Alternate names are curated by LyricLint; the replacement headers come from the Norwegian catalog. ' +
+				'Matched without regard to case or diacritics; adjacent transpositions of Chorus and Bridge are caught too.',
 			entries: [...norwegianPreferences].map(([english, preference]) => ({
-				preferred: [preference.replacement],
+				preferred: [
+					preference.replacement,
+					...(preference.withChorusAffixes ? [preference.withChorusAffixes] : [])
+				],
 				instead: [english],
-				appliesWhen: `${preference.languageName} 'scribes only.`,
+				appliesWhen: `${preference.languageName} 'scribes only.${preference.appliesWhen ? ` ${preference.appliesWhen}` : ''}`,
 				fix: 'safe' as const
 			}))
 		}

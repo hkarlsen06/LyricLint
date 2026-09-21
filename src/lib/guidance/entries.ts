@@ -197,6 +197,32 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		note: "The linter checks recognized headers against the selected language pack's reviewed vocabulary and offers the community-preferred localized term where one exists."
 	},
 	{
+		id: 'guidance.section-headers.norwegian-chorus',
+		topic: 'section-headers',
+		title: 'Match Norwegian Chorus to Pre/Post-Chorus',
+		statement:
+			'In Norwegian transcriptions, use `Chorus` when the song has a `Pre-Chorus` or `Post-Chorus` section. If neither occurs, use `Refreng` instead.',
+		example: {
+			correct: '[Pre-Chorus]\nLyset viser vei\n\n[Chorus]\nVi finner hjem',
+			incorrect: '[Pre-Chorus]\nLyset viser vei\n\n[Refreng]\nVi finner hjem'
+		},
+		authority: 'community',
+		sourceIds: ['G-NO-CHORUS'],
+		relatedRuleIds: ['section.localized-header-preference'],
+		note: 'This Genius Norway community convention was confirmed in the supplied conversation with mektigemartin, who recalled the linked forum discussion. The specific forum post and contributor role have not been independently verified.'
+	},
+	{
+		id: 'guidance.section-headers.norwegian-pre-post-chorus',
+		topic: 'section-headers',
+		title: 'Keep Pre-Chorus and Post-Chorus in English',
+		statement:
+			'Norwegian transcriptions keep `Pre-Chorus` and `Post-Chorus` untranslated. Replace `prerefreng`, `pre-refreng`, `førrefreng`, and `før-refreng` with `Pre-Chorus`; replace `postrefreng`, `post-refreng`, `etter-refreng`, and `etterrefreng` with `Post-Chorus`.',
+		example: { correct: '[Pre-Chorus]', incorrect: '[Førrefreng]' },
+		authority: 'community',
+		sourceIds: ['G-NO-CHORUS'],
+		relatedRuleIds: ['section.localized-header-preference']
+	},
+	{
 		id: 'guidance.section-headers.blank-line-spacing',
 		topic: 'section-headers',
 		title: 'One blank line between song parts',

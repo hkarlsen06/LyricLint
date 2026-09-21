@@ -516,9 +516,9 @@ test('the unified guide has one entrance and exposes check metadata and language
 		'App'
 	]);
 	await expect(page.getByRole('heading', { name: 'Browse by topic', exact: true })).toHaveCount(1);
-	await expect(page.locator('main .reference-questions a')).toHaveCount(4);
+	await expect(page.locator('.site-split__intro .reference-questions a')).toHaveCount(4);
 	await expect(page.locator('a[href^="/rules/"]')).toHaveCount(0);
-	await expect(page.locator('.reference-filters')).not.toHaveAttribute('open');
+	await expect(page.locator('.reference-filters')).toBeHidden();
 	await expect(page.locator('.reference-controls[aria-label="Search scope"]')).toHaveCount(0);
 
 	await page.goto('/guidelines/checks/spelling-arabic-common/');
@@ -593,11 +593,11 @@ test('shared reference search finds warning text and preserves URL state', async
 	await expect(page.getByRole('navigation', { name: 'Browse reference topics' })).toBeVisible();
 	await expect(rows).toHaveCount(0);
 	await search.fill('definately');
-	await page.locator('.reference-filters summary').click();
+	await page.getByRole('button', { name: /^Filters/ }).click();
 	await page.getByRole('combobox', { name: 'Content', exact: true }).selectOption('rules');
 	await expect(rows).toHaveCount(1);
 	await expect(rows.first()).toContainText('A common English misspelling');
-	await expect(rows.first().locator('.reference-description')).toContainText('definately');
+	await expect(rows.first().locator('.reference-description')).toHaveCount(0);
 	await rows.first().click();
 	await expect(page).toHaveURL(
 		/\/guidelines\/checks\/spelling-english-common\/\?q=definately&scope=rules$/u
@@ -615,7 +615,7 @@ test('shared reference search finds warning text and preserves URL state', async
 	await expect(page.locator('#reference-content')).toHaveValue('rules');
 
 	await search.fill('languages');
-	await rows.filter({ hasText: 'An English name for a localized part' }).click();
+	await rows.filter({ hasText: 'A header outside Norwegian conventions' }).click();
 	const cited = page.locator('.source-reference a mark.site-hit');
 	await expect(cited.first()).toHaveText('Languages');
 	const [marked, prose] = await Promise.all([
@@ -632,15 +632,16 @@ test('shared reference search finds warning text and preserves URL state', async
 
 test('reference check filters are shareable and describe the opened check', async ({ page }) => {
 	await page.goto('/guidelines/?scope=rules');
-	await page.locator('.reference-filters summary').click();
+	await page.getByRole('button', { name: /^Filters/ }).click();
 	await page.getByRole('button', { name: 'No automatic fix', exact: true }).click();
 	await expect(page).toHaveURL(/scope=rules&fix=none$/u);
 	const rows = page.locator('.reference-result');
 	await expect(rows.first()).toBeVisible();
 	await rows.first().click();
+	await expect(page).toHaveURL(/\/guidelines\/checks\/[^/]+\/\?scope=rules&fix=none$/u);
 	await expect(page.locator('main .site-meta')).toContainText('No automatic fix');
 	await page.reload();
-	await page.locator('.reference-filters summary').click();
+	await page.getByRole('button', { name: /^Filters/ }).click();
 	await expect(page.getByRole('button', { name: 'No automatic fix', exact: true })).toHaveAttribute(
 		'aria-pressed',
 		'true'
@@ -657,7 +658,8 @@ test('natural questions and typos find conventions with their checks', async ({ 
 		})
 	});
 	await expect(answer).toBeVisible();
-	await expect(answer.locator('.reference-related')).toContainText('Related checks:');
+	await answer.locator('.reference-related summary').click();
+	await expect(answer.locator('.reference-related')).toHaveAttribute('open');
 	await answer.locator('.reference-related a').first().click();
 	await expect(page).toHaveURL(/\/guidelines\/checks\/[^/]+\/\?q=two\+singers$/u);
 	await expect(search).toHaveValue('two singers');
@@ -692,7 +694,7 @@ test('integrated checks keep the topic reading position and expose unmatched che
 		.poll(async () => Math.abs((await detail.evaluate((node) => node.scrollTop)) - before))
 		.toBeLessThan(2);
 	await page.goto('/guidelines/non-english/');
-	const additional = page.locator('section[aria-labelledby="additional-checks"]');
+	const additional = page.locator('section[aria-labelledby="additional-checks-non-english"]');
 	await expect(
 		additional.getByRole('heading', { name: 'More checks for this topic' })
 	).toBeVisible();
@@ -761,7 +763,9 @@ test('a guidelines deep link lands on its entry, and a search marks its words', 
 	await page
 		.locator('.site-split__index .reference-result', { hasText: 'One exclamation mark' })
 		.click();
-	await expect(page.locator('main mark.site-hit').first()).toBeVisible();
+	await expect(
+		page.locator('.guidelines__entry[data-current] mark.site-hit').first()
+	).toBeVisible();
 	await expect(
 		page.locator('.guidelines__entry[data-current] .site-sample--invalid pre')
 	).toHaveText('Turn it up!!');
@@ -795,34 +799,54 @@ test('pressing an entry from the index washes it on the first press', async ({ p
 	await expect(washed.locator('h2')).toHaveText(crossTitle);
 });
 
-test('the topic directory narrows browsing before showing entries', async ({ page }) => {
+test('topic details keep a compact index and continuously follow reading across topics', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
 	await page.goto('/guidelines/');
 	const topics = page.getByRole('navigation', { name: 'Browse reference topics' });
 	await topics.getByRole('link', { name: 'Punctuation and symbols', exact: true }).click();
 	await expect(page).toHaveURL(/\/guidelines\/punctuation\/$/u);
-	await expect(page.locator('.reference-result').first()).toBeVisible();
-	await expect(
-		page.locator('.reference-result').filter({ hasNotText: 'Punctuation and symbols' })
-	).toHaveCount(0);
-	await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
-	await expect(topics).toBeVisible();
-	await topics.getByRole('link', { name: 'Spelling and contractions', exact: true }).click();
-	await expect(page).toHaveURL(/\/guidelines\/spelling\/$/u);
-	await expect(topics).toHaveCount(0);
-	await expect(page.locator('.reference-result').first()).toBeVisible();
-	await expect(
-		page.locator('.reference-result').filter({ hasNotText: 'Spelling and contractions' })
-	).toHaveCount(0);
-	const spellingResults = await page.locator('.reference-result').count();
+	const index = page.locator('.site-split__index');
+	const rows = index.locator('.reference-result');
+	expect(await rows.count()).toBeGreaterThan(40);
+	await expect(index.locator('.reference-description')).toHaveCount(0);
+	await expect(index.locator('.reference-related').first()).toBeVisible();
+	await expect(rows.filter({ hasText: 'Spelling and contractions' }).first()).toBeAttached();
+	await expect(rows.filter({ hasText: 'Punctuation and symbols' }).first()).toBeAttached();
+
+	const detail = page.locator('.site-split__detail');
+	const otherTopic = detail.locator('.guidelines__entry:has(#voice-order)');
+	await expect(otherTopic).toBeAttached();
+	await otherTopic
+		.locator('#voice-order')
+		.evaluate((heading) => heading.scrollIntoView({ block: 'start', behavior: 'instant' }));
+	const current = index.locator('a[aria-current="page"]');
+	await expect(current).toHaveCount(1);
+	await expect(current).toHaveAttribute('href', /section-headers\/.*#voice-order$/u);
+	await expect(current).toBeInViewport();
 	await page.reload();
-	await expect(page.locator('.reference-result')).toHaveCount(spellingResults);
-	await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
-	await topics.getByRole('link', { name: 'Spelling and contractions', exact: true }).click();
-	await expect(topics).toHaveCount(0);
-	await expect(page.locator('.reference-result')).toHaveCount(spellingResults);
-	await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
-	await page.getByRole('button', { name: 'Browse all', exact: true }).click();
-	expect(await page.locator('.reference-result').count()).toBeGreaterThan(40);
+	expect(await rows.count()).toBeGreaterThan(40);
+});
+
+test('outer margins scroll their adjacent guide pane', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto('/guidelines/punctuation/#doubled-exclamation');
+	await expect(page.locator('.guidelines__entry[data-current]')).toHaveCount(1);
+	const index = page.locator('.site-split__index');
+	const detail = page.locator('.site-split__detail');
+	const indexBefore = await index.evaluate((el) => el.scrollTop);
+	const detailBefore = await detail.evaluate((el) => el.scrollTop);
+	await page.mouse.move(10, 600);
+	await page.mouse.wheel(0, 450);
+	await expect.poll(() => index.evaluate((el) => el.scrollTop)).toBeGreaterThan(indexBefore + 100);
+	expect(await detail.evaluate((el) => el.scrollTop)).toBe(detailBefore);
+	await page.mouse.move(1430, 600);
+	await page.mouse.wheel(0, 450);
+	await expect
+		.poll(() => detail.evaluate((el) => el.scrollTop))
+		.toBeGreaterThan(detailBefore + 100);
+	expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });
 
 test('a practical question opens its convention and reveals its row', async ({ page }) => {
@@ -1370,7 +1394,7 @@ test.describe('phone reference sections', () => {
 	// makes `(pointer: coarse)` match, and the width is under the 62rem stack.
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-	test('the stacked index leads with a finder a finger can focus', async ({ page }) => {
+	test('the phone strip opens on a finder a finger can focus', async ({ page }) => {
 		// The stack leads with the index at the index view. Measured the other
 		// way round, the whole guide stood above the search field, ten phone
 		// viewports of prose between a reader and the section's primary control.
@@ -1388,11 +1412,12 @@ test.describe('phone reference sections', () => {
 			Number.parseFloat(await search.evaluate((field) => getComputedStyle(field).fontSize))
 		).toBeGreaterThanOrEqual(16);
 
-		// The guide still follows, in order, below the rows.
+		// The introduction remains mounted one pane to the left.
 		const guide = page.getByRole('heading', { name: 'Put what you hear into words.' });
 		const guideBox = await guide.boundingBox();
 		const finderBox = await search.boundingBox();
-		expect(guideBox!.y).toBeGreaterThan(finderBox!.y);
+		expect(guideBox!.x).toBeLessThan(finderBox!.x);
+		await expect(guide).not.toBeInViewport();
 	});
 
 	test('Back restores an expanded check and its phone reading position', async ({ page }) => {
@@ -1403,23 +1428,19 @@ test.describe('phone reference sections', () => {
 		await disclosure.locator('summary').click();
 		const check = disclosure.locator('a');
 		await check.scrollIntoViewIfNeeded();
-		const before = await page.evaluate(() => window.scrollY);
+		const detail = page.locator('.site-split__detail');
+		const before = await detail.evaluate((pane) => pane.scrollTop);
 		await check.click();
 		await expect(page).toHaveURL(/\/guidelines\/checks\//u);
 		await page.goBack();
 		await expect(disclosure).toHaveAttribute('open');
 		await expect
-			.poll(async () => Math.abs((await page.evaluate(() => window.scrollY)) - before))
+			.poll(async () => Math.abs((await detail.evaluate((pane) => pane.scrollTop)) - before))
 			.toBeLessThan(2);
 	});
 
 	test('the arrival wash stands down where the index is not beside the page', async ({ page }) => {
-		// The wash exists to tie the washed entry to the marked row in the index
-		// column: one selection, said by both columns at once. Stacked, the
-		// list is `display: none` under an open page, so there is no row on
-		// screen to agree with, and the paint stands down; the mark itself
-		// stays, because the index reads the same state when the reader goes
-		// back.
+		// The finder is mounted off screen on phones, so the arrival paint stands down.
 		await page.goto('/guidelines/punctuation/#doubled-exclamation');
 		const washed = page.locator('.guidelines__entry[data-current]');
 		await expect(washed).toHaveCount(1);
@@ -1427,23 +1448,40 @@ test.describe('phone reference sections', () => {
 	});
 
 	test('deep in a topic the way back stays pinned, and a jump clears it', async ({ page }) => {
-		// The masthead is static at this width and the index is `display: none`
-		// under an open page, so the pinned back bar is the one piece of
-		// navigation a reader eight viewports into a topic still has.
+		// The reading pane owns scrolling and keeps its back control pinned.
 		await page.goto('/guidelines/section-headers/');
+		await page.mouse.move(200, 600);
 		await page.mouse.wheel(0, 6000);
-		await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(3000);
-		const back = page.getByRole('button', { name: 'Back to guide' });
+		await expect
+			.poll(() => page.locator('.site-split__detail').evaluate((pane) => pane.scrollTop))
+			.toBeGreaterThan(3000);
+		expect(await page.evaluate(() => window.scrollY)).toBe(0);
+		const back = page
+			.getByRole('navigation', { name: 'Guide navigation' })
+			.getByRole('button', { name: 'Topics', exact: true });
 		await expect(back).toBeInViewport();
 
-		// A deep-linked heading lands clear of the pinned bar: the headings'
-		// `scroll-margin-top` moves with the same seam the bar's top edge does.
+		// Deep links clear the pinned topic above and the floating navigation below.
 		await page.goto('/guidelines/section-headers/#voice-order');
+		await expect(page.locator('#doubled-exclamation')).toBeAttached();
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			390
+		);
 		const heading = page.locator('#voice-order');
 		await expect(heading).toBeVisible();
+		const topic = page.locator('#topic-section-headers');
+		await expect
+			.poll(async () => {
+				const [headingBox, topicBox] = await Promise.all([
+					heading.boundingBox(),
+					topic.boundingBox()
+				]);
+				return headingBox!.y - topicBox!.y - topicBox!.height;
+			})
+			.toBeGreaterThanOrEqual(-1);
 		const headingBox = await heading.boundingBox();
-		const barBox = await page.locator('.site-split__backbar').boundingBox();
-		expect(headingBox!.y).toBeGreaterThanOrEqual(barBox!.y + barBox!.height - 1);
+		const barBox = await page.locator('.site-split__navigation').boundingBox();
+		expect(headingBox!.y + headingBox!.height).toBeLessThanOrEqual(barBox!.y);
 	});
 });
 

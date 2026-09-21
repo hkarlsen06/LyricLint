@@ -93,9 +93,11 @@ of controls and neighboring content before and after real interactions on deskto
   readiness never waits for completion, and ordinary edits never replay it. New empty
   ’scribes reveal their placeholder lines.
   See [Motion usage](docs/motion.md) for its bounded lifetime.
-- Navigation into the workbench starts a shared wordmark splash while route code and the
-  editor load. It may fade out on readiness, never delays navigation or editing, and does
-  not replay on direct loads or draft changes.
+- Navigation between pages starts a shared wordmark splash while the destination loads.
+  It completes the spring and radial explosion before uncovering a ready destination.
+  Navigation and editor readiness proceed independently; new input dismisses it immediately,
+  and reduced motion skips the minimum. It does not replay on direct loads, query or fragment changes,
+  draft changes, or browsing between topics and checks within the mounted guide.
 - The brand lockup is the one exception, and it is one because it reports nothing: `--duration-brand` and `--ease-spring-out` exist for it alone. Its easing overshoots on purpose.
 - Travel between rests (a whole surface pulled from one place to another, like the reference sections' column push) uses `--ease-in-out-cubic`. `--ease-out-quart` launches at full speed, which is right for a state answer and reads as thrown when the thing moving is a column rather than a control.
 - Reduced-motion preferences suppress transitions and animations.

@@ -34,6 +34,7 @@ const reviewedIds = [
 	'G-LANG-PURPOSE',
 	'G-LANG-EN',
 	'G-LANG-NO',
+	'G-NO-CHORUS',
 	'G-LANG-AR',
 	'G-LANG-DE',
 	'G-LANG-ES',
@@ -86,6 +87,7 @@ const reviewedToday = new Set<string>([...latestHashes.keys(), 'L-NO-ACCENT']);
 const sourcedFromIndex = new Set<string>(['G-STREAMING', 'G-REVERSED', 'G-YODELING', 'G-PLURALS']);
 
 function retrievedOn(id: string): string {
+	if (id === 'G-NO-CHORUS') return '2026-09-21';
 	if (sourcedFromIndex.has(id)) {
 		return '2026-08-12';
 	}
@@ -243,7 +245,7 @@ describe('source registry', () => {
 		}
 	});
 
-	it('contains only the 61 specified source records', () => {
-		expect(sourceRegistry.size).toBe(61);
+	it('contains only the 62 specified source records', () => {
+		expect(sourceRegistry.size).toBe(62);
 	});
 });

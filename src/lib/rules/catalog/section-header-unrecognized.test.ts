@@ -32,4 +32,22 @@ describe('section.header-unrecognized', () => {
 		expect(checkRule(rule, '[]\nEn natt', { language: 'no' })).toEqual([]);
 		expect(checkRule(rule, 'En natt', { language: 'no' })).toEqual([]);
 	});
+
+	it.each([
+		'[Tekst til «Sangnavn"»av Artist]',
+		'[Tekst til «Sangnavn» av Artist]',
+		'[Tekst til "Sangnavn" av Artist]',
+		'[Tekst til “Sangnavn” av Artist]',
+		'[Tekst til «Sangnavn: Del 2» av Artist]'
+	])('accepts the opening Norwegian title header %s', (header) => {
+		const text = `${header}\n\n[Vers]\nEn natt`;
+		expect(checkRule(rule, text, { language: 'no' })).toEqual([]);
+		expect(checkRule(rule, `[Intro]\nEn natt\n\n${text}`, { language: 'no' })).toHaveLength(1);
+		expect(checkRule(rule, `${header}\nA night`, { language: 'en' })).toHaveLength(1);
+		expect(checkRule(rule, `${header}\nA night`, { language: 'und' })).toHaveLength(1);
+	});
+
+	it('does not mistake a quoted performer for a title header', () => {
+		expect(checkRule(rule, '[Eget parti: «Artist»]\nEn natt', { language: 'no' })).toHaveLength(1);
+	});
 });

@@ -65,6 +65,25 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('ReferenceIndex', () => {
+	it('keeps all topics beside an article and follows entries outside its arrival topic', async () => {
+		const other = {
+			...corpus[0]!,
+			id: 'other',
+			topic: 'spelling' as const,
+			topicTitle: 'Spelling',
+			title: 'Another convention',
+			href: '/guidelines/spelling/#other',
+			relatedRuleIds: []
+		};
+		await render(ReferenceIndex, { corpus: [...corpus, other], selectedTopic: 'performers' });
+		expect(document.querySelectorAll('.reference-result')).toHaveLength(3);
+		setReadingAnchor('other');
+		await expect
+			.element(page.getByRole('link', { name: /Another convention/ }))
+			.toHaveAttribute('aria-current', 'page');
+		expect(document.querySelector('.reference-description')).toBeNull();
+	});
+
 	it('starts with a compact topic directory and exposes entries only after a choice', async () => {
 		await render(ReferenceIndex, { corpus });
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(0);
@@ -83,15 +102,20 @@ describe('ReferenceIndex', () => {
 			.not.toBeInTheDocument();
 		await page.getByRole('button', { name: 'Browse all', exact: true }).click();
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(2);
-		await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+		await page.getByRole('button', { name: 'Browse topics', exact: true }).click();
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(0);
 	});
 
-	it('searches conventions and checks together, groups related checks and shows the matching passage', async () => {
+	it('searches conventions and checks together, groups related checks in compact rows', async () => {
 		await render(ReferenceIndex, { corpus });
 		await page.getByRole('searchbox').fill('two singers');
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(1);
-		await expect.element(page.getByText('Use a legend for two singers.')).toBeVisible();
+		expect(document.querySelector('.reference-description')).toBeNull();
+		const disclosure = document.querySelector<HTMLDetailsElement>('.reference-related')!;
+		expect(disclosure.open).toBe(false);
+		await page.getByText('Related checks (1)', { exact: true }).click();
+		expect(disclosure.open).toBe(true);
+		expect(disclosure.querySelectorAll('li > a')).toHaveLength(1);
 		await expect
 			.element(page.getByRole('link', { name: 'A voice with no legend', exact: true }))
 			.toBeVisible();
@@ -106,11 +130,55 @@ describe('ReferenceIndex', () => {
 		);
 	});
 
-	it('shows the matching lookup row and preserves lookup state in result links', async () => {
+	it('expands checks below a stable entry and stacks long links at desktop and phone widths', async () => {
+		const second = {
+			...corpus[1]!,
+			id: 'second',
+			title: 'A second check with a long title that must stay readable at a narrow phone width',
+			href: '/guidelines/checks/second/'
+		};
+		const entries = [
+			{ ...corpus[0]!, relatedRuleIds: ['performers.legend', 'second'] },
+			corpus[1]!,
+			second
+		];
+		for (const width of [1200, 390]) {
+			await page.viewport(width, 844);
+			setReadingAnchor('voices');
+			const view = await render(ReferenceIndex, { corpus: entries, selectedTopic: 'performers' });
+			try {
+				const entry = document.querySelector<HTMLElement>('.reference-entry')!;
+				const title = entry.querySelector<HTMLElement>('.reference-result')!;
+				const disclosure = entry.querySelector<HTMLDetailsElement>('details')!;
+				const summary = disclosure.querySelector('summary')!;
+				const before = [title.getBoundingClientRect().y, summary.getBoundingClientRect().y];
+				await page.getByText('Related checks (2)', { exact: true }).click();
+				expect(disclosure.open).toBe(true);
+				expect([title.getBoundingClientRect().y, summary.getBoundingClientRect().y]).toEqual(
+					before
+				);
+				const links = [...disclosure.querySelectorAll('li > a')];
+				expect(links).toHaveLength(2);
+				expect(links[1]!.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+					links[0]!.getBoundingClientRect().bottom
+				);
+				expect(entry.scrollWidth).toBeLessThanOrEqual(entry.clientWidth);
+				expect(entry.dataset.current).toBe('page');
+				expect(getComputedStyle(entry).borderInlineStartStyle).toBe('solid');
+				await page.getByText('Related checks (2)', { exact: true }).click();
+				expect(disclosure.open).toBe(false);
+			} finally {
+				await view.unmount();
+				await page.viewport(800, 600);
+			}
+		}
+	});
+
+	it('finds matching lookup text and preserves lookup state in result links', async () => {
 		await render(ReferenceIndex, { corpus });
 		await page.getByRole('searchbox').fill('definately');
 		expect(document.querySelector('.reference-result')?.textContent).toContain(
-			'definately → definitely'
+			'A common spelling error'
 		);
 		expect(document.querySelector('.reference-result')?.getAttribute('href')).toContain(
 			'q=definately'
@@ -154,24 +222,25 @@ describe('ReferenceIndex', () => {
 			'Clear filters'
 		);
 		expect(
-			[...document.querySelectorAll('.reference-browse-actions button')].map((button) =>
+			[...document.querySelectorAll('.reference-results-header button')].map((button) =>
 				button.textContent?.trim()
 			)
-		).toEqual(['Browse all', 'Clear filters']);
+		).toEqual(['Clear filters']);
 
 		await clear.click();
 		expect(referenceSearchState().scope).toBe('all');
 		expect(referenceSearchState().severities).toEqual([]);
 		expect(referenceSearchState().fixabilities).toEqual([]);
-		await expect.element(clear).toBeDisabled();
+		await expect.element(clear).not.toBeInTheDocument();
 	});
 
-	it('reveals a deep-linked rule and lets All topics override its implicit topic', async () => {
+	it('reveals a deep-linked rule alongside all topics', async () => {
 		await render(ReferenceIndex, { corpus, selectedSlug: 'performers-legend' });
 		expect(document.querySelector('a[aria-current="page"]')?.textContent).toContain(
 			'A voice with no legend'
 		);
 		expect(referenceSearchState().topic).toBe('');
+		expect(document.querySelectorAll('.reference-result')).toHaveLength(2);
 		expect(document.querySelector('a[aria-current="page"]')?.textContent).toContain('(current)');
 		await page.getByText('Filters', { exact: true }).click();
 		await page.getByRole('combobox', { name: 'Topic', exact: true }).selectOptions('');
@@ -191,17 +260,52 @@ describe('ReferenceIndex', () => {
 		});
 		await render(ReferenceIndex, { corpus, assistant });
 		const ask = document.querySelector<HTMLButtonElement>('.reference-ask')!;
-		const filters = document.querySelector<HTMLDetailsElement>('.reference-filters')!;
+		const filters = document.querySelector<HTMLElement>('.reference-filters')!;
 		expect(ask.closest('search')?.nextElementSibling).toBe(filters);
 		expect(filters.nextElementSibling?.querySelector('h2')?.textContent).toBe('Browse by topic');
 		expect(ask.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+		const toggle = page.getByRole('button', { name: 'Filters', exact: true });
+		await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
 		const before = ask.getBoundingClientRect().y;
 		await page.getByText('Filters', { exact: true }).click();
-		expect(filters.open).toBe(true);
+		expect(filters.hidden).toBe(false);
+		await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
 		expect(ask.getBoundingClientRect().y).toBe(before);
 		await page.getByRole('button', { name: 'Ask a question', exact: true }).click();
 		expect(assistant.isOpen).toBe(true);
 	});
+	it.each([1200, 390])(
+		'keeps finder controls aligned while filters expand at %ipx',
+		async (width) => {
+			await page.viewport(width, 844);
+			const view = await render(ReferenceIndex, { corpus });
+			try {
+				const search = document.querySelector<HTMLElement>('.site-finder__search')!;
+				const toggle = document.querySelector<HTMLButtonElement>(
+					'[aria-controls="reference-filters"]'
+				)!;
+				const before = [search.getBoundingClientRect().y, toggle.getBoundingClientRect().y];
+				await page.getByRole('button', { name: 'Filters', exact: true }).click();
+				expect([search.getBoundingClientRect().y, toggle.getBoundingClientRect().y]).toEqual(
+					before
+				);
+				expect(toggle.getAttribute('aria-expanded')).toBe('true');
+				for (const field of document.querySelectorAll('.reference-filters select')) {
+					expect(field.getBoundingClientRect().right).toBeLessThanOrEqual(
+						search.getBoundingClientRect().right
+					);
+				}
+				expect(document.querySelector('.reference-browse-actions')).toBeNull();
+				expect(document.querySelectorAll('.reference-results-header button')).toHaveLength(1);
+				await page.getByRole('button', { name: 'Filters', exact: true }).click();
+				expect(document.querySelector<HTMLElement>('.reference-filters')!.hidden).toBe(true);
+			} finally {
+				await view.unmount();
+				await page.viewport(800, 600);
+			}
+		}
+	);
+
 	it('marks useful search words without highlighting question stopwords', async () => {
 		await render(ReferenceIndex, { corpus });
 		await page.getByRole('searchbox').fill('How do I credit singers');

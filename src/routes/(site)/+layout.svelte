@@ -86,12 +86,11 @@
      ordinary case and the landing page's: one column of prose that scrolls the
      viewport, header and footer travelling with it. `window` is the rule
      reference and the guidance catalog, which are a master and a detail rather
-     than an article: two runs of different lengths, each of which has to be
+     than an article: independent panes, each of which has to be
      scrolled without moving the other or taking the header off the top of the
      screen. There the shell is the workbench's own: exactly the viewport tall,
-     and the scrolling happens inside it. `site.css` drops back to `document` on
-     narrow screens, where there is only one column on show and the document is
-     the honest scroller again. -->
+     and the scrolling happens inside it. On narrow screens, one pane fills the horizontal strip, and vertical
+     scrolling stays inside that pane. -->
 <svelte:window bind:scrollY />
 {#if windowShell}<ReferenceSearchSync />{/if}
 

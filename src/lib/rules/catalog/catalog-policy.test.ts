@@ -223,7 +223,9 @@ describe('rule regressions', () => {
 			message: `Use the reviewed Norwegian header “${replacement}” instead of “${input}”.`
 		});
 		expect(finding?.explanation).toContain(
-			`recognizes “${replacement}” as the Norwegian term for “${input}”`
+			input === 'Chorus'
+				? 'Norwegian community convention'
+				: `reviewed Norwegian header for this song part is “${replacement}”`
 		);
 		expect(finding?.fixes?.[0]).toMatchObject({
 			kind: 'safe',

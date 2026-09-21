@@ -118,7 +118,10 @@ still offered last. The pane supplies preceding headers only for positional numb
 
 Animating lyric lines by splitting or wrapping their text would interfere with CodeMirror's
 DOM reconciliation and clean clipboard output. The shell instead targets existing viewport
-lines once, restores their original inline opacity, and retires on interaction.
+lines once, leaves their inline styles intact, and retires on interaction. `EditorPane` reports
+readiness through CodeMirror's first settled `requestMeasure` pass, after the editor has
+expanded its estimated initial DOM to cover the real viewport. Reporting immediately after
+construction let lower lines appear fully visible while the earlier rows were fading.
 The prepaint mask prevents a flash before the staggered reveal and expires after two seconds
 if startup is slow; focus and input reveal all text immediately. Ordinary
 edits do not start another entrance; opening or creating a ’scribe does. The editor has no Motion dependency.

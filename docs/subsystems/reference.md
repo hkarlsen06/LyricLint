@@ -2,7 +2,9 @@
 
 Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/names.ts`,
 `src/lib/rules/reference-search.ts`, `src/lib/rules/reference-guide.ts`,
-`src/lib/ui/site/SectionSplit.svelte`, `src/lib/ui/site/ReferenceIndex.svelte`,
+`src/lib/ui/site/SectionSplit.svelte`, `src/lib/ui/site/GuideWelcome.svelte`,
+`src/lib/ui/site/GuideArticle.svelte`, `src/lib/ui/site/ReferenceIndex.svelte`,
+`src/lib/ui/site/sticky-topics.ts`,
 `src/lib/ui/site/reference-search.svelte.ts`, `src/lib/ui/site/reference-url.ts`,
 `src/lib/ui/site/ReferenceSearchSync.svelte`, `src/lib/ui/site/reveal-selected.ts`,
 `src/lib/ui/site/rule-search.svelte.ts`, `src/lib/ui/site/guidance-search.svelte.ts`,
@@ -18,17 +20,43 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   `reference/search.test.ts` pins catalog coverage and topic routing.
 - Search is ranked; browsing follows the catalog. Exact titles and identifiers outweigh body
   text; specific multiword intent aliases outrank incidental words, and typo matches rank last. Common question
-  words do not prevent natural questions from matching. Snippets expose the matching passage,
-  including individual lookup-table rows, with linter-derived content identified as such.
+  words do not prevent natural questions from matching. Matching passages, including lookup-table rows, remain searchable. Finder rows show only
+  title and subtitle, with related checks in a native disclosure, one link per row.
+  The current convention has one subtle fill and a visible edge marker around the whole entry,
+  including its disclosure. A selected check opens its disclosure on arrival.
+  The reading pane supplies the full explanation.
   Related matching checks group under a matching guideline in All scope; checks remain directly
   accessible. `reference/search.test.ts` pins these search tasks and grouping.
-- The directory is the unfiltered entrance. Topic links open articles; Browse all exposes entries;
-  a direct detail arrival also exposes its topic without silently restricting later searches.
+- The directory is the unfiltered entrance. Topic links open a continuous guide at the selected topic; Browse all exposes entries.
+  Topic headings in the reading pane and grouped finder list use the larger `--font-size-2xl`,
+  bold weight, and the wordmark's amber tone
+  to separate topic boundaries from entry titles while scrolling. Size and weight preserve
+  that distinction independently of color.
+  Topic titles stick within their group in both panes, below the finder in the middle pane.
+  Once pinned, amber text shrinks to `--font-size-xl` over `--duration-slow`; reduced motion
+  changes it immediately. Invisible, inaccessible text reserves the full title's natural wrap
+  independently of the sticky layer, so shrinking never moves rows or prose.
+  The reading pane also pins the current entry title and its original interactive source row
+  beneath the topic. Headings remain transparent; each pane has one noninteractive glass
+  layer behind its pinned context, including the finder's controls. Its tint uses the canvas
+  color, so it blends into the page at rest. One blur surface spans adjacent pinned headings
+  without internal seams, leaves the scrollbar edge unfiltered even with overlay scrollbars,
+  and follows title animation and source disclosures without entering
+  document flow. Departing entry headings clip at the topic's lower edge, so their text cannot
+  collide with the amber title during replacement. The site header and desktop Topics/back bar
+  stay transparent because pane content clips below them. New entries and topics replace their
+  preceding context as they scroll past.
+  Deep links and selected-row reveals account for the pinned topic; landing and reading tracking
+  measure the natural section position rather than the displaced sticky heading. Reading tracking
+  allows one pixel for native scroll rounding against fractional heading clearance.
+  `e2e/guide-sticky.spec.ts` pins animation geometry and context at desktop and phone widths.
+  Detail arrivals expose entries across all topics. Only an explicit topic filter restricts them.
   Clear filters resets search and filters and returns the finder to its topic directory,
   overriding only the current view; selecting an article reveals its entries again,
   including when selecting the same topic.
   `ReferenceIndex.svelte.test.ts` and the reference e2e tasks pin directory/search transitions.
-- Query, scope, topic, browse mode, and diagnostic filters belong to the URL. Typing replaces
+- Query, scope, topic, browse mode, and diagnostic filters belong to the URL.
+  Horizontal pane position is local browsing state; sliding sideways does not add history. Typing replaces
   the current history entry; opening a result creates an ordinary navigation. The site nav and
   reference links carry the state across the guide while preserving fragments. Direct links,
   reloads and browser Back restore it. `reference-url.test.ts` and the reference e2e tasks pin this.
@@ -50,16 +78,25 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   authoritative. `guidance.test.ts`, `reference.test.ts`, and e2e coverage-link assertions pin this.
 - The assistant has a labelled Ask a question entrance with the shared wand icon, drawn only
   when configured and context is available. It opens the shared conversation; it does not
-  replace the search field. At the user’s request, Filters is a small, muted disclosure directly
-  above the topic/results heading, outside the sticky search area. Expanded filters leave a
-  full section gap before that heading. The search area owns one stable action row: Browse all
-  on the left, Clear filters on the right. Clear filters replaces Browse topics and clears the
-  query, filters and browse mode together; it is disabled at the unfiltered directory. There
-  is no second Browse all at the bottom and no reset action inside the disclosure.
+  replace the search field. Filters and Ask a question share one aligned row below search.
+  Filters is a button with an expanded state; its inline fields grow below the sticky search
+  area in two columns on desktop and one on phones. The list heading owns its context action:
+  Browse all at the directory, Clear filters when search or filters are active, and Browse topics
+  when reading the unfiltered entries. No standalone browse/reset row duplicates these actions.
   `ReferenceIndex.svelte.test.ts` and the assistant e2e conversation pin this.
-- `SectionSplit` owns scroll ports, stacked layout, back navigation and view transitions.
+- `SectionSplit` keeps the introduction, finder and reading pane in a native horizontal
+  scroll strip with snapping. Desktop shows two panes; phones show one and enter at the finder.
+  Each pane scrolls vertically, including its margins. One shared navigation row sits above
+  the strip on desktop. At single-pane widths its back and forward buttons float at the bottom,
+  leaving the top free for sticky context. Controls respect the safe area, the gap passes input
+  through to the pane, and bottom scroll clearance keeps the final content reachable.
+  Navigation controls scroll the strip;
+  swiping, trackpad scrolling and keyboard arrows work without changing the URL.
+  Reduced motion makes control-driven scrolling instant. Browser Back still restores route snapshots.
+  Returning from outside the guide initializes the remounted strip's destination pane without
+  resetting the snapshot's vertical reading position; history within the mounted strip preserves its pane.
   Revealing a current result moves scroll, never focus or filters; pressing a visible row does
-  not move the list. Guidance follows the reading position. The reference e2e tasks pin deep
+  not move the list. Guidance follows the reading position across topic boundaries. The same mounted panes retain their vertical position when scrolled sideways. The reference e2e tasks pin deep
   links, scroll preservation and the mobile finder, including the 16px minimum input size.
 - Homepage entrances are practical questions; the finder owns the only topic directory.
   Everything is searched by default; optional content/topic/check filters live in one disclosure.
@@ -70,6 +107,31 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
 The guidance catalog's content pipeline stays in `docs/guidelines.md` and is followed exactly.
 
 ## Decision record
+
+### Three views occupy a real scroll strip
+
+The introduction, finder and complete guide are present at every guide arrival. Topic and
+check links reveal the reading pane. A single navigation row names the next horizontal
+destination: Introduction or Topics to the left, Topics, Guide or Check details to the right.
+It sits above the panes on desktop and floats at the bottom at single-pane widths. Arrows at
+the corresponding end hide while preserving their slots. This supersedes
+the earlier controls repeated inside each pane. The introduction remains reachable to the left.
+Native horizontal scrolling and CSS snapping replace the old view-transition snapshots and
+phone-only stacked layout. Every pane owns its full width, so its side margins scroll it too.
+The shared server layout supplies the complete guide once, and root/topic routes preserve
+metadata and disclosure snapshots. This supersedes the earlier two-pane choreography,
+stacked phone document scrolling and topic-only payload decisions below.
+
+
+### Continuous reading with a compact finder
+
+Topic URLs now land within one complete guide, in catalog order. The selected topic and
+fragment determine the arrival position, while scrolling updates the current finder entry
+across all topics without changing search or URL state. Check detail pages remain separate,
+and Back restores disclosures and reading position. This supersedes the earlier single-topic
+article and implicit-topic filtering decisions. Finder rows omit description snippets and keep
+the title, subtitle and related check links. Search still matches the complete corpus.
+
 
 ### Fragment arrivals keep their landing
 
@@ -87,7 +149,7 @@ shows each thumb on scroll and hides it after 800ms without movement, independen
 for each column. Only the thumb color changes: the stable gutter and padding remain,
 so text and controls never reflow when it appears. Native scrolling and dragging stay
 intact; without JavaScript the thin thumb stays visible, and forced colors retain the
-browser's scrollbar colors. The stacked phone view keeps its native document scrollbar.
+browser's scrollbar colors. Phones now use the same native pane scrollbars inside the horizontal strip.
 
 ### The entrance speaks to someone working on a lyric
 
@@ -101,11 +163,11 @@ entrance, and the finder still owns the only topic directory.
 
 ### Guide metadata is derived before serialization
 
-The shared layout returns the complete local search corpus plus the reviewed lookup count and
-topic identifiers. Only the guide entrance needs that count and the topic names for structured
-metadata; sending every full entry and landmark again as `sections` added payload to every
-article. `countGuidanceLookups` still owns the counting semantics, called by the server load.
-Topic articles keep their own complete content and the finder keeps every searchable passage.
+The shared layout derives the search corpus, reviewed lookup count and topic identifiers.
+The horizontal reader now also needs the full guide on its root arrival, so the shared load
+supplies all topic check records and the spelling table once. The root and topic routes reuse
+that payload while retaining their own canonical metadata. This replaces the earlier per-topic
+check load; it does not import the rule engine into the client finder.
 
 ### Typing reuses the corpus preparation
 
@@ -154,7 +216,7 @@ readable articles, and optional filters replace the prominent content-type switc
 
 Each convention shows its reviewed instruction, examples and qualifications, followed by the
 actual explanations of the linter checks that apply. The mapping is still `relatedRuleIds`;
-`topicChecks` derives only the check records that topic needs. A check with no matching convention,
+`topicChecks` derives each topic's check records; the continuous reader loads them for every topic. A check with no matching convention,
 such as the language-picker mismatch, stays discoverable as additional LyricLint behavior in its
 topic. Check details keep their own canonical `/guidelines/checks/[rule]/` URLs for longer tables,
 precise examples and fixes. Their convention links sit once beside their explanation. These are
@@ -596,7 +658,8 @@ Implementation: `title` and `variant` on `RulePolicyCase` in `rules/catalog/poli
 `rules/reference-search.ts` (the fold, the filter, the counts, the popular list, `ruleIndexEntries`
 and the highlight arithmetic: pure, so neither the component nor the page holds logic of its own),
 `revealSelectedRow` in `src/lib/ui/site/reveal-selected.ts` (shared with the guidance catalog's
-index) with its trigger in `src/lib/ui/site/SectionSplit.svelte`, the guide in
+index) with its trigger in `src/lib/ui/site/SectionSplit.svelte`, `src/lib/ui/site/GuideWelcome.svelte`,
+`src/lib/ui/site/GuideArticle.svelte`, the guide in
 `routes/(site)/rules/+page.svelte`, and `.site-finder`, `.rules__family`, `.rules__checks` and
 `.site-hit` in `site.css`. The shell itself (the grid, the choreography, the back control) is
 the next section's subject.
@@ -867,7 +930,8 @@ detail column widens its start lane to the spill and hands it back with the same
 sits with an equal `--space-4` breath between itself and the hairlines; the last entry closes on
 no hairline at all, because what follows it is a heading that already separates itself.
 
-Implementation: `src/lib/ui/site/SectionSplit.svelte`, `reveal-selected.ts` (both the arrival's
+Implementation: `src/lib/ui/site/SectionSplit.svelte`, `src/lib/ui/site/GuideWelcome.svelte`,
+`src/lib/ui/site/GuideArticle.svelte`, `reveal-selected.ts` (both the arrival's
 reveal and the reading follow), `GuidanceIndex.svelte`, `guidance-reading.svelte.ts` with its spy
 in `routes/(site)/guidelines/[topic]/+page.svelte`, `guidance-search.svelte.ts` and
 `GuidanceSearchHighlight.svelte` beside their rule twins, the haystacks in

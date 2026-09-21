@@ -751,7 +751,15 @@
 				// re-applying context dispatches an effects-only transaction that
 				// the bridge ignores, so this cannot re-enter.
 				internalCallbacks().onSnapshot(handle.getSnapshot());
-				onready?.(handle);
+				// The initial DOM only estimates the viewport. CodeMirror may add
+				// visible lines during measurement, so release the startup mask
+				// after that pass has settled, before the shell scans its rows.
+				editor.view.requestMeasure({
+					read: () => undefined,
+					write: () => {
+						if (!cancelled && handle) onready?.(handle);
+					}
+				});
 			} catch (error) {
 				if (cancelled) return;
 				editor?.view.scrollDOM.removeEventListener('scroll', bumpScrollTick);

@@ -250,14 +250,25 @@
  * paragraph or a screenshot scrolls behind it.
  */
 .site-header {
+	background: color-mix(in srgb, var(--color-chrome) 80%, transparent);
+	-webkit-backdrop-filter: blur(12px);
+	backdrop-filter: blur(12px);
+}
+
+/* Pane content clips below this chrome, so there is nothing behind it to blur. */
+.site[data-shell='window'] .site-header {
+	background: transparent;
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
+}
+
+.site-header {
 	display: flex;
 	position: sticky;
 	z-index: var(--layer-toolbar);
 	min-height: var(--header-height);
 	padding: 0;
 	border-bottom: var(--border-width) solid transparent;
-	background: color-mix(in srgb, var(--color-chrome) 80%, transparent);
-	backdrop-filter: blur(12px);
 	/* The inner stretches to the band rather than carrying a height of its own:
 	   given `min-height: var(--header-height)` it would sit *inside* the border
 	   and push the box to 57px, which is the 1px the e2e height pin exists to
@@ -884,149 +895,88 @@
    moved. A box that is exactly as tall as the verse is correct at 320px and at
    1280px without being told. */
 
-/*
- * A reference section (the rule reference and the guidance catalog both),
- * which is a master and a detail rather than a list that leads away to pages.
- * The list lives in the section's layout (`SectionSplit.svelte`), so pressing
- * a row swaps only the column beside it, and the arrangement is the
- * workbench's own: the run you are working through on the left, the thing you
- * are reading about on the right.
- *
- * The DOM order is detail first, list second, and the grid areas are what put
- * the list back on the left. That way the page's `<main>` and its `<h1>` come
- * before a `<nav>` of dozens of links, instead of behind it.
- *
- * Neither column scrolls the page. Dozens of rows and a page are two runs of
- * unrelated lengths, and a document scroll would have to serve both with one
- * offset: reading to the bottom of a rule dragged the list along with it and
- * took the header off the top of the screen on the way. So each column is its
- * own scroll port inside the window shell, and the only thing the viewport
- * decides is how tall they are.
- */
-.site-split {
+/* Three real columns share a native horizontal scroll port. The full pane,
+   including its margins, owns vertical scrolling. */
+.site-split-frame {
+	--split-lane-start: max(
+		var(--space-5),
+		calc((100vw - var(--measure-split)) / 4 + var(--space-5))
+	);
+	--split-lane-end: var(--split-lane-start);
+	--split-heading-clearance: var(--space-4);
 	display: grid;
-	width: 100%;
-	max-width: var(--measure-split);
+	grid-template-rows: auto minmax(0, 1fr);
 	min-height: 0;
-	padding: var(--space-6) var(--space-5) 0;
-	gap: var(--space-6);
-	grid-template-rows: minmax(0, 1fr);
-
-	/*
-	 * Two equal columns, and the equality is what makes the swap below honest
-	 * rather than a stylistic preference. The areas cross on every navigation,
-	 * so unequal columns mean both of them change *width* as well as position:
-	 * the transition group then animates size and stretches the two snapshots
-	 * against each other, and (the half that outlives the animation) each
-	 * scroll port reflows its own content at the new width, so the offset the
-	 * reader left it at lands somewhere else. Equal, the crossing is a pure
-	 * translation and neither column's content moves inside it. The pair was
-	 * `1fr` and `34rem`, which at this measure came to roughly 35rem and 34rem
-	 * anyway, so what this gives up is about a rem.
-	 */
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	grid-template-areas: 'index detail';
-	margin: 0 auto;
 }
 
-/*
- * `min-height: 0` is what makes the scrollers real: a grid item's automatic
- * minimum is its content, so without it each column grows to its full length,
- * pushes the row past the shell, and the overflow is clipped by the shell with
- * nothing to scroll it back.
- *
- * `overscroll-behavior` keeps a wheel that reaches the end of one column from
- * being handed to anything behind it. There is no document scroll here to
- * receive it, but a nested scroller would otherwise take it.
- *
- * The inline-end padding is the scrollbar's lane, and it is padding rather than
- * `scrollbar-gutter` alone because the two platforms fail differently. An
- * overlay scrollbar (macOS, and any touch device) takes no layout space at
- * all, so `scrollbar-gutter` reserves nothing and the bar paints straight over
- * the last word of every wrapped line and over the right border of every sample
- * card. A classic scrollbar does take space, but it takes it from the content
- * box, which parks the text against the bar instead of under it. The padding
- * answers both: it is the lane the overlay bar floats in, and the gap between
- * the text and a classic one. `stable` is here for the second case only, so a
- * short rule and a long one do not sit at different widths.
- *
- * The inline-start padding is the focus ring's lane, and the negative margin is
- * what keeps it from being an indent: a scroll port clips at its padding edge,
- * so a full-width field flush against the start of this column had the left
- * side of its ring cut off, which reads as a control whose border is broken on
- * one side rather than as an outline that ran out of room. The margin gives the
- * four pixels back to the section's own inline padding, so every row, heading
- * and field keeps the x it had.
- *
- * The block-start margin is the same lane on the other axis, found the same
- * way: the search field is the first thing in the index column, so the top of
- * its ring was cut off flat at the port's edge. Both columns pull their clip
- * edge up by the ring's reach and hand the height back so every first line
- * keeps the y it had, but where the room is *reserved* differs, and the
- * difference is a sticky trap worth keeping. The detail column takes the
- * inline lane's own pair, padding plus negative margin. The index column must
- * not: its finder is sticky, and a sticky box cannot sit above its containing
- * block's content edge. The negative margin that would let it start inside
- * the column's padding is clamped back to the content edge, which shoves the
- * field (and every row under it) down by the lane instead. So the index
- * carries no block padding, and the lane there is the finder's own padding
- * below, which also holds while the finder is pinned: a pinned box is back
- * at the clip edge whatever the column's padding says.
- */
+.site-split {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 50%;
+	grid-template-rows: minmax(0, 1fr);
+	width: 100%;
+	min-height: 0;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scroll-snap-type: x mandatory;
+	overscroll-behavior-x: contain;
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-border-strong) transparent;
+}
+
+.site-split__intro,
 .site-split__index,
 .site-split__detail {
-	/* The two lanes above, named so the pinned back bar can bleed across them.
-	   A bar that stopped at the content edge would let a line of the page show
-	   past it on either side as the page scrolls under. The guidance catalog
-	   widens the start lane for its wash and therefore moves this with it. */
-	--split-lane-start: var(--focus-ring-reach);
-	--split-lane-end: var(--space-3);
-
+	min-width: 0;
 	min-height: 0;
-	padding-inline: var(--split-lane-start) var(--split-lane-end);
-	margin-block-start: calc(-1 * var(--focus-ring-reach));
-	margin-inline-start: calc(-1 * var(--split-lane-start));
-	overflow: auto;
-	overscroll-behavior: contain;
+	padding: 0 var(--split-lane-end) max(var(--space-5), var(--split-navigation-clearance, 0px))
+		var(--split-lane-start);
+	overflow-x: hidden;
+	overflow-y: auto;
+	overscroll-behavior-y: contain;
+	scroll-snap-align: start;
 	scrollbar-gutter: stable;
 	scrollbar-width: thin;
 	--reference-scrollbar-thumb: var(--color-text-muted);
 	scrollbar-color: var(--reference-scrollbar-thumb) transparent;
 }
 
-/* Keep the gutter in place; only the native thumb disappears when idle. */
-.site-split[data-scrollbars-ready]
-	> :is(.site-split__index, .site-split__detail):not([data-scrolling]) {
+.site-split[data-scrollbars-ready] > :not([data-scrolling]) {
 	--reference-scrollbar-thumb: transparent;
 }
 
 @supports not (scrollbar-width: thin) {
-	.site-split > :is(.site-split__index, .site-split__detail)::-webkit-scrollbar {
-		width: var(--space-1-5);
-		height: var(--space-1-5);
+	.site-split > div::-webkit-scrollbar {
+		width: var(--space-1);
 	}
-	.site-split > :is(.site-split__index, .site-split__detail)::-webkit-scrollbar-track {
+	.site-split > div::-webkit-scrollbar-track {
 		background: transparent;
 	}
-	.site-split > :is(.site-split__index, .site-split__detail)::-webkit-scrollbar-thumb {
+	.site-split > div::-webkit-scrollbar-thumb {
 		background: var(--reference-scrollbar-thumb);
-		border-radius: var(--radius-round);
 	}
 }
 
 @media (forced-colors: active) {
-	.site-split > :is(.site-split__index, .site-split__detail) {
+	.site-split,
+	.site-split > div {
 		scrollbar-color: auto;
 	}
 }
 
-.site-split__index {
-	grid-area: index;
+.site-split__navigation {
+	padding: var(--space-5) var(--split-lane-end) var(--space-3) var(--split-lane-start);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
 }
 
-.site-split__detail {
-	padding-block-start: var(--focus-ring-reach);
-	grid-area: detail;
+.site-split__unavailable {
+	visibility: hidden;
+}
+.site-split__narrow {
+	display: none;
 }
 
 /* A ceiling on the read column, not the editor's wrap column; the grid column
@@ -1037,16 +987,118 @@
 	max-width: var(--measure-reference);
 	padding-bottom: var(--space-5);
 }
+.site-split__page:has(> .guide-glass) {
+	isolation: isolate;
+}
+
+/* One continuous backdrop sits below the transparent pinned text. Its out-of-flow
+   paint changes height without affecting the document's reserved heading space. */
+.guide-glass {
+	position: sticky;
+	inset-block-start: 0;
+	block-size: 0;
+	margin-inline-start: calc(-1 * var(--split-lane-start));
+	z-index: 1;
+	pointer-events: none;
+}
+.guide-glass::before {
+	content: '';
+	position: absolute;
+	inset-block-start: 0;
+	/* Overlay scrollbars occupy clientWidth too, so leave their edge unfiltered. */
+	inset-inline: 0 var(--space-3);
+	block-size: var(--guide-glass-height, 0px);
+	background: color-mix(in srgb, var(--color-canvas) 80%, transparent);
+	-webkit-backdrop-filter: blur(12px);
+	backdrop-filter: blur(12px);
+}
+
+.guide-topic {
+	display: flow-root;
+	margin-block-start: var(--space-8);
+}
+
+/* The pin has zero net flow height; the invisible full-size text below reserves
+   the same space at every scroll position, including while the title animates. */
+.guide-topic-pin {
+	position: sticky;
+	overflow-anchor: none;
+	inset-block-start: var(--topic-offset, 0px);
+	z-index: 3;
+	block-size: var(--topic-compact-height, 0px);
+	margin-block-end: calc(-1 * var(--topic-compact-height, 0px));
+}
+
+.guide-topic-title,
+.guide-topic-space {
+	font-size: var(--font-size-2xl);
+	font-weight: var(--font-weight-bold);
+	line-height: var(--line-height-tight);
+	color: var(--color-warning);
+}
+
+.guide-topic-pin > .guide-topic-title {
+	margin: 0;
+	margin-inline: calc(-1 * var(--split-lane-start)) calc(-1 * var(--split-lane-end));
+	padding: var(--space-2) var(--split-lane-end) var(--space-2) var(--split-lane-start);
+	scroll-margin-top: var(--split-heading-clearance);
+	font-size: var(--font-size-2xl);
+	font-weight: var(--font-weight-bold);
+}
+
+.guide-topic[data-stuck] .guide-topic-title,
+.guide-topic-space > .guide-topic-compact {
+	font-size: var(--font-size-xl);
+}
+
+.guide-topic-space {
+	display: grid;
+	visibility: hidden;
+	pointer-events: none;
+}
+.guide-topic-space > span {
+	grid-area: 1 / 1;
+	align-self: start;
+	padding-block: var(--space-2);
+}
+
+.guidelines__entry-heading {
+	position: sticky;
+	inset-block-start: var(--topic-compact-height, 0px);
+	z-index: 2;
+	margin-inline: calc(-1 * var(--split-lane-start)) calc(-1 * var(--split-lane-end));
+	padding: var(--space-2) var(--split-lane-end) var(--space-2) var(--split-lane-start);
+}
+
+.guide-topic[data-stuck] .guidelines__entry-heading {
+	clip-path: inset(var(--heading-clip, 0px) 0 0);
+}
+
+.guidelines__entry-heading > h2,
+.guidelines__entry-heading > .site-meta {
+	margin-block-start: 0;
+	margin-block-end: var(--space-1-5);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.guide-topic-title {
+		transition: font-size var(--duration-slow) var(--ease-out-quart);
+	}
+}
 
 /* Every guidance entry is a deep-link target (the index and the assistant both
    name entries by fragment), and on a wide screen the masthead travels with the
    reader, so a jumped-to heading has to clear it or the one line the link named
    is the line under the chrome. (The page's own landing re-centers it; this is
    the no-JavaScript fallback's clearance.) */
-.guidelines__entry h2,
-.guidelines__landmark h2 {
+.guidelines__entry-heading > h2 {
 	margin-bottom: var(--space-1-5);
-	scroll-margin-top: calc(var(--header-height) + var(--space-4));
+	/* Match the pinned text edge so native fragment alignment preserves Back restoration. */
+	scroll-margin-top: calc(var(--topic-compact-height, 0px) + var(--space-2));
+}
+
+.guidelines__additional {
+	margin-block-start: var(--space-7);
 }
 
 /* Where one section ends and the next begins: the hairline the linter's run
@@ -1094,8 +1146,8 @@
    line, a breath, the box, a breath, a line. The box spills `--space-4` past
    the content on every side, and where a hairline sits `--space-6` off the
    content it therefore stops `--space-4` short of the line, the same even
-   gap above and below. `z-index: 0` on the entry scopes the negative layer so
-   the wash cannot slip behind an ancestor's paint.
+   gap above and below. The article scopes the negative layer, leaving each
+   sticky entry header above the pane's shared glass plane.
 
    A landmark is a deep-link target exactly as an entry is (the index and every
    rule page's guideline link both name its anchor), so it takes the same wash
@@ -1106,7 +1158,6 @@
 .guidelines__landmark[data-current],
 .guidelines__landmark:has(:target) {
 	position: relative;
-	z-index: 0;
 }
 
 .guidelines__entry[data-current]::before,
@@ -1123,190 +1174,6 @@
 	top: calc(var(--space-6) - var(--space-4));
 	border-radius: var(--radius-panel);
 	background: var(--color-selected);
-}
-
-/* The wash above spills `--space-4` past the entry's box on every side, and
-   this column is a scroll port, which clips at its padding edge. At the
-   shared focus-ring lane the wash's left corners were cut off square, which
-   read as the radius failing rather than as a clip. The lane is widened to
-   the spill and handed back with the same negative margin, so every line of
-   content keeps the x it had; only the room the wash paints in is new. */
-.site-split[data-section='guidelines'] .site-split__detail {
-	--split-lane-start: var(--space-4);
-	--split-lane-end: var(--space-4);
-}
-
-/* Both split sections open reading-first: at the index the intro leads in the
-   left column and the list of lookups rides the right, and opening a page
-   swaps them: the list crosses to the left and the page takes the right. The
-   push is the view transition below. */
-.site-split[data-view='index'] {
-	grid-template-areas: 'detail index';
-}
-
-/*
- * The choreography's names, and they are on the two columns rather than on
- * what is inside them.
- *
- * The page itself was named once: `.site-split__detail > main`, keyed off
- * `data-view` so the intro and an open page were named apart and could be
- * given a leave and an arrive of their own. That is where the instability
- * came from, and it is worth writing down because the markup looked right. A
- * view transition snapshots a named element **unclipped by its ancestors**:
- * `main` lives inside a scroll port, so a rule or a guideline several
- * thousand pixels long was captured whole, positioned at its own border-box
- * origin (which for a column scrolled past its first screen is above the
- * viewport) and painted over the entire window for the length of the
- * animation. Nothing about the resting layout says so, and the taller the
- * page the worse it read.
- *
- * The columns are the boxes that actually move, and each one clips its own
- * overflow, so its snapshot is the screenful the reader can see and nothing
- * else.
- *
- * The list is named once, at both views, so the browser morphs it between
- * its two grid positions, one slot's travel, which is the push's middle
- * column. The detail column is named *by view*: it is the intro at the
- * index view and the page at a detail one, and that split is what encodes
- * the push's direction without a line of script. Opening a page captures an
- * old `section-intro` with no new one and a new `section-page` with no old
- * one, so the intro is an exit and the page an entrance, each with a slide
- * of its own below, and going back lands each name on the other side of
- * the capture, which reverses the slides with it. The back bar rides inside
- * the page's own snapshot, so it arrives with the slide rather than popping
- * in over one.
- *
- * A press from one detail page straight to another captures `section-page`
- * on both sides (the pair the `:only-child` selectors below deliberately
- * skip), so neither column moves and only the contents cross-fade, which is
- * the in-place change that move deserves.
- *
- * Names are inert at rest: they only mean something inside a transition
- * `SectionSplit` starts, and it declines to start one across the section's
- * boundary, without browser support, under reduced motion, or below the
- * width where these columns stop being columns.
- */
-.site-split__index {
-	view-transition-name: section-index;
-}
-
-.site-split[data-view='index'] .site-split__detail {
-	view-transition-name: section-intro;
-}
-
-.site-split[data-view='detail'] .site-split__detail {
-	view-transition-name: section-page;
-}
-
-/* The ride is a push seen through a slit: the three views a section can
-   show (intro, list, page) behave as one strip of paper, and a navigation
-   pulls the strip one slot sideways. Opening a page pulls it left: the
-   intro is drawn out through the container's left edge, the list's own
-   group morph carries it from the right slot to the left one, and the page
-   is drawn in through the right edge. Going back pulls the same strip
-   right.
-
-   The slit is the `overflow: clip` on the two image-pairs. A view
-   transition's snapshots are unclipped by the container, so the exiting
-   column would otherwise glide across the canvas beside the page and pop
-   off whole when the transition ended; clipped to its own slot, it
-   disappears at the edge it is pulled through, which is what makes the
-   motion read as paper under a mask rather than a card flying over one.
-   The list needs no keyframes and no clip: the default morph is exactly
-   its one-slot journey, always inside the container, and the columns are
-   equal, so it translates without resizing. Each slide's travel is the
-   snapshot's own width plus the grid's gap, so the three pieces move in
-   lockstep.
-
-   The easing is the pull: `--ease-in-out-cubic` gathers and settles, where
-   `--ease-out-quart`'s full-speed launch (right for a control answering a
-   press) reads as thrown when a whole column crosses the page. Every
-   pseudo takes the same pair of tokens, or the images outlive the box they
-   are painted in (the browser's own default is 250ms, ten past
-   `--duration-slow`), and the slides carry `animation-fill-mode: both` for
-   the same ten milliseconds: the root's default cross-fade keeps the
-   transition alive past their end, and a slide fallen back to base styles
-   would draw the exited column back over the arrived list for exactly that
-   long. Gated on reduced motion like every animation here, although the
-   component has already declined to start the transition at all. */
-@media (prefers-reduced-motion: no-preference) {
-	::view-transition-group(section-index),
-	::view-transition-old(section-index),
-	::view-transition-new(section-index),
-	::view-transition-group(section-intro),
-	::view-transition-old(section-intro),
-	::view-transition-new(section-intro),
-	::view-transition-group(section-page),
-	::view-transition-old(section-page),
-	::view-transition-new(section-page) {
-		animation-duration: var(--duration-slow);
-		animation-timing-function: var(--ease-in-out-cubic);
-	}
-
-	::view-transition-image-pair(section-intro),
-	::view-transition-image-pair(section-page) {
-		overflow: clip;
-	}
-
-	::view-transition-old(section-intro):only-child {
-		animation-name: section-push-out-left;
-		animation-fill-mode: both;
-	}
-
-	::view-transition-new(section-intro):only-child {
-		animation-name: section-push-in-left;
-		animation-fill-mode: both;
-	}
-
-	::view-transition-old(section-page):only-child {
-		animation-name: section-push-out-right;
-		animation-fill-mode: both;
-	}
-
-	::view-transition-new(section-page):only-child {
-		animation-name: section-push-in-right;
-		animation-fill-mode: both;
-	}
-}
-
-@keyframes section-push-out-left {
-	from {
-		transform: translateX(0);
-	}
-
-	to {
-		transform: translateX(calc(-100% - var(--space-6)));
-	}
-}
-
-@keyframes section-push-in-left {
-	from {
-		transform: translateX(calc(-100% - var(--space-6)));
-	}
-
-	to {
-		transform: translateX(0);
-	}
-}
-
-@keyframes section-push-out-right {
-	from {
-		transform: translateX(0);
-	}
-
-	to {
-		transform: translateX(calc(100% + var(--space-6)));
-	}
-}
-
-@keyframes section-push-in-right {
-	from {
-		transform: translateX(calc(100% + var(--space-6)));
-	}
-
-	to {
-		transform: translateX(0);
-	}
 }
 
 .site-index__group {
@@ -1349,39 +1216,15 @@
 	color: var(--color-text-muted);
 }
 
-/*
- * Finding a lookup among dozens, which is past what anyone reads down. Shared
- * by both index columns: the rule reference's and the guidance catalog's.
- *
- * It rides the top of the column rather than scrolling away with the rows,
- * because on a wide screen this column is its own scroll port: a reader forty
- * rows in would otherwise have to travel back to the field to change their
- * mind. `--color-canvas` is the page it is pinned over (the rows are
- * `--color-surface` and pass underneath), and the block-end padding is what
- * keeps the first row from touching the field as it goes by.
- *
- * No border and no fill of its own: a boundary here would separate the controls
- * that filter the list from the list they filter, which is the one place a
- * boundary has nothing to do.
- *
- * The block-start padding is the focus ring's lane, at rest and while pinned.
- * The index column deliberately reserves none of its own (the sticky trap the
- * column rule documents), so this padding is the whole of the room above the
- * field, and carried here it travels with the pin, where a lane held by the
- * column would put a pinned finder back at the clip edge. The finder's canvas
- * fill covers it, so no sliver of row shows above the field while the list
- * scrolls past, and the column's negative block margin is what hands the
- * height back, so the field and every row under it keep the y they had. The
- * reveal arithmetic in `reveal-selected.ts` measures port top plus finder
- * height and is unchanged by the pair for the same reason.
- */
+/* The finder stays above scrolling rows. Its padding reserves focus-ring space;
+   the pane's shared glass covers its full height along with the current topic.
+   reveal-selected.ts measures that same pinned region. */
 .site-finder {
 	position: sticky;
 	display: grid;
-	padding-block: var(--focus-ring-reach) var(--space-3);
+	padding-block: var(--space-5) var(--space-3);
 	gap: var(--space-2);
 	inset-block-start: 0;
-	background: var(--color-canvas);
 	/* Above the rows it is pinned over, and above the recessed shadow the open
 	   rule's row casts. */
 	z-index: 1;
@@ -1712,58 +1555,6 @@
 	}
 }
 
-/*
- * The way out of an open page, at every width. On a wide screen it returns to
- * the section's welcome view (the intro the choreography pushed out, which
- * nothing else on screen brings back), and on a narrow one it is also the way
- * back to the list that left with it. Quiet, at the top of the column, where
- * the reader who wants out looks first.
- *
- * And it stays there: pinned to the top of this column exactly as the index's
- * finder is pinned to the top of its own, and for the same reason. Each column
- * is its own scroll port on a wide screen, so a control that scrolled away with
- * the page would be gone by the second screen of a rule, and a guideline
- * opened by fragment *lands* mid-column, with the control already above the
- * fold and nothing on screen saying the section has a way back at all.
- *
- * Three things it owes:
- *
- * The bar bleeds across the column's own lanes (`--split-lane-*`), or the page
- * shows past it on either side as it scrolls under, at the focus ring's lane
- * on one edge and the scrollbar's on the other. The bleed is the pair the
- * column itself uses, so the guidance catalog's wider wash lane moves it
- * without this rule knowing about that section.
- *
- * The fill is `--color-canvas`, the page it is pinned over, and the block-end
- * padding is the breath that keeps the page's first line from touching it on
- * the way past. `z-index` puts it over the content rather than under it.
- *
- * The block-start padding is the focus ring's lane, carried here rather than on
- * the column, which is the sticky trap the finder documents from the other
- * side: a pinned box is back at the clip edge whatever the column's padding
- * says, so a lane held by the column would clip the ring off the one control
- * that is always on screen. The column stands its own down below.
- */
-.site-split__backbar {
-	position: sticky;
-	z-index: 1;
-	padding-block: var(--focus-ring-reach) var(--space-3);
-	padding-inline: var(--split-lane-start) var(--split-lane-end);
-	margin-inline: calc(-1 * var(--split-lane-start)) calc(-1 * var(--split-lane-end));
-	background: var(--color-canvas);
-	inset-block-start: 0;
-}
-
-.site-split__detail:has(.site-split__backbar) {
-	padding-block-start: 0;
-}
-
-.site-split__back {
-	display: inline-flex;
-	gap: var(--space-1-5);
-	align-items: center;
-}
-
 /* The suggestion line at the foot of the reading column. The hairline is the
    site footer's own rule (it says where the page stops and a note about the
    catalog begins), and the measure is the page's, so the line ends where every
@@ -1799,155 +1590,54 @@
 }
 
 @media (max-width: 62rem) {
-	/*
-	 * One column at a time. A detail page is a route of its own here rather than
-	 * a pane beside the list, so opening one replaces the list and the control at
-	 * the top of the page goes back to it: back, not forward to a fresh index,
-	 * which is what returns the reader to the row they pressed. The scroll that
-	 * restores is the document's, and the document is what scrolled, so there is
-	 * nothing for this stylesheet to preserve: the list must simply not be given
-	 * a scroller of its own at this width.
-	 *
-	 * That is also why the window shell comes off. Two columns of unequal length
-	 * are what earned it; with one on screen at a time there is nothing to hold
-	 * still, and a pinned header and footer would only spend the short edge of a
-	 * small screen on chrome the reader can already scroll away from.
-	 */
-	.site[data-shell='window'] {
-		height: auto;
-		min-height: 100vh;
-		min-height: 100dvh;
-		overflow: visible;
+	.site-split__wide {
+		display: none;
 	}
-
+	.site-split__narrow {
+		display: inline;
+	}
 	.site-split {
-		padding: var(--space-5) var(--space-4) var(--space-7);
-		gap: var(--space-5);
-		grid-template-rows: auto;
-		grid-template-columns: minmax(0, 1fr);
-		grid-template-areas: 'detail' 'index';
+		grid-auto-columns: 100%;
 	}
-
-	/* Nothing clips here, so neither lane is needed: the scrollbar's, nor the
-	   focus ring's, on either axis. */
-	.site-split__index,
-	.site-split__detail {
-		min-height: auto;
-		padding-block-start: 0;
-		padding-inline: 0;
-		margin-block-start: 0;
-		margin-inline-start: 0;
-		overflow: visible;
-		overscroll-behavior: auto;
-		scrollbar-gutter: auto;
+	.site-split-frame {
+		--split-lane-start: var(--space-5);
+		--split-navigation-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+		--split-navigation-clearance: calc(
+			var(--split-navigation-bottom) + var(--control-height-touch) + var(--space-4)
+		);
+		position: relative;
+		grid-template-rows: minmax(0, 1fr);
 	}
-
-	/* The wide rules above outrank the resets here by specificity, so both are
-	   stood down by name: the guidance catalog's wash paint lane, whose scroll
-	   port no longer exists to clip anything (it is only the lane variables
-	   now, and the reset above zeroes the padding they were spent on, so this
-	   pair is what keeps a bleed from being computed off them), and the swapped
-	   index arrangement, since two named columns in a one-column template would
-	   conjure a phantom second column. */
-	.site-split[data-section='guidelines'] .site-split__detail {
-		padding-inline: 0;
-		margin-inline-start: 0;
+	.site-split__navigation {
+		position: absolute;
+		inset-inline: 0;
+		inset-block-end: var(--split-navigation-bottom);
+		padding-block: 0;
+		z-index: var(--layer-toolbar);
+		pointer-events: none;
 	}
-
-	/* The arrival wash stands down where the index does. On a wide screen the
-	   wash ties the washed entry to the marked row in the column beside it:
-	   one selection, said by both columns at once. Stacked, the list is
-	   `display: none` while a page is open, so there is no row on screen for
-	   the wash to agree with, and what is left is a blue box around one
-	   section of a one-column article: emphasis nobody asked for, saying
-	   nothing the landing scroll does not already say. The mark itself
-	   (`data-current`, and `:target` for the no-JavaScript arrival) stays. The
-	   reading spy and the index still read the same state when the reader
-	   goes back, and only the paint goes. */
+	:root .site-split__navigation .button {
+		min-height: var(--control-height-touch);
+		background: var(--color-control);
+		border-color: var(--color-control-border);
+		box-shadow: var(--shadow-popover);
+		pointer-events: auto;
+	}
+	:root .site-split__navigation .button:hover {
+		background: var(--color-control-hover);
+	}
+	:root .site-split__navigation .button:active {
+		background: var(--color-control-active);
+	}
+	.site-split > div {
+		scroll-padding-block-end: var(--split-navigation-clearance);
+	}
+	/* The index sits offscreen on phones, so the arrival heading is enough. */
 	.guidelines__entry[data-current]::before,
 	.guidelines__entry:has(:target)::before,
 	.guidelines__landmark[data-current]::before,
 	.guidelines__landmark:has(:target)::before {
 		content: none;
-	}
-
-	/* Stacked, the finder leads and the intro follows, the opposite of the wide
-	   swap, and a correction. Intro-first was carried over from the two-column
-	   arrangement, where the list stands beside the intro either way; stacked, it
-	   put the whole guide *above* the index, which at `/rules/` measured ten
-	   phone viewports of prose between the reader and the search field. A
-	   finder nobody scrolls to is a finder the section does not have. Lookup is
-	   the primary phone journey, so the index takes the first screen and the
-	   intro is one flick below the rows, where a reader who wants it still meets
-	   it in order. Detail views are untouched: there the page is the content and
-	   the index is `display: none`. */
-	.site-split[data-view='index'] {
-		grid-template-areas: 'index' 'detail';
-	}
-
-	/* The way out stays pinned at this width, and that is a correction: it used
-	   to unpin with everything else, which left a reader eight viewports into a
-	   topic with no navigation on screen at all: the masthead scrolled away,
-	   the list is `display: none` below, and the way to the next topic was the
-	   whole article back up.
-
-	   What pins is the control, not a band. A full-width canvas strip here read
-	   as a bare slab lying across whatever scrolled under it, and while the
-	   entry wash still drew at this width, its spill poked out blue on either
-	   side of the black. So the row is transparent and takes no presses, and the
-	   button inside it becomes a small lifted surface: border, fill and shadow,
-	   the three the workbench's floating chips use, on the radius every control
-	   already carries. Content scrolls past around it, which is what a floating
-	   control over a document looks like.
-
-	   Where its top edge sits follows the masthead. Down to 46rem the masthead is
-	   still sticky above, so the chip rides directly under it; past 46rem the
-	   masthead goes static and the chip takes the top of the viewport. The
-	   heading clearance below moves with the same seam, so a deep-linked entry
-	   still lands clear of whatever is pinned, and the reading spy reads the
-	   headings' own `scroll-margin-top`, so it follows for free. */
-	.site-split__backbar {
-		position: sticky;
-		z-index: 1;
-		padding: var(--space-2) 0;
-		margin-inline: 0;
-		background: transparent;
-		inset-block-start: var(--header-height);
-		pointer-events: none;
-	}
-
-	/* The quiet tier's border is already there, transparent, so lifting the
-	   control costs no layout shift: the chip is the same box the button was. */
-	.site-split__back {
-		border-color: var(--color-control-border);
-		background: var(--color-control);
-		box-shadow: var(--shadow-raised);
-		pointer-events: auto;
-	}
-
-	/* The pinned bar is taller than the breath the wide layout reserves, so a
-	   jumped-to heading has to clear masthead plus bar here: the bar's own
-	   padding, its `md` control, and a breath. Below 46rem the masthead term
-	   comes off with the masthead. */
-	.guidelines__entry h2,
-	.guidelines__landmark h2 {
-		scroll-margin-top: calc(
-			var(--header-height) + var(--control-height-md) + 2 * var(--space-2) + var(--space-4)
-		);
-	}
-
-	.site-split[data-view='detail'] .site-split__index {
-		display: none;
-	}
-
-	/* Nothing to pin the finder to: at the index view it is already the first
-	   thing on the screen the reader arrives at (the stack leads with the index),
-	   and a sticky finder following them down the whole list would spend the
-	   short edge of a small screen on chrome they can flick back to. Unpinned,
-	   its ring lane comes off with the columns' above. */
-	.site-finder {
-		position: static;
-		padding-block-start: 0;
 	}
 }
 
@@ -1989,10 +1679,12 @@
 	   longer has a surface to keep type legible against. Both go together: the
 	   band either separates pinned chrome from the content moving under it, or it
 	   scrolls away with the document and separates nothing. */
-	.site-header {
+	/* The guide's fixed chrome remains transparent above its separately scrolling panes. */
+	.site:not([data-shell='window']) .site-header {
 		position: static;
 		border-bottom: none;
 		background: transparent;
+		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
 	}
 
@@ -2004,9 +1696,6 @@
 	   `.site-main`, so they take the gutter separately or the brand ends up inset
 	   further than the list it sits over. One edge down the page, whichever page
 	   it is. */
-	.site-split {
-		padding-inline: var(--space-5);
-	}
 
 	/* Touch targets, matching what responsive.css already does for the app's
 	   controls at this width. And the far-end margin comes off with the section
@@ -2026,18 +1715,6 @@
 	   spaces the row, and the visual hierarchy is the words, not a box. */
 	.site-nav a {
 		padding-block: var(--space-1);
-	}
-
-	/* The masthead is static at this width, so the back bar takes the top of the
-	   viewport, and the heading clearance drops the masthead's term with it.
-	   The bar's control is `lg` here (every `.button` steps up below 46rem). */
-	.site-split__backbar {
-		inset-block-start: 0;
-	}
-
-	.guidelines__entry h2,
-	.guidelines__landmark h2 {
-		scroll-margin-top: calc(var(--control-height-lg) + 2 * var(--space-2) + var(--space-4));
 	}
 
 	/* The band has room for the brand or the section and the nav, not both: with

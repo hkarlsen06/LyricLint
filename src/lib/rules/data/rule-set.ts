@@ -106,15 +106,16 @@ const previousRuleSet: RuleSetManifest = {
 };
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.09.18.0',
-	publishedAt: '2026-09-18',
+	version: '2026.09.21.2',
+	publishedAt: '2026-09-21',
 	sourceIds: [
 		...previousRuleSet.sourceIds,
 		'G-SYMBOLS',
 		'G-AS-SPOKEN',
 		'G-NON-ENGLISH',
 		'L-NO-ACCENT',
-		'G-HEADER-COLLECTIVE'
+		'G-HEADER-COLLECTIVE',
+		'G-NO-CHORUS'
 	],
 	// Spelled out rather than spliced from the previous set. The splice read as a
 	// changelog only while every change was an append; the moment one belonged in

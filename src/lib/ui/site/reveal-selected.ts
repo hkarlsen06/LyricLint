@@ -25,7 +25,8 @@ import { prefersReducedMotion } from '$lib/interaction/motion.js';
  *   would call visible can be entirely underneath it. `block: 'nearest'` knows
  *   nothing about that and would leave the row covered; the free space starts
  *   at the finder's own bottom edge, and it is measured rather than restated
- *   here, because the chips wrap and the readout comes and goes.
+ *   here, because the chips wrap and the readout comes and goes. Grouped results
+ *   also reserve the compact topic heading pinned below the finder.
  *
  * It moves the scroll and not the focus. The reader opened a page to read it,
  * and focus parked in a `<nav>` of dozens of links would send their first Tab
@@ -52,7 +53,9 @@ export function revealRow(
 
 	const port = column.getBoundingClientRect();
 	const finder = column.querySelector<HTMLElement>('.site-finder');
-	const free = port.top + (finder?.getBoundingClientRect().height ?? 0);
+	const topicHeight =
+		Number.parseFloat(getComputedStyle(row).getPropertyValue('--topic-compact-height')) || 0;
+	const free = port.top + (finder?.getBoundingClientRect().height ?? 0) + topicHeight;
 	const rect = row.getBoundingClientRect();
 	if (rect.top >= free && rect.bottom <= port.bottom) return;
 	// Instant, and clamped by the scroller itself at both ends. A smooth scroll
@@ -97,7 +100,9 @@ export async function followSelectedRow(column: HTMLElement | undefined): Promis
 
 	const port = column.getBoundingClientRect();
 	const finder = column.querySelector<HTMLElement>('.site-finder');
-	const top = port.top + (finder?.getBoundingClientRect().height ?? 0);
+	const topicHeight =
+		Number.parseFloat(getComputedStyle(row).getPropertyValue('--topic-compact-height')) || 0;
+	const top = port.top + (finder?.getBoundingClientRect().height ?? 0) + topicHeight;
 	const rect = row.getBoundingClientRect();
 	// Breathing room is a destination for an offscreen row, not a reason to move
 	// one already visible. Search excerpts are taller than the old title rows;

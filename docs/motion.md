@@ -35,15 +35,35 @@ A separate two-second cleanup deadline starts after the editor is ready. Lyrics 
 `data-entrance-pending`; diagnostics independently follow `data-diagnostics-pending`, so a
 rules download cannot hold ready lyrics invisible. Editor readiness belongs to the newly
 mounted draft ID, so the previous editor cannot release the new reveal early.
+The editor reports readiness after CodeMirror's first viewport measurement settles. Its
+initial DOM is only an estimate; scanning it before measurement misses rows added below it.
 Input, pointer presses, focus, scrolling, visibility changes,
 reduced-motion changes, and unmounting remove the mask and cancel animation immediately.
 Animations never write inline styles; cancellation exposes the original styling. Failure also reveals the workspace. Readiness,
 focusability, document structure, and layout never wait for animation completion.
 
-Internal navigation into the workbench starts the root layout's `NavigationSplash` while
-route code, storage, and the editor load concurrently. Its existing wordmark animation
-does not gate navigation or editor readiness. Direct workbench loads and draft switches
-do not show it. See [site guidance](subsystems/site.md) for its lifetime.
+Internal navigation between different pathnames starts the root layout's `NavigationSplash`
+while the destination loads, including Back/Forward and parameter changes in a dynamic route.
+Browsing within the mounted guide (its index, topics, and checks) skips the splash, including
+Back/Forward; entering or leaving the guide still uses it. Query and fragment changes on the
+same page also skip it. Regular pages signal readiness on
+navigation completion; the workbench retains its editor-readiness and refusal handling.
+Two native View Transitions handle page-to-splash and splash-to-destination; their callbacks
+wait only for a Svelte DOM flush.
+The route's DOM swap waits for the entry transition's update callback, so a cached destination
+cannot flash before the splash. Downloads and the spring continue independently.
+`BootScreen` restores the spring and radial reveal removed in `456a34c8`, without the old
+reading delay: immediately pull to `--wm-open: 1.22` over 380ms using `--ease-out-quart`,
+then release over 420ms with
+`cubic-bezier(0.5, 0, 0.85, 0.25)`. A ready destination waits visually for the spring and
+420ms radial explosion to finish; navigation and editor readiness continue independently.
+If still loading after landing, the shared waveform runs until readiness starts the explosion.
+Input skips native snapshots and dismisses the splash immediately. Skipped update callbacks use
+the current requested visibility, preserving a fast navigation's full animation without
+resurrecting an explicitly dismissed splash. Missing API support uses the same CSS animation
+with a direct DOM handoff. Reduced motion parks the mark and wave and skips the minimum and
+explosion. Direct page loads and draft switches do not show it. See
+[site guidance](subsystems/site.md) for its lifetime and refusal paths.
 
 ## Best practices
 
@@ -116,6 +136,8 @@ performance on every device.
 Tall-viewport and restored-scroll regressions assert that every visible lyric row starts
 transparent on the same bounded stagger. The previous 48-row animation cap and 64-child
 scan cap let later paragraphs appear immediately while earlier lines were still fading.
+A real-editor regression holds CodeMirror's first measurement, then checks that its added
+viewport rows join the initial fade. The mask stays in place until that measurement completes.
 
 Animation counts alone missed a production-only timing bug: the minifier's `.4s` was
 interpreted as 0.4 milliseconds. The regression now uses both `ms` and `s` tokens and

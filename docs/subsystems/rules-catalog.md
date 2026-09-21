@@ -71,7 +71,27 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   selected-language thresholds, and constructs fresh document ranges. Cache bounds are retention
   limits, never sampling or detection limits. Native benchmarks initialize the statistical detector.
 
+- Norwegian `section.localized-header-preference` checks the whole document: use `Chorus`
+  with `Pre-Chorus` or `Post-Chorus` sections, and `Refreng` without them. The eight
+  reviewed Norwegian affix variants count toward that choice before being fixed to the
+  untranslated names. `hasChorusAffixes` and `localizedHeaderPreference` own the shared
+  decision for the language and custom-header checks, avoiding duplicate findings.
+  Chorus-family findings cite the community source; the `Bridge` to `Bro` preference
+  retains its vocabulary sources. This rule settles on the document.
+  LyricLint also recognizes `Omkved` under the conditional chorus preference,
+  `Avslutning` as `Outro`, `Åpning` as `Intro`, and `Interlude` as `Mellomspill`.
+  These curated aliases share the preference predicate, so the language and custom-header
+  rules do not produce duplicate findings. Other reviewed languages retain their catalog's
+  accepted alternatives and previewed cross-language corrections.
+
 ## Decision record
+
+### Quoted non-English title headers accept guillemets
+
+The first section's optional title header accepts straight double quotes, curly double
+quotes, and guillemets. Detection reads the whole header, so a colon inside the quoted
+song title does not truncate it at the parser's performer separator. Later sections and
+English or unknown-language documents keep their custom-header checks.
 
 ### An empty editor does not initialize the rule catalog
 

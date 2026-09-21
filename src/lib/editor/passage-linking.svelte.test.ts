@@ -101,6 +101,7 @@ async function mount(text = SONG, links?: SectionLink[]) {
 		}
 	});
 	await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+	await vi.waitFor(() => expect(handle).toBeDefined());
 	if (!handle) throw new Error('Editor did not mount');
 	if (links) handle.setSectionLinks?.(links);
 	return { handle, unmount: () => view.unmount() };

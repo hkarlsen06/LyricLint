@@ -76,6 +76,7 @@ the delivery that no source supports.
 | `G-LANG-PURPOSE` | [Multilingual guide purpose, annotation 12709276](https://genius.com/12709276) | Purpose and use of localized header guidance | Reviewed 2026-07-24; re-read 2026-08-12 (guidance catalog sourcing); roster re-checked and promoted editorial → staff (staff tier) |
 | `G-LANG-EN` | [English headers, annotation 12744609](https://genius.com/12744609) | Standard English header vocabulary | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
 | `G-LANG-NO` | [Norwegian headers, annotation 13453292](https://genius.com/13453292) | Norwegian header vocabulary | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
+| `G-NO-CHORUS` | [Genius Norway, discussion 358632](https://genius.com/discussions/358632-Genius-norway) | Norwegian uses `Chorus` with Pre/Post-Chorus, otherwise `Refreng`; Pre/Post-Chorus stay untranslated | Supplied conversation with mektigemartin reviewed 2026-09-21 (community tier, level 1); conversation points to the forum thread, which could not be fetched; specific post and contributor role unverified |
 | `G-LANG-AR` | [Arabic headers, annotation 12745769](https://genius.com/12745769) | Localized Arabic header vocabulary | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
 | `G-LANG-DE` | [German headers, annotation 12745292](https://genius.com/12745292) | Genre-dependent German alternatives | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
 | `G-LANG-ES` | [Spanish headers, annotation 12744618](https://genius.com/12744618) | Localized Spanish header vocabulary | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
@@ -134,7 +135,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `section.header-spacing` | Suggestion | A section header immediately follows preceding content without a blank line | Safely insert one matching line ending | `G-SECTIONS` as context; LyricLint readability preference |
 | `section.extra-blank-lines` | Suggestion | More than one blank line separates two song parts | Safely delete the extra lines, keeping the first blank line exactly as it was written | `G-SECTIONS` as context; LyricLint readability preference |
 | `section.header-language` | Warning | A recognized header conflicts with the selected lyric-language catalog or its reviewed capitalization | Safely normalize capitalization; preview a localized replacement | `G-SECTIONS`, reviewed language source |
-| `section.localized-header-preference` | Suggestion | A valid header has a culturally preferred localized equivalent | Safely replace with the localized term | `G-LANG-PURPOSE`, reviewed language source |
+| `section.localized-header-preference` | Suggestion | A header has a culturally preferred equivalent; Norwegian Chorus/Refreng depends on Pre/Post-Chorus sections | Safely replace the part name, including Norwegian pre/post translations | `G-LANG-PURPOSE`, reviewed language source, `G-NO-CHORUS` |
 | `section.header-unrecognized` | Manual review | A bracketed header is absent from every reviewed header catalog and is not an optional first non-English title header | Explain only; preserve the custom text | `G-SECTIONS`, reviewed language sources, `G-NON-ENGLISH` |
 | `section.deprecated-hook` | Warning | A section uses the deprecated `[Hook]` name | Preview the selected language pack's canonical replacements for Chorus/Refrain structures, deduplicated when both use one name | `G-SECTION-HOOK`, reviewed language source |
 | `section.immediate-repeat-spacing` | Warning | An exact song part is immediately repeated behind a blank separator or duplicate header | Safely retain both lyric copies under one header with no blank separator | `G-SECTIONS`, `G-REPEATS` |
@@ -259,7 +260,7 @@ Initial reviewed subset:
 | --- | --- | --- |
 | Intro | Intro | Intro |
 | Verse | Verse | Vers |
-| Chorus | Chorus | Refreng (preferred) or Chorus |
+| Chorus | Chorus | Chorus with Pre/Post-Chorus; otherwise Refreng |
 | Refrain | Refrain | Refreng |
 | Pre-Chorus | Pre-Chorus | Pre-Chorus |
 | Post-Chorus | Post-Chorus | Post-Chorus |
@@ -267,6 +268,21 @@ Initial reviewed subset:
 | Interlude | Interlude | Mellomspill |
 | Instrumental | Instrumental | Instrumental |
 | Outro | Outro | Outro |
+
+The Norwegian chorus-family convention is community guidance (level 1), confirmed by the
+supplied conversation with mektigemartin and linked to the Genius Norway forum thread
+(`G-NO-CHORUS`). Keep `Pre-Chorus` and `Post-Chorus` in English. Their presence anywhere
+in the document, including the recognized Norwegian variants awaiting correction, calls for
+`Chorus`; without either, prefer `Refreng`. The linter corrects `prerefreng`, `pre-refreng`,
+`førrefreng`, and `før-refreng` to `Pre-Chorus`, and `postrefreng`, `post-refreng`,
+`etter-refreng`, and `etterrefreng` to `Post-Chorus`. In Norwegian, the language rule
+localizes `Refrain` to `Refreng`, which follows the same conditional preference.
+English-language documents keep `Refrain` distinct from `Chorus`.
+
+LyricLint's curated Norwegian header aliases also map `Omkved` to `Refreng` (or
+`Chorus` with Pre/Post-Chorus), `Avslutning` to `Outro`, `Åpning` to `Intro`,
+`Bridge` to `Bro`, and `Interlude` to `Mellomspill`. These catches use the reviewed
+replacement vocabulary without claiming that Genius explicitly lists every alias.
 
 Do not assume every language translates every header. Some Genius language annotations explicitly prefer English headers or vary by genre. Preserve custom headers, send unrecognized names to manual review, and explain recommendations rather than blocking export.
 

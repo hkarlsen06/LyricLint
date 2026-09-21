@@ -153,7 +153,10 @@ describe('rule lookup tables', () => {
 			])
 		);
 		expect(pairs('section.localized-header-preference')).toEqual(
-			[...norwegianPreferences].map(([english, { replacement }]) => [english, [replacement]])
+			[...norwegianPreferences].map(([name, { replacement, withChorusAffixes }]) => [
+				name,
+				[replacement, ...(withChorusAffixes ? [withChorusAffixes] : [])]
+			])
 		);
 	});
 

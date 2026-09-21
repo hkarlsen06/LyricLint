@@ -49,6 +49,7 @@ async function mount(options: {
 	});
 	const textbox = page.getByRole('textbox', { name: 'Lyrics editor' });
 	await expect.element(textbox).toBeVisible();
+	await vi.waitFor(() => expect(handle).toBeDefined());
 	if (!handle) throw new Error('CodeMirror did not publish its editor handle.');
 	return { handle, content: textbox.element() as HTMLElement };
 }

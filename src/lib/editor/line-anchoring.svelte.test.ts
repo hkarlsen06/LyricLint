@@ -93,6 +93,7 @@ async function mount(options: {
 		}
 	});
 	await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+	await vi.waitFor(() => expect(handle).toBeDefined());
 	if (!handle) throw new Error('CodeMirror did not publish its editor handle.');
 	// Gutter hit testing uses measured line heights, settled on CodeMirror's next frame.
 	await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));

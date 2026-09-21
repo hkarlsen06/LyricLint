@@ -3,9 +3,9 @@ import type { AssistantCorpus } from './rules-context';
 
 export const corpus = {
 	formatVersion: 5,
-	ruleSetVersion: '2026.09.18.0',
-	generatedAt: '2026-09-21T11:11:34.573Z',
-	contentHash: 'f75d0cbd78ff6b06acc236912922f56cb91fb6530b515e91a942ba9d4aaff977',
+	ruleSetVersion: '2026.09.21.2',
+	generatedAt: '2026-09-21T19:45:16.924Z',
+	contentHash: 'a169464a82177c87e24c6d6b748367ed4caeac65308459f7c5f11418d91f1f8a',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -178,13 +178,13 @@ export const corpus = {
 		{
 			id: 'section.localized-header-preference',
 			slug: 'section-localized-header-preference',
-			title: 'An English name for a localized part',
+			title: 'A header outside Norwegian conventions',
 			group: 'section',
 			groupTitle: 'Section headers',
 			severity: 'suggestion',
 			message: 'Use the reviewed Norwegian header “Bro” instead of “Bridge”.',
 			explanation:
-				'The Genius international section-header source recognizes “Bro” as the Norwegian term for “Bridge”. Using the reviewed header keeps the transcription aligned with the selected language pack.',
+				'The reviewed Norwegian header for this song part is “Bro”. LyricLint recognizes “Bridge” as an alternate name and suggests the catalog spelling.',
 			fix: 'safe',
 			fixLabel: 'Use Bro',
 			language: 'no',
@@ -1332,17 +1332,96 @@ export const corpus = {
 		{
 			ruleId: 'section.localized-header-preference',
 			description:
-				'Song parts whose reviewed Norwegian pack prefers a Norwegian header over the English one. Matched without regard to case or diacritics, and a single adjacent transposition of the preferred spelling is caught too.',
+				'Norwegian header preferences. Use Chorus with Pre-Chorus or Post-Chorus sections, Refreng otherwise, and keep Pre-Chorus and Post-Chorus untranslated. Alternate names are curated by LyricLint; the replacement headers come from the Norwegian catalog. Matched without regard to case or diacritics; adjacent transpositions of Chorus and Bridge are caught too.',
 			entries: [
 				{
 					preferred: ['Refreng'],
 					instead: ['chorus'],
+					appliesWhen: "Norwegian 'scribes only. Without Pre-Chorus or Post-Chorus sections.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Refreng', 'Chorus'],
+					instead: ['omkved'],
+					appliesWhen:
+						"Norwegian 'scribes only. Use Chorus with Pre-Chorus or Post-Chorus sections; otherwise Refreng.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Chorus'],
+					instead: ['refreng'],
+					appliesWhen: "Norwegian 'scribes only. With Pre-Chorus or Post-Chorus sections.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Pre-Chorus'],
+					instead: ['prerefreng'],
+					appliesWhen: "Norwegian 'scribes only.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Pre-Chorus'],
+					instead: ['pre-refreng'],
+					appliesWhen: "Norwegian 'scribes only.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Pre-Chorus'],
+					instead: ['førrefreng'],
+					appliesWhen: "Norwegian 'scribes only.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Pre-Chorus'],
+					instead: ['før-refreng'],
+					appliesWhen: "Norwegian 'scribes only.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Post-Chorus'],
+					instead: ['postrefreng'],
+					appliesWhen: "Norwegian 'scribes only.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Post-Chorus'],
+					instead: ['post-refreng'],
+					appliesWhen: "Norwegian 'scribes only.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Post-Chorus'],
+					instead: ['etter-refreng'],
+					appliesWhen: "Norwegian 'scribes only.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Post-Chorus'],
+					instead: ['etterrefreng'],
 					appliesWhen: "Norwegian 'scribes only.",
 					fix: 'safe'
 				},
 				{
 					preferred: ['Bro'],
 					instead: ['bridge'],
+					appliesWhen: "Norwegian 'scribes only.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Outro'],
+					instead: ['avslutning'],
+					appliesWhen: "Norwegian 'scribes only.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Intro'],
+					instead: ['apning'],
+					appliesWhen: "Norwegian 'scribes only.",
+					fix: 'safe'
+				},
+				{
+					preferred: ['Mellomspill'],
+					instead: ['interlude'],
 					appliesWhen: "Norwegian 'scribes only.",
 					fix: 'safe'
 				}
@@ -1541,6 +1620,34 @@ export const corpus = {
 			sourceIds: ['G-SECTIONS', 'G-LANG-HEADERS'],
 			relatedRuleIds: ['section.header-language', 'section.localized-header-preference'],
 			note: "The linter checks recognized headers against the selected language pack's reviewed vocabulary and offers the community-preferred localized term where one exists."
+		},
+		{
+			id: 'guidance.section-headers.norwegian-chorus',
+			topic: 'section-headers',
+			topicTitle: 'Section headers',
+			title: 'Match Norwegian Chorus to Pre/Post-Chorus',
+			statement:
+				'In Norwegian transcriptions, use `Chorus` when the song has a `Pre-Chorus` or `Post-Chorus` section. If neither occurs, use `Refreng` instead.',
+			example: {
+				correct: '[Pre-Chorus]\nLyset viser vei\n\n[Chorus]\nVi finner hjem',
+				incorrect: '[Pre-Chorus]\nLyset viser vei\n\n[Refreng]\nVi finner hjem'
+			},
+			authority: 'community',
+			sourceIds: ['G-NO-CHORUS'],
+			relatedRuleIds: ['section.localized-header-preference'],
+			note: 'This Genius Norway community convention was confirmed in the supplied conversation with mektigemartin, who recalled the linked forum discussion. The specific forum post and contributor role have not been independently verified.'
+		},
+		{
+			id: 'guidance.section-headers.norwegian-pre-post-chorus',
+			topic: 'section-headers',
+			topicTitle: 'Section headers',
+			title: 'Keep Pre-Chorus and Post-Chorus in English',
+			statement:
+				'Norwegian transcriptions keep `Pre-Chorus` and `Post-Chorus` untranslated. Replace `prerefreng`, `pre-refreng`, `førrefreng`, and `før-refreng` with `Pre-Chorus`; replace `postrefreng`, `post-refreng`, `etter-refreng`, and `etterrefreng` with `Post-Chorus`.',
+			example: { correct: '[Pre-Chorus]', incorrect: '[Førrefreng]' },
+			authority: 'community',
+			sourceIds: ['G-NO-CHORUS'],
+			relatedRuleIds: ['section.localized-header-preference']
 		},
 		{
 			id: 'guidance.section-headers.blank-line-spacing',
@@ -2200,6 +2307,15 @@ export const corpus = {
 			url: 'https://genius.com/9257393',
 			lastVerifiedAt: '2026-08-12',
 			authority: 'staff'
+		},
+		{
+			id: 'G-NO-CHORUS',
+			pageTitle: 'Genius Norway',
+			sectionTitle:
+				'Norwegian chorus convention: mektigemartin (community contributor; role unverified)',
+			url: 'https://genius.com/discussions/358632-Genius-norway',
+			lastVerifiedAt: '2026-09-21',
+			authority: 'community'
 		},
 		{
 			id: 'G-NON-ENGLISH',

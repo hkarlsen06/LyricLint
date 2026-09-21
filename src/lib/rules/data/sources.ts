@@ -390,6 +390,19 @@ const sources: SourceReference[] = [
 		'Reviewed Norwegian section-header vocabulary',
 		'editorial'
 	),
+	{
+		// Supplied conversation with mektigemartin confirms the convention and
+		// points to this thread. No specific post or contributor role was verified.
+		id: 'G-NO-CHORUS',
+		url: 'https://genius.com/discussions/358632-Genius-norway',
+		pageTitle: 'Genius Norway',
+		sectionTitle:
+			'Norwegian chorus convention: mektigemartin (community contributor; role unverified)',
+		retrievedAt: '2026-09-21',
+		lastVerifiedAt: '2026-09-21',
+		reviewStatus: 'reviewed',
+		authority: 'community'
+	},
 	annotation(
 		'G-LANG-AR',
 		12745769,

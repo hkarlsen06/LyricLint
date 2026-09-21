@@ -224,7 +224,7 @@ export const policyCases: readonly RulePolicyCase[] = [
 	},
 	{
 		id: 'section.localized-header-preference',
-		title: 'An English name for a localized part',
+		title: 'A header outside Norwegian conventions',
 		invalid: '[Bridge]\nEn natt',
 		valid: '[Bro]\nEn natt',
 		ambiguous: '[Eget parti]\nEn natt',

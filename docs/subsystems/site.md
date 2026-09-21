@@ -6,7 +6,8 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 `scripts/render-workbench-shot.mjs`,
 `scripts/render-motion.mjs`, `scripts/render-mobile-loop.mjs`, `scripts/key-overlay.mjs`,
 `scripts/render-all.mjs`, `scripts/shot-scene.mjs`,
-`src/lib/ui/layout/NavigationSplash.svelte`, `src/lib/ui/layout/workbench-navigation.ts`,
+`src/lib/ui/layout/NavigationSplash.svelte`, `src/lib/ui/layout/BootScreen.svelte`,
+`src/lib/ui/layout/workbench-navigation.ts`,
 `scripts/player-shot-scene.mjs`, `scripts/hero-shot-scene.mjs`, `scripts/shot-lyrics.mjs`,
 `scripts/fixtures/city-lights.json`, `scripts/fixtures/city-lights.jpg`,
 `scripts/write-shot-dimensions.mjs`, `src/lib/assets/shot-dimensions.json`,
@@ -21,10 +22,30 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
   without opening the workbench. Route CSS loads synchronously before its surface renders.
   Stylesheets smaller than 50,000 UTF-16 code units are embedded by SvelteKit in the
   prerendered HTML; larger sheets retain normal blocking links.
-- Navigation into the workbench starts a root-owned wordmark splash before route downloads.
-  The route and editor load concurrently; readiness, storage/editor failure, another-tab
-  notice, navigation cancellation, or a new input dismisses it. There is no minimum hold.
-  Direct visits and reloads do not show it, and reduced motion keeps the wordmark static.
+  The guide's window shell keeps the header and desktop Topics/back bar transparent.
+  Single-pane navigation floats at the bottom with safe-area and content clearance.
+  Each pane owns one canvas-tinted glass surface behind its pinned context, so separate
+  headings do not produce separate blur edges.
+- Internal navigation to a different pathname starts a root-owned wordmark splash
+  as route loading starts, including history traversal and different pages of the same dynamic
+  route. Browsing within `/guidelines/`, including topic/check links and their Back/Forward
+  history, skips the splash because the guide remains mounted. Entering or leaving the guide
+  still uses it. Query and fragment changes within a page do not start it. The destination loads
+  concurrently and releases the splash on navigation completion. The workbench additionally
+  waits for editor readiness, storage/editor failure, or its another-tab notice. Release waits
+  visually for the spring and radial explosion to finish, including fast cached navigations.
+  New input dismisses it immediately; a superseding route owns its own readiness wait.
+  View Transitions handles page-to-splash and splash-to-destination separately; update callbacks
+  wait only for Svelte's DOM flush, never for a download. The route commits only after the entry
+  callback mounts the cover, preventing a cached page from flashing before the splash.
+  Downloads continue while that callback runs. Skipped callbacks read the latest
+  requested visibility so explicit dismissal cannot restore a stale splash. Unsupported browsers
+  use the CSS sequence without snapshots; reduced motion skips transitions, the minimum hold,
+  and the explosion while keeping the mark and waveform static. Direct visits and reloads do
+  not show it. `BootScreen.svelte` restores the sequence removed in `456a34c8` without its
+  reading delay: an immediate 380ms pull to 1.22, 420ms collapse, and a 420ms radial reveal
+  at the bracket collision.
+  A slower destination uses the shared waiting wave after the collapse, then explodes on readiness.
 - The landing page is a composition read once: claim and proof in one screen, `--lp-display`
   is its own marketing ramp, section headings stand alone (no eyebrows), runs of facts are
   one bordered object with hairlines inside, the measure goes on the heading itself. The
@@ -901,6 +922,9 @@ step up. It takes no press, and it sits above the content but below every overla
 texture painting over a popover would be the one thing here anybody actually notices.
 
 ### On a phone the site header is not a band, and the masthead never underlines
+
+This applies to document pages. The guide's window shell keeps its fixed header and Topics/back
+bar transparent; its separately scrolling panes own the glass behind their pinned headings.
 
 `theme-color` is `--color-canvas`, which means the browser paints the status bar and the safe area
 with the **page** color. A header filled with `--color-chrome` therefore met that strip at a seam a

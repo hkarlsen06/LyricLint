@@ -167,7 +167,9 @@ a restored scroll position, making those paragraphs visible before the fade reac
 `data-workspace-entrance` masks rows before their first paint to prevent a visible-then-hidden
 flash. Each mask is removed as its group starts. A two-second limit from attachment reveals
 all content and abandons the effect if startup is slow. A separate two-second cleanup limit
-starts after editor readiness (`data-entrance-pending`). Native-rule readiness independently
+starts after editor readiness (`data-entrance-pending`). Readiness follows CodeMirror's first
+settled viewport measurement, so the scan includes rows absent from its estimated initial DOM.
+Native-rule readiness independently
 releases diagnostics (`data-diagnostics-pending`), so a slow rules download cannot hide ready lyrics.
 Input, focus, visibility or motion-preference changes, failures, and teardown remove masks
 and restore opacity immediately. Actual scrolling also retires the reveal, including scrollbar

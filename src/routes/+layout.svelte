@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
-	import { beforeNavigate } from '$app/navigation';
+	import { beforeNavigate, onNavigate } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { navigating, page, updated } from '$app/state';
+	import type { NavigationBase } from '@sveltejs/kit';
 	import {
 		createDefaultAssistantState,
 		provideAssistantState
@@ -23,21 +24,46 @@
 	// because this state outlives every page under it.
 	const assistant = provideAssistantState(createDefaultAssistantState());
 	const workbenchRoute = '/(app)/workbench';
-	let workbenchNavigation = $state<Promise<void>>();
-	const openingWorkbench = $derived(workbenchNavigation !== undefined);
-	function finishWorkbenchNavigation() {
-		workbenchNavigation = undefined;
+	let navigationSplash: ReturnType<typeof NavigationSplash> | undefined;
+	let pendingNavigation = $state.raw<NavigationBase>();
+	function finishNavigation() {
+		pendingNavigation = undefined;
 	}
-	provideWorkbenchNavigation(finishWorkbenchNavigation);
+	provideWorkbenchNavigation(() => {
+		// An outgoing editor can finish mounting while another route downloads.
+		if (pendingNavigation?.to?.route.id === workbenchRoute) finishNavigation();
+	});
+	// A cached route can arrive before the native snapshot callback. Cover the
+	// current page before committing its replacement, without waiting for motion.
+	onNavigate(() => navigationSplash?.waitUntilCovered());
 
-	// Kit can supersede an in-flight navigation without another beforeNavigate.
+	// Kit publishes this before awaiting route downloads, including when it
+	// supersedes an in-flight navigation without another beforeNavigate.
 	$effect(() => {
+		const navigation = { ...navigating };
+		if (!navigation.complete) return;
+		finishNavigation();
 		if (
-			workbenchNavigation &&
-			((navigating.complete && navigating.complete !== workbenchNavigation) || page.error)
-		) {
-			finishWorkbenchNavigation();
-		}
+			navigation.willUnload ||
+			!navigation.to?.route.id ||
+			navigation.from?.url.pathname === navigation.to.url.pathname ||
+			// Guide URLs select content within its already mounted browsing surface.
+			(navigation.from?.route.id?.startsWith('/(site)/guidelines') &&
+				navigation.to.route.id.startsWith('/(site)/guidelines'))
+		)
+			return;
+
+		pendingNavigation = navigation;
+		void navigation.complete.then(
+			() => {
+				if (pendingNavigation === navigation && (page.error || page.route.id !== workbenchRoute)) {
+					finishNavigation();
+				}
+			},
+			() => {
+				if (pendingNavigation === navigation) finishNavigation();
+			}
+		);
 	});
 
 	/*
@@ -80,30 +106,10 @@
 	// navigation costs nothing the user can see. A `willUnload` navigation is
 	// already leaving the document, so there is nothing to upgrade.
 	beforeNavigate((navigation) => {
-		finishWorkbenchNavigation();
+		finishNavigation();
 		if (updated.current && !navigation.willUnload && navigation.to?.url) {
 			location.href = navigation.to.url.href;
-			return;
 		}
-		if (
-			navigation.willUnload ||
-			navigation.to?.route.id !== workbenchRoute ||
-			navigation.from?.route.id === workbenchRoute
-		)
-			return;
-
-		// Begin before route downloads; neither loading nor editing awaits motion.
-		const completion = (workbenchNavigation = navigation.complete);
-		void completion.then(
-			() => {
-				if (workbenchNavigation === completion && page.route.id !== workbenchRoute) {
-					finishWorkbenchNavigation();
-				}
-			},
-			() => {
-				if (workbenchNavigation === completion) finishWorkbenchNavigation();
-			}
-		);
 	});
 
 	// The offline worker is a production promise, and registering it against a dev
@@ -143,7 +149,7 @@
 	});
 </script>
 
-<svelte:window onpointerdown={finishWorkbenchNavigation} onkeydown={finishWorkbenchNavigation} />
+<svelte:window onpointerdown={finishNavigation} onkeydown={finishNavigation} />
 
 <svelte:head>
 	<!-- The bracketed-waveform mark. The SVG is what modern browsers pick up; the
@@ -200,9 +206,13 @@
 
 <!-- Route layouts own their surfaces; shared hosts survive navigation. -->
 {@render children()}
-<NavigationSplash active={openingWorkbench} />
+<NavigationSplash bind:this={navigationSplash} active={pendingNavigation !== undefined} />
 <p class="sr-only" aria-live="polite" aria-atomic="true">
-	{openingWorkbench && page.route.id !== workbenchRoute ? 'Opening the workbench…' : ''}
+	{pendingNavigation && navigating.to
+		? pendingNavigation.to?.route.id === workbenchRoute
+			? 'Opening the workbench…'
+			: 'Opening page…'
+		: ''}
 </p>
 {#if AssistantHost}
 	<AssistantHost {assistant} />

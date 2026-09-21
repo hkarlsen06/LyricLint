@@ -2,6 +2,7 @@ import { page } from 'vitest/browser';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { fireEvent, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
+import { EditorView } from '@codemirror/view';
 import EditorPane from '$lib/editor/EditorPane.svelte';
 import Workspace from './Workspace.svelte';
 import { createTestWorkbench } from '../test-utils.js';
@@ -45,6 +46,63 @@ function begin() {
 }
 
 describe('workspace entrance', () => {
+	test('waits for the real editor viewport before revealing every visible lyric row', async () => {
+		await page.viewport(1440, 900);
+		const measure = EditorView.prototype.requestMeasure;
+		const queued: Array<{
+			view: EditorView;
+			request: Parameters<EditorView['requestMeasure']>[0];
+		}> = [];
+		const deferred = vi.spyOn(EditorView.prototype, 'requestMeasure').mockImplementation(function (
+			this: EditorView,
+			request
+		) {
+			queued.push({ view: this, request });
+		});
+		const { controller } = createTestWorkbench({
+			text: [
+				'[Verse]',
+				...Array.from(
+					{ length: 120 },
+					(_, i) => `Line ${i + 1} lyrics in this place, enough for my display`
+				)
+			].join('\n')
+		});
+		controller.setGrammarCheckEnabled(false);
+		const view = await render(Workspace, {
+			controller,
+			editorComponent: EditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} }
+		});
+		root = view.container.querySelector<HTMLElement>('.workspace')!;
+		await waitFor(() => expect(root.querySelector('.cm-line')).not.toBeNull());
+		const initialRows = root.querySelectorAll('.cm-line').length;
+		await new Promise(requestAnimationFrame);
+		await new Promise(requestAnimationFrame);
+		// CodeMirror initially draws an estimated viewport. Its first measurement
+		// adds the lower visible rows, which must not miss the one-shot reveal.
+		expect(root.querySelector('.cm-line')!.getAnimations()).toHaveLength(0);
+		expect(root.dataset.workspaceEntrance).toContain('lyrics');
+		deferred.mockRestore();
+		for (const { view, request } of queued) measure.call(view, request);
+		await waitFor(() => expect(root.querySelector('.cm-line')!.getAnimations()).toHaveLength(1));
+		expect(root.querySelectorAll('.cm-line').length).toBeGreaterThan(initialRows);
+		for (const animation of running()) {
+			animation.pause();
+			animation.currentTime = 0;
+		}
+		const clip = root.querySelector('.cm-scroller')!.getBoundingClientRect();
+		const visible = [...root.querySelectorAll<HTMLElement>('.cm-line')].filter((row) => {
+			const rect = row.getBoundingClientRect();
+			return rect.bottom > clip.top && rect.top < Math.min(clip.bottom, window.innerHeight);
+		});
+		expect(visible.length).toBeGreaterThan(initialRows);
+		for (const row of visible) {
+			expect(row.getAnimations(), row.textContent!).toHaveLength(1);
+			expect(getComputedStyle(row).opacity, row.textContent!).toBe('0');
+		}
+	});
+
 	test('replays for opened and new scribes without remounting the workspace or replaying edits', async () => {
 		await page.viewport(1440, 900);
 		const { controller, repository } = createTestWorkbench({ text: '[Verse]\nfirst line.' });
