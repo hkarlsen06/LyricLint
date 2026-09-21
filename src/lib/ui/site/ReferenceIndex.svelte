@@ -7,11 +7,7 @@
 	import { base, resolve } from '$app/paths';
 	import { assistantAvailable } from '$lib/assistant/api.js';
 	import { useAssistantState, type AssistantState } from '$lib/assistant/assistant.svelte.js';
-	import {
-		createReferenceSearch,
-		referenceSearchTokens,
-		type ReferenceDocument
-	} from '$lib/reference/search.js';
+	import { referenceSearchTokens, type ReferenceDocument } from '$lib/reference/search.js';
 	import { referenceTopics, referenceTopicAnchors } from '$lib/reference/topics.js';
 	import { severityOrder, fixabilityOrder, fixabilityLabel } from '$lib/rules/reference-search.js';
 	import { severityPluralLabels } from '$lib/diagnostics/severity-labels.js';
@@ -21,6 +17,7 @@
 	import { safeDecodeHash } from './hash.js';
 	import { followSelectedRow, revealSelectedRow, revealRow } from './reveal-selected.js';
 	import {
+		createReferenceResults,
 		referenceSearchState,
 		setReferenceSearchState,
 		referenceHref
@@ -63,16 +60,8 @@
 			!filters.severities.length &&
 			!filters.fixabilities.length
 	);
-	const search = $derived(createReferenceSearch(corpus));
-	const matches = $derived(
-		search(filters.query, {
-			scope,
-			topic: effectiveTopic,
-			severities: scope === 'rules' && filters.severities.length ? filters.severities : undefined,
-			fixabilities:
-				scope === 'rules' && filters.fixabilities.length ? filters.fixabilities : undefined
-		})
-	);
+	const search = $derived(createReferenceResults(corpus));
+	const matches = $derived(search());
 	const results = $derived(
 		searching
 			? matches

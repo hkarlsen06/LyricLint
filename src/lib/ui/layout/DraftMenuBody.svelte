@@ -26,7 +26,7 @@
 	let query = $state('');
 	const filteredDrafts = $derived(
 		controller.drafts.filter((draft) =>
-			`${draft.title} ${draft.lyricPreview ?? ''}`
+			`${draft.title} ${draft.searchText ?? ''}`
 				.toLocaleLowerCase()
 				.includes(query.trim().toLocaleLowerCase())
 		)
@@ -106,12 +106,12 @@
 {/snippet}
 
 {#if searchAvailable}
-	<label class="sr-only" for="draft-search">Find a saved 'scribe by title or opening lyrics</label>
+	<label class="sr-only" for="draft-search">Find a saved 'scribe by title or lyrics</label>
 	<input
 		id="draft-search"
 		class="draft-menu__search"
 		type="search"
-		placeholder="Title or opening lyrics…"
+		placeholder="Title or lyrics…"
 		bind:value={query}
 		oninput={() => {
 			renameId = undefined;

@@ -56,7 +56,11 @@ describe('DraftMenu', () => {
 		const drafts = Array.from({ length: 8 }, (_, index) => ({
 			...secondDraft(),
 			id: `draft-${index}`,
-			title: index === 3 ? 'Summer rain' : `Winter ${index}`
+			title: index === 3 ? 'Summer rain' : `Winter ${index}`,
+			text:
+				index === 3
+					? `[Verse]\n${'Opening words '.repeat(20)}horizon\n[Outro]\nThe final farewell`
+					: 'Another line'
 		}));
 		const { controller } = createTestWorkbench({ drafts });
 		await controller.refreshDrafts();
@@ -69,11 +73,16 @@ describe('DraftMenu', () => {
 		const fileInput = popover?.querySelector('input[type="file"]');
 		expect(fileInput).toBeTruthy();
 		const search = screen.getByRole('searchbox', {
-			name: "Find a saved 'scribe by title or opening lyrics"
+			name: "Find a saved 'scribe by title or lyrics"
 		});
 		await fireEvent.input(search, { target: { value: 'SUMMER' } });
 		expect(screen.getByRole('button', { name: /^Summer rain/ })).toBeTruthy();
 		expect(screen.queryByRole('button', { name: /^Winter 1/ })).toBeNull();
+		for (const value of ['HORIZON', 'FINAL FAREWELL', '[OUTRO]']) {
+			await fireEvent.input(search, { target: { value } });
+			expect(screen.getByRole('button', { name: /^Summer rain/ })).toBeTruthy();
+			expect(screen.queryByRole('button', { name: /^Winter 1/ })).toBeNull();
+		}
 		await fireEvent.input(search, { target: { value: 'missing' } });
 		expect(screen.getByRole('status').textContent).toContain('No saved');
 		await fireEvent.keyDown(search, { key: 'Escape' });
@@ -362,7 +371,7 @@ describe('DraftMenu duplicate titles', () => {
 		const unique = screen.getByText('Named song').closest('li');
 		expect(unique?.querySelector('.draft-menu__preview')).toBeNull();
 		const search = screen.getByRole('searchbox', {
-			name: "Find a saved 'scribe by title or opening lyrics"
+			name: "Find a saved 'scribe by title or lyrics"
 		});
 		await fireEvent.input(search, { target: { value: 'WINTER MOON' } });
 		expect(screen.queryByText('The morning sun')).toBeNull();

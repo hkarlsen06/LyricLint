@@ -575,7 +575,7 @@ export interface SectionLinkChoice {
 	replaceFromByDifference?: readonly (number | undefined)[];
 }
 
-/** Lightweight metadata used to list drafts without opening their text. */
+/** In-memory list metadata and search text, never persisted as a separate record. */
 export interface DraftSummary {
 	id: string;
 	title: string;
@@ -584,6 +584,8 @@ export interface DraftSummary {
 	updatedAt: string;
 	/** Opening lyric text, derived for lists only; never persisted on a draft. */
 	lyricPreview?: string;
+	/** Complete document text for list search, including lines beyond the preview. */
+	searchText?: string;
 }
 
 /** A revision-tagged, serializable draft state accepted by autosave. */

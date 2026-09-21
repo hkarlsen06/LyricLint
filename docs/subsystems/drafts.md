@@ -6,7 +6,7 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 
 ## The rules
 
-- At five saved drafts the menu offers case-insensitive title/opening-lyric search. Filtering never
+- At five saved drafts the menu offers case-insensitive title/full-lyric search. Filtering never
   changes the saved records; a no-match result retains the search field, and closing the
   menu clears search and pending row actions. `DraftMenu.svelte.test.ts` pins recovery.
 
@@ -44,8 +44,8 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 
 ### A longer draft list can be searched without opening each document
 
-Five saved drafts is the point where the menu offers a title or opening-lyric search. Small libraries retain
-their compact rows. The field filters summary titles and lyric openings without changing recency order or fetching
+Five saved drafts is the point where the menu offers a title or full-lyric search. Small libraries retain
+their compact rows. The field filters titles and complete document text, including section headers, without changing recency order or fetching
 individual documents. It stays present through no-match results and deletions, and reopening the menu
 starts with the full library. Editing the query abandons pending rename/delete controls so an
 action cannot remain armed on a row that the search hid.
@@ -152,7 +152,8 @@ That read now refreshes a derived summary cache. Reading every complete draft an
 unchanged lyric after each save made typing in one document pay for the entire library. The first
 read still derives every summary with the shared document parser. Later reads fetch only committed
 changed IDs, preserving the first-save appearance, recency order, and annotation-aware lyric opening.
-The cache contains summaries only, so it retains neither full lyrics nor a second durable record.
+The cache includes full document text for search alongside the bounded display preview. It creates no
+second durable record and refreshes search text through the same committed-write invalidation path.
 
 Invalidation follows Dexie's committed primary-key mutation ranges instead of assuming all writers
 use the repository. Direct imports, recovery deletes, and writes through another connection therefore

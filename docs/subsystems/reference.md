@@ -24,7 +24,13 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   title and subtitle, with related checks in a native disclosure, one link per row.
   The current convention has one subtle fill and a visible edge marker around the whole entry,
   including its disclosure. A selected check opens its disclosure on arrival.
-  The reading pane supplies the full explanation.
+  While a query is active, the reading pane shows the same ranked results as the finder,
+  with each matching convention's full explanation, examples, qualifications and checks intact.
+  Matching spelling landmarks retain their complete tables; standalone check results expose
+  their examples and detail links. Only adjacent results from the same topic share a heading,
+  so topic grouping never changes search rank. Empty searches show an empty result message;
+  clearing the query restores the complete guide in catalog order. Typing keeps focus in search
+  and returns the reader to the start of the new results. `e2e/guide-search.spec.ts` pins this.
   Related matching checks group under a matching guideline in All scope; checks remain directly
   accessible. `reference/search.test.ts` pins these search tasks and grouping.
 - The directory is the unfiltered entrance. Topic links open a continuous guide at the selected topic; Browse all exposes entries.
@@ -50,7 +56,8 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   measure the natural section position rather than the displaced sticky heading. Reading tracking
   allows one pixel for native scroll rounding against fractional heading clearance.
   `e2e/guide-sticky.spec.ts` pins animation geometry and context at desktop and phone widths.
-  Detail arrivals expose entries across all topics. Only an explicit topic filter restricts them.
+  Without a search query, detail arrivals expose entries across all topics. Only an explicit
+  topic filter restricts the finder.
   Clear filters resets search and filters and returns the finder to its topic directory,
   overriding only the current view; selecting an article reveals its entries again,
   including when selecting the same topic.
@@ -125,7 +132,8 @@ stacked phone document scrolling and topic-only payload decisions below.
 
 ### Continuous reading with a compact finder
 
-Topic URLs now land within one complete guide, in catalog order. The selected topic and
+Without a search query, topic URLs land within one complete guide, in catalog order.
+Active searches narrow the reader to the finder results in ranked order. The selected topic and
 fragment determine the arrival position, while scrolling updates the current finder entry
 across all topics without changing search or URL state. Check detail pages remain separate,
 and Back restores disclosures and reading position. This supersedes the earlier single-topic

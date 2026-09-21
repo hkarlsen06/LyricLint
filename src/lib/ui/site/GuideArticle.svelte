@@ -4,9 +4,14 @@
 
 <script lang="ts">
 	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to base-prefixed or resolve-derived paths; the lint rule cannot inspect nested calls. */
+	import { tick } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { base, resolve } from '$app/paths';
-	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
+	import {
+		createReferenceResults,
+		referenceSearchQuery,
+		referenceHref
+	} from '$lib/ui/site/reference-search.svelte.js';
 	import { guidanceTopics } from '$lib/guidance/entries.js';
 	import {
 		authorityLabels,
@@ -32,6 +37,48 @@
 	const entries = $derived(
 		guidanceTopics().find((candidate) => candidate.topic === topic)?.entries ?? []
 	);
+
+	const search = $derived(createReferenceResults(data.referenceCorpus));
+	const searching = $derived(referenceSearchQuery().trim().length > 0);
+	type Section = LayoutData['sections'][number];
+	type Entry = ReturnType<typeof guidanceTopics>[number]['entries'][number];
+	type Item =
+		| { kind: 'entry'; entry: Entry }
+		| { kind: 'landmark' }
+		| { kind: 'check'; check: Section['additionalChecks'][number] };
+	const groups = $derived.by(() => {
+		const catalog = data.sections.map((section) => ({
+			section,
+			items: [
+				...(section.topic === 'spelling' ? [{ kind: 'landmark' as const }] : []),
+				...guidanceTopics()
+					.find((candidate) => candidate.topic === section.topic)!
+					.entries.map((entry) => ({ kind: 'entry' as const, entry }))
+			]
+		}));
+		if (!searching) return catalog.map((group) => ({ ...group, key: group.section.topic }));
+		const ranked: { section: Section; items: Item[]; key: string }[] = [];
+		for (const result of search()) {
+			const source = catalog.find((group) => group.section.topic === result.topic);
+			if (!source) continue;
+			const check = data.sections.map((section) => section.checksById[result.id]).find(Boolean);
+			const item: Item | undefined =
+				result.kind === 'rule'
+					? check
+						? { kind: 'check', check }
+						: undefined
+					: source.items.find((item) =>
+							item.kind === 'entry'
+								? item.entry.id === result.id
+								: result.href.endsWith('#standardized-spellings')
+						);
+			if (!item) continue;
+			const previous = ranked.at(-1);
+			if (previous?.section.topic === source.section.topic) previous.items.push(item);
+			else ranked.push({ section: source.section, items: [item], key: result.id });
+		}
+		return ranked;
+	});
 
 	// The rule keeps context-sensitive spellings as separate records because
 	// they have different fix contracts. This reader-facing table can group
@@ -129,6 +176,19 @@
 	 * heading's painted position stops describing where its content starts.
 	 */
 	let article = $state<HTMLElement>();
+
+	let previousQuery: string | undefined;
+	$effect(() => {
+		const query = referenceSearchQuery();
+		if (previousQuery !== undefined && query !== previousQuery) {
+			void tick().then(() => {
+				const detail = article?.closest<HTMLElement>('.site-split__detail');
+				if (detail) detail.scrollTop = 0;
+				spy();
+			});
+		}
+		previousQuery = query;
+	});
 
 	// Disclosure height changes during restoration. Restore its reading position
 	// after both native open states and the router's own scroll pass have settled.
@@ -280,12 +340,152 @@
 	</ul>
 {/snippet}
 
+{#snippet spellings(section: Section)}
+	{#if data.spellings}
+		<!-- A landmark is a deep-link target exactly as an entry is: the index
+		     lists it and every rule page's guideline link can name it, so it
+		     takes the arrival wash through the same mark rather than through
+		     `:target`, which only a native fragment navigation ever sets. -->
+		<section
+			class="guidelines__landmark"
+			data-current={anchor === SPELLINGS_ANCHOR ? true : undefined}
+		>
+			<!-- The reviewed preferred-spellings list leads the topic page a reader
+		     wondering about a spelling actually opens. Drawn from the same
+		     `ruleLookupTable` the rule page loads (one data source, two surfaces),
+		     and only the reviewed halves of it: the forms and the conditions the
+		     guide itself states. What the linter does about each row (fix kinds,
+		     LyricLint's own curated catches) stays on the rule's page, which is
+		     what the sentence under the heading links. -->
+			<header class="guidelines__entry-heading">
+				<h2 id={SPELLINGS_ANCHOR}>The standardized spellings</h2>
+				{#if spellingsLandmark}
+					<!-- The entries' own meta idiom, in the section that leads the page:
+				     the ladder, the tier, and the exact source the table is read
+				     from. It carries no "Checked by" run, and that is the one
+				     difference from an entry's line: the sentence directly beneath
+				     already links `spelling.standardized`'s page in prose, and a
+				     second link to it a line above would be the same command
+				     offered twice on one surface. -->
+					<div class="site-meta">
+						<AuthorityLadder authority={spellingsLandmark.authority} />
+						<span
+							><GuidanceSearchHighlight text={authorityLabels[spellingsLandmark.authority]} /></span
+						>
+						<span class="site-meta__separator" aria-hidden="true">·</span>
+						<SiteSourceFold sources={entrySources(spellingsLandmark.sourceIds)} text={marked} />
+					</div>
+				{/if}
+			</header>
+			<p>The reviewed preferred forms, each over the spellings the guide corrects.</p>
+			<ul class="site-run">
+				{#each displayedSpellings as entry, index (index)}
+					<li class="rules__lookup-row">
+						<p class="rules__lookup-forms">
+							{#if entry.instead.length > 0}
+								<span class="rules__lookup-from"
+									><GuidanceSearchHighlight text={entry.instead.join(', ')} /></span
+								>
+								<span class="rules__lookup-arrow" aria-hidden="true">→</span>
+								<span class="sr-only">becomes</span>
+							{/if}
+							<span class="rules__lookup-to"
+								><GuidanceSearchHighlight text={entry.preferred.join(', ')} /></span
+							>
+						</p>
+						{#each [...entry.appliesWhen, ...entry.notes] as sentence (sentence)}
+							<p class="rules__lookup-note"><CodeProse text={sentence!} mark={marked} /></p>
+						{/each}
+					</li>
+				{/each}
+			</ul>
+			{#if section.checksById['spelling.standardized']}
+				<h3>What LyricLint checks</h3>
+				{@render checkList([section.checksById['spelling.standardized']])}
+			{/if}
+		</section>
+	{/if}
+{/snippet}
+
+{#snippet convention(entry: Entry, section: Section)}
+	<section
+		class="guidelines__entry"
+		data-current={anchor === entryAnchor(entry.id) ? true : undefined}
+	>
+		<!-- The anchor is the id's own last segment, so the index, the assistant,
+			     and anything else that cites an entry all name the same fragment. -->
+		<header class="guidelines__entry-heading">
+			<h2 id={entryAnchor(entry.id)}><GuidanceSearchHighlight text={entry.title} /></h2>
+			<!-- The diagnostic card's own meta idiom: the tier, then the citation,
+			     the exact source the claim is read from, whose section and verified
+			     date are the link's tooltip. The tier label and the link are one
+			     fact read together: the source is what makes the tier true. The
+			     ladder ahead of the label draws that standing as ascending steps
+			     (`AuthorityLadder.svelte`, `aria-hidden`, since the label is the fact).
+			     A folded set still unfolds under the whole line rather than in the
+			     middle of it, through the list's own flex `order`. -->
+			<div class="site-meta">
+				<AuthorityLadder authority={entry.authority} />
+				<span><GuidanceSearchHighlight text={authorityLabels[entry.authority]} /></span>
+				<span class="site-meta__separator" aria-hidden="true">·</span>
+				<SiteSourceFold sources={entrySources(entry.sourceIds)} text={marked} />
+			</div>
+		</header>
+		<!-- The forms a convention names (`[Verse 1]`, `gon'`, `'90s`) are
+			     written in backticks in the entry and set in the code face here,
+			     because a form left in the sentence's own type is a word of the
+			     sentence: `and rather than an'` reads as a conjunction until the
+			     face says it is being quoted. The catalog's own titles carry
+			     none, since the index draws those as plain strings. -->
+		<p><CodeProse text={entry.statement} mark={marked} /></p>
+		<!-- The pair, incorrect first, in the rule pages' own order, with the color
+			     and the word both carrying which is which. A sample holds only text
+			     as it would stand in a document: connective prose set in the sample
+			     face read as part of the very thing being quoted. -->
+		{#if entry.example?.incorrect}
+			<figure class="site-sample site-sample--invalid">
+				<figcaption class="site-sample__label">Incorrect</figcaption>
+				<pre class="site-sample__text"><GuidanceSearchHighlight
+						text={entry.example.incorrect}
+					/></pre>
+			</figure>
+		{/if}
+		{#if entry.example?.correct}
+			<figure class="site-sample site-sample--valid">
+				<figcaption class="site-sample__label">Correct</figcaption>
+				<pre class="site-sample__text"><GuidanceSearchHighlight
+						text={entry.example.correct}
+					/></pre>
+			</figure>
+		{/if}
+		<!-- The note is the convention's own qualifications (where the rule
+			     bends, which half the linter checks), not a colophon about the
+			     entry. Set as muted small print it read as skippable and was
+			     genuinely hard to read over the dark scheme, so it is ordinary
+			     prose like the statement above it: sitting after the samples is
+			     what says it qualifies them, and position does not need a tone
+			     to help it. -->
+		{#if entry.note}
+			<h3>Exceptions and context</h3>
+			<p><CodeProse text={entry.note} mark={marked} /></p>
+		{/if}
+		{#if entry.relatedRuleIds?.length}
+			<h3>What LyricLint checks</h3>
+			{@render checkList(
+				entry.relatedRuleIds.flatMap((id) =>
+					section.checksById[id] ? [section.checksById[id]] : []
+				)
+			)}
+		{/if}
+	</section>
+{/snippet}
+
 <main
 	id="main"
 	tabindex="-1"
 	class="site-prose site-split__page"
 	bind:this={article}
-	use:stickyTopics={data.sections}
+	use:stickyTopics={groups}
 >
 	<div class="guide-glass" aria-hidden="true"></div>
 	<h1>Transcription guide</h1>
@@ -294,169 +494,49 @@
 		The checks below catch specific patterns in your text. They support your review; passing them
 		does not verify every part of a convention.
 	</p>
-	{#each data.sections as section (section.topic)}
+	{#if searching && groups.length === 0}
+		<p class="site-index__empty">
+			No results match. Try a shorter phrase, another topic, or clear the filters.
+		</p>
+	{/if}
+	{#each groups as group, groupIndex (group.key)}
+		{@const section = group.section}
 		{@const topic = section.topic}
-		{@const entries = guidanceTopics().find((candidate) => candidate.topic === topic)!.entries}
+		{@const firstItem = group.items[0]}
+		{@const topicId = `topic-${topic}${groups.slice(0, groupIndex).some((group) => group.section.topic === topic) ? `-${groupIndex}` : ''}`}
 		{@const title =
 			referenceTopics.find((item) => item.id === topic)?.title ?? guidanceTopicTitles[topic]}
 		<section
 			class="guide-topic"
-			aria-labelledby={`topic-${topic}`}
-			data-reading-anchor={topic === 'spelling'
+			aria-labelledby={topicId}
+			data-reading-anchor={firstItem?.kind === 'landmark'
 				? SPELLINGS_ANCHOR
-				: entries[0]
-					? entryAnchor(entries[0].id)
+				: firstItem?.kind === 'entry'
+					? entryAnchor(firstItem.entry.id)
 					: ''}
 		>
 			<div class="guide-topic-pin">
-				<h2 class="guide-topic-title guidelines__topic" id={`topic-${topic}`}>{title}</h2>
+				<h2 class="guide-topic-title guidelines__topic" id={topicId}>{title}</h2>
 			</div>
 			<!-- Only the pin changes size. These hidden wraps reserve the full title's space. -->
 			<div class="guide-topic-space" aria-hidden="true">
 				<span>{title}</span><span class="guide-topic-compact">{title}</span>
 			</div>
 
-			{#if topic === 'spelling' && data.spellings}
-				<!-- A landmark is a deep-link target exactly as an entry is: the index
-		     lists it and every rule page's guideline link can name it, so it
-		     takes the arrival wash through the same mark rather than through
-		     `:target`, which only a native fragment navigation ever sets. -->
-				<section
-					class="guidelines__landmark"
-					data-current={anchor === SPELLINGS_ANCHOR ? true : undefined}
-				>
-					<!-- The reviewed preferred-spellings list leads the topic page a reader
-		     wondering about a spelling actually opens. Drawn from the same
-		     `ruleLookupTable` the rule page loads (one data source, two surfaces),
-		     and only the reviewed halves of it: the forms and the conditions the
-		     guide itself states. What the linter does about each row (fix kinds,
-		     LyricLint's own curated catches) stays on the rule's page, which is
-		     what the sentence under the heading links. -->
-					<header class="guidelines__entry-heading">
-						<h2 id={SPELLINGS_ANCHOR}>The standardized spellings</h2>
-						{#if spellingsLandmark}
-							<!-- The entries' own meta idiom, in the section that leads the page:
-				     the ladder, the tier, and the exact source the table is read
-				     from. It carries no "Checked by" run, and that is the one
-				     difference from an entry's line: the sentence directly beneath
-				     already links `spelling.standardized`'s page in prose, and a
-				     second link to it a line above would be the same command
-				     offered twice on one surface. -->
-							<div class="site-meta">
-								<AuthorityLadder authority={spellingsLandmark.authority} />
-								<span
-									><GuidanceSearchHighlight
-										text={authorityLabels[spellingsLandmark.authority]}
-									/></span
-								>
-								<span class="site-meta__separator" aria-hidden="true">·</span>
-								<SiteSourceFold sources={entrySources(spellingsLandmark.sourceIds)} text={marked} />
-							</div>
-						{/if}
-					</header>
-					<p>The reviewed preferred forms, each over the spellings the guide corrects.</p>
-					<ul class="site-run">
-						{#each displayedSpellings as entry, index (index)}
-							<li class="rules__lookup-row">
-								<p class="rules__lookup-forms">
-									{#if entry.instead.length > 0}
-										<span class="rules__lookup-from"
-											><GuidanceSearchHighlight text={entry.instead.join(', ')} /></span
-										>
-										<span class="rules__lookup-arrow" aria-hidden="true">→</span>
-										<span class="sr-only">becomes</span>
-									{/if}
-									<span class="rules__lookup-to"
-										><GuidanceSearchHighlight text={entry.preferred.join(', ')} /></span
-									>
-								</p>
-								{#each [...entry.appliesWhen, ...entry.notes] as sentence (sentence)}
-									<p class="rules__lookup-note"><CodeProse text={sentence!} mark={marked} /></p>
-								{/each}
-							</li>
-						{/each}
-					</ul>
-					{#if section.checksById['spelling.standardized']}
-						<h3>What LyricLint checks</h3>
-						{@render checkList([section.checksById['spelling.standardized']])}
-					{/if}
-				</section>
-			{/if}
-
-			{#each entries as entry (entry.id)}
-				<section
-					class="guidelines__entry"
-					data-current={anchor === entryAnchor(entry.id) ? true : undefined}
-				>
-					<!-- The anchor is the id's own last segment, so the index, the assistant,
-			     and anything else that cites an entry all name the same fragment. -->
-					<header class="guidelines__entry-heading">
-						<h2 id={entryAnchor(entry.id)}><GuidanceSearchHighlight text={entry.title} /></h2>
-						<!-- The diagnostic card's own meta idiom: the tier, then the citation,
-			     the exact source the claim is read from, whose section and verified
-			     date are the link's tooltip. The tier label and the link are one
-			     fact read together: the source is what makes the tier true. The
-			     ladder ahead of the label draws that standing as ascending steps
-			     (`AuthorityLadder.svelte`, `aria-hidden`, since the label is the fact).
-			     A folded set still unfolds under the whole line rather than in the
-			     middle of it, through the list's own flex `order`. -->
-						<div class="site-meta">
-							<AuthorityLadder authority={entry.authority} />
-							<span><GuidanceSearchHighlight text={authorityLabels[entry.authority]} /></span>
-							<span class="site-meta__separator" aria-hidden="true">·</span>
-							<SiteSourceFold sources={entrySources(entry.sourceIds)} text={marked} />
-						</div>
-					</header>
-					<!-- The forms a convention names (`[Verse 1]`, `gon'`, `'90s`) are
-			     written in backticks in the entry and set in the code face here,
-			     because a form left in the sentence's own type is a word of the
-			     sentence: `and rather than an'` reads as a conjunction until the
-			     face says it is being quoted. The catalog's own titles carry
-			     none, since the index draws those as plain strings. -->
-					<p><CodeProse text={entry.statement} mark={marked} /></p>
-					<!-- The pair, incorrect first, in the rule pages' own order, with the color
-			     and the word both carrying which is which. A sample holds only text
-			     as it would stand in a document: connective prose set in the sample
-			     face read as part of the very thing being quoted. -->
-					{#if entry.example?.incorrect}
-						<figure class="site-sample site-sample--invalid">
-							<figcaption class="site-sample__label">Incorrect</figcaption>
-							<pre class="site-sample__text"><GuidanceSearchHighlight
-									text={entry.example.incorrect}
-								/></pre>
-						</figure>
-					{/if}
-					{#if entry.example?.correct}
-						<figure class="site-sample site-sample--valid">
-							<figcaption class="site-sample__label">Correct</figcaption>
-							<pre class="site-sample__text"><GuidanceSearchHighlight
-									text={entry.example.correct}
-								/></pre>
-						</figure>
-					{/if}
-					<!-- The note is the convention's own qualifications (where the rule
-			     bends, which half the linter checks), not a colophon about the
-			     entry. Set as muted small print it read as skippable and was
-			     genuinely hard to read over the dark scheme, so it is ordinary
-			     prose like the statement above it: sitting after the samples is
-			     what says it qualifies them, and position does not need a tone
-			     to help it. -->
-					{#if entry.note}
-						<h3>Exceptions and context</h3>
-						<p><CodeProse text={entry.note} mark={marked} /></p>
-					{/if}
-					{#if entry.relatedRuleIds?.length}
-						<h3>What LyricLint checks</h3>
-						{@render checkList(
-							entry.relatedRuleIds.flatMap((id) =>
-								section.checksById[id] ? [section.checksById[id]] : []
-							)
-						)}
-					{/if}
-				</section>
+			{#each group.items as item (item.kind === 'entry' ? item.entry.id : item.kind === 'check' ? item.check.id : SPELLINGS_ANCHOR)}
+				{#if item.kind === 'entry'}
+					{@render convention(item.entry, section)}
+				{:else if item.kind === 'landmark'}
+					{@render spellings(section)}
+				{:else}
+					<section class="guidelines__entry guidelines__check-result">
+						<header class="guidelines__entry-heading"><h2>{item.check.title}</h2></header>
+						{@render checkList([item.check])}
+					</section>
+				{/if}
 			{/each}
 
-			{#if section.additionalChecks.length}
+			{#if !searching && section.additionalChecks.length}
 				<section class="guidelines__additional" aria-labelledby={`additional-checks-${topic}`}>
 					<header class="guidelines__entry-heading">
 						<h2 id={`additional-checks-${topic}`}>More checks for this topic</h2>

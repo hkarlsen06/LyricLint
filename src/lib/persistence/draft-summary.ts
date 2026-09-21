@@ -8,7 +8,7 @@ function isUsableDraftTitle(value: unknown): value is string {
 	return typeof value === 'string' && value.trim().length > 0;
 }
 
-/** Both repositories expose the same bounded lyric opening without a second record field. */
+/** Both repositories expose the same lyric opening and full search text without persisting either. */
 export function summarizeDraft(draft: DraftRecord): DraftSummary {
 	const opening = isReadableDraft(draft)
 		? parseDocument(draft.text)
@@ -25,6 +25,7 @@ export function summarizeDraft(draft: DraftRecord): DraftSummary {
 		createdAt: draft.createdAt,
 		updatedAt: draft.updatedAt
 	};
+	if (isReadableDraft(draft)) summary.searchText = draft.text;
 	if (lyricPreview) summary.lyricPreview = lyricPreview;
 	return summary;
 }

@@ -176,16 +176,22 @@ describe('draft repository', () => {
 		const fullRead = vi.spyOn(database.drafts, 'orderBy');
 		const changedRead = vi.spyOn(database.drafts, 'bulkGet');
 
-		await repository.save({ ...first, text: '[Verse]\nChanged opening', updatedAt: '2026-01-03' });
+		await repository.save({
+			...first,
+			text: '[Verse]\nChanged opening\nFinal lyric',
+			updatedAt: '2026-01-03'
+		});
 		const summaries = await repository.list();
 		expect(summaries.map(({ id }) => id)).toEqual(['a', 'b']);
 		expect(summaries[0].lyricPreview).toBe('Changed opening');
+		expect(summaries[0].searchText).toBe('[Verse]\nChanged opening\nFinal lyric');
 		expect(summaries[1].title).toBe('Untitled transcription');
 		expect(changedRead).toHaveBeenCalledExactlyOnceWith(['a']);
 		expect(fullRead).not.toHaveBeenCalled();
 		await repository.list();
 		expect(changedRead).toHaveBeenCalledTimes(1);
 		expect(await repository.get('a')).not.toHaveProperty('lyricPreview');
+		expect(await database.drafts.get('a')).not.toHaveProperty('searchText');
 		await database.drafts.update('a', { text: 'After a refused read' });
 		changedRead.mockRejectedValueOnce(new Error('Read refused'));
 		await expect(repository.list()).rejects.toThrow('Read refused');
