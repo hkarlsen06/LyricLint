@@ -535,6 +535,8 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 			.mockImplementation(() => codeMirrorCompositionStarted);
 		snapshots.mockClear();
 
+		// Keep both recovery timers on the same clock, even when dispatch is slow on CI.
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 		try {
 			textbox.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
 			textbox.dispatchEvent(
@@ -552,12 +554,16 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 			window.setTimeout(() => {
 				codeMirrorCompositionStarted = false;
 			}, 20);
-			await vi.waitFor(() => expect(snapshots).toHaveBeenCalledOnce());
+			await vi.advanceTimersByTimeAsync(20);
+			expect(snapshots).not.toHaveBeenCalled();
+			await vi.advanceTimersByTimeAsync(1);
+			expect(snapshots).toHaveBeenCalledOnce();
 			expect(snapshots.mock.calls[0]?.[0]).toMatchObject({
 				text: 'Accent´',
 				composing: false
 			});
 		} finally {
+			vi.useRealTimers();
 			compositionStarted.mockRestore();
 			textbox.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '´' }));
 		}

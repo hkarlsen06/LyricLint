@@ -309,15 +309,7 @@
 	text-wrap: pretty;
 }
 
-/*
- * The hero's column is the contrast action over the Discord invite: the
- * workbench keeps the page's one contrast tier, and the invite sits under it
- * bordered, so the pair still reads as a ranking rather than two answers to
- * "what do I do now". The rule reference is a step away as the fact line's
- * first entry. The closing CTA draws its own pair after the argument: by then
- * both destinations (the workbench and the repository behind it) are
- * earned, and two buttons side by side read as a choice rather than a hedge.
- */
+/* The guide sits below the workbench on the bordered tier. */
 .lp-hero__actions {
 	/* A single centred grid column rather than a flex column: grid items
 	   stretch to the column's width, so the two stacked buttons share the
@@ -327,19 +319,6 @@
 	display: grid;
 	gap: var(--space-4);
 	justify-content: center;
-}
-
-/* The invite wears Discord's identity color instead of the bordered tier's
-   quiet fill, which disappeared into the hero's canvas next to the contrast
-   action above it. The livery is the destination's, not a fourth tier of
-   ours. Nothing else may take this fill. */
-.lp-hero__discord.button {
-	background: var(--color-discord);
-	color: var(--color-discord-ink);
-}
-
-.lp-hero__discord.button:hover {
-	background: var(--color-discord-hover);
 }
 
 .lp-cta__actions {
@@ -361,9 +340,7 @@
 	text-decoration: none;
 }
 
-/* The fact line's book mark sits inside a link the way the octocat does;
-   without this it grows with the line box instead of holding the fact's own
-   scale. */
+/* Keep fact icons at their own scale inside the links. */
 .lp-hero .site-meta__fact svg {
 	flex: none;
 }

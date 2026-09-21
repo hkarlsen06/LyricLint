@@ -807,17 +807,12 @@ toolbar's height so that arriving at the tool reads as the same window, and a sc
 in perspective was the one element in the hero arguing against that. A document meets the page
 the way a document does.
 
-**The hero's column is the contrast action over the Discord invite.** The workbench keeps the
-page's one contrast tier; the invite under it wears Discord's identity color instead
-(`--color-discord`, blurple in both schemes because the livery is theirs, not ours. The
-bordered tier's quiet fill disappeared into the hero's canvas next to the contrast action). It
-is not a fourth button tier: nothing else may take that fill. The two buttons share one width
-(`.lp-hero__actions` is a single centred grid column, so both stretch to the widest label), and
-the invite opens a new tab (`target="_blank"`, with an `sr-only` note saying so), because it
-leaves the site for an external service. The invite's hero placement is the maintainer's call,
-the community door promoted to the first screen. The
-Guidelines are a step away as the fact line's first entry (`.site-meta`, beside `Open source`),
-not a link of their own between the buttons and the facts. The closing CTA draws its pair after
+**The hero's column is the contrast workbench action over the bordered transcription guide.**
+The two buttons share one width (`.lp-hero__actions` is a single centred grid column, so both
+stretch to the widest label). The Discord invite sits in the quiet fact line (`.site-meta`,
+beside `Open source`) and opens a new tab (`target="_blank"`, with an `sr-only` note saying so).
+This supersedes the earlier Discord button and quiet guide link placement.
+The closing CTA draws its pair after
 the argument. By then the argument has been made, both destinations are earned, and the pair
 sits side by side (`.lp-cta__actions`): the workbench as the contrast action and the repository
 as the bordered one. Below `32rem` that pair becomes a column, at one width, because two centred
