@@ -314,6 +314,8 @@ describe('EditorPane', () => {
 		const textbox = page.getByRole('textbox', { name: 'Lyrics editor' });
 		await expect.element(textbox).toHaveAttribute('lang', 'ar');
 		await expect.element(textbox).toHaveAttribute('dir', 'auto');
+		// Update the mounted editor after its initial viewport measurement has finished.
+		await vi.waitFor(() => expect(handle).toBeDefined());
 
 		await screen.rerender({
 			initialText: 'مرحبا',
@@ -324,7 +326,6 @@ describe('EditorPane', () => {
 			}
 		});
 		await expect.element(textbox).toHaveAttribute('lang', 'he');
-		await vi.waitFor(() => expect(handle).toBeDefined());
 	});
 
 	it('applies a multi-change atomic edit as one undo step', async () => {
