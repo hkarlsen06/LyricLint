@@ -240,10 +240,24 @@ markup case stays excluded. `quotes-typewriter.test.ts` pins the reported Norweg
 line, word boundaries, Unicode offsets, markup, and mixed safe/preview fixes.
 
 Guillemets, low quotes, and single guillemets are the same claim about the glyph form:
-a Norwegian line quoting with `«velkommen inn»` is standard typography elsewhere and a
+a line quoting with `«velkommen inn»` is standard typography elsewhere and a
 non-typewriter mark on Genius, so the rule straightens each half to `"` or `'` with a
 `safe` fix. Corner brackets and measurement primes stay out; they are not quotation
 marks in this sense.
+
+**Except in a Nordic language, where the guillemet is the convention and `"` is the
+finding** (2026-09-21). The Nordic Genius communities quote with `«…»`, so when the
+document language is one of `guillemetLanguages` (`no`, `nb`, `nn`, `da`, `sv`, `is`,
+`fo`, matched on the primary subtag) the rule inverts for double marks: curly, low and
+reversed doubles become `«` or `»` with a `safe` fix — they carry their own direction,
+and a `“` after an unclosed `„` on the line is read as the closing half of a German-style
+pair — while a straight `"` carries no direction, so it alternates by parity with the
+straight marks before it on the line and previews rather than batches. A quote spanning
+lines opens twice; that is the ceiling of the heuristic. Single marks still straighten to
+`'` in every language, because most of them are apostrophes. The convention was
+supplied by the maintainer rather than a registered source, so the guidance entry
+(`guidance.punctuation.nordic-guillemets`) carries `lyriclint` standing until a
+Genius page is registered for it.
 
 ### A line that is a header is not a lyric, and every rule has to agree about which
 

@@ -253,7 +253,9 @@ export function ruleLookupTables(): RuleLookupTable[] {
 				'single quote between two letters is named as an apostrophe rather than as the ' +
 				'closing half of a pair, which is most of what this rule points at in real lyrics. ' +
 				'LyricLint also checks spacing acute accents beside words as possible apostrophe ' +
-				'typos, with a previewed replacement. Actual accented letters are unchanged.',
+				'typos, with a previewed replacement. Actual accented letters are unchanged. In a Nordic ' +
+				'language the double marks run the other way: every double quote, the straight one ' +
+				'included, becomes « or ».',
 			entries: Object.entries(quoteMarks).map(([mark, { straight, name, fix }]) => {
 				const entry: RuleLookupEntry = {
 					preferred: [straight],

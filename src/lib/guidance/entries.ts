@@ -445,6 +445,18 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		note: "The linter checks only the glyphs — typewriter quotation marks, never curly; whether a passage is quoted speech, a named title, or a mentioned word is the transcriber's reading."
 	},
 	{
+		id: 'guidance.punctuation.nordic-guillemets',
+		topic: 'punctuation',
+		title: 'Nordic lyrics quote with guillemets',
+		statement:
+			'In a Norwegian, Danish, Swedish, Icelandic, or Faroese transcription, quoted speech, titles, and mentioned words stand between `«` and `»` rather than straight or curly double quotes; single marks stay the straight apostrophe.',
+		example: { correct: 'Hun sa «kom hit»', incorrect: 'Hun sa "kom hit"' },
+		authority: 'lyriclint',
+		sourceIds: ['G-TYPEWRITER'],
+		relatedRuleIds: ['quotes.typewriter'],
+		note: "This is the Nordic communities' convention as reported to LyricLint, not yet backed by a registered Genius page — so the claim carries LyricLint's name. While a Nordic language is selected the linter turns every other double quote into a guillemet, previewing the straight ones because they carry no direction."
+	},
+	{
 		id: 'guidance.punctuation.performance-hyphens',
 		topic: 'punctuation',
 		title: 'Hyphenate scatting and stutters',

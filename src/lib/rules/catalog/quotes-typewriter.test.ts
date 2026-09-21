@@ -37,6 +37,53 @@ describe('quotes.typewriter', () => {
 		expect(markedText('[Verse]\nDe sa «ta av deg den lua»', findings)).toEqual(['«', '»']);
 	});
 
+	describe('in a Nordic language', () => {
+		it.each(['no', 'nb-NO', 'da', 'sv', 'is'])(
+			'turns every double mark into a guillemet (%s)',
+			(language) => {
+				expect(applyRuleFixes(rule, '[Vers]\nHun sa “kom hit” og „bli her“', { language })).toBe(
+					'[Vers]\nHun sa «kom hit» og «bli her»'
+				);
+			}
+		);
+
+		it('alternates straight double quotes by parity and previews them', () => {
+			const text = '[Vers]\nHun sa "kom hit" og "bli her"';
+			const findings = checkRule(rule, text, { language: 'no' });
+			expect(findings.map((finding) => finding.message)).toEqual([
+				'Use « instead of the straight double quote.',
+				'Use » instead of the straight double quote.',
+				'Use « instead of the straight double quote.',
+				'Use » instead of the straight double quote.'
+			]);
+			expect(findings.map((finding) => finding.fixes?.[0]?.kind)).toEqual([
+				'preview',
+				'preview',
+				'preview',
+				'preview'
+			]);
+			expect(applyRuleFixes(rule, text, { language: 'no' })).toBe(
+				'[Vers]\nHun sa «kom hit» og «bli her»'
+			);
+		});
+
+		it('keeps curly-to-guillemet fixes safe and leaves guillemets alone', () => {
+			const findings = checkRule(rule, '[Vers]\nHun sa “kom hit” og «bli her»', { language: 'no' });
+			expect(markedText('[Vers]\nHun sa “kom hit” og «bli her»', findings)).toEqual(['“', '”']);
+			expect(collectSafeFixes(findings)).toHaveLength(2);
+		});
+
+		it('still straightens single marks to an apostrophe', () => {
+			expect(applyRuleFixes(rule, '[Vers]\nDet ‘går’ ikke', { language: 'no' })).toBe(
+				"[Vers]\nDet 'går' ikke"
+			);
+		});
+
+		it('leaves English straight quotes alone', () => {
+			expect(messages('[Verse]\nShe said "hold on"')).toEqual([]);
+		});
+	});
+
 	it('flags the spacing acute accent in the Norwegian line and previews only that character', () => {
 		const text = '[Pre-Chorus]\nSe de fant, de fant no´ hoes, hoes, hoes';
 		const findings = checkRule(rule, text, { language: 'no' });

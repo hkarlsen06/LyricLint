@@ -4,8 +4,8 @@ import type { AssistantCorpus } from './rules-context';
 export const corpus = {
 	formatVersion: 5,
 	ruleSetVersion: '2026.09.18.0',
-	generatedAt: '2026-09-18T13:49:21.326Z',
-	contentHash: '0f7317a3c9e974a39f12b7e801c0ed99b7c32a23ce95417bc6822294279a4234',
+	generatedAt: '2026-09-21T10:34:06.214Z',
+	contentHash: '8ec3b35d362f98d988739c820bab65bd4c34ff4dfc7597b3227dfd20c8f58172',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -1305,7 +1305,7 @@ export const corpus = {
 		{
 			ruleId: 'quotes.typewriter',
 			description:
-				'Curly quotation marks, guillemets, low and reversed quotes, and the typewriter mark each becomes. A closing curly single quote between two letters is named as an apostrophe rather than as the closing half of a pair, which is most of what this rule points at in real lyrics. LyricLint also checks spacing acute accents beside words as possible apostrophe typos, with a previewed replacement. Actual accented letters are unchanged.',
+				'Curly quotation marks, guillemets, low and reversed quotes, and the typewriter mark each becomes. A closing curly single quote between two letters is named as an apostrophe rather than as the closing half of a pair, which is most of what this rule points at in real lyrics. LyricLint also checks spacing acute accents beside words as possible apostrophe typos, with a previewed replacement. Actual accented letters are unchanged. In a Nordic language the double marks run the other way: every double quote, the straight one included, becomes « or ».',
 			entries: [
 				{ preferred: ["'"], instead: ['‘'], note: 'The opening curly single quote.', fix: 'safe' },
 				{ preferred: ["'"], instead: ['’'], note: 'The closing curly single quote.', fix: 'safe' },
@@ -1808,6 +1808,19 @@ export const corpus = {
 			sourceIds: ['G-QUOTES'],
 			relatedRuleIds: ['quotes.typewriter'],
 			note: "The linter checks only the glyphs — typewriter quotation marks, never curly; whether a passage is quoted speech, a named title, or a mentioned word is the transcriber's reading."
+		},
+		{
+			id: 'guidance.punctuation.nordic-guillemets',
+			topic: 'punctuation',
+			topicTitle: 'Punctuation',
+			title: 'Nordic lyrics quote with guillemets',
+			statement:
+				'In a Norwegian, Danish, Swedish, Icelandic, or Faroese transcription, quoted speech, titles, and mentioned words stand between `«` and `»` rather than straight or curly double quotes; single marks stay the straight apostrophe.',
+			example: { correct: 'Hun sa «kom hit»', incorrect: 'Hun sa "kom hit"' },
+			authority: 'lyriclint',
+			sourceIds: ['G-TYPEWRITER'],
+			relatedRuleIds: ['quotes.typewriter'],
+			note: "This is the Nordic communities' convention as reported to LyricLint, not yet backed by a registered Genius page — so the claim carries LyricLint's name. While a Nordic language is selected the linter turns every other double quote into a guillemet, previewing the straight ones because they carry no direction."
 		},
 		{
 			id: 'guidance.punctuation.performance-hyphens',

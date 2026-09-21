@@ -551,9 +551,7 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 			window.setTimeout(() => {
 				codeMirrorCompositionStarted = false;
 			}, 20);
-			await new Promise((resolve) => window.setTimeout(resolve, 50));
-
-			expect(snapshots).toHaveBeenCalledOnce();
+			await vi.waitFor(() => expect(snapshots).toHaveBeenCalledOnce());
 			expect(snapshots.mock.calls[0]?.[0]).toMatchObject({
 				text: 'Accent´',
 				composing: false
