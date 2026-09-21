@@ -119,8 +119,11 @@
 				     toolbar arrangement, where the lockup is followed by the name of
 				     the thing on screen. Not a heading: the page under it owns the
 				     document's outline, and this says where the reader is rather than
-				     what they are reading. -->
-				<span class="site-header__section">{sectionTitle}</span>
+				     what they are reading. It links the section's front page, as the
+				     wordmark links the site's. -->
+				<span class="site-header__section">
+					<a class="site-header__section-link" href={resolve('/guidelines/')}>{sectionTitle}</a>
+				</span>
 			{/if}
 			<!-- Named for what it is, not for the product: every landmark on the page
 			     belongs to LyricLint, so "LyricLint" told a reader listing them

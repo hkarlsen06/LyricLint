@@ -357,6 +357,13 @@
 	border-inline-start: var(--border-width) solid var(--color-border);
 }
 
+/* Same contract as `.site-home`: it reads as a link from its position and the
+   pointer, not from an accent color, and the seam stays outside the focus ring. */
+.site-header__section-link {
+	color: inherit;
+	text-decoration: none;
+}
+
 /* The brand and the section it is over sit together at the start of the band,
    and the nav takes the far end. `space-between` alone would strand the
    section title in the middle of the row. */

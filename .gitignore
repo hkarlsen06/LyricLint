@@ -29,6 +29,9 @@ vite.config.ts.timestamp-*
 # Playwright
 test-results
 
+# Vitest screenshots and test attachments
+/.vitest/attachments/
+
 # Wrangler local secrets for services/*
 .dev.vars
 
