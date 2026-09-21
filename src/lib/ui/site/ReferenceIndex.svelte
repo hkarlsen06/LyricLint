@@ -109,8 +109,12 @@
 		window.addEventListener('hashchange', readAnchor);
 		return () => window.removeEventListener('hashchange', readAnchor);
 	});
+	let followedTopic: string | undefined;
 	$effect(() => {
-		if (reading) void followSelectedRow(column);
+		if (!reading) return;
+		const topic = corpus.find((doc) => doc.href.split('#')[1] === reading)?.topic;
+		void followSelectedRow(column, !!followedTopic && topic !== followedTopic);
+		followedTopic = topic;
 	});
 	$effect(() => {
 		if (!directory || !anchor || selectedSlug || selectedTopic) return;
@@ -389,6 +393,12 @@
 										class="reference-result"
 										href={referenceHref(`${base}${result.href}`)}
 										aria-current={current(result)}
+										onclick={(event) => {
+											if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+												// An explicit selection keeps the list under the pointer.
+												followedTopic = result.topic;
+											}
+										}}
 									>
 										<span class="site-run__title"
 											><SearchHighlight text={result.title} {tokens} /></span

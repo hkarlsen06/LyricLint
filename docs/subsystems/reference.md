@@ -106,7 +106,10 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   Returning from outside the guide initializes the remounted strip's destination pane without
   resetting the snapshot's vertical reading position; history within the mounted strip preserves its pane.
   Revealing a current result moves scroll, never focus or filters; pressing a visible row does
-  not move the list. Guidance follows the reading position across topic boundaries. The same mounted panes retain their vertical position when scrolled sideways. The reference e2e tasks pin deep
+  not move the list. When reading crosses a topic boundary, the finder aligns the new topic
+  beneath search while keeping the selected row visible. Within a topic it only follows rows
+  that leave view; manually scrolling the finder does not realign it to the reader.
+  The same mounted panes retain their vertical position when scrolled sideways. The reference e2e tasks pin deep
   links, scroll preservation and the mobile finder, including the 16px minimum input size.
 - Homepage entrances are practical questions; the finder owns the only topic directory.
   Everything is searched by default; optional content/topic/check filters live in one disclosure.
@@ -913,7 +916,10 @@ on the document (a scroll event does not bubble, and which element scrolls is th
 business), and coalesces to one pass per frame.
 
 **The list travels with it, and a follow is not a reveal.** `followSelectedRow` nudges to the
-nearest edge rather than aligning to the top: an arrival has no previous position to respect, but a
+nearest edge within a topic. The continuous guide now aligns a newly entered topic beneath
+search when reading crosses a topic boundary, while preserving visibility of the selected row.
+Explicit row selection records that topic without realigning the list. Within a topic,
+an arrival has no previous position to respect, but a
 reader watching this column does, and hauling a row that had merely slipped past the bottom all the
 way up moves every other row under their eye for a correction of a few pixels. It keeps a row's
 worth of breath at whichever edge it lands against, bounded by a quarter of the free height. In a

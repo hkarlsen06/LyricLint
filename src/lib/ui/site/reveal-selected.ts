@@ -72,7 +72,8 @@ export function revealRow(
  * Three things separate it from `revealRow` above, and each is the difference
  * between arriving somewhere and staying with somebody:
  *
- * - **It nudges to the nearest edge rather than aligning to the top.** An
+ * - **Within a topic it nudges to the nearest edge.** Crossing topics aligns
+ *   the new topic beneath the finder, keeping its selected row visible. An
  *   arrival has no previous position to respect, so putting the row under the
  *   finder is as good an answer as any. A follow does: the reader is looking at
  *   this column, and hauling a row that had merely slipped past the bottom all
@@ -90,7 +91,10 @@ export function revealRow(
  *   column flinching. Under `prefers-reduced-motion` it is instant, like every
  *   other animation here.
  */
-export async function followSelectedRow(column: HTMLElement | undefined): Promise<void> {
+export async function followSelectedRow(
+	column: HTMLElement | undefined,
+	alignTopic = false
+): Promise<void> {
 	await tick();
 	const row = column?.querySelector<HTMLElement>('a[aria-current="page"]');
 	// No box at all below 62rem, where the columns stack and the list is
@@ -104,18 +108,25 @@ export async function followSelectedRow(column: HTMLElement | undefined): Promis
 		Number.parseFloat(getComputedStyle(row).getPropertyValue('--topic-compact-height')) || 0;
 	const top = port.top + (finder?.getBoundingClientRect().height ?? 0) + topicHeight;
 	const rect = row.getBoundingClientRect();
+	const topic = alignTopic ? row.closest<HTMLElement>('.guide-topic') : null;
 	// Breathing room is a destination for an offscreen row, not a reason to move
 	// one already visible. Search excerpts are taller than the old title rows;
 	// applying the margin first nudged a row immediately after it was pressed.
-	if (rect.top >= top && rect.bottom <= port.bottom) return;
+	if (!topic && rect.top >= top && rect.bottom <= port.bottom) return;
 	const breath = Math.min(rect.height, Math.max(0, (port.bottom - top) / 4));
 
 	let delta = 0;
-	if (rect.top < top + breath) delta = rect.top - (top + breath);
+	if (topic) {
+		delta = Math.max(
+			topic.getBoundingClientRect().top - (top - topicHeight),
+			rect.bottom - (port.bottom - breath)
+		);
+	} else if (rect.top < top + breath) delta = rect.top - (top + breath);
 	else if (rect.bottom > port.bottom - breath) delta = rect.bottom - (port.bottom - breath);
 	if (delta === 0) return;
 
-	const to = column.scrollTop + delta;
+	// Round forward so native integer scrolling reaches the fractional sticky boundary.
+	const to = topic ? Math.ceil(column.scrollTop + delta) : column.scrollTop + delta;
 	if (prefersReducedMotion()) {
 		column.scrollTop = to;
 		return;

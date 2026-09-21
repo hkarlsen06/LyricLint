@@ -108,6 +108,66 @@ for (const width of [1440, 390]) {
 	});
 
 	for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+		test(`finder follows topic boundaries without taking over browsing at ${width}px with ${reducedMotion} motion`, async ({
+			page
+		}) => {
+			await page.setViewportSize({ width, height: 900 });
+			await page.emulateMedia({ reducedMotion });
+			await page.goto('/guidelines/censored-unknown/#unknown-marker');
+			await page.evaluate(() => document.fonts.ready);
+			const index = page.locator('.site-split__index');
+			const detail = page.locator('.site-split__detail');
+			const finder = index.locator('.site-finder');
+			const current = index.locator('a[aria-current="page"]');
+			const censoredTitle = index.getByRole('heading', { name: 'Censored and unknown words' });
+			const linesTitle = index.getByRole('heading', { name: 'Lines and repeats' });
+			await expect(current).toHaveAttribute('href', /#unknown-marker$/u);
+			await current.evaluate((row) => {
+				const port = row.closest('.site-split__index')!;
+				const finder = port.querySelector('.site-finder')!;
+				port.scrollTop +=
+					row.getBoundingClientRect().top - finder.getBoundingClientRect().bottom - 80;
+			});
+			await expectPinned(censoredTitle, finder, true);
+
+			await detail.locator('main').focus();
+			await scrollInside(detail, '.guidelines__entry:has(#bar-per-line)', 0);
+			await expect(current).toHaveAttribute('href', /#bar-per-line$/u);
+			await expectPinned(linesTitle, finder, true);
+			await expect(linesTitle).toHaveCSS('font-size', '19px');
+			await expectGlassThrough(index, linesTitle);
+			await expect(detail.locator('main')).toBeFocused();
+			const aligned = await index.evaluate((port) => port.scrollTop);
+			await scrollInside(detail, '.guidelines__entry:has(#spoken-sections)', 0);
+			await expect(current).toHaveAttribute('href', /#spoken-sections$/u);
+			expect(await index.evaluate((port) => port.scrollTop)).toBe(aligned);
+
+			if (width === 1440) {
+				// Browsing the finder independently, then choosing a visible row,
+				// must not pull the list back to the reader's topic.
+				const otherRow = index.locator('.reference-result[href$="#four-asterisks"]');
+				await otherRow.evaluate((row) => {
+					const port = row.closest('.site-split__index')!;
+					const finder = port.querySelector('.site-finder')!;
+					port.scrollTop +=
+						row.getBoundingClientRect().top - finder.getBoundingClientRect().bottom - 80;
+				});
+				await expectPinned(censoredTitle, finder, true);
+				const browsed = await index.evaluate((port) => port.scrollTop);
+				await otherRow.click();
+				await expect(current).toHaveAttribute('href', /#four-asterisks$/u);
+				expect(await index.evaluate((port) => port.scrollTop)).toBe(browsed);
+				await scrollInside(detail, '.guidelines__entry:has(#spoken-sections)', 0);
+				await expect(current).toHaveAttribute('href', /#spoken-sections$/u);
+				await expectPinned(linesTitle, finder, true);
+			}
+
+			// Following works in reverse as well as forward.
+			await scrollInside(detail, '.guidelines__entry:has(#unknown-marker)', 0);
+			await expect(current).toHaveAttribute('href', /#unknown-marker$/u);
+			await expectPinned(censoredTitle, finder, true);
+		});
+
 		test(`guide context stays pinned without moving content at ${width}px with ${reducedMotion} motion`, async ({
 			page
 		}) => {
