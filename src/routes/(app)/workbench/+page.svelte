@@ -29,6 +29,7 @@
 	import DocumentTitle from '$lib/ui/layout/DocumentTitle.svelte';
 	import TabBusyNotice from '$lib/ui/layout/TabBusyNotice.svelte';
 	import Workspace from '$lib/ui/layout/Workspace.svelte';
+	import { finishWorkbenchNavigation } from '$lib/ui/layout/workbench-navigation.js';
 	import { useFeedbackState } from '$lib/ui/state/feedback.svelte.js';
 	import { guardWorkbenchTab, type TabGuard } from '$lib/ui/state/tab-guard.js';
 	import { ensurePersistentStorage } from '$lib/ui/state/storage-persistence.svelte.js';
@@ -55,6 +56,10 @@
 	// which returns while that flush is still in flight.
 	let guard: TabGuard | undefined;
 	const feedback = useFeedbackState();
+	const finishNavigation = finishWorkbenchNavigation();
+	$effect(() => {
+		if (revealed || bootError || tabBusy) finishNavigation();
+	});
 
 	function snapshotFor(draft: DraftRecord, revision = 0): EditorSnapshot {
 		return {

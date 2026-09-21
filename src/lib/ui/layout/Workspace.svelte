@@ -70,7 +70,7 @@
 		editorComponent: Component<EditorPaneProps>;
 		/** Injectable so component tests never need to instantiate the WASM worker. */
 		harperProvider?: HarperDiagnosticProvider;
-		/** Delays the toolbar lockup until the boot screen has finished leaving. */
+		/** Reveals the toolbar lockup when the editor is ready. */
 		brandRevealed?: boolean;
 		/** The real editor has mounted with its recovered document and selection. */
 		onready?: () => void;
@@ -1239,8 +1239,8 @@
 	data-video-floating={floatingVideo}
 	data-review-focused={reviewFocused}
 	data-testid="workspace"
-	data-entrance-pending={entranceReadyDraftId !== controller.draftId ||
-		(!controller.isEmpty && nativeRulesStatus === 'pending')}
+	data-entrance-pending={entranceReadyDraftId !== controller.draftId}
+	data-diagnostics-pending={!controller.isEmpty && nativeRulesStatus === 'pending'}
 >
 	<h1 class="sr-only">LyricLint transcription workbench</h1>
 

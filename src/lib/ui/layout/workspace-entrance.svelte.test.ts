@@ -132,7 +132,6 @@ describe('workspace entrance', () => {
 				animation.currentTime = 200;
 			});
 			expect(line.getBoundingClientRect().top).toBe(restingTop);
-			expect(animations.length).toBeLessThanOrEqual(96);
 			for (const selector of ['.cm-line', '.diagnostic-list > li']) {
 				const rows = Array.from(root.querySelectorAll(selector));
 				const animatedRows = rows.filter((row) => row.getAnimations().length > 0);
@@ -183,6 +182,38 @@ describe('workspace entrance', () => {
 		expect(running()).toHaveLength(0);
 	});
 
+	for (const scrolled of [false, true]) {
+		test(`reveals every visible lyric row in a ${scrolled ? 'restored scroll position' : 'tall viewport'}`, async () => {
+			await page.viewport(1440, 1800);
+			fixture();
+			const port = root.querySelector<HTMLElement>('.cm-scroller')!;
+			if (scrolled) port.scrollTop = 1400;
+			else root.style.height = '1600px';
+			// Let restored scrolling settle before the entrance listens for interaction.
+			await new Promise(requestAnimationFrame);
+			await new Promise(requestAnimationFrame);
+			const clip = port.getBoundingClientRect();
+			const visible = [...root.querySelectorAll<HTMLElement>('.cm-line')].filter((row) => {
+				const rect = row.getBoundingClientRect();
+				return rect.bottom > clip.top && rect.top < clip.bottom;
+			});
+			expect(visible.length).toBeGreaterThan(scrolled ? 1 : 48);
+			begin();
+			await waitFor(() => expect(running().length).toBeGreaterThan(0));
+			for (const animation of running()) {
+				animation.pause();
+				animation.currentTime = 0;
+			}
+			for (const row of visible) {
+				expect(row.getAnimations(), row.textContent!).toHaveLength(1);
+				expect(getComputedStyle(row).opacity).toBe('0');
+			}
+			const delays = visible.map((row) => row.getAnimations()[0].effect!.getTiming().delay ?? 0);
+			expect(delays).toEqual([...delays].sort((a, b) => a - b));
+			expect(Math.max(...delays)).toBeLessThanOrEqual(720);
+		});
+	}
+
 	test('shows content immediately if startup outlasts the masking budget', async () => {
 		fixture();
 		root.dataset.entrancePending = 'true';
@@ -194,6 +225,52 @@ describe('workspace entrance', () => {
 		root.dataset.entrancePending = 'false';
 		await new Promise(requestAnimationFrame);
 		expect(running()).toHaveLength(0);
+	});
+
+	test('reveals ready lyrics while initial diagnostics are still loading', async () => {
+		await page.viewport(1440, 900);
+		const rules = Promise.withResolvers<typeof import('$lib/rules/engine.js')>();
+		const { controller } = createTestWorkbench({ text: '[Verse]\nfirst line.' });
+		controller.setGrammarCheckEnabled(false);
+		const view = await render(Workspace, {
+			controller,
+			editorComponent: EditorPane,
+			loadNativeRules: () => rules.promise,
+			harperProvider: { lint: async () => [], dispose: async () => {} }
+		});
+		root = view.container.querySelector<HTMLElement>('.workspace')!;
+		await waitFor(() => expect(root.querySelector('.cm-line')?.getAnimations()).toHaveLength(1));
+		const line = root.querySelector<HTMLElement>('.cm-line')!;
+		expect(root.dataset.diagnosticsPending).toBe('true');
+		for (const animation of running()) animation.finish();
+		await waitFor(() => expect(getComputedStyle(line).opacity).toBe('1'));
+		rules.resolve(await import('$lib/rules/engine.js'));
+		await waitFor(() =>
+			expect(root.querySelector('.diagnostic-list > li')?.getAnimations()).toHaveLength(1)
+		);
+		expect(line.getAnimations()).toHaveLength(0);
+	});
+
+	test('reveals newly scrolled rows and keeps existing inline styles intact', async () => {
+		fixture();
+		const line = root.querySelector<HTMLElement>('.cm-line')!;
+		line.style.opacity = '0.9';
+		begin();
+		await waitFor(() => expect(running().length).toBeGreaterThan(0));
+		root.querySelector('.cm-scroller')!.scrollTop = 100;
+		await waitFor(() => expect(running()).toHaveLength(0));
+		expect(line.style.opacity).toBe('0.9');
+		expect(root.hasAttribute('data-workspace-entrance')).toBe(false);
+	});
+
+	test('reveals all content if the animation API fails', async () => {
+		fixture();
+		vi.spyOn(Element.prototype, 'animate').mockImplementation(() => {
+			throw new Error('Animation unavailable');
+		});
+		begin();
+		await waitFor(() => expect(root.hasAttribute('data-workspace-entrance')).toBe(false));
+		expect(getComputedStyle(root.querySelector('.cm-line')!).opacity).toBe('1');
 	});
 
 	test('skips reduced motion and cancels when the preference changes', async () => {
@@ -213,7 +290,7 @@ describe('workspace entrance', () => {
 		expect(root.hasAttribute('data-workspace-entrance')).toBe(false);
 	});
 
-	test('cancels a pending import on teardown', async () => {
+	test('cancels a pending frame on teardown', async () => {
 		fixture();
 		begin();
 		dispose?.();

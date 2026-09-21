@@ -6,6 +6,7 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 `scripts/render-workbench-shot.mjs`,
 `scripts/render-motion.mjs`, `scripts/render-mobile-loop.mjs`, `scripts/key-overlay.mjs`,
 `scripts/render-all.mjs`, `scripts/shot-scene.mjs`,
+`src/lib/ui/layout/NavigationSplash.svelte`, `src/lib/ui/layout/workbench-navigation.ts`,
 `scripts/player-shot-scene.mjs`, `scripts/hero-shot-scene.mjs`, `scripts/shot-lyrics.mjs`,
 `scripts/fixtures/city-lights.json`, `scripts/fixtures/city-lights.jpg`,
 `scripts/write-shot-dimensions.mjs`, `src/lib/assets/shot-dimensions.json`,
@@ -20,6 +21,10 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
   without opening the workbench. Route CSS loads synchronously before its surface renders.
   Stylesheets smaller than 50,000 UTF-16 code units are embedded by SvelteKit in the
   prerendered HTML; larger sheets retain normal blocking links.
+- Navigation into the workbench starts a root-owned wordmark splash before route downloads.
+  The route and editor load concurrently; readiness, storage/editor failure, another-tab
+  notice, navigation cancellation, or a new input dismisses it. There is no minimum hold.
+  Direct visits and reloads do not show it, and reduced motion keeps the wordmark static.
 - The landing page is a composition read once: claim and proof in one screen, `--lp-display`
   is its own marketing ramp, section headings stand alone (no eyebrows), runs of facts are
   one bordered object with hairlines inside, the measure goes on the heading itself. The

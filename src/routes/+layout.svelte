@@ -2,12 +2,14 @@
 	import { dev } from '$app/environment';
 	import { beforeNavigate } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { updated } from '$app/state';
+	import { navigating, page, updated } from '$app/state';
 	import {
 		createDefaultAssistantState,
 		provideAssistantState
 	} from '$lib/assistant/assistant.svelte.js';
 	import { provideFeedbackState } from '$lib/ui/state/feedback.svelte.js';
+	import NavigationSplash from '$lib/ui/layout/NavigationSplash.svelte';
+	import { provideWorkbenchNavigation } from '$lib/ui/layout/workbench-navigation.js';
 	import '$lib/ui/styles/global.css';
 	import { onMount } from 'svelte';
 
@@ -20,6 +22,23 @@
 	// same conversation, and a request stays live while the modal is closed
 	// because this state outlives every page under it.
 	const assistant = provideAssistantState(createDefaultAssistantState());
+	const workbenchRoute = '/(app)/workbench';
+	let workbenchNavigation = $state<Promise<void>>();
+	const openingWorkbench = $derived(workbenchNavigation !== undefined);
+	function finishWorkbenchNavigation() {
+		workbenchNavigation = undefined;
+	}
+	provideWorkbenchNavigation(finishWorkbenchNavigation);
+
+	// Kit can supersede an in-flight navigation without another beforeNavigate.
+	$effect(() => {
+		if (
+			workbenchNavigation &&
+			((navigating.complete && navigating.complete !== workbenchNavigation) || page.error)
+		) {
+			finishWorkbenchNavigation();
+		}
+	});
 
 	/*
 	 * The modal draws nothing until assistant.open() is called, so its dialog,
@@ -61,9 +80,30 @@
 	// navigation costs nothing the user can see. A `willUnload` navigation is
 	// already leaving the document, so there is nothing to upgrade.
 	beforeNavigate((navigation) => {
+		finishWorkbenchNavigation();
 		if (updated.current && !navigation.willUnload && navigation.to?.url) {
 			location.href = navigation.to.url.href;
+			return;
 		}
+		if (
+			navigation.willUnload ||
+			navigation.to?.route.id !== workbenchRoute ||
+			navigation.from?.route.id === workbenchRoute
+		)
+			return;
+
+		// Begin before route downloads; neither loading nor editing awaits motion.
+		const completion = (workbenchNavigation = navigation.complete);
+		void completion.then(
+			() => {
+				if (workbenchNavigation === completion && page.route.id !== workbenchRoute) {
+					finishWorkbenchNavigation();
+				}
+			},
+			() => {
+				if (workbenchNavigation === completion) finishWorkbenchNavigation();
+			}
+		);
 	});
 
 	// The offline worker is a production promise, and registering it against a dev
@@ -102,6 +142,8 @@
 		})();
 	});
 </script>
+
+<svelte:window onpointerdown={finishWorkbenchNavigation} onkeydown={finishWorkbenchNavigation} />
 
 <svelte:head>
 	<!-- The bracketed-waveform mark. The SVG is what modern browsers pick up; the
@@ -156,11 +198,12 @@
 	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0d" />
 </svelte:head>
 
-<!-- Nothing but the head, the stylesheet, and the assistant modal live here.
-     The workbench's shell wrapper, its feedback regions, and the phone gate
-     belong to `(app)`: the gate removes the app on a phone, and the pages
-     under `(site)` are the ones a phone is meant to be able to read. -->
+<!-- Route layouts own their surfaces; shared hosts survive navigation. -->
 {@render children()}
+<NavigationSplash active={openingWorkbench} />
+<p class="sr-only" aria-live="polite" aria-atomic="true">
+	{openingWorkbench && page.route.id !== workbenchRoute ? 'Opening the workbench…' : ''}
+</p>
 {#if AssistantHost}
 	<AssistantHost {assistant} />
 {/if}

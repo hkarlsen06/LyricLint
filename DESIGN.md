@@ -88,11 +88,14 @@ of controls and neighboring content before and after real interactions on deskto
   fading from transparent to opaque over `--duration-workspace-entrance` (400ms), with
   `--duration-workspace-stagger` (60ms) between starts compressed to a maximum
   `--duration-workspace-stagger-limit` (720ms). Only opacity changes, using
-  `--ease-in-out-cubic`; positions remain fixed. This user-requested entrance alone may use temporary opacity;
+  `--ease-in-out-cubic`; positions remain fixed. This user-requested entrance may use temporary opacity;
   interaction immediately reveals everything. Its prepaint mask expires after two seconds,
   readiness never waits for completion, and ordinary edits never replay it. New empty
   ’scribes reveal their placeholder lines.
   See [Motion usage](docs/motion.md) for its bounded lifetime.
+- Navigation into the workbench starts a shared wordmark splash while route code and the
+  editor load. It may fade out on readiness, never delays navigation or editing, and does
+  not replay on direct loads or draft changes.
 - The brand lockup is the one exception, and it is one because it reports nothing: `--duration-brand` and `--ease-spring-out` exist for it alone. Its easing overshoots on purpose.
 - Travel between rests (a whole surface pulled from one place to another, like the reference sections' column push) uses `--ease-in-out-cubic`. `--ease-out-quart` launches at full speed, which is right for a state answer and reads as thrown when the thing moving is a column rather than a control.
 - Reduced-motion preferences suppress transitions and animations.

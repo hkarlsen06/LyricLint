@@ -15,7 +15,7 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   each ’scribe identity change, top-to-bottom, using only temporary opacity. A prepaint mask prevents a flash;
   its two-second limit reveals all content if startup is slow. Interaction immediately reveals
   everything; reduced motion and a hidden document skip the effect. Readiness never waits for
-  completion, and ordinary edits never replay it. `../motion.md` owns usage and
+  completion, lyrics never wait for diagnostic readiness or an animation download, and ordinary edits never replay it. `../motion.md` owns usage and
   performance limits.
 
 - A tool initializes on first selection, then keeps its local state mounted across tab changes
@@ -144,36 +144,42 @@ continue to cover retained inputs. The eager Review view remains ready with the 
 
 ### Startup ends when the editor is ready
 
-Startup has no visual splash, centered logo, or loading animation.
-Render the recovered workspace immediately and let the real editor mount without an
+Direct workbench startup has no visual splash or loading animation.
+Internal navigation into the workbench now starts a splash in the shared root layout;
+`site.md` owns that transition. Render the recovered workspace immediately and let the real editor mount without an
 animation gate. A screen-reader status reports pending startup; storage and editor
 failures retain their visible alert and Reload action, and another tab retains its notice.
 
 The previous pending-only animation still flashed on quick loads, and delaying its
-appearance did not produce a satisfactory transition. Its splash and styles were removed.
+appearance did not produce a satisfactory transition. That workbench-owned splash was removed;
+the new navigation splash starts on the page being left instead.
 
 The requested lyric-line and diagnostic-row entrance is a later, narrowly scoped exception.
 The user clarified that rows should appear sequentially: moving already visible text did
 not satisfy the request. The shell now reveals viewport rows from transparent to opaque
 over 400ms, with no translation or other position changes. Starts are 60ms apart, compressed to a maximum
-720ms delay across each group. Only this entrance may use temporary opacity; it never
-communicates application state. The lazily imported Motion mini API animates at most 48
-rows per group, inspecting at most 64 existing children.
+720ms delay across each group. The startup effects may use temporary opacity; it never
+communicates application state. The native Web Animations API animates every visible row
+from the existing DOM and stops scanning below the viewport. Fixed row and child caps were
+removed: they skipped later paragraphs on tall screens or counted offscreen overscan above
+a restored scroll position, making those paragraphs visible before the fade reached them.
 
 `data-workspace-entrance` masks rows before their first paint to prevent a visible-then-hidden
 flash. Each mask is removed as its group starts. A two-second limit from attachment reveals
 all content and abandons the effect if startup is slow. A separate two-second cleanup limit
-starts after Motion and initial editor/native-rule readiness (`data-entrance-pending`).
+starts after editor readiness (`data-entrance-pending`). Native-rule readiness independently
+releases diagnostics (`data-diagnostics-pending`), so a slow rules download cannot hide ready lyrics.
 Input, focus, visibility or motion-preference changes, failures, and teardown remove masks
-and restore opacity immediately. Each row has one native opacity animation; transforms
+and restore opacity immediately. Actual scrolling also retires the reveal, including scrollbar
+and programmatic scrolls. Each row has one native opacity animation; inline styles and transforms
 are left untouched. The attachment remains outside the draft-keyed subtree, but its effect
 reads `controller.draftId`: opening or creating a ’scribe retires the old lifetime and starts
 a new one without remounting the workspace. Readiness is keyed to the new editor’s draft ID.
 Empty ’scribes reveal their existing placeholder lines without waiting for native rules.
-Typing and lint updates do not change identity and never re-arm the effect. Readiness does not wait for completion, and no splash returns.
+Typing and lint updates do not change identity and never re-arm the effect. Readiness does not wait for completion.
 
-Production CSS can rewrite `400ms` as `.4s`. `secondsFromCssTime` respects the unit for
-both duration and stagger before passing seconds to Motion. Assuming milliseconds made
+Production CSS can rewrite `400ms` as `.4s`. `millisecondsFromCssTime` respects the unit for
+both duration and stagger before passing milliseconds to Web Animations. The earlier Motion implementation's unit assumption made
 the built animation last 0.4ms while unminified browser tests still passed. The regression
 now covers both spellings and checks the native animation's actual duration and stagger;
 the built site must also be checked in WebKit, including intermediate opacity and unchanged row positions.

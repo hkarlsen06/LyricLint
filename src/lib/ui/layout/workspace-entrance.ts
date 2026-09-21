@@ -1,11 +1,11 @@
 import type { Attachment } from 'svelte/attachments';
 import { prefersReducedMotion } from '$lib/interaction/motion.js';
 
-function secondsFromCssTime(value: string): number {
+function millisecondsFromCssTime(value: string): number {
 	const time = value.trim();
-	// Production CSS may spell 400ms as .4s. Motion expects seconds, so the
+	// Production CSS may spell 400ms as .4s. Web Animations expects milliseconds, so the
 	// suffix (not the spelling in tokens.css) decides whether to convert.
-	return parseFloat(time) / (time.endsWith('ms') ? 1000 : 1);
+	return parseFloat(time) * (time.endsWith('ms') ? 1 : 1000);
 }
 
 /** A best-effort startup flourish, never a condition of readiness. */
@@ -18,8 +18,7 @@ export const workspaceEntrance: Attachment<HTMLElement> = (root) => {
 	let diagnosticsSeen = false;
 	let pending = 0;
 	let timeout: ReturnType<typeof setTimeout> | undefined;
-	let animate: typeof import('motion/mini').animate | undefined;
-	const animations: Array<() => void> = [];
+	const animations: Animation[] = [];
 	const preference = matchMedia('(prefers-reduced-motion: reduce)');
 	const events = [
 		'pointerdown',
@@ -27,6 +26,7 @@ export const workspaceEntrance: Attachment<HTMLElement> = (root) => {
 		'beforeinput',
 		'wheel',
 		'touchstart',
+		'scroll',
 		'focusin'
 	] as const;
 	const observer = new MutationObserver(schedule);
@@ -54,7 +54,7 @@ export const workspaceEntrance: Attachment<HTMLElement> = (root) => {
 		root.removeAttribute('data-workspace-entrance');
 		cancelAnimationFrame(frame);
 		observer.disconnect();
-		for (const cancel of animations) cancel();
+		for (const animation of animations) animation.cancel();
 		for (const event of events) window.removeEventListener(event, retire, true);
 		preference.removeEventListener('change', retire);
 		document.removeEventListener('visibilitychange', retire);
@@ -67,7 +67,7 @@ export const workspaceEntrance: Attachment<HTMLElement> = (root) => {
 	}
 
 	function enter(container: HTMLElement, selector: string, port: HTMLElement): void {
-		if (!animate || container.closest('[hidden], [inert]')) return;
+		if (container.closest('[hidden], [inert]')) return;
 		const clip = port.getBoundingClientRect();
 		const top = Math.max(0, clip.top);
 		const bottom = Math.min(window.innerHeight, clip.bottom);
@@ -75,62 +75,50 @@ export const workspaceEntrance: Attachment<HTMLElement> = (root) => {
 		const right = Math.min(window.innerWidth, clip.right);
 		// Read geometry in one batch before starting any animations. CodeMirror's
 		// viewport DOM is the source: never materialize or decorate the document.
+		// Include every visible row. A fixed child limit counts overscan above a
+		// restored scroll position and leaves later paragraphs visible from the start.
 		const visible: HTMLElement[] = [];
-		for (let index = 0; index < Math.min(container.children.length, 64); index++) {
-			const child = container.children[index];
+		for (const child of container.children) {
 			if (!(child instanceof HTMLElement) || !child.matches(selector)) continue;
 			const rect = child.getBoundingClientRect();
 			if (rect.top >= bottom) break;
 			if (rect.bottom > top && rect.right > left && rect.left < right && rect.height > 0) {
 				visible.push(child);
-				if (visible.length === 48) break;
 			}
 		}
 		const style = getComputedStyle(root);
-		const duration = secondsFromCssTime(style.getPropertyValue('--duration-workspace-entrance'));
-		const stagger = secondsFromCssTime(style.getPropertyValue('--duration-workspace-stagger'));
-		const staggerLimit = secondsFromCssTime(
+		const duration = millisecondsFromCssTime(
+			style.getPropertyValue('--duration-workspace-entrance')
+		);
+		const stagger = millisecondsFromCssTime(style.getPropertyValue('--duration-workspace-stagger'));
+		const staggerLimit = millisecondsFromCssTime(
 			style.getPropertyValue('--duration-workspace-stagger-limit')
 		);
 		const step = Math.min(stagger, staggerLimit / Math.max(1, visible.length - 1));
-		const [x1, y1, x2, y2] = style
-			.getPropertyValue('--ease-in-out-cubic')
-			.trim()
-			.slice('cubic-bezier('.length, -1)
-			.split(',')
-			.map(Number);
-		const ease: [number, number, number, number] = [x1, y1, x2, y2];
+		const easing = style.getPropertyValue('--ease-in-out-cubic').trim();
 		for (const [index, element] of visible.entries()) {
-			const originalOpacity = element.style.opacity;
-			const restore = () => {
-				if (originalOpacity) element.style.opacity = originalOpacity;
-				else element.style.removeProperty('opacity');
-			};
 			pending++;
-			const control = animate(
-				element,
+			const animation = element.animate(
 				{ opacity: [0, 1] },
 				{
 					duration,
 					delay: index * step,
-					ease,
-					onComplete: () => {
-						restore();
-						pending--;
-						finishIfDone();
-					}
+					easing,
+					fill: 'both'
 				}
 			);
-			animations.push(() => {
-				control.cancel();
-				restore();
-			});
+			animation.onfinish = () => {
+				animation.cancel();
+				pending--;
+				finishIfDone();
+			};
+			animations.push(animation);
 		}
 	}
 
 	function scan(): void {
 		frame = 0;
-		if (retired || !animate || root.dataset.entrancePending === 'true') return;
+		if (retired || root.dataset.entrancePending === 'true') return;
 		// The budget is for the flourish, not for downloading/constructing the
 		// recovered workspace. A cold load must not spend it before rows exist.
 		timeout ??= setTimeout(retire, 2000);
@@ -146,7 +134,7 @@ export const workspaceEntrance: Attachment<HTMLElement> = (root) => {
 					unmask('lyrics');
 				}
 			}
-			if (!diagnosticsSeen) {
+			if (!diagnosticsSeen && root.dataset.diagnosticsPending !== 'true') {
 				const list = root.querySelector<HTMLElement>('.diagnostic-list');
 				if (list) {
 					diagnosticsSeen = true;
@@ -172,16 +160,12 @@ export const workspaceEntrance: Attachment<HTMLElement> = (root) => {
 		window.addEventListener(event, retire, { capture: true, passive: true });
 	preference.addEventListener('change', retire);
 	document.addEventListener('visibilitychange', retire);
-	void import('motion/mini').then((motion) => {
-		if (retired) return;
-		animate = motion.animate;
-		observer.observe(root, {
-			childList: true,
-			subtree: true,
-			attributes: true,
-			attributeFilter: ['data-entrance-pending']
-		});
-		schedule();
-	}, retire);
+	observer.observe(root, {
+		childList: true,
+		subtree: true,
+		attributes: true,
+		attributeFilter: ['data-entrance-pending', 'data-diagnostics-pending']
+	});
+	schedule();
 	return retire;
 };
