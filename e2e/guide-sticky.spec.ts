@@ -136,6 +136,19 @@ for (const width of [1440, 390]) {
 			await expectPinned(linesTitle, finder, true);
 			await expect(linesTitle).toHaveCSS('font-size', '19px');
 			await expectGlassThrough(index, linesTitle);
+			await expect
+				.poll(() =>
+					censoredTitle.evaluate((title) => {
+						const finder = title.closest('.site-split__index')!.querySelector('.site-finder')!;
+						return document
+							.elementsFromPoint(
+								title.getBoundingClientRect().left + 100,
+								finder.getBoundingClientRect().bottom + 4
+							)
+							.includes(title);
+					})
+				)
+				.toBe(false);
 			await expect(detail.locator('main')).toBeFocused();
 			const aligned = await index.evaluate((port) => port.scrollTop);
 			await scrollInside(detail, '.guidelines__entry:has(#spoken-sections)', 0);

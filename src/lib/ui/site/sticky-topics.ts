@@ -18,12 +18,14 @@ export const stickyTopics: Action<HTMLElement, unknown> = (node) => {
 		frame = 0;
 		const top = port!.getBoundingClientRect().top;
 		const bounds = groups.map((group) => group.getBoundingClientRect());
-		for (const title of titles) {
+		titles.forEach((title, index) => {
+			const rect = title.getBoundingClientRect();
+			title.style.setProperty('--topic-clip', `${Math.max(0, top + offset - rect.top)}px`);
 			title.style.setProperty(
-				'--topic-clip',
-				`${Math.max(0, top + offset - title.getBoundingClientRect().top)}px`
+				'--topic-clip-end',
+				`${Math.max(0, rect.bottom - bounds[index].bottom)}px`
 			);
-		}
+		});
 		const stuck = bounds.map((bounds) => bounds.top <= top + offset);
 		const active = bounds.findIndex(
 			(bounds, index) => stuck[index] && bounds.bottom > top + offset
