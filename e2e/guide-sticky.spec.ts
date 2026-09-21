@@ -280,6 +280,29 @@ for (const width of [1440, 390]) {
 			await scrollInside(index, '.guide-topic', 30);
 			await expect(indexTitle).toHaveCSS('font-size', '19px');
 			await expectPinned(indexTitle, index.locator('.site-finder'), true);
+			// A departing topic must stop painting at the search area's lower edge.
+			await group.evaluate((group) => {
+				const port = group.closest('.site-split__index')!;
+				const finder = port.querySelector('.site-finder')!;
+				const title = group.querySelector('.guide-topic-title')!;
+				port.scrollTop +=
+					group.getBoundingClientRect().bottom -
+					(finder.getBoundingClientRect().bottom + title.getBoundingClientRect().height - 20);
+			});
+			await expect
+				.poll(() =>
+					indexTitle.evaluate((title) => {
+						const finder = title.closest('.site-split__index')!.querySelector('.site-finder')!;
+						const boundary = finder.getBoundingClientRect().bottom;
+						const x = title.getBoundingClientRect().left + 30;
+						return {
+							covered: !document.elementsFromPoint(x, boundary - 4).includes(title),
+							visible: document.elementsFromPoint(x, boundary + 4).includes(title)
+						};
+					})
+				)
+				.toEqual({ covered: true, visible: true });
+			await scrollInside(index, '.guide-topic', 30);
 			await expectGlassThrough(index, indexTitle);
 			await expectReachable(index.getByRole('searchbox'));
 			await index.evaluate((port) => {

@@ -4,7 +4,6 @@
 	import Users from 'lucide-svelte/icons/users';
 	import Ear from 'lucide-svelte/icons/ear';
 	import AudioLines from 'lucide-svelte/icons/audio-lines';
-	import ArrowUpRight from 'lucide-svelte/icons/arrow-up-right';
 	import { resolve } from '$app/paths';
 	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
 	import { authorityLabels, type GuidanceAuthority } from '$lib/guidance/guidance.js';
@@ -83,13 +82,6 @@
 			>
 		</li>
 	</ul>
-
-	<div class="guide-practice">
-		<p>Already have some lyrics written down?</p>
-		<a class="button button--contrast" href={resolve('/workbench/')}
-			>Check your lyrics <ArrowUpRight size={16} aria-hidden="true" /></a
-		>
-	</div>
 
 	<details class="reference-disclosure">
 		<summary>Where does the advice come from?</summary>
@@ -170,13 +162,6 @@
 	}
 	.reference-questions a > :global(svg:first-child) {
 		grid-column: 1 / -1;
-		color: var(--color-text-muted);
-	}
-	.guide-practice {
-		margin-block: var(--space-6) var(--space-7);
-	}
-	.guide-practice p {
-		margin-bottom: var(--space-3);
 		color: var(--color-text-muted);
 	}
 	@media (max-width: 25rem) {

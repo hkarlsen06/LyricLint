@@ -1038,6 +1038,7 @@
 }
 
 .guide-topic-pin > .guide-topic-title {
+	clip-path: inset(var(--topic-clip, 0px) 0 0);
 	margin: 0;
 	margin-inline: calc(-1 * var(--split-lane-start)) calc(-1 * var(--split-lane-end));
 	padding: var(--space-2) var(--split-lane-end) var(--space-2) var(--split-lane-start);

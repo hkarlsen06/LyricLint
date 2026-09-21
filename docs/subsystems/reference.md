@@ -39,6 +39,7 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   to separate topic boundaries from entry titles while scrolling. Size and weight preserve
   that distinction independently of color.
   Topic titles stick within their group in both panes, below the finder in the middle pane.
+  Departing topic titles clip at the finder's lower edge so they cannot show through its controls.
   Once pinned, amber text shrinks to `--font-size-xl` over `--duration-slow`; reduced motion
   changes it immediately. Invisible, inaccessible text reserves the full title's natural wrap
   independently of the sticky layer, so shrinking never moves rows or prose.
