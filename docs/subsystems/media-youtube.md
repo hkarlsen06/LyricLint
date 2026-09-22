@@ -5,9 +5,14 @@ Touches: `src/lib/ui/state/media-youtube.ts`, `src/lib/ui/media/MediaVideo.svelt
 
 ## The rules
 
-- The opt-in is per session and deliberately not persisted; `loadYouTubeApi()` is the whole
-  network surface and nothing calls it at module scope; the host is `youtube-nocookie.com`.
+- The playback opt-in is per session and deliberately not persisted; `loadYouTubeApi()`
+  loads the player script only after that opt-in, never at module scope; the host is
+  `youtube-nocookie.com`.
   A remembered video comes back pending, waiting on a press.
+- When `PUBLIC_YOUTUBE_API_KEY` is set, the audio picker can search for embeddable videos
+  after a Search press. A selected result passes its title into the existing attachment path.
+  Without a key, the external YouTube search link remains. Search does not load the player
+  or grant the playback opt-in.
 - The source hides the async gap: `seekTo`'s target is reported from `time` until the player
   agrees (back-2-then-resume must not move five seconds, and there is a test with read
   latency). `getCurrentTime` polls at 250ms while playing only.
@@ -123,4 +128,3 @@ Three things that placement depends on:
 Implementation: `src/lib/ui/state/media-youtube.ts`, `MediaVideo.svelte`, and the stub in
 `media-test-youtube.ts`, which is what makes "nothing has contacted Google" an assertion rather than
 a hope. Its load count is the number of times the real loader would have injected a script tag.
-

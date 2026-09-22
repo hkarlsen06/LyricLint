@@ -230,11 +230,11 @@ export interface MediaStore {
 	attach(): Promise<boolean>;
 	attachFile(file: File, handle?: FileSystemFileHandle): Promise<void>;
 	/**
-	 * Take a pasted YouTube link, and with it the user's consent to load Google's
-	 * player. Resolves to a message when the link is not one, and to nothing when
-	 * it is.
+	 * Take a pasted YouTube link or a selected search result, and with it the
+	 * user's consent to load Google's player. A selected result can supply its
+	 * title; a pasted link starts with a provisional name.
 	 */
-	attachYouTube(url: string): Promise<string | undefined>;
+	attachYouTube(url: string, name?: string): Promise<string | undefined>;
 	/**
 	 * Take a pasted Spotify link, signing in first if this session has not.
 	 *
@@ -749,14 +749,14 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		},
 
 		/**
-		 * The press that is both the link and the consent.
+		 * The press that selects a link is also the playback consent.
 		 *
 		 * Nothing has contacted Google before this runs, and this only runs from a
 		 * control the user pressed after reading what it costs, so granting here
 		 * is the opt-in, not a record of one made elsewhere. A link that is not one
 		 * is answered with a message and grants nothing.
 		 */
-		async attachYouTube(url) {
+		async attachYouTube(url, name) {
 			const parsed = parseYouTubeVideoId(url);
 			if ('error' in parsed) return parsed.error;
 			if (busy) return stillAttaching;
@@ -765,12 +765,12 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			try {
 				youtubeAllowed = true;
 				const resumed = resumedAttachment(pendingVideoId, parsed.videoId);
-				const name = resumed.name ?? provisionalName(parsed.videoId);
-				const attaching = adoptVideo(parsed.videoId, name);
+				const label = resumed.name ?? (name?.trim() || provisionalName(parsed.videoId));
+				const attaching = adoptVideo(parsed.videoId, label);
 				try {
 					const input: MediaAttachInput = {
 						draftId: deps.draftId(),
-						name,
+						name: label,
 						source: 'youtube',
 						videoId: parsed.videoId
 					};

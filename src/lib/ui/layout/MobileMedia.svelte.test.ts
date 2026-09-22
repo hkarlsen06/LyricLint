@@ -63,6 +63,10 @@ it('keeps one visible YouTube player and transport across every phone view', asy
 			expect(youtube.players).toHaveLength(mountCount);
 			expect(source.destroyed).toBe(false);
 		}
+		await page.viewport(1054, 329);
+		const disclosure = page.getByRole('button', { name: 'Audio details' });
+		expect(disclosure.elements()).toHaveLength(0);
+		await expect.element(page.getByRole('combobox', { name: 'Playback speed' })).toBeVisible();
 	} finally {
 		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
 		await page.viewport(800, 600);

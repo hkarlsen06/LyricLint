@@ -737,7 +737,7 @@
 	display: none;
 }
 
-@media (pointer: coarse) and (max-width: 68rem) {
+@media (pointer: coarse) and (max-width: 46rem) {
 	.media-strip .media-strip__controls {
 		min-height: var(--control-height-touch);
 		flex-wrap: wrap;
@@ -806,25 +806,19 @@
 		width: 0;
 		height: var(--control-height-touch);
 	}
+}
 
+@media (pointer: coarse) {
 	.media-strip .media-strip__transport-button,
 	.media-strip .icon-button,
 	.media-strip .button,
 	.media-strip .button--quiet,
 	.media-strip .media-strip__rate select {
-		min-height: var(--control-height-touch);
 		min-width: var(--control-height-touch);
+		min-height: var(--control-height-touch);
 	}
 
 	.media-strip .media-strip__rate select {
 		font-size: var(--font-size-lg);
-	}
-}
-
-@media (pointer: coarse) {
-	.media-strip .media-strip__transport-button,
-	.media-strip .icon-button {
-		min-width: var(--control-height-touch);
-		min-height: var(--control-height-touch);
 	}
 }

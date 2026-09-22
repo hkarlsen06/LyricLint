@@ -19,7 +19,7 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
   exists, the dialog leads with its cover, title, artist, and a minus button to
   detach it. Opening the dialog from the note button also starts reconnecting a
   remembered source. Source rows have their own icons, controls, and unboxed facts.
-  The YouTube field shares the red play icon with Song. The Apple Music field
+  The YouTube field shares the red play icon with Song, linking to YouTube. The Apple Music field
   uses the official music-note icon from the supplied badge;
   catalogue attribution keeps the full badge.
 - Keys: `F7/F8/F9` and platform-modifier `J/K/L` (`Ctrl-` on macOS, `Alt-` elsewhere,
@@ -54,8 +54,8 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
   `preservesPitch` is on.
 - The player lives in the stable `.workspace-media` sibling of `.editor-region`, on `--color-chrome`. Catalogue song
   identity and attribution sit above the controls in the same surface; the control row
-  keeps compact targets on desktop and 44px transport targets on touch devices (`MediaStrip.svelte.test.ts`). On phones,
-  Audio explicitly discloses artwork and timing in the existing strip; playback and seek stay visible.
+  keeps compact targets on desktop and 44px transport targets on touch devices (`MediaStrip.svelte.test.ts`). At narrow touch widths,
+  Audio explicitly discloses artwork and timing in the existing strip; wider touch layouts show those controls directly. Playback and seek stay visible.
   With a software keyboard up, the whole phone workspace fits the visual viewport and the
   transport stays in flow; task navigation hides until the keyboard is dismissed. Wider layouts retain the `--keyboard-top` fallback (visualViewport
   only, never `window.innerHeight`). `keepFocus` preserves focus on mouse and touch presses.
@@ -720,31 +720,27 @@ A field the catalogue does not carry is **left out rather than emptied**, and a 
 them reports `undefined` rather than an empty object, so a list of these is a list of things that
 are actually known.
 
-**Going the other way (a name to a YouTube URL) is a link to a search the user runs, and the two
-lookups it is not are worth writing down so nobody tries them twice.** The Data API's
-`search.list` has a default quota of 100 calls per day, which is ~100 searches a day for
-the whole deployed build, shared by every visitor, behind a key inlined in the bundle for anyone
-to lift. Odesli (`api.song.link`) is keyless and resolves an Apple or Spotify id correctly, but it
-**returns no `youtube` entry in `linksByPlatform`** for those inputs (verified against four
-songs), and it sends no `Access-Control-Allow-Origin`, so it would need a proxy to deliver an
-answer it does not have. What is left is the search running where it is free: in the user's own
-browser, on Google's own page, with the video they pick pasted back into the field it opened
-under.
+**A configured YouTube API key turns the link field into a search or paste field.** Search
+runs only after the user's press, returns embeddable videos in the dialog, and attaches a
+selected result through the same path as a pasted URL. Search alone does not load the player
+or grant its session opt-in. The key is public in this static build, so restrict it to the
+YouTube Data API and this site's HTTP referrers. Google's default `search.list` quota is 100
+calls per day, shared by every visitor. Without a key, the URL field and external `Search
+YouTube` link remain. The external link is also available after a failed search or no matches.
+The earlier link-only decision is superseded when a key is configured.
 
-So the picker's YouTube section carries `Search YouTube` beneath its line of facts, and
-three things about it:
+The search term follows three rules:
 
 - **The name is the draft's own title first**, because it is the one a person chose, and for a
   file it is _already_ the cleaned filename, since attaching names an untitled draft after its
   source (`titleFromFilename`). The attached or pending source name is the fallback, and
   `DEFAULT_DRAFT_TITLE` is skipped rather than searched for: a placeholder is not a name.
-- **It draws only where there is something to search for**, the rule `availableRates` and
-  `spotifyAvailable` both follow. An untitled draft with nothing attached is offered no empty
-  query.
+- **It is never sent when empty.** An untitled draft with nothing attached starts with a blank
+  field rather than spending a query on the placeholder title.
 - **The `href` is built inline from a literal**, like the Spotify and Apple links in the strip,
   because `svelte/no-navigation-without-resolve` cannot see that a variable holds an external URL.
   A helper returning the whole address fails lint; `youtubeSearchTerm` returns the term instead,
-  which the control encodes.
+  which the fallback link encodes.
 
 **The bytes come through `fetch`, and the fallback is the point.** `download` on an anchor is
 ignored cross-origin and every cover lives on Apple's, Spotify's or Google's CDN, so an anchor

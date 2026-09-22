@@ -98,12 +98,15 @@
 	.media-dialog {
 		width: min(30rem, calc(100vw - var(--space-4)));
 		max-width: none;
+		max-height: 80dvh;
+		margin-block: 10dvh auto;
 		padding: 0;
 		border: 0;
 		border-radius: var(--radius-overlay);
 		background: var(--color-overlay);
 		color: var(--color-text);
 		box-shadow: var(--shadow-overlay);
+		overflow-y: auto;
 	}
 
 	.media-dialog::backdrop {

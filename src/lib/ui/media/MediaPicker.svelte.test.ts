@@ -99,6 +99,9 @@ describe('MediaPicker', () => {
 		expect(
 			body?.querySelector('form:has(input[aria-label="YouTube link"]) img')?.getAttribute('src')
 		).toBe(youtubeIcon);
+		expect(body?.querySelector('a[aria-label="Open YouTube"]')?.getAttribute('href')).toBe(
+			'https://www.youtube.com/'
+		);
 		expect(
 			body
 				?.querySelector('form:has(input[aria-label="Apple Music search"]) img')
@@ -432,6 +435,87 @@ describe('MediaPicker', () => {
 		expect(search.textContent?.trim()).toBe('Search YouTube');
 		// A new tab, because the workbench is a document being typed into.
 		expect(search.target).toBe('_blank');
+	});
+
+	it('searches inside the dialog and attaches the selected video', async () => {
+		vi.stubEnv('PUBLIC_YOUTUBE_API_KEY', 'test-key');
+		const videoTitle =
+			'A very long YouTube video title with an extraordinarilylongwordthatmustwraponaphone';
+		const request = vi
+			.fn()
+			.mockResolvedValueOnce(new Response(null, { status: 403 }))
+			.mockResolvedValueOnce(
+				Response.json({
+					items: [
+						{
+							id: { videoId: 'dQw4w9WgXcQ' },
+							snippet: { title: videoTitle, channelTitle: 'An artist' }
+						}
+					]
+				})
+			);
+		vi.stubGlobal('fetch', request);
+		try {
+			await page.viewport(320, 844);
+			const { media, youtube, openImmediately } = await setup({ draftTitle: 'A song' });
+			await openImmediately();
+			await expect.element(page.getByLabelText('YouTube search')).toBeVisible();
+			const section = dialog()?.querySelector('section:has(input[aria-label="YouTube search"])');
+			const input = section?.querySelector('input') as HTMLInputElement;
+			const search = section?.querySelector('button[type="submit"]') as HTMLButtonElement;
+			expect(input.value).toBe('A song');
+			const inputTop = input.getBoundingClientRect().top;
+			search.click();
+			await vi.waitFor(() =>
+				expect(liveText()).toContain('YouTube search is unavailable right now.')
+			);
+			expect(section?.querySelector('a[href*="results?search_query"]')?.textContent?.trim()).toBe(
+				'Search YouTube'
+			);
+			expect(youtube.loads).toBe(0);
+
+			search.click();
+			await vi.waitFor(() => expect(liveText()).toContain('1 match on YouTube.'));
+			expect(input.getBoundingClientRect().top).toBe(inputTop);
+			const result = section?.querySelector('.media-dialog__result') as HTMLButtonElement;
+			expect(result.textContent).toContain('An artist');
+			for (const width of [320, 1280]) {
+				await page.viewport(width, 844);
+				expect(result.getBoundingClientRect().right).toBeLessThanOrEqual(
+					dialog()!.getBoundingClientRect().right
+				);
+				const title = result.querySelector('.media-dialog__result-main') as HTMLElement;
+				expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth);
+			}
+			result.click();
+			await vi.waitFor(() => expect(dialog()?.open).toBe(false));
+			expect(media.player.name).toBe(videoTitle);
+			expect(youtube.loads).toBe(1);
+			expect(request).toHaveBeenCalledTimes(2);
+		} finally {
+			vi.unstubAllGlobals();
+			vi.unstubAllEnvs();
+		}
+	});
+
+	it('uses a pasted YouTube link without searching when a key is configured', async () => {
+		vi.stubEnv('PUBLIC_YOUTUBE_API_KEY', 'test-key');
+		const request = vi.fn();
+		vi.stubGlobal('fetch', request);
+		try {
+			const { media, openImmediately } = await setup();
+			await openImmediately();
+			await expect.element(page.getByLabelText('YouTube search')).toBeVisible();
+			await page.getByLabelText('YouTube search').fill('https://youtu.be/dQw4w9WgXcQ');
+			const section = dialog()?.querySelector('section:has(input[aria-label="YouTube search"])');
+			(section?.querySelector('button[type="submit"]') as HTMLButtonElement).click();
+			await vi.waitFor(() => expect(dialog()?.open).toBe(false));
+			expect(media.videoId).toBe('dQw4w9WgXcQ');
+			expect(request).not.toHaveBeenCalled();
+		} finally {
+			vi.unstubAllGlobals();
+			vi.unstubAllEnvs();
+		}
 	});
 
 	it('says nothing where the draft has no name and nothing is attached', async () => {

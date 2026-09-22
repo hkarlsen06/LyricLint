@@ -16,6 +16,8 @@ interface ImportMetaEnv {
 	 * See `appleMusicConfigured` in `media-apple.ts`.
 	 */
 	readonly PUBLIC_APPLE_MUSIC_TOKEN?: string;
+	/** Website-restricted YouTube Data API key for in-dialog video search. */
+	readonly PUBLIC_YOUTUBE_API_KEY?: string;
 	/**
 	 * What a development tab calls itself, in place of the draft's own name.
 	 *

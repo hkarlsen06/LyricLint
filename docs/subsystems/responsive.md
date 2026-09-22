@@ -41,8 +41,9 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   the Assistant composer. Language search repeats the font floor in its component, where
   Svelte's scoped descendant selector otherwise outranks the shared rule.
 - The media strip and visible YouTube frame have stable workspace lifetimes outside the
-  editor and tool regions. Switching views never remounts playback. Audio discloses artwork
-  and secondary timing controls in its own surface; active sync keeps its controls visible.
+  editor and tool regions. Switching views never remounts playback. At narrow touch widths,
+  Audio discloses artwork and secondary timing controls in its own surface; wider touch layouts
+  show those controls directly. Active sync keeps its controls visible.
   `MediaStrip.svelte.test.ts` pins disclosure, target bounds, and playback focus behavior.
 - The mobile workspace always fits the visual viewport's height and offset, including
   rotation with an already-open keyboard. Pinch zoom keeps the pre-zoom layout. Transport remains in flow. Write/Review/Tools hides while the keyboard is open and

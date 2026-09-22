@@ -113,6 +113,7 @@ jobs:
           RELEASE_REVISION: ${{ github.sha }}
           PRODUCTION_BUILD: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           PUBLIC_APPLE_MUSIC_TOKEN: ${{ github.event_name == 'push' && vars.PUBLIC_APPLE_MUSIC_TOKEN || '' }}
+          PUBLIC_YOUTUBE_API_KEY: ${{ github.event_name == 'push' && vars.PUBLIC_YOUTUBE_API_KEY || '' }}
           PUBLIC_ASSISTANT_ANSWERS_URL: ${{ github.event_name == 'push' && vars.PUBLIC_ASSISTANT_ANSWERS_URL || '' }}
           PUBLIC_TURNSTILE_SITE_KEY: ${{ github.event_name == 'push' && vars.PUBLIC_TURNSTILE_SITE_KEY || '' }}
         run: |

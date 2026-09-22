@@ -230,9 +230,17 @@ export default defineConfig(({ mode }) => ({
 	// browser test environment does not have.
 	envPrefix: ['VITE_', 'PUBLIC_'],
 	// These dependencies first appear in lazy surfaces. Pre-bundle them so opening
-	// search or the drafts menu cannot invalidate a live editor or browser test's
+	// search, the drafts menu or the audio picker cannot invalidate a live editor or browser test's
 	// Svelte runtime. See docs/ci.md.
-	optimizeDeps: { include: ['@codemirror/search', 'phosphor-svelte/lib/DownloadIcon'] },
+	optimizeDeps: {
+		include: [
+			'@codemirror/search',
+			'phosphor-svelte/lib/DownloadIcon',
+			'phosphor-svelte/lib/FileAudioIcon',
+			'phosphor-svelte/lib/MusicNotesMinusIcon',
+			'phosphor-svelte/lib/PencilIcon'
+		]
+	},
 	plugins: [
 		migrationRedirects(),
 		editorPreloadPlugin(),
@@ -368,6 +376,8 @@ export default defineConfig(({ mode }) => ({
 						'https://cloudflareinsights.com',
 						// The rules assistant, a streaming NDJSON POST, not EventSource.
 						'https://api.lyriclint.com',
+						// YouTube Data API search, only after a press in the audio picker.
+						'https://www.googleapis.com',
 						// Spotify: the PKCE token exchange, then the Web API. The
 						// wildcards are the Web Playback SDK's own traffic once it
 						// connects: a websocket to `dealer.spotify.com` and calls to
@@ -484,6 +494,7 @@ export default defineConfig(({ mode }) => ({
 			// whole suite and every Apple Music assertion would pass by not drawing.
 			PUBLIC_APPLE_MUSIC_TOKEN:
 				'eyJhbGciOiJFUzI1NiIsImtpZCI6IlRFU1RLRVlJRCJ9.eyJpc3MiOiJURVNUVEVBTUlEIiwiaWF0IjowLCJleHAiOjQxMDI0NDQ4MDB9.testsignature',
+			PUBLIC_YOUTUBE_API_KEY: '',
 			// Empty for the same reason, and it matters more here: the suite runs as a
 			// development build, so a developer's own dev-tab label would otherwise
 			// rename every tab `DocumentTitle` asserts on. The test that covers the

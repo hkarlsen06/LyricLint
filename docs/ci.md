@@ -17,7 +17,7 @@ command still builds automatically. `PORT` remains the explicit opt-in for an
 externally managed server.
 
 On production pushes, the build receives these GitHub Actions repository
-variables, copied from the Pages production build configuration:
+variables:
 
 - `PUBLIC_APPLE_MUSIC_TOKEN`
 - `PUBLIC_ASSISTANT_ANSWERS_URL`
@@ -25,6 +25,8 @@ variables, copied from the Pages production build configuration:
 
 They are public browser configuration, not private credentials. A missing value
 fails the production build before it can silently remove a configured feature.
+The optional `PUBLIC_YOUTUBE_API_KEY` variable enables YouTube search inside the
+audio picker when set.
 Spotify stays unconfigured in production. PR validation builds do not inherit
 production values, and Cloudflare's existing PR preview behavior is unchanged.
 
@@ -207,7 +209,7 @@ when Vite's initial scan misses them. Opening the lazy drafts menu once discover
 its icon dependency during CI and triggered dependency re-optimization.
 Already mounted components retained the old Svelte runtime while lazy components
 loaded the new one, causing `effect_orphan`, failed imports, and iframe timeouts.
-Pre-bundling the lazy `phosphor-svelte/lib/DownloadIcon` alongside CodeMirror
+Pre-bundling the lazy drafts-menu and audio-picker icon subpaths alongside CodeMirror
 search prevents the mid-test reload; the browser tests retain their existing
 behavioral assertions.
 

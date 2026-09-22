@@ -195,18 +195,8 @@ function youtubeThumbnailUrl(videoId: string): string {
 }
 
 /**
- * YouTube's own search, prefilled with whatever the workbench knows the song by.
- *
- * The one honest answer to "find the video for this song", and the reason it is
- * a link rather than a lookup is worth writing down so nobody tries the other
- * two again. The Data API's `search.list` has a default quota of a hundred
- * calls a day for the whole deployed build,
- * shared by every visitor, behind a key inlined in the bundle for anyone to
- * lift. Odesli resolves an Apple or Spotify id keylessly and correctly, and
- * returns no `youtube` entry at all for those inputs. So the search runs where
- * it is free and nobody's quota pays for it: in the user's own browser, on
- * Google's own page, one press away, with the result they pick pasted back into
- * the field above it.
+ * Prefill either the in-dialog search or its external fallback with the song's
+ * known name.
  *
  * The extension goes for the same reason it goes from a draft title: it is a
  * fact about a file on a disk, and `sensommer.mp3` is a worse query than

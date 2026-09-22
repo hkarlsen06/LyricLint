@@ -8,7 +8,12 @@
 	import type { SpotifySearchResult } from '../state/media-spotify.js';
 	import type { AppleMusicSearchResult } from '../state/media-apple.js';
 	import { formatTime } from '../state/media-player.svelte.js';
-	import { youtubeSearchTerm } from '../state/media-youtube.js';
+	import { parseYouTubeVideoId, youtubeSearchTerm } from '../state/media-youtube.js';
+	import {
+		searchYouTubeVideos,
+		youtubeSearchConfigured,
+		type YouTubeSearchResult
+	} from '../state/media-youtube-search.js';
 	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 	import LoadingMark from '../primitives/LoadingMark.svelte';
 
@@ -45,12 +50,25 @@
 		return named === undefined ? undefined : youtubeSearchTerm(named);
 	});
 
+	const youtubeSearchAvailable = youtubeSearchConfigured();
 	let urlInput = $state<HTMLInputElement>();
-	let url = $state(untrack(() => (media.videoId ? `https://youtu.be/${media.videoId}` : '')));
+	let url = $state(
+		untrack(() =>
+			media.videoId
+				? `https://youtu.be/${media.videoId}`
+				: youtubeSearchAvailable
+					? (searchName ?? '')
+					: ''
+		)
+	);
+	const fallbackSearchTerm = $derived(youtubeSearchAvailable ? youtubeSearchTerm(url) : searchName);
 	// One message per answer rather than one for the dialog: a refusal belongs
 	// under the field that caused it, and a shared slot would print a Spotify
 	// error under a YouTube link the user is still looking at.
 	let error = $state<string | undefined>(undefined);
+	let youtubeResults = $state<YouTubeSearchResult[]>([]);
+	let youtubeSearched = $state(false);
+	let youtubeSearching = $state(false);
 	let trackError = $state<string | undefined>(undefined);
 	let results = $state<SpotifySearchResult[]>([]);
 	let searched = $state(false);
@@ -105,7 +123,40 @@
 	}
 
 	async function useVideo(): Promise<void> {
-		error = await media.attachYouTube(url);
+		const input = url.trim();
+		const parsed = parseYouTubeVideoId(input);
+		if (
+			!youtubeSearchAvailable ||
+			'videoId' in parsed ||
+			/^(?:[a-z][a-z\d+.-]*:\/\/|www\.|youtube\.com|youtu\.be)/i.test(input)
+		) {
+			error = await media.attachYouTube(input);
+			if (error === undefined) close();
+			return;
+		}
+		error = undefined;
+		youtubeResults = [];
+		youtubeSearched = false;
+		youtubeSearching = true;
+		try {
+			const outcome = await searchYouTubeVideos(input);
+			if ('error' in outcome) error = outcome.error;
+			else {
+				youtubeResults = outcome.results;
+				youtubeSearched = true;
+			}
+		} finally {
+			youtubeSearching = false;
+		}
+	}
+
+	async function useVideoResult(video: YouTubeSearchResult): Promise<void> {
+		attachingId = video.videoId;
+		try {
+			error = await media.attachYouTube(`https://youtu.be/${video.videoId}`, video.title);
+		} finally {
+			attachingId = undefined;
+		}
 		if (error === undefined) close();
 	}
 
@@ -246,45 +297,87 @@
 				void useVideo();
 			}}
 		>
-			<img class="media-dialog__source-icon" src={youtubeIcon} alt="" />
+			<a
+				class="media-dialog__source-link"
+				href="https://www.youtube.com/"
+				target="_blank"
+				rel="noopener noreferrer"
+				aria-label="Open YouTube"
+			>
+				<img class="media-dialog__source-icon" src={youtubeIcon} alt="" />
+			</a>
 			<input
 				bind:this={urlInput}
 				bind:value={url}
-				type="url"
-				placeholder="youtube.com/watch?v=…"
-				aria-label="YouTube link"
+				type={youtubeSearchAvailable ? 'search' : 'url'}
+				placeholder={youtubeSearchAvailable
+					? 'Search YouTube, or paste a link'
+					: 'youtube.com/watch?v=…'}
+				aria-label={youtubeSearchAvailable ? 'YouTube search' : 'YouTube link'}
 				autocomplete="off"
 				spellcheck="false"
 			/>
-			<button type="submit" class="button" disabled={media.busy || url.trim() === ''}>
-				Use video
+			<button
+				type="submit"
+				class={youtubeSearchAvailable ? 'button media-dialog__search' : 'button'}
+				disabled={media.busy || youtubeSearching || url.trim() === ''}
+				aria-busy={youtubeSearching}
+			>
+				{#if youtubeSearching}<LoadingMark />{/if}
+				{youtubeSearchAvailable ? 'Search' : 'Use video'}
 			</button>
 		</form>
 		<!-- The trade, stated before the press that spends it, as facts rather
 				     than as prose or a tinted warning box. -->
 		<p class="media-dialog__meta">
-			Google can theoretically see what you play · Needs internet · Asked once a session
+			{youtubeSearchAvailable
+				? 'Search contacts Google · Playback needs internet · Asked once a session'
+				: 'Google can theoretically see what you play · Needs internet · Asked once a session'}
 		</p>
-		<!--
-					The way in for somebody who has the song but not its link, which is
-					most people opening this section: the search runs on Google's own
-					page, prefilled with what this draft is already called, and the result
-					they pick comes back to the field above as a paste.
-
-					It is a link and not a lookup because neither lookup exists. Resolving
-					a name to a video needs the Data API, whose quota is a hundred
-					searches a day for the whole build behind a key inlined in the bundle;
-					and Odesli, the keyless alternative, returns no YouTube link for an
-					Apple or Spotify id at all. A search the user runs themselves costs
-					nobody a quota and asks this application to guess at nothing.
-
-					It draws only where there is something to search for, so an untitled
-					draft with nothing attached is offered no empty query.
-				-->
-		{#if searchName}
+		{#if youtubeResults.length > 0}
+			<ul class="media-dialog__results">
+				{#each youtubeResults as video (video.videoId)}
+					<li>
+						<button
+							type="button"
+							class="media-dialog__result"
+							disabled={media.busy}
+							aria-busy={attachingId === video.videoId}
+							onclick={() => void useVideoResult(video)}
+						>
+							<span class="media-dialog__result-main">
+								<span class="media-dialog__result-name">{video.title}</span>
+								{#if video.channel}
+									<span class="media-dialog__result-channel">{video.channel}</span>
+								{/if}
+							</span>
+							<span class="media-dialog__result-time">
+								{#if attachingId === video.videoId}<LoadingMark />{/if}
+							</span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+		<div aria-live="polite">
+			{#if error}
+				<p class="media-dialog__error">{error}</p>
+			{:else if youtubeResults.length > 0}
+				<p class="sr-only">
+					{youtubeResults.length === 1
+						? '1 match on YouTube.'
+						: `${youtubeResults.length} matches on YouTube.`}
+				</p>
+			{:else if youtubeSearched}
+				<p class="media-dialog__meta">No matches on YouTube.</p>
+			{/if}
+		</div>
+		<!-- Without a configured key, or after a failed lookup, search on YouTube
+				 remains available without spending this build's API quota. -->
+		{#if fallbackSearchTerm && (!youtubeSearchAvailable || error || (youtubeSearched && youtubeResults.length === 0))}
 			<p class="media-dialog__meta">
 				No link? <a
-					href={`https://www.youtube.com/results?search_query=${encodeURIComponent(searchName)}`}
+					href={`https://www.youtube.com/results?search_query=${encodeURIComponent(fallbackSearchTerm)}`}
 					target="_blank"
 					rel="noopener noreferrer"
 				>
@@ -292,11 +385,6 @@
 				</a>
 			</p>
 		{/if}
-		<div aria-live="polite">
-			{#if error}
-				<p class="media-dialog__error">{error}</p>
-			{/if}
-		</div>
 	</section>
 
 	{#if media.appleMusicAvailable}
@@ -563,6 +651,15 @@
 		color: var(--color-text-muted);
 	}
 
+	.media-dialog__source-link {
+		display: inline-flex;
+		flex: none;
+		width: var(--control-height-md);
+		height: var(--control-height-md);
+		align-items: center;
+		justify-content: center;
+	}
+
 	.media-dialog__meta {
 		margin: var(--space-2) 0 0 0;
 		color: var(--color-text-muted);
@@ -627,6 +724,18 @@
 	.media-dialog__result-name {
 		min-width: 0;
 		font-size: var(--font-size-sm);
+	}
+
+	.media-dialog__result-main {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		overflow-wrap: anywhere;
+	}
+
+	.media-dialog__result-channel {
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
 	}
 
 	/*
