@@ -285,6 +285,26 @@ describe('workspace entrance', () => {
 		expect(running()).toHaveLength(0);
 	});
 
+	test('holds the reveal under the navigation cover until its explosion starts', async () => {
+		fixture();
+		const cover = document.createElement('div');
+		cover.className = 'boot-screen';
+		document.body.append(cover);
+		try {
+			begin();
+			await new Promise(requestAnimationFrame);
+			const line = root.querySelector<HTMLElement>('.cm-line')!;
+			expect(getComputedStyle(line).opacity).toBe('0');
+			expect(running()).toHaveLength(0);
+			cover.dataset.blasting = '';
+			window.dispatchEvent(new Event('lyriclint:boot-blast'));
+			await waitFor(() => expect(line.getAnimations()).toHaveLength(1));
+			expect(root.dataset.workspaceEntrance ?? '').not.toContain('lyrics');
+		} finally {
+			cover.remove();
+		}
+	});
+
 	test('reveals ready lyrics while initial diagnostics are still loading', async () => {
 		await page.viewport(1440, 900);
 		const rules = Promise.withResolvers<typeof import('$lib/rules/engine.js')>();

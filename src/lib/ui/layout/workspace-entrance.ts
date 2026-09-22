@@ -1,5 +1,6 @@
 import type { Attachment } from 'svelte/attachments';
 import { prefersReducedMotion } from '$lib/interaction/motion.js';
+import { bootBlastEvent } from './workbench-navigation.js';
 
 function millisecondsFromCssTime(value: string): number {
 	const time = value.trim();
@@ -56,6 +57,7 @@ export const workspaceEntrance: Attachment<HTMLElement> = (root) => {
 		observer.disconnect();
 		for (const animation of animations) animation.cancel();
 		for (const event of events) window.removeEventListener(event, retire, true);
+		window.removeEventListener(bootBlastEvent, schedule);
 		preference.removeEventListener('change', retire);
 		document.removeEventListener('visibilitychange', retire);
 	}
@@ -119,6 +121,9 @@ export const workspaceEntrance: Attachment<HTMLElement> = (root) => {
 	function scan(): void {
 		frame = 0;
 		if (retired || root.dataset.entrancePending === 'true') return;
+		// The navigation cover is opaque until its explosion starts, so rows revealed
+		// under it are never seen. Hold the mask and reveal as the mask opens.
+		if (document.querySelector('.boot-screen:not([data-blasting])')) return;
 		// The budget is for the flourish, not for downloading/constructing the
 		// recovered workspace. A cold load must not spend it before rows exist.
 		timeout ??= setTimeout(retire, 2000);
@@ -158,6 +163,7 @@ export const workspaceEntrance: Attachment<HTMLElement> = (root) => {
 
 	for (const event of events)
 		window.addEventListener(event, retire, { capture: true, passive: true });
+	window.addEventListener(bootBlastEvent, schedule);
 	preference.addEventListener('change', retire);
 	document.addEventListener('visibilitychange', retire);
 	observer.observe(root, {

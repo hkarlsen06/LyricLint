@@ -43,9 +43,14 @@ describe('BootScreen', () => {
 		expect(path.getAttribute('d')).not.toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
 		expect(ondone).not.toHaveBeenCalled();
 
+		const blast = vi.fn();
+		window.addEventListener('lyriclint:boot-blast', blast, { once: true });
 		await view.rerender({ ready: true });
 		expect(screen().hasAttribute('data-leaving')).toBe(true);
+		expect(screen().hasAttribute('data-blasting')).toBe(false);
 		expect(path.getAttribute('d')).toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
+		await waitFor(() => expect(screen().hasAttribute('data-blasting')).toBe(true));
+		expect(blast).toHaveBeenCalledTimes(1);
 		await waitFor(() => expect(ondone).toHaveBeenCalledTimes(1));
 		expect(Number(getComputedStyle(screen()).getPropertyValue('--boot-shock'))).toBe(1);
 

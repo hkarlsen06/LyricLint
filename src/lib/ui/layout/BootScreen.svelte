@@ -4,8 +4,13 @@
 	import AppWordmark from './AppWordmark.svelte';
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import { runWave } from '../primitives/wave-loop.js';
+	import { bootBlastEvent } from './workbench-navigation.js';
 	import { untrack } from 'svelte';
-	let { ready = false, ondone = () => {} }: { ready?: boolean; ondone?: () => void } = $props();
+	let {
+		ready = false,
+		start = true,
+		ondone = () => {}
+	}: { ready?: boolean; start?: boolean; ondone?: () => void } = $props();
 	const PULL_MS = 380;
 	const RELEASE_MS = 420;
 	const LANDING_GRACE_MS = 250;
@@ -14,10 +19,15 @@
 	const CLOSE_MS = 260;
 	const FALL_EXIT_MS = RELEASE_MS + 60;
 	const reducedMotion = prefersReducedMotion();
-	let stage = $state<'pull' | 'land'>('pull');
+	// The pull animates a registered property on the main thread, so it drops
+	// frames under the root view transition that brings this cover in. The
+	// wordmark holds open until the splash reports that crossfade finished.
+	// svelte-ignore state_referenced_locally
+	let stage = $state<'hold' | 'pull' | 'land'>(start ? 'pull' : 'hold');
 	let landed = $state(false);
 	let shut = $state(false);
 	let sparked = $state(false);
+	let blasting = $state(false);
 	const exiting = $derived(ready && (sparked ? landed : stage === 'land'));
 	const exitMs = $derived(sparked ? CLOSE_MS : FALL_EXIT_MS);
 	const blastAtMs = $derived(sparked ? 0 : BLAST_AT_MS);
@@ -26,6 +36,10 @@
 		if (reducedMotion) {
 			stage = 'land';
 			landed = true;
+			return;
+		}
+		if (stage === 'hold') {
+			if (start) stage = 'pull';
 			return;
 		}
 		const pulling = stage === 'pull';
@@ -61,14 +75,22 @@
 			completed = true;
 			ondone();
 		};
+		const onBlastStart = (event: AnimationEvent) => {
+			if (!event.animationName.endsWith('boot-shockwave')) return;
+			// The workspace entrance waits for this: a reveal under the cover is unseen.
+			blasting = true;
+			window.dispatchEvent(new Event(bootBlastEvent));
+		};
 		const onBlastEnd = (event: AnimationEvent) => {
 			if (event.animationName.endsWith('boot-shockwave')) complete();
 		};
+		root?.addEventListener('animationstart', onBlastStart);
 		root?.addEventListener('animationend', onBlastEnd);
 		// Prefer the actual last frame. The timer only covers missing animationend.
 		const timer = setTimeout(complete, reducedMotion ? 0 : doneMs + LANDING_GRACE_MS);
 		return () => {
 			clearTimeout(timer);
+			root?.removeEventListener('animationstart', onBlastStart);
 			root?.removeEventListener('animationend', onBlastEnd);
 		};
 	});
@@ -82,6 +104,7 @@
 	data-wait={sparked || reducedMotion ? '' : undefined}
 	data-shut={shut ? '' : undefined}
 	data-leaving={exiting ? '' : undefined}
+	data-blasting={blasting ? '' : undefined}
 	style="--boot-pull: {PULL_MS}ms; --boot-release: {RELEASE_MS}ms; --boot-blast: {BLAST_MS}ms; --boot-blast-at: {blastAtMs}ms; --boot-exit: {exitMs}ms; --boot-close: {CLOSE_MS}ms"
 >
 	<AppWordmark animated={false} />

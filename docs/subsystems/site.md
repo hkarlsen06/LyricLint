@@ -43,8 +43,12 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
   use the CSS sequence without snapshots; reduced motion skips transitions, the minimum hold,
   and the explosion while keeping the mark and waveform static. Direct visits and reloads do
   not show it. `BootScreen.svelte` restores the sequence removed in `456a34c8` without its
-  reading delay: an immediate 380ms pull to 1.22, 420ms collapse, and a 420ms radial reveal
-  at the bracket collision.
+  reading delay: a 380ms pull to 1.22, 420ms collapse, and a 420ms radial reveal at the
+  bracket collision. The pull animates a registered custom property on the main thread, so
+  it starts only after the entry view transition has finished (`start` on `BootScreen`);
+  under the crossfade it dropped every other frame. Until then the wordmark holds open.
+  The shockwave's first frame sets `data-blasting` and dispatches `bootBlastEvent`; the
+  workspace's row entrance (`shell.md`) waits for it so the lyrics reveal as the mask opens.
   A slower destination uses the shared waiting wave after the collapse, then explodes on readiness.
 - The landing page is a composition read once: claim and proof in one screen, `--lp-display`
   is its own marketing ramp, section headings stand alone (no eyebrows), runs of facts are

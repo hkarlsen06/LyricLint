@@ -165,7 +165,10 @@ removed: they skipped later paragraphs on tall screens or counted offscreen over
 a restored scroll position, making those paragraphs visible before the fade reached them.
 
 `data-workspace-entrance` masks rows before their first paint to prevent a visible-then-hidden
-flash. Each mask is removed as its group starts. A two-second limit from attachment reveals
+flash. Each mask is removed as its group starts. While the navigation cover (`.boot-screen`,
+`site.md`) is on screen the scan also waits for its explosion: the cover marks itself
+`data-blasting` and dispatches `bootBlastEvent` (`workbench-navigation.ts`) the frame the
+shockwave starts, so the rows fade in as the mask opens instead of underneath it. A two-second limit from attachment reveals
 all content and abandons the effect if startup is slow. A separate two-second cleanup limit
 starts after editor readiness (`data-entrance-pending`). Readiness follows CodeMirror's first
 settled viewport measurement, so the scan includes rows absent from its estimated initial DOM.
