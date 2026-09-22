@@ -1,5 +1,5 @@
 <script lang="ts">
-	import FileText from 'lucide-svelte/icons/file-text';
+	import FileTextIcon from 'phosphor-svelte/lib/FileTextIcon';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import type { AssistantToolCallRecord } from '$lib/persistence/types.js';
 
@@ -39,7 +39,7 @@
 
 {#snippet receipt(text: string)}
 	<p class="assistant-tool-turn__receipt">
-		<FileText aria-hidden="true" size={12} strokeWidth={2.2} />
+		<FileTextIcon aria-hidden="true" size={12} weight="bold" />
 		<span>{text}</span>
 	</p>
 {/snippet}

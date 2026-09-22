@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Copy from 'lucide-svelte/icons/copy';
-	import Download from 'lucide-svelte/icons/download';
-	import Pencil from 'lucide-svelte/icons/pencil';
+	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
+	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
+	import PencilIcon from 'phosphor-svelte/lib/PencilIcon';
 	import type { DraftSummary } from '$lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';
@@ -178,7 +178,7 @@
 								title="Rename"
 								onclick={() => beginRename(draft.id, draft.title)}
 							>
-								<Pencil aria-hidden="true" size={14} strokeWidth={2.25} />
+								<PencilIcon aria-hidden="true" size={14} weight="bold" />
 							</button>
 							<button
 								type="button"
@@ -187,7 +187,7 @@
 								title="Duplicate"
 								onclick={() => controller.duplicateDraft(draft.id)}
 							>
-								<Copy aria-hidden="true" size={14} strokeWidth={2.25} />
+								<CopyIcon aria-hidden="true" size={14} weight="bold" />
 							</button>
 							<button
 								type="button"
@@ -196,7 +196,7 @@
 								title="Export Scribe (.lls)"
 								onclick={() => controller.exportScribe(draft.id)}
 							>
-								<Download aria-hidden="true" size={14} strokeWidth={2.25} />
+								<DownloadIcon aria-hidden="true" size={14} weight="bold" />
 							</button>
 						{/if}
 						<RemoveButton

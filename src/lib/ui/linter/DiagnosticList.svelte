@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { Diagnostic, SourceReference, TextRange } from '$lib/core/types.js';
 	import { tick, type Snippet } from 'svelte';
-	import BookOpen from 'lucide-svelte/icons/book-open';
-	import CheckCheck from 'lucide-svelte/icons/check-check';
+	import BookOpenIcon from 'phosphor-svelte/lib/BookOpenIcon';
+	import ChecksIcon from 'phosphor-svelte/lib/ChecksIcon';
 	import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
 	import { describeControl } from '$lib/ui/state/control-tooltip.svelte.js';
 	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
@@ -265,9 +265,9 @@
 		class:diagnostic-list__empty--waiting={emptyState.waiting}
 	>
 		{#if emptyState.waiting}
-			<BookOpen class="diagnostic-list__empty-mark" aria-hidden="true" strokeWidth={1.25} />
+			<BookOpenIcon class="diagnostic-list__empty-mark" aria-hidden="true" />
 		{:else if emptyState.settled}
-			<CheckCheck class="diagnostic-list__empty-mark" aria-hidden="true" strokeWidth={1.25} />
+			<ChecksIcon class="diagnostic-list__empty-mark" aria-hidden="true" />
 		{:else if emptyState.clean}
 			<!-- The check the severity glyphs already use, at reading size and in the
 			     success color. `aria-hidden` because the title beside it is the whole

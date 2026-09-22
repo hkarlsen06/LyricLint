@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Pause from 'lucide-svelte/icons/pause';
-	import Play from 'lucide-svelte/icons/play';
-	import SkipBack from 'lucide-svelte/icons/skip-back';
-	import SkipForward from 'lucide-svelte/icons/skip-forward';
+	import PauseIcon from 'phosphor-svelte/lib/PauseIcon';
+	import PlayIcon from 'phosphor-svelte/lib/PlayIcon';
+	import SkipBackIcon from 'phosphor-svelte/lib/SkipBackIcon';
+	import SkipForwardIcon from 'phosphor-svelte/lib/SkipForwardIcon';
 	import type { MediaPlayer } from '../state/media-player.svelte.js';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import { transportModifier } from '../state/media-shortcuts.js';
@@ -63,7 +63,7 @@
 	aria-keyshortcuts={`Shift+Escape F7 ${fallbackModifier}+J Control+Alt+J`}
 	{@attach describeControl(() => ({ label: backLabel, shortcut: shiftEscape }))}
 >
-	<SkipBack aria-hidden="true" size={14} strokeWidth={2.4} />
+	<SkipBackIcon aria-hidden="true" size={14} weight="bold" />
 </button>
 
 <button
@@ -90,9 +90,9 @@
 		<LoadingMark />
 	{:else}
 		{#if player.playing}
-			<Pause aria-hidden="true" size={14} strokeWidth={2.4} fill="currentColor" />
+			<PauseIcon aria-hidden="true" size={14} weight="fill" />
 		{:else}
-			<Play aria-hidden="true" size={14} strokeWidth={2.4} fill="currentColor" />
+			<PlayIcon aria-hidden="true" size={14} weight="fill" />
 		{/if}
 	{/if}
 </button>
@@ -105,5 +105,5 @@
 	aria-keyshortcuts={`Alt+Escape F9 ${fallbackModifier}+L Control+Alt+L`}
 	{@attach describeControl(() => ({ label: forwardLabel, shortcut: altEscape }))}
 >
-	<SkipForward aria-hidden="true" size={14} strokeWidth={2.4} />
+	<SkipForwardIcon aria-hidden="true" size={14} weight="bold" />
 </button>

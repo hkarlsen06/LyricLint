@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ChevronDown from 'lucide-svelte/icons/chevron-down';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import type { Diagnostic, SourceReference } from '$lib/core/types.js';
 	import SeverityTag from './SeverityTag.svelte';
 	import SourceCitation from './SourceCitation.svelte';
@@ -121,11 +121,11 @@
 				     `aria-expanded` are what carry the open state, so the control does
 				     not rewrite itself under the pointer that just pressed it. -->
 				Sources
-				<ChevronDown
+				<CaretDownIcon
 					class="diagnostic-meta__chevron"
 					aria-hidden="true"
 					size={11}
-					strokeWidth={2.4}
+					weight="bold"
 				/>
 			</button>
 		{:else}

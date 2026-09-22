@@ -65,8 +65,8 @@
 		"dexie": "^4.4.6",
 		"harper.js": "2.7.0",
 		"languagedetect": "2.0.0",
-		"lucide-svelte": "^1.0.1",
-		"motion": "^13.4.0"
+		"motion": "^13.4.0",
+		"phosphor-svelte": "^3.1.0"
 	},
 	"overrides": {
 		"@codemirror/state": "6.7.4",

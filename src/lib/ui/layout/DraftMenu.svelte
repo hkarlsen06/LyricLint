@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ChevronDown from 'lucide-svelte/icons/chevron-down';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import LazyContent from '$lib/interaction/LazyContent.svelte';
@@ -60,7 +60,7 @@
 		onclick={() => (initialized = true)}
 		bind:this={menuTrigger}
 	>
-		<ChevronDown class="draft-menu__chevron" aria-hidden="true" size={13} strokeWidth={2.25} />
+		<CaretDownIcon class="draft-menu__chevron" aria-hidden="true" size={13} weight="bold" />
 	</summary>
 	{#if initialized}
 		<div class="draft-menu__popover">

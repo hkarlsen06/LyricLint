@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
-	import Info from 'lucide-svelte/icons/info';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
+	import InfoIcon from 'phosphor-svelte/lib/InfoIcon';
 	import { resolve } from '$app/paths';
 	import { Switch } from 'bits-ui';
 	import { onMount } from 'svelte';
@@ -103,7 +103,7 @@
 						<h2 id="backup-heading">Workspace backup</h2>
 						<span>Save or import your workspace</span>
 					</div>
-					<ChevronRight class="preferences-panel__chevron" aria-hidden="true" />
+					<CaretRightIcon class="preferences-panel__chevron" aria-hidden="true" weight="bold" />
 				</summary>
 				<div class="preferences-panel__detail">
 					<p>Save every 'scribe and its settings to a file. Assistant chats are excluded.</p>
@@ -177,7 +177,7 @@
 					<h2 id="local-data-heading">Local data</h2>
 					<span>Browser storage and reset</span>
 				</div>
-				<ChevronRight class="preferences-panel__chevron" aria-hidden="true" />
+				<CaretRightIcon class="preferences-panel__chevron" aria-hidden="true" weight="bold" />
 			</summary>
 			<div class="preferences-panel__detail">
 				<div class="preferences-panel__storage">
@@ -249,7 +249,7 @@
 					<h2>Reviewed rules</h2>
 					<span>Version and sources</span>
 				</div>
-				<ChevronRight class="preferences-panel__chevron" aria-hidden="true" />
+				<CaretRightIcon class="preferences-panel__chevron" aria-hidden="true" weight="bold" />
 			</summary>
 			<div class="preferences-panel__detail">
 				{#if controller.ruleSet}
@@ -285,7 +285,7 @@
 
 	<footer class="panel-foot">
 		<a class="about-link" href={resolve('/')}
-			><Info size={14} aria-hidden="true" />About LyricLint</a
+			><InfoIcon size={14} aria-hidden="true" weight="bold" />About LyricLint</a
 		>
 	</footer>
 </div>

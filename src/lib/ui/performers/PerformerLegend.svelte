@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import { SvelteMap } from 'svelte/reactivity';
 	import type { ParsedDocument, PerformerRecord, StyleSlot, VoiceGroup } from '$lib/core/types.js';
 
@@ -58,7 +58,7 @@
 	<details class="performer-legend">
 		<summary class="performer-legend__summary">
 			<h2>Performers by section</h2>
-			<ChevronRight class="performer-legend__chevron" aria-hidden="true" />
+			<CaretRightIcon class="performer-legend__chevron" aria-hidden="true" weight="bold" />
 		</summary>
 		<ul class="performer-legend__groups">
 			{#each arrangements as arrangement (arrangement.key)}

@@ -1,9 +1,9 @@
 <script lang="ts">
 	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to resolve-derived paths; the lint rule cannot inspect nested calls. */
-	import ListMusic from 'lucide-svelte/icons/list-music';
-	import Users from 'lucide-svelte/icons/users';
-	import Ear from 'lucide-svelte/icons/ear';
-	import AudioLines from 'lucide-svelte/icons/audio-lines';
+	import PlaylistIcon from 'phosphor-svelte/lib/PlaylistIcon';
+	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
+	import EarIcon from 'phosphor-svelte/lib/EarIcon';
+	import WaveformIcon from 'phosphor-svelte/lib/WaveformIcon';
 	import { resolve } from '$app/paths';
 	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
 	import { authorityLabels, type GuidanceAuthority } from '$lib/guidance/guidance.js';
@@ -57,28 +57,40 @@
 			<a
 				href={referenceHref(
 					`${resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/`
-				)}><ListMusic size={24} aria-hidden="true" /><span>How do I label song sections?</span></a
+				)}
+				><PlaylistIcon size={24} aria-hidden="true" weight="bold" /><span
+					>How do I label song sections?</span
+				></a
 			>
 		</li>
 		<li>
 			<a
 				href={referenceHref(
 					`${resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/#artist-identifiers`
-				)}><Users size={24} aria-hidden="true" /><span>How do I credit different singers?</span></a
+				)}
+				><UsersIcon size={24} aria-hidden="true" weight="bold" /><span
+					>How do I credit different singers?</span
+				></a
 			>
 		</li>
 		<li>
 			<a
 				href={referenceHref(
 					`${resolve('/(site)/guidelines/[topic]', { topic: 'censored-unknown' })}/#unknown-marker`
-				)}><Ear size={24} aria-hidden="true" /><span>What if I cannot hear a word?</span></a
+				)}
+				><EarIcon size={24} aria-hidden="true" weight="bold" /><span
+					>What if I cannot hear a word?</span
+				></a
 			>
 		</li>
 		<li>
 			<a
 				href={referenceHref(
 					`${resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/#parenthetical-formatting`
-				)}><AudioLines size={24} aria-hidden="true" /><span>How do I write backing vocals?</span></a
+				)}
+				><WaveformIcon size={24} aria-hidden="true" weight="bold" /><span
+					>How do I write backing vocals?</span
+				></a
 			>
 		</li>
 	</ul>

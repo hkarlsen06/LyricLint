@@ -1,5 +1,5 @@
 <script lang="ts">
-	import X from 'lucide-svelte/icons/x';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { tick } from 'svelte';
 	import LazyContent from '$lib/interaction/LazyContent.svelte';
 	import type { MediaStore } from '../state/media-store.svelte.js';
@@ -26,6 +26,9 @@
 		media.prepareAppleMusic();
 		isOpen = true;
 		dialog.showModal();
+		if (source && media.pendingName && !media.player.attached && !media.busy) {
+			void media.reconnect();
+		}
 		await tick();
 	}
 
@@ -67,7 +70,7 @@
 			<div class="media-dialog__header">
 				<h2 id="media-dialog-title">{label}</h2>
 				<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
-					<X aria-hidden="true" size={16} strokeWidth={2.25} />
+					<XIcon aria-hidden="true" size={16} weight="bold" />
 				</button>
 			</div>
 

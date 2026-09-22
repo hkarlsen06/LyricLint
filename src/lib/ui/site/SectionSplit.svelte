@@ -2,9 +2,9 @@
 	// Current contract: docs/subsystems/reference.md.
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import type { Snippet } from 'svelte';
-	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
-	import ArrowRight from 'lucide-svelte/icons/arrow-right';
-	import ExternalLink from 'lucide-svelte/icons/external-link';
+	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
+	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
 	import { afterNavigate } from '$app/navigation';
 	import { safeDecodeHash } from './hash.js';
 
@@ -147,7 +147,7 @@
 			type="button"
 			onclick={() => visitColumn(singleColumn() && atEnd ? 'index' : 'intro')}
 		>
-			<ArrowLeft aria-hidden="true" size={15} />
+			<ArrowLeftIcon aria-hidden="true" size={15} weight="bold" />
 			<span class="site-split__wide">Introduction</span>
 			<span class="site-split__narrow">{atEnd ? 'Topics' : 'Introduction'}</span>
 		</button>
@@ -161,7 +161,7 @@
 			<span class="site-split__narrow"
 				>{atStart ? 'Topics' : checkOpen ? 'Check details' : 'Guide'}</span
 			>
-			<ArrowRight aria-hidden="true" size={15} />
+			<ArrowRightIcon aria-hidden="true" size={15} weight="bold" />
 		</button>
 	</nav>
 
@@ -186,11 +186,11 @@
 			<footer class="site-split__suggest">
 				Spotted a mistake, or a convention we're missing?
 				<a href="https://hkarlsen06.dev/en/contact/" target="_blank" rel="noopener noreferrer"
-					>Send a suggestion<ExternalLink
+					>Send a suggestion<ArrowSquareOutIcon
 						class="site-run__external"
 						aria-hidden="true"
 						size={12}
-						strokeWidth={2.2}
+						weight="bold"
 					/></a
 				><span class="sr-only">(opens in a new tab)</span>
 			</footer>

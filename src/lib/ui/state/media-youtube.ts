@@ -199,8 +199,8 @@ function youtubeThumbnailUrl(videoId: string): string {
  *
  * The one honest answer to "find the video for this song", and the reason it is
  * a link rather than a lookup is worth writing down so nobody tries the other
- * two again. The Data API's `search.list` costs 100 quota units against a
- * 10,000/day default, a hundred searches a day for the whole deployed build,
+ * two again. The Data API's `search.list` has a default quota of a hundred
+ * calls a day for the whole deployed build,
  * shared by every visitor, behind a key inlined in the bundle for anyone to
  * lift. Odesli resolves an Apple or Spotify id keylessly and correctly, and
  * returns no `youtube` entry at all for those inputs. So the search runs where

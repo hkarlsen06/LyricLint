@@ -1,10 +1,10 @@
 // Decision record: docs/subsystems/section-links.md.
 import { EditorView, WidgetType } from '@codemirror/view';
 import { mount, unmount } from 'svelte';
-import Link from 'lucide-svelte/icons/link';
-import Unlink from 'lucide-svelte/icons/unlink';
-import Pen from 'lucide-svelte/icons/pen';
-import PenLine from 'lucide-svelte/icons/pen-line';
+import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
+import LinkBreakIcon from 'phosphor-svelte/lib/LinkBreakIcon';
+import PenIcon from 'phosphor-svelte/lib/PenIcon';
+import PencilLineIcon from 'phosphor-svelte/lib/PencilLineIcon';
 import { releaseControlHint, showControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
 import { pressed } from './widget-press.js';
 import { editorCallbacksField } from './editor-state.js';
@@ -105,10 +105,22 @@ export class SectionLinkMarker extends WidgetType {
 		mode.className = 'll-section-local-toggle';
 		mode.setAttribute('aria-label', 'Edit this section only');
 		const icons = [
-			mount(Link, { target: link, props: { 'aria-hidden': true, class: 'll-shared-icon' } }),
-			mount(Unlink, { target: link, props: { 'aria-hidden': true, class: 'll-local-icon' } }),
-			mount(Pen, { target: mode, props: { 'aria-hidden': true, class: 'll-shared-icon' } }),
-			mount(PenLine, { target: mode, props: { 'aria-hidden': true, class: 'll-local-icon' } })
+			mount(LinkIcon, {
+				target: link,
+				props: { weight: 'bold', 'aria-hidden': true, class: 'll-shared-icon' }
+			}),
+			mount(LinkBreakIcon, {
+				target: link,
+				props: { weight: 'bold', 'aria-hidden': true, class: 'll-local-icon' }
+			}),
+			mount(PenIcon, {
+				target: mode,
+				props: { weight: 'bold', 'aria-hidden': true, class: 'll-shared-icon' }
+			}),
+			mount(PencilLineIcon, {
+				target: mode,
+				props: { weight: 'bold', 'aria-hidden': true, class: 'll-local-icon' }
+			})
 		];
 		const status = document.createElement('span');
 		status.className = 'll-section-link-status';

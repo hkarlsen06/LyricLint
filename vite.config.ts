@@ -232,7 +232,7 @@ export default defineConfig(({ mode }) => ({
 	// These dependencies first appear in lazy surfaces. Pre-bundle them so opening
 	// search or the drafts menu cannot invalidate a live editor or browser test's
 	// Svelte runtime. See docs/ci.md.
-	optimizeDeps: { include: ['@codemirror/search', 'lucide-svelte/icons/download'] },
+	optimizeDeps: { include: ['@codemirror/search', 'phosphor-svelte/lib/DownloadIcon'] },
 	plugins: [
 		migrationRedirects(),
 		editorPreloadPlugin(),

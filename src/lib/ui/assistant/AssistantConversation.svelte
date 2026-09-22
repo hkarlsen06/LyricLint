@@ -6,8 +6,8 @@
 	 * and workbench panel share this component so a tool turn cannot acquire a
 	 * second rendering or a different privacy claim on either surface.
 	 */
-	import ArrowUp from 'lucide-svelte/icons/arrow-up';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import { tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
@@ -312,7 +312,7 @@
 					{#each suggestions as suggestion (suggestion)}
 						<button type="button" onclick={() => void ask(suggestion)}>
 							<span>{suggestion}</span>
-							<ChevronRight aria-hidden="true" size={11} strokeWidth={2.8} />
+							<CaretRightIcon aria-hidden="true" size={11} weight="bold" />
 						</button>
 					{/each}
 				</div>
@@ -518,7 +518,7 @@
 					disabled={!canSend || questionTooLong || draft.trim() === ''}
 					aria-label="Ask"
 				>
-					<ArrowUp aria-hidden="true" size={17} strokeWidth={2.25} />
+					<ArrowUpIcon aria-hidden="true" size={17} weight="bold" />
 				</button>
 			</div>
 		</form>

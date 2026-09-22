@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Check from 'lucide-svelte/icons/check';
-	import Globe from 'lucide-svelte/icons/globe';
-	import Search from 'lucide-svelte/icons/search';
-	import X from 'lucide-svelte/icons/x';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import GlobeIcon from 'phosphor-svelte/lib/GlobeIcon';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { getLanguagePack } from '$lib/languages/registry.js';
 	import { languageSourceInventory } from '$lib/languages/inventory.js';
 	import { tick } from 'svelte';
@@ -113,7 +113,7 @@
 			<span class="language-option__meta">
 				<code>{tag}</code>
 				{#if tag === controller.language}
-					<Check aria-label="Selected" size={16} strokeWidth={2.4} />
+					<CheckIcon aria-label="Selected" size={16} weight="bold" />
 				{/if}
 			</span>
 		</button>
@@ -128,7 +128,7 @@
 	aria-label={`Lyric language: ${selectedLabel}`}
 	onclick={open}
 >
-	<Globe aria-hidden="true" size={16} strokeWidth={2} />
+	<GlobeIcon aria-hidden="true" size={16} weight="bold" />
 	<span aria-hidden="true"
 		>{expandedLabel ? `Language: ${selectedLabel}` : controller.language}</span
 	>
@@ -146,12 +146,12 @@
 			<div class="language-dialog__header">
 				<strong id="language-dialog-title">Lyric language</strong>
 				<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
-					<X aria-hidden="true" size={16} strokeWidth={2.25} />
+					<XIcon aria-hidden="true" size={16} weight="bold" />
 				</button>
 			</div>
 
 			<label class="language-search" for="language-search-input">
-				<Search aria-hidden="true" size={16} strokeWidth={2.25} />
+				<MagnifyingGlassIcon aria-hidden="true" size={16} weight="bold" />
 				<input
 					bind:this={searchInput}
 					bind:value={query}

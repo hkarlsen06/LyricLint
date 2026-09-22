@@ -1,15 +1,14 @@
 <script lang="ts">
-	import Check from 'lucide-svelte/icons/check';
-	import ChevronDown from 'lucide-svelte/icons/chevron-down';
-	import ChevronUp from 'lucide-svelte/icons/chevron-up';
-	import ListEnd from 'lucide-svelte/icons/list-end';
-	import Pencil from 'lucide-svelte/icons/pencil';
-	import Play from 'lucide-svelte/icons/play';
-	import Pointer from 'lucide-svelte/icons/pointer';
-	import Repeat from 'lucide-svelte/icons/repeat';
-	import TextAlignStart from 'lucide-svelte/icons/text-align-start';
-	import Timer from 'lucide-svelte/icons/timer';
-	import X from 'lucide-svelte/icons/x';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
+	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
+	import ListIcon from 'phosphor-svelte/lib/ListIcon';
+	import PlayIcon from 'phosphor-svelte/lib/PlayIcon';
+	import CursorClickIcon from 'phosphor-svelte/lib/CursorClickIcon';
+	import RepeatIcon from 'phosphor-svelte/lib/RepeatIcon';
+	import TextAlignLeftIcon from 'phosphor-svelte/lib/TextAlignLeftIcon';
+	import TimerIcon from 'phosphor-svelte/lib/TimerIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
@@ -66,14 +65,12 @@
 		media,
 		sync,
 		follow,
-		announce,
-		openMediaPicker
+		announce
 	}: {
 		media: MediaStore;
 		sync?: LyricSyncControl;
 		follow?: FollowControl;
 		announce?: (message: string) => void;
-		openMediaPicker?: (source: HTMLButtonElement) => void;
 	} = $props();
 
 	const player = $derived(media.player);
@@ -194,21 +191,6 @@
 
 <svelte:document onkeydown={dismissOnEscape} />
 
-{#snippet audioPencil()}
-	{#if openMediaPicker}
-		<button
-			type="button"
-			class="button--quiet icon-button"
-			aria-label="Change audio source"
-			aria-haspopup="dialog"
-			onclick={(event) => openMediaPicker(event.currentTarget)}
-			{@attach describeControl(() => ({ label: 'Change audio source' }))}
-		>
-			<Pencil aria-hidden="true" size={14} strokeWidth={2.4} />
-		</button>
-	{/if}
-{/snippet}
-
 <!--
 	The audio transport, in the stable workspace media row shared by every view.
 
@@ -239,7 +221,7 @@
 	{@attach dismissOnOutside(dismissDetails)}
 >
 	{#if player.attached && drawsCoverBand(player.sourceKind)}
-		<MediaArtwork {media} {announce} identityAction={audioPencil} />
+		<MediaArtwork {media} {announce} />
 	{/if}
 	<div class="media-strip__controls">
 		{#if player.attached}
@@ -253,8 +235,7 @@
 
 			{#if player.error}
 				<!-- Prose in the row it belongs to, not a tinted box that pops into
-			     existence. The file is still named at the far end, so re-attaching
-			     is one press away. -->
+			     existence. The editor tray keeps the change-source action in place. -->
 				<p class="media-strip__error">{player.error}</p>
 			{:else}
 				<!-- The value is clamped to the range that exists, and it is the same
@@ -301,9 +282,9 @@
 			>
 				Audio
 				{#if detailsVisible}
-					<ChevronUp aria-hidden="true" size={14} />
+					<CaretUpIcon aria-hidden="true" size={14} weight="bold" />
 				{:else}
-					<ChevronDown aria-hidden="true" size={14} />
+					<CaretDownIcon aria-hidden="true" size={14} weight="bold" />
 				{/if}
 			</button>
 
@@ -366,7 +347,7 @@
 												: 'Loop from here: mark the start of a passage to repeat'
 								}))}
 							>
-								<Repeat aria-hidden="true" size={14} strokeWidth={2.4} />
+								<RepeatIcon aria-hidden="true" size={14} weight="bold" />
 								{#if player.loop?.end !== undefined}
 									<span class="media-strip__time"
 										>{formatTime(player.loop.start)}–{formatTime(player.loop.end)}</span
@@ -383,7 +364,7 @@
 									onclick={() => player.clearLoop()}
 									{@attach describeControl(() => ({ label: 'Cancel loop' }))}
 								>
-									<X aria-hidden="true" size={14} strokeWidth={2.4} />
+									<XIcon aria-hidden="true" size={14} weight="bold" />
 								</button>
 							{/if}
 							<span class="sr-only" aria-live="polite"
@@ -404,9 +385,9 @@
 							onclick={follow.toggle}
 						>
 							{#if follow.active}
-								<ListEnd aria-hidden="true" size={14} strokeWidth={2.4} />
+								<ListIcon aria-hidden="true" size={14} weight="bold" />
 							{:else}
-								<TextAlignStart aria-hidden="true" size={14} strokeWidth={2.4} />
+								<TextAlignLeftIcon aria-hidden="true" size={14} weight="bold" />
 							{/if}
 						</button>
 					{/if}
@@ -446,9 +427,9 @@
 							onclick={sync.toggle}
 						>
 							{#if !sync.active && sync.complete && !sync.scopesSelection}
-								<Check aria-hidden="true" size={13} strokeWidth={2.25} />
+								<CheckIcon aria-hidden="true" size={13} weight="bold" />
 							{:else}
-								<Timer aria-hidden="true" size={13} strokeWidth={2.25} />
+								<TimerIcon aria-hidden="true" size={13} weight="bold" />
 							{/if}
 							<span>
 								{sync.active
@@ -524,7 +505,7 @@
 							title="Time the line that is starting now"
 							onclick={sync.tap}
 						>
-							<Pointer aria-hidden="true" size={14} strokeWidth={2.25} />
+							<CursorClickIcon aria-hidden="true" size={14} weight="bold" />
 							Tap
 						</button>
 						<span class="media-strip__hint">Esc stops</span>
@@ -547,7 +528,6 @@
 				-->
 					{#if !drawsCoverBand(player.sourceKind)}
 						<div class="media-strip__source">
-							{@render audioPencil()}
 							<span class="media-strip__name" title={player.name}>{player.name}</span>
 							<MediaAttribution {media} />
 						</div>
@@ -579,7 +559,6 @@
 		     the one binding in the workbench nothing on screen could teach; the
 		     shared box is where every other named control already says it. -->
 			<span class="media-strip__pending-name" title={media.pendingName}>{media.pendingName}</span>
-			{@render audioPencil()}
 			<button
 				type="button"
 				class="button media-strip__reconnect"
@@ -595,7 +574,7 @@
 				{#if media.busy}
 					<LoadingMark />
 				{:else}
-					<Play aria-hidden="true" size={16} fill="currentColor" />
+					<PlayIcon aria-hidden="true" size={16} weight="fill" />
 				{/if}
 				{media.busy
 					? 'Loading…'

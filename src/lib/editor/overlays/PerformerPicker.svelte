@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Plus from 'lucide-svelte/icons/plus';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import { onMount, tick, untrack } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import type { PerformerId, PerformerRecord, StyleSlot } from '$lib/core/types.js';
@@ -519,7 +519,7 @@
 					onclick={() => assignUnknown(undefined)}
 					onfocus={() => (activeIndex = performers.length + shownUnknownSlots.length)}
 				>
-					<Plus aria-hidden="true" size={14} strokeWidth={2.7} />
+					<PlusIcon aria-hidden="true" size={14} weight="bold" />
 					<span aria-hidden="true">Use new unknown voice</span>
 					<span class="sr-only">Use new unknown voice</span>
 				</button>
@@ -574,7 +574,7 @@
 					onclick={beginAdd}
 					onfocus={() => (activeIndex = addChipIndex)}
 				>
-					<Plus aria-hidden="true" size={16} strokeWidth={2.7} />
+					<PlusIcon aria-hidden="true" size={16} weight="bold" />
 					Add voice
 				</button>
 			{/if}

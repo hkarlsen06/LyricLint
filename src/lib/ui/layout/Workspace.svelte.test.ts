@@ -1048,9 +1048,7 @@ describe('Workspace and toolbar', () => {
 		});
 		const { container } = await renderWorkspace(controller);
 
-		// The tray's optional audio glyph, drawn only while there is nothing
-		// for the strip to show: a pictogram like the magnifier, because
-		// attaching writes nothing to the document.
+		// The tray keeps the audio control in place across source changes.
 		const bar = screen.getByRole('group', { name: 'Document actions' });
 		expect(bar.querySelectorAll('button')).toHaveLength(5);
 		const note = within(bar).getByRole('button', { name: 'Add audio source' });
@@ -1068,7 +1066,7 @@ describe('Workspace and toolbar', () => {
 		expect(container.querySelectorAll('dialog.media-dialog')).toHaveLength(1);
 	});
 
-	test('hands focus to the surviving audio opener after attaching and detaching', async () => {
+	test('keeps the audio opener and focus in place after attaching and detaching', async () => {
 		const player = createMediaPlayer({
 			feedback: createFeedbackState(),
 			createAudio: () => new StubAudio().asMediaElement(),
@@ -1089,21 +1087,23 @@ describe('Workspace and toolbar', () => {
 		});
 
 		const add = screen.getByRole('button', { name: 'Add audio source' });
+		const emptyGlyph = add.querySelector('svg')?.innerHTML;
 		await userEvent.click(add);
 		await userEvent.click(await screen.findByRole('button', { name: 'Choose a file…' }));
 		await waitFor(() => {
-			expect(add.isConnected).toBe(false);
-			expect(document.activeElement).toBe(
-				screen.getByRole('button', { name: 'Change audio source' })
-			);
+			expect(add.isConnected).toBe(true);
+			expect(add.getAttribute('aria-label')).toBe('Change audio source');
+			expect(add.querySelector('svg')?.innerHTML).not.toBe(emptyGlyph);
+			expect(document.activeElement).toBe(add);
 		});
 
-		const change = screen.getByRole('button', { name: 'Change audio source' });
-		await userEvent.click(change);
-		await userEvent.click(screen.getByRole('button', { name: 'Detach track.mp3' }));
+		await userEvent.click(add);
+		await userEvent.click(await screen.findByRole('button', { name: 'Detach track.mp3' }));
 		await waitFor(() => {
-			expect(change.isConnected).toBe(false);
-			expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add audio source' }));
+			expect(add.isConnected).toBe(true);
+			expect(add.getAttribute('aria-label')).toBe('Add audio source');
+			expect(add.querySelector('svg')?.innerHTML).toBe(emptyGlyph);
+			expect(document.activeElement).toBe(add);
 		});
 	});
 
@@ -1129,8 +1129,7 @@ describe('Workspace and toolbar', () => {
 		recovery.resolve();
 		await screen.findByRole('button', { name: 'Add audio source' });
 
-		// While nothing is attached the tray holds the only way in; the Song
-		// tab names no second one.
+		// The tray holds the only way in; the Song tab names no second one.
 		await fireEvent.click(screen.getByRole('tab', { name: 'Song' }));
 		const songPane = screen.getByRole('tabpanel', { name: 'Song' });
 		await within(songPane).findByText('Export .txt');
@@ -1141,14 +1140,18 @@ describe('Workspace and toolbar', () => {
 			})
 		).toBeTruthy();
 
-		// Once something is attached the strip's pencil takes over and the tray
-		// glyph stands down.
+		// The same tray button stays in place after an attachment.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		await controller.media!.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		await waitFor(() =>
 			expect(screen.queryByRole('button', { name: 'Add audio source' })).toBeNull()
 		);
-		expect(await screen.findByRole('button', { name: 'Change audio source' })).toBeTruthy();
+		expect(
+			within(screen.getByRole('group', { name: 'Document actions' })).getByRole('button', {
+				name: 'Change audio source'
+			})
+		).toBeTruthy();
+		expect(screen.getAllByRole('button', { name: 'Change audio source' })).toHaveLength(1);
 	});
 
 	// The strip's own control is the only way in, so it has to be findable: a

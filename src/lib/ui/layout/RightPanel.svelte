@@ -1,10 +1,10 @@
 <script lang="ts">
-	import ListChecks from 'lucide-svelte/icons/list-checks';
-	import Link2 from 'lucide-svelte/icons/link-2';
-	import WandSparkles from 'lucide-svelte/icons/wand-sparkles';
-	import UsersRound from 'lucide-svelte/icons/users-round';
-	import Music2 from 'lucide-svelte/icons/music-2';
-	import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal';
+	import ListChecksIcon from 'phosphor-svelte/lib/ListChecksIcon';
+	import LinkSimpleHorizontalIcon from 'phosphor-svelte/lib/LinkSimpleHorizontalIcon';
+	import MagicWandIcon from 'phosphor-svelte/lib/MagicWandIcon';
+	import UsersThreeIcon from 'phosphor-svelte/lib/UsersThreeIcon';
+	import MusicNoteIcon from 'phosphor-svelte/lib/MusicNoteIcon';
+	import SlidersHorizontalIcon from 'phosphor-svelte/lib/SlidersHorizontalIcon';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
 	import { Tabs } from 'bits-ui';
@@ -127,7 +127,7 @@
 					<Tabs.Trigger id="linter-panel-tab" value="linter">
 						<span>Review</span>
 						<span class="panel-tabs__mark">
-							<ListChecks aria-hidden="true" size={20} strokeWidth={1.75} />
+							<ListChecksIcon aria-hidden="true" size={20} />
 							{#if controller.visibleDiagnostics.length > 0}
 								<!-- `role="img"`, the toast count's own pattern: a name on a bare
 							     `<span>` has no role to attach to, so the badge reached the
@@ -141,25 +141,25 @@
 					</Tabs.Trigger>
 				{/if}
 				<Tabs.Trigger id="linking-panel-tab" value="linking">
-					<Link2 aria-hidden="true" size={20} strokeWidth={1.75} />
+					<LinkSimpleHorizontalIcon aria-hidden="true" size={20} />
 					<span>Linking</span>
 				</Tabs.Trigger>
 				{#if assistantEnabled}
 					<Tabs.Trigger value="assistant" aria-label="Assistant">
-						<WandSparkles aria-hidden="true" size={20} strokeWidth={1.75} />
+						<MagicWandIcon aria-hidden="true" size={20} />
 						<span>Assistant</span>
 					</Tabs.Trigger>
 				{/if}
 				<Tabs.Trigger id="performers-panel-tab" value="performers">
-					<UsersRound aria-hidden="true" size={20} strokeWidth={1.75} />
+					<UsersThreeIcon aria-hidden="true" size={20} />
 					<span>Performers</span>
 				</Tabs.Trigger>
 				<Tabs.Trigger value="song">
-					<Music2 aria-hidden="true" size={20} strokeWidth={1.75} />
+					<MusicNoteIcon aria-hidden="true" size={20} />
 					<span>Song</span>
 				</Tabs.Trigger>
 				<Tabs.Trigger value="preferences" class="panel-tabs__preferences">
-					<SlidersHorizontal aria-hidden="true" size={20} strokeWidth={1.75} />
+					<SlidersHorizontalIcon aria-hidden="true" size={20} />
 					<span>Preferences</span>
 				</Tabs.Trigger>
 			</Tabs.List>

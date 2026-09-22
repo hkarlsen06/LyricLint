@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { orderPerformersByAppearance } from '../state/wiring.js';
 	import PerformerEditor from './PerformerEditor.svelte';
@@ -52,9 +52,10 @@
 	{/if}
 	<details class="performer-help">
 		<summary
-			>How to assign voices<ChevronRight
+			>How to assign voices<CaretRightIcon
 				class="performer-legend__chevron"
 				aria-hidden="true"
+				weight="bold"
 			/></summary
 		>
 		<p class="roster-hint">

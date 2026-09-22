@@ -191,10 +191,9 @@ Dependabot groups compatible minor/patch updates within each package ecosystem.
 Major changes remain separate, and all existing manual-update exclusions stay in
 place, including the intentional TypeScript split.
 
-Icon imports use the library's public `lucide-svelte/icons/*` subpaths. Each
-resolves to the same component as the former barrel import, while avoiding
-compilation of the full icon library before tree shaking. Production builds also
-skip gzip-size reporting; dedicated size audits can still compress emitted files.
+Phosphor icons use public `phosphor-svelte/lib/*Icon` subpaths. Direct imports
+avoid compiling the full icon catalog before tree shaking. Production builds
+also skip gzip-size reporting; dedicated size audits can still compress emitted files.
 
 ## Vitest 5 browser compatibility
 
@@ -204,12 +203,13 @@ default on CI; successful assertions still resolve as soon as the UI is ready.
 Keep waiting for the actual loaded controls before checking focus or geometry.
 
 Keep dependencies reached only through lazy surfaces in `optimizeDeps.include`
-when Vite's initial scan misses them. Opening the lazy drafts menu discovered
-`lucide-svelte/icons/download` during CI and triggered dependency re-optimization.
+when Vite's initial scan misses them. Opening the lazy drafts menu once discovered
+its icon dependency during CI and triggered dependency re-optimization.
 Already mounted components retained the old Svelte runtime while lazy components
 loaded the new one, causing `effect_orphan`, failed imports, and iframe timeouts.
-Pre-bundling that icon alongside CodeMirror search prevents the mid-test reload;
-the browser tests retain their existing behavioral assertions.
+Pre-bundling the lazy `phosphor-svelte/lib/DownloadIcon` alongside CodeMirror
+search prevents the mid-test reload; the browser tests retain their existing
+behavioral assertions.
 
 The browser suite disables the runner UI because its scaled iframe places some
 component controls under the runner's resize divider, intercepting native clicks.

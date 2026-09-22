@@ -13,10 +13,15 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
 - One transport, four sources behind `MediaSource`; a source reports, it never decides. Every
   rule (resume rewind, clamps, `liveTime()`, run-in cancellation) is written once against the
   interface. `media-test-audio.ts` is the stub both test files drive.
-- Nothing draws while there is nothing to control. Attaching is one shared dialog
-  behind two state-dependent ways in: the tray's note glyph while nothing is
-  attached, the strip's pencil once something is. Each answer inside is a control
-  plus a meta line of facts, unboxed.
+- Nothing draws in the transport while there is nothing to control. The editor
+  tray's note button stays in place across empty, pending, and attached states:
+  plus while empty, plain notes otherwise. It opens one shared dialog. When audio
+  exists, the dialog leads with its cover, title, artist, and a minus button to
+  detach it. Opening the dialog from the note button also starts reconnecting a
+  remembered source. Source rows have their own icons, controls, and unboxed facts.
+  The YouTube field shares the red play icon with Song. The Apple Music field
+  uses the official music-note icon from the supplied badge;
+  catalogue attribution keeps the full badge.
 - Keys: `F7/F8/F9` and platform-modifier `J/K/L` (`Ctrl-` on macOS, `Alt-` elsewhere,
   `Ctrl-Alt-` universal); the reach-for keys are the `Escape` family (bare toggles,
   `Shift+Esc` back, `Alt+Esc` forward): bubble phase, standing down on `defaultPrevented`
@@ -124,7 +129,7 @@ left made them feel unrelated and put the attribution beside Preferences. One pl
 It shares window chrome rather than drawing a full-width filled rectangle. Compact bottom
 padding separates its controls from footer text. Wide layouts place artwork, song, playback,
 and attribution in that order on one row; narrower layouts preserve seek width by stacking them. The pending state
-names the song at the row's start, with the pencil immediately to its right, and parks Load at the far end, so the Load
+names the song at the row's start and parks Load at the far end, so the Load
 control keeps a stable home instead of sliding with the length of the song's name. It
 uses one control row with the same outer padding as loaded playback. Narrow desktop
 windows reserve no empty second row: loading grows the strip only when the playback
@@ -144,19 +149,16 @@ visible video in the sidebar; its minimum frame cannot be charged to the lyric v
 
 The Load audio / Reconnect audio button keeps the full source-specific label for
 accessibility and the shortcut hint. Loading occupies the same button with a busy mark,
-going quiet while it answers; forgetting the remembered source is the audio dialog's
-detach section, the same deliberate press that detaches an attached one.
-The loaded catalogue pencil sits immediately to the right of the title and artist, in the identity row at every width, rather than leading playback. `MediaStrip.svelte.test.ts` pins both pencil placements.
+going quiet while it answers; forgetting the remembered source uses the audio
+dialog's top-row detach button, the same press that detaches an attached one.
+The strip names the attached song without an edit control. The editor tray's note
+button remains the way to change it.
 No playback controls draw before attachment. Catalogue identity still draws before artwork
 arrives, and is rendered once through `MediaArtwork`, preserving its full-size-art dialog.
 
-The audio dialog returns keyboard focus after the attachment state has rendered. If the
-original opener disappeared, Workspace supplies the surviving audio control: the strip's
-Change audio source after attaching, or the tray's Add audio source after detaching.
-The lazy strip and this focus handoff share one import promise before awaiting the
-render tick. Separate imports can resolve in different turns, leaving focus on the
-body because the handoff ran before the strip mounted. A failed import clears the
-shared promise so Retry can load again; focus still stays put if the user moved it.
+The audio dialog returns keyboard focus to the same editor tray button after
+attachment or detachment. Its accessible name and glyph change with the audio
+state, while the button stays mounted.
 `Workspace.svelte.test.ts` exercises both transitions through the dialog. Pending controls
 keep their visible Load audio / Reconnect audio wording inside the accessible name, with
 the song and source following it; the busy label likewise includes Loading….
@@ -276,15 +278,17 @@ Implementation: `src/lib/ui/state/keyboard-inset.ts`, the `:root[data-keyboard-i
 **Nothing draws while there is nothing to control.** No empty transport, no `Load audio` in the
 toolbar competing with its one contrast action.
 
-**Attaching opens one question, through two state-dependent ways in.** It sat in the tools panel
+**Attaching opens one question through the editor tray's note button.** It sat in the tools panel
 first, which meant three tabs away from the document and, worse, split across two commands
 (`Attach audio…` and `Use a YouTube video…`), so the user had to know which kind of answer they had
 before they could start. It moved to the footer's readout row next, as that row's one exception.
-Both are gone now: while nothing is attached the tray's note glyph opens the one shared dialog
-(`MediaPicker.svelte`), and once something is (attached or remembered), the strip's pencil
-takes over from the row the transport itself draws in. The two never show together, so the
-command is still offered once, and neither is a control that vanishes on the press it answers:
-the note stands down because the pencil stands up. The answers sit side by side inside a modal.
+Both are gone now: the tray's note glyph opens the one shared dialog
+(`MediaPicker.svelte`) in every source state. Its plus cue marks an empty draft;
+its plain cue marks an attached or remembered source. The button stays mounted
+when that state changes. The dialog leads with the current song and its detach
+button, followed by the available source choices.
+Opening it from the note button reconnects a remembered source during that
+gesture. A resumed Spotify query reopening the dialog does not reconnect again.
 
 The modal is a modal because attaching is a detour (nothing else in the workbench is worth doing
 until it is answered or abandoned), and neither answer inside it is boxed. The dialog is already the
@@ -718,7 +722,7 @@ are actually known.
 
 **Going the other way (a name to a YouTube URL) is a link to a search the user runs, and the two
 lookups it is not are worth writing down so nobody tries them twice.** The Data API's
-`search.list` costs 100 quota units against a 10,000/day default, which is ~100 searches a day for
+`search.list` has a default quota of 100 calls per day, which is ~100 searches a day for
 the whole deployed build, shared by every visitor, behind a key inlined in the bundle for anyone
 to lift. Odesli (`api.song.link`) is keyless and resolves an Apple or Spotify id correctly, but it
 **returns no `youtube` entry in `linksByPlatform`** for those inputs (verified against four
@@ -727,7 +731,7 @@ answer it does not have. What is left is the search running where it is free: in
 browser, on Google's own page, with the video they pick pasted back into the field it opened
 under.
 
-So the picker's YouTube section carries `Search YouTube for “…”` beneath its line of facts, and
+So the picker's YouTube section carries `Search YouTube` beneath its line of facts, and
 three things about it:
 
 - **The name is the draft's own title first**, because it is the one a person chose, and for a
@@ -740,7 +744,7 @@ three things about it:
 - **The `href` is built inline from a literal**, like the Spotify and Apple links in the strip,
   because `svelte/no-navigation-without-resolve` cannot see that a variable holds an external URL.
   A helper returning the whole address fails lint; `youtubeSearchTerm` returns the term instead,
-  which the control both shows and encodes.
+  which the control encodes.
 
 **The bytes come through `fetch`, and the fallback is the point.** `download` on an anchor is
 ignored cross-origin and every cover lives on Apple's, Spotify's or Google's CDN, so an anchor

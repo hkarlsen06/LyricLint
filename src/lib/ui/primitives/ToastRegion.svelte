@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import { fly } from 'svelte/transition';
-	import X from 'lucide-svelte/icons/x';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import type { FeedbackState } from '../state/feedback.svelte.js';
 
 	let { feedback }: { feedback: FeedbackState } = $props();
@@ -52,7 +52,7 @@
 					aria-label="Dismiss notification"
 					onclick={() => feedback.dismissToast(toast.id)}
 				>
-					<X aria-hidden="true" size={16} strokeWidth={2.25} />
+					<XIcon aria-hidden="true" size={16} weight="bold" />
 				</button>
 			</div>
 		</div>

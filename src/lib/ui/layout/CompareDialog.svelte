@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Diff from 'lucide-svelte/icons/diff';
-	import X from 'lucide-svelte/icons/x';
+	import GitDiffIcon from 'phosphor-svelte/lib/GitDiffIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import LazyPanel from '$lib/interaction/LazyContent.svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
@@ -29,7 +29,7 @@
 		aria-haspopup="dialog"
 		onclick={open}
 	>
-		<Diff aria-hidden="true" size={16} strokeWidth={2} />
+		<GitDiffIcon aria-hidden="true" size={16} weight="bold" />
 		Compare
 	</button>
 {/if}
@@ -50,7 +50,7 @@
 		<div class="compare-dialog__header">
 			<strong id="compare-dialog-title">Compare with the page</strong>
 			<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
-				<X aria-hidden="true" size={16} strokeWidth={2.25} />
+				<XIcon aria-hidden="true" size={16} weight="bold" />
 			</button>
 		</div>
 		{#if isOpen}

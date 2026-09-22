@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Clock3 from 'lucide-svelte/icons/clock-3';
-	import Plus from 'lucide-svelte/icons/plus';
+	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';
@@ -54,7 +54,7 @@
 				aria-expanded={chatsOpen}
 				bind:this={chatsTrigger}
 			>
-				<Clock3 aria-hidden="true" size={15} strokeWidth={2.25} />
+				<ClockIcon aria-hidden="true" size={15} weight="bold" />
 			</summary>
 			<div class="assistant-chats__popover">
 				<h3 class="assistant-chats__heading">Conversations</h3>
@@ -106,6 +106,6 @@
 		title="New chat"
 		onclick={() => void assistant.newChat()}
 	>
-		<Plus aria-hidden="true" size={15} strokeWidth={2.25} />
+		<PlusIcon aria-hidden="true" size={15} weight="bold" />
 	</button>
 </div>

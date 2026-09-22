@@ -2,8 +2,8 @@
 	import '$lib/ui/styles/landing.css';
 	import shotDimensions from '$lib/assets/shot-dimensions.json';
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
-	import BookOpen from 'lucide-svelte/icons/book-open';
-	import Check from 'lucide-svelte/icons/check';
+	import BookOpenIcon from 'phosphor-svelte/lib/BookOpenIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import type { Attachment } from 'svelte/attachments';
 	import { resolve } from '$app/paths';
 	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
@@ -272,7 +272,7 @@ You said we'd drive until the radio gave out (yeah)`;
 					<span>Open the workbench</span>
 				</a>
 				<a class="button" href={resolve('/guidelines/')}>
-					<BookOpen aria-hidden="true" size={16} strokeWidth={2.25} />
+					<BookOpenIcon aria-hidden="true" size={16} weight="bold" />
 					<span>Read the transcription guide</span>
 				</a>
 			</div>
@@ -690,7 +690,7 @@ You said we'd drive until the radio gave out (yeah)`;
 				<ul class="lp-points">
 					<li>
 						<span class="lp-points__mark" aria-hidden="true">
-							<Check size={12} strokeWidth={3.3} />
+							<CheckIcon size={12} weight="bold" />
 						</span>
 						<span
 							><strong>No account needed.</strong> Check your lyrics without uploading them.</span
@@ -698,7 +698,7 @@ You said we'd drive until the radio gave out (yeah)`;
 					</li>
 					<li>
 						<span class="lp-points__mark" aria-hidden="true">
-							<Check size={12} strokeWidth={3.3} />
+							<CheckIcon size={12} weight="bold" />
 						</span>
 						<span>
 							<strong>Saved in your browser.</strong> Reopen the page to pick up your saved draft.
@@ -706,7 +706,7 @@ You said we'd drive until the radio gave out (yeah)`;
 					</li>
 					<li>
 						<span class="lp-points__mark" aria-hidden="true">
-							<Check size={12} strokeWidth={3.3} />
+							<CheckIcon size={12} weight="bold" />
 						</span>
 						<span>
 							<strong>Works offline once loaded.</strong> Keep editing and checking without a connection.

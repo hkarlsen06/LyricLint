@@ -18,7 +18,7 @@
 	// worth folding, `label` is what the button names, and `prefix` is the
 	// words that introduce the run and stay outside the button. All four are
 	// optional, so a citation caller passes none of them and is unchanged.
-	import ChevronDown from 'lucide-svelte/icons/chevron-down';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import type { Snippet } from 'svelte';
 	import type { SourceReference } from '$lib/core/types.js';
 	import SourceCitation from '$lib/diagnostics/SourceCitation.svelte';
@@ -62,7 +62,7 @@
 		     `aria-expanded` are what carry the open state, so the control does
 		     not rewrite itself under the pointer that just pressed it. -->
 		{label}
-		<ChevronDown class="diagnostic-meta__chevron" aria-hidden="true" size={11} strokeWidth={2.4} />
+		<CaretDownIcon class="diagnostic-meta__chevron" aria-hidden="true" size={11} weight="bold" />
 	</button>
 	{#if expanded}
 		{#if children}

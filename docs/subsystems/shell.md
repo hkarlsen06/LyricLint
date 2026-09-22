@@ -69,8 +69,8 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 - On desktop the editor's command tray (`.editor-actions`) is absolutely positioned over the
   document's top-right; phones give their larger labelled controls a dedicated row.
   Desktop glyphs are the marks they insert; tooltips carry the name (and the keystroke where one exists). Up to four editing/source glyphs
-  precede the icon-only expand/restore control at the right edge. Audio attach
-  lives where its transport will appear. `Workspace.svelte.test.ts` measures its width
+  precede the icon-only expand/restore control at the right edge. The audio note
+  stays in that row as the source changes. `Workspace.svelte.test.ts` measures its width
   and right edge.
 - Find/replace runs under the tray: CodeMirror panels get `--layer-editor-panel` (never
   `isolation: isolate` on the host), the row reserves `--editor-actions-reserve`, and the

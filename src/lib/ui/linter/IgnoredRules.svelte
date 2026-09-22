@@ -3,7 +3,7 @@
 	import type { Diagnostic, EditorSnapshot } from '$lib/core/types.js';
 	import { lineNumberLookup } from '$lib/core/line-numbers.js';
 	import { diagnosticKey } from '$lib/diagnostics/order.js';
-	import ChevronDown from 'lucide-svelte/icons/chevron-down';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import {
 		ignoredDiagnosticAccepted,
 		ignoredDiagnosticRuleId,
@@ -106,7 +106,7 @@
 		onclick={() => (expanded = !expanded)}
 	>
 		<span>{summary}</span>
-		<ChevronDown class="ignored-rules__chevron" size={16} aria-hidden="true" />
+		<CaretDownIcon class="ignored-rules__chevron" size={16} aria-hidden="true" weight="bold" />
 	</button>
 	{#if expanded}
 		<ul>

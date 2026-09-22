@@ -1,16 +1,10 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
-	import X from 'lucide-svelte/icons/x';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import ArtworkActions from './ArtworkActions.svelte';
 	import MediaAttribution from './MediaAttribution.svelte';
 
-	let {
-		media,
-		announce,
-		identityAction
-	}: { media: MediaStore; announce?: (message: string) => void; identityAction?: Snippet } =
-		$props();
+	let { media, announce }: { media: MediaStore; announce?: (message: string) => void } = $props();
 
 	const player = $derived(media.player);
 	const cover = $derived(player.artwork);
@@ -115,7 +109,6 @@
 					<span class="media-artwork__artist" title={artist}>{artist}</span>
 				{/if}
 			</div>
-			{@render identityAction?.()}
 		</div>
 
 		<!-- The mark at the far end: the one thing in the row that has to be seen
@@ -141,7 +134,7 @@
 						aria-label="Close"
 						onclick={close}
 					>
-						<X aria-hidden="true" size={16} strokeWidth={2.25} />
+						<XIcon aria-hidden="true" size={16} weight="bold" />
 					</button>
 				</div>
 				<!-- The same picture at the size the source offered it; the header

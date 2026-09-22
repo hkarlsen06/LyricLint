@@ -2,10 +2,10 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import { canAssignVoiceGroup } from '$lib/performers/transform.js';
-	import Music from 'lucide-svelte/icons/music';
-	import PanelRightClose from 'lucide-svelte/icons/panel-right-close';
-	import PanelRightOpen from 'lucide-svelte/icons/panel-right-open';
-	import Search from 'lucide-svelte/icons/search';
+	import MusicNotesIcon from 'phosphor-svelte/lib/MusicNotesIcon';
+	import MusicNotesPlusIcon from 'phosphor-svelte/lib/MusicNotesPlusIcon';
+	import SidebarSimpleIcon from 'phosphor-svelte/lib/SidebarSimpleIcon';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
@@ -78,16 +78,10 @@
 			run: () => controller.toggleSearch()
 		}
 	]);
-	// The audio attach draws only while there is nothing for the strip to show:
-	// no attachment and no remembered source. Past that the strip itself carries
-	// the way back in, so the tray never offers what the row below already does.
 	const audioAvailable = $derived(
-		openMediaPicker !== undefined &&
-			controller.media !== undefined &&
-			!controller.media.restoring &&
-			!controller.media.player.attached &&
-			controller.media.pendingName === undefined
+		openMediaPicker !== undefined && controller.media !== undefined && !controller.media.restoring
 	);
+	const hasAudio = $derived(!!controller.media?.player.attached || !!controller.media?.pendingName);
 </script>
 
 <!-- Cancel mouse down to retain the lyric selection while commands activate.
@@ -121,7 +115,12 @@
 				<!-- `1em` and `currentColor`, the rule the loading mark states: a glyph
 				     in a button belongs to whatever it is inside, and here that is a
 				     row of marks it has to sit at the same optical size as. -->
-				<Search class="editor-actions__glyph" aria-hidden="true" size="1em" strokeWidth={2.25} />
+				<MagnifyingGlassIcon
+					class="editor-actions__glyph"
+					aria-hidden="true"
+					size="1em"
+					weight="bold"
+				/>
 			{/if}
 		</button>
 	{/each}
@@ -134,12 +133,23 @@
 		<button
 			type="button"
 			class="button--quiet editor-actions__button"
-			aria-label="Add audio source"
+			aria-label={hasAudio ? 'Change audio source' : 'Add audio source'}
 			aria-haspopup="dialog"
 			onclick={(event) => openMediaPicker(event.currentTarget)}
-			{@attach describeControl(() => ({ label: 'Add audio source' }))}
+			{@attach describeControl(() => ({
+				label: hasAudio ? 'Change audio source' : 'Add audio source'
+			}))}
 		>
-			<Music class="editor-actions__glyph" aria-hidden="true" size="1em" strokeWidth={2.25} />
+			{#if hasAudio}
+				<MusicNotesIcon class="editor-actions__glyph" aria-hidden="true" size="1em" weight="bold" />
+			{:else}
+				<MusicNotesPlusIcon
+					class="editor-actions__glyph"
+					aria-hidden="true"
+					size="1em"
+					weight="bold"
+				/>
+			{/if}
 		</button>
 	{/if}
 	{#if phone.current && canAssign}
@@ -162,21 +172,13 @@
 			onclick={onToggleEditor}
 			{@attach describeControl(() => ({ label: editorExpanded ? 'Show tools' : 'Expand editor' }))}
 		>
-			{#if editorExpanded}
-				<PanelRightOpen
-					class="editor-actions__glyph"
-					aria-hidden="true"
-					size="1em"
-					strokeWidth={2}
-				/>
-			{:else}
-				<PanelRightClose
-					class="editor-actions__glyph"
-					aria-hidden="true"
-					size="1em"
-					strokeWidth={2}
-				/>
-			{/if}
+			<SidebarSimpleIcon
+				class="editor-actions__glyph"
+				aria-hidden="true"
+				size="1em"
+				mirrored
+				weight={editorExpanded ? 'regular' : 'fill'}
+			/>
 		</button>
 	{/if}
 </div>

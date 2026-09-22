@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ExternalLink from 'lucide-svelte/icons/external-link';
+	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
 	import type { Snippet } from 'svelte';
 	import type { SourceReference } from '$lib/core/types.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
@@ -102,11 +102,11 @@
 				<img class="source-citation__favicon" src={favicon} alt="" />
 			{/if}
 			{@render (text ?? plain)(source.pageTitle)}
-			<ExternalLink
+			<ArrowSquareOutIcon
 				class="source-citation__external"
 				aria-hidden="true"
 				size={11}
-				strokeWidth={2.2}
+				weight="bold"
 			/><!--
 				The mark above is aria-hidden, so without this the only thing saying
 				the press leaves the surface is a glyph a screen reader cannot see.

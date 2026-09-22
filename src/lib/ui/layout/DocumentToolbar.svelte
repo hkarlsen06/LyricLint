@@ -1,11 +1,11 @@
 <script lang="ts">
-	import Check from 'lucide-svelte/icons/check';
-	import ClipboardPaste from 'lucide-svelte/icons/clipboard-paste';
-	import Copy from 'lucide-svelte/icons/copy';
-	import Plus from 'lucide-svelte/icons/plus';
-	import Redo from 'lucide-svelte/icons/redo';
-	import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
-	import Undo from 'lucide-svelte/icons/undo';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
+	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
+	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
+	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import { resolve } from '$app/paths';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { onMount } from 'svelte';
@@ -187,7 +187,7 @@
 				title="New 'scribe"
 				onclick={() => controller.createDraft()}
 			>
-				<Plus aria-hidden="true" size={16} strokeWidth={2} />
+				<PlusIcon aria-hidden="true" size={16} weight="bold" />
 			</button>
 		{/if}
 		<!-- Nothing is drawn while saving is going well: a disk glyph that is always
@@ -205,7 +205,7 @@
 			title={saveStatusText}
 		>
 			{#if controller.saveStatus === 'failed'}
-				<TriangleAlert class="save-status__icon" aria-hidden="true" size={13} strokeWidth={2.25} />
+				<WarningIcon class="save-status__icon" aria-hidden="true" size={13} weight="bold" />
 				Save failed
 			{/if}
 		</span>
@@ -252,7 +252,7 @@
 						title="New 'scribe"
 						onclick={() => controller.createDraft()}
 					>
-						<Plus aria-hidden="true" size={16} strokeWidth={2} />
+						<PlusIcon aria-hidden="true" size={16} weight="bold" />
 						New 'scribe
 					</button>
 				{/if}
@@ -268,7 +268,7 @@
 					disabled={!controller.snapshot.canUndo}
 					onclick={() => controller.undo()}
 				>
-					<Undo aria-hidden="true" size={16} strokeWidth={2} />
+					<ArrowCounterClockwiseIcon aria-hidden="true" size={16} weight="bold" />
 					{#if phone.current}Undo{/if}
 				</button>
 				<button
@@ -279,7 +279,7 @@
 					disabled={!controller.snapshot.canRedo}
 					onclick={() => controller.redo()}
 				>
-					<Redo aria-hidden="true" size={16} strokeWidth={2} />
+					<ArrowClockwiseIcon aria-hidden="true" size={16} weight="bold" />
 					{#if phone.current}Redo{/if}
 				</button>
 				<LanguagePicker {controller} expandedLabel={phone.current} />
@@ -295,15 +295,15 @@
 				class="button button--contrast"
 				onclick={() => controller.pasteLyrics()}
 			>
-				<ClipboardPaste aria-hidden="true" size={16} strokeWidth={2} />
+				<ClipboardTextIcon aria-hidden="true" size={16} weight="bold" />
 				Paste lyrics
 			</button>
 		{:else}
 			<button type="button" class="button button--contrast" onclick={copyLyrics}>
 				{#if copied}
-					<Check aria-hidden="true" size={16} strokeWidth={2} />
+					<CheckIcon aria-hidden="true" size={16} weight="bold" />
 				{:else}
-					<Copy aria-hidden="true" size={16} strokeWidth={2} />
+					<CopyIcon aria-hidden="true" size={16} weight="bold" />
 				{/if}
 				{copied ? 'Lyrics copied' : 'Copy lyrics'}
 			</button>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { normalizeGeniusUrl } from '$lib/core/genius-url.js';
+	import youtubeIcon from '$lib/assets/youtube-icon.svg';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import type { TimedLyricsFormat } from '$lib/core/timed-lyrics.js';
 	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
@@ -111,8 +112,7 @@
 		It leads, because it is the one section here that comes and goes with the
 		attachment; a section that is only sometimes there leads or it is somewhere
 		different on every draft. Each fact draws only where it exists. Attaching
-		itself lives in the workbench: the tray's note glyph while nothing is
-		attached, the strip's pencil once something is. Nothing else here
+		itself lives in the workbench through the tray's note button. Nothing else here
 		contacts anyone: the facts and the cover's address arrived on the read that
 		named the song, and the link is derived from the id the draft already stores.
 	-->
@@ -143,10 +143,7 @@
 						target="_blank"
 						rel="noopener noreferrer"
 					>
-						<svg class="youtube-logo" viewBox="0 0 24 18" width="20" height="15" aria-hidden="true">
-							<rect x="0" y="0" width="24" height="18" rx="5" fill="#ff0033" />
-							<path d="M10 5.2 16.5 9 10 12.8Z" fill="white" />
-						</svg>
+						<img class="youtube-logo" src={youtubeIcon} width="20" height="15" alt="" />
 						Search YouTube
 					</a>
 				{/if}

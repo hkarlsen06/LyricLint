@@ -1,5 +1,9 @@
 <script lang="ts">
 	import { onDestroy, onMount, untrack } from 'svelte';
+	import FileAudioIcon from 'phosphor-svelte/lib/FileAudioIcon';
+	import MusicNotesMinusIcon from 'phosphor-svelte/lib/MusicNotesMinusIcon';
+	import appleMusicIcon from '$lib/assets/apple-music-icon.svg';
+	import youtubeIcon from '$lib/assets/youtube-icon.svg';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import type { SpotifySearchResult } from '../state/media-spotify.js';
 	import type { AppleMusicSearchResult } from '../state/media-apple.js';
@@ -206,6 +210,34 @@
 </script>
 
 <div class="media-dialog__body">
+	{#if media.player.attached || media.pendingName}
+		<section class="media-dialog__attached">
+			<div class="media-dialog__attached-row">
+				{#if media.player.artwork}
+					<img class="media-dialog__cover" src={media.player.artwork} alt="" />
+				{/if}
+				<div class="media-dialog__identity">
+					<strong title={media.player.songDetails?.title ?? media.player.name ?? media.pendingName}>
+						{media.player.songDetails?.title ?? media.player.name ?? media.pendingName}
+					</strong>
+					{#if media.player.songDetails?.artist}
+						<span title={media.player.songDetails.artist}>{media.player.songDetails.artist}</span>
+					{/if}
+				</div>
+				<button
+					type="button"
+					class="button--quiet icon-button"
+					aria-label={`Detach ${media.player.name ?? media.pendingName}`}
+					title="Detach audio"
+					disabled={media.busy}
+					onclick={() => void detach()}
+				>
+					<MusicNotesMinusIcon aria-hidden="true" size={18} weight="bold" />
+				</button>
+			</div>
+		</section>
+	{/if}
+
 	<section>
 		<form
 			class="media-dialog__url"
@@ -214,6 +246,7 @@
 				void useVideo();
 			}}
 		>
+			<img class="media-dialog__source-icon" src={youtubeIcon} alt="" />
 			<input
 				bind:this={urlInput}
 				bind:value={url}
@@ -255,7 +288,7 @@
 					target="_blank"
 					rel="noopener noreferrer"
 				>
-					Search YouTube for “{searchName}”
+					Search YouTube
 				</a>
 			</p>
 		{/if}
@@ -281,6 +314,7 @@
 					void runSongSearch();
 				}}
 			>
+				<img class="media-dialog__source-icon" src={appleMusicIcon} alt="" />
 				<input
 					bind:value={queries.apple}
 					type="search"
@@ -464,32 +498,19 @@
 	{/if}
 
 	<section>
-		<button type="button" class="button" onclick={() => void chooseFile()} disabled={media.busy}>
-			Choose a file…
-		</button>
+		<div class="media-dialog__url">
+			<FileAudioIcon
+				class="media-dialog__source-icon"
+				aria-hidden="true"
+				size={20}
+				weight="regular"
+			/>
+			<button type="button" class="button" onclick={() => void chooseFile()} disabled={media.busy}>
+				Choose a file…
+			</button>
+		</div>
 		<p class="media-dialog__meta">Plays from your disk · Nothing is uploaded</p>
 	</section>
-
-	<!--
-				The way out, offered where the question is asked. This press used to be
-				an X at the end of the transport row, where it was hit by accident more
-				often than on purpose. A detach is a decision about what the draft's
-				song is, so it belongs behind the same deliberate press every other
-				answer here is. It draws only while there is something to detach, the
-				rule every conditional answer above follows, and the facts under it say
-				what the press does not cost: the timings live on the 'scribe, and no
-				file is touched.
-			-->
-	{#if media.player.attached || media.pendingName}
-		<section>
-			<button type="button" class="button" onclick={() => void detach()} disabled={media.busy}>
-				Detach {media.player.name ?? media.pendingName}
-			</button>
-			<p class="media-dialog__meta">
-				Line timings stay on this 'scribe · Nothing is deleted from your disk
-			</p>
-		</section>
-	{/if}
 </div>
 
 <style>
@@ -502,6 +523,46 @@
 		margin-top: var(--space-5);
 	}
 
+	.media-dialog__attached-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.media-dialog__cover {
+		width: var(--control-height-lg);
+		aspect-ratio: 1;
+		flex: none;
+		border-radius: var(--radius-control);
+		object-fit: cover;
+	}
+
+	.media-dialog__identity {
+		display: flex;
+		flex: 1;
+		min-width: 0;
+		flex-direction: column;
+		font-size: var(--font-size-sm);
+	}
+
+	.media-dialog__identity strong,
+	.media-dialog__identity span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.media-dialog__identity span {
+		color: var(--color-text-muted);
+	}
+
+	.media-dialog__url :global(.media-dialog__source-icon) {
+		flex: none;
+		width: 20px;
+		height: 20px;
+		color: var(--color-text-muted);
+	}
+
 	.media-dialog__meta {
 		margin: var(--space-2) 0 0 0;
 		color: var(--color-text-muted);
@@ -512,6 +573,7 @@
 	.media-dialog__url {
 		display: flex;
 		gap: var(--space-2);
+		align-items: center;
 	}
 
 	.media-dialog__url input {

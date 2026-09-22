@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ExternalLink from 'lucide-svelte/icons/external-link';
+	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
 	import type { Snippet } from 'svelte';
 	import type { SourceReference } from '$lib/core/types.js';
 	import { sourceFavicon } from './source-favicons.js';
@@ -39,11 +39,11 @@
 					<img class="source-reference__favicon" src={favicon} alt="" />
 				{/if}
 				{@render (text ?? plain)(source.pageTitle)}
-				<ExternalLink
+				<ArrowSquareOutIcon
 					class="source-reference__external"
 					aria-hidden="true"
 					size={11}
-					strokeWidth={2.2}
+					weight="bold"
 				/><!-- The mark is aria-hidden, so this note is the whole of what says the
 				     press opens a tab, the convention every external link on the site
 				     pages already follows. -->

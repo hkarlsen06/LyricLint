@@ -184,35 +184,17 @@
 		}));
 	}
 
-	async function focusMediaOpener(workspace: Element | null): Promise<void> {
-		const opener = () =>
-			workspace?.querySelector<HTMLButtonElement>(
-				phone.current
-					? 'button[aria-label="Audio details"], button[aria-label="Add audio source"]'
-					: 'button[aria-label="Add audio source"], button[aria-label="Change audio source"]'
-			);
-		const immediate = opener();
-		if (immediate) {
-			immediate.focus();
-			return;
-		}
-		// The successful first attachment can close its picker before the strip
-		// finishes loading. Hand focus to its replacement only if the user has
-		// not moved elsewhere during that wait.
-		const previousFocus = document.activeElement;
-		try {
-			await loadMediaStrip();
-		} catch {
-			// The shared loading surface owns the visible refusal and Retry.
-		}
-		await tick();
-		if (!workspace?.isConnected || document.activeElement !== previousFocus) return;
-		(opener() ?? workspace.querySelector<HTMLButtonElement>('.workspace-media button'))?.focus();
+	function focusMediaOpener(workspace: Element | null): void {
+		workspace
+			?.querySelector<HTMLButtonElement>(
+				'button[aria-label="Change audio source"], button[aria-label="Add audio source"]'
+			)
+			?.focus();
 	}
 
 	function openMediaPicker(source: HTMLButtonElement): void {
 		const workspace = source.closest('.workspace');
-		void mediaPicker?.open(source, () => void focusMediaOpener(workspace));
+		void mediaPicker?.open(source, () => focusMediaOpener(workspace));
 	}
 
 	// Undefined in a workspace rendered on its own, which is how every component
@@ -1335,8 +1317,7 @@
 					media: controller.media,
 					sync: lyricSync,
 					follow: followControl,
-					announce: (message: string) => controller.feedback.announce(message),
-					openMediaPicker
+					announce: (message: string) => controller.feedback.announce(message)
 				}}
 			>
 				{#snippet pendingSurface(content)}

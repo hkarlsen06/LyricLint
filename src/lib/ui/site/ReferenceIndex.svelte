@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
-	import WandSparkles from 'lucide-svelte/icons/wand-sparkles';
-	import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
+	import MagicWandIcon from 'phosphor-svelte/lib/MagicWandIcon';
+	import SlidersHorizontalIcon from 'phosphor-svelte/lib/SlidersHorizontalIcon';
 	import { afterNavigate } from '$app/navigation';
 	import { base, resolve } from '$app/paths';
 	import { assistantAvailable } from '$lib/assistant/api.js';
@@ -152,7 +152,7 @@
 		<span id={`topic-title-${topic.id}`}>{topic.title}</span>
 		<span id={`topic-question-${topic.id}`} class="reference-topic-question">{topic.question}</span>
 	</span>
-	<ChevronRight size={16} aria-hidden="true" />
+	<CaretRightIcon size={16} aria-hidden="true" weight="bold" />
 {/snippet}
 
 <div
@@ -185,7 +185,7 @@
 				aria-controls="reference-filters"
 				onclick={() => (filtersOpen = !filtersOpen)}
 			>
-				<SlidersHorizontal aria-hidden="true" size={16} />
+				<SlidersHorizontalIcon aria-hidden="true" size={16} weight="bold" />
 				Filters{scope !== 'all' ||
 				filters.topic ||
 				filters.severities.length ||
@@ -199,7 +199,7 @@
 					class="button button--quiet reference-ask"
 					onclick={() => void assistant.open()}
 				>
-					<WandSparkles aria-hidden="true" size={20} strokeWidth={1.75} />
+					<MagicWandIcon aria-hidden="true" size={20} />
 					Ask a question
 				</button>
 			{/if}

@@ -2,11 +2,14 @@ import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'svelte';
 import { render } from 'vitest-browser-svelte';
+import appleMusicIcon from '$lib/assets/apple-music-icon.svg';
+import youtubeIcon from '$lib/assets/youtube-icon.svg';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 import { createInMemoryMediaRepository } from '../state/in-memory.js';
 import { createFeedbackState } from '../state/feedback.svelte.js';
 import { createMediaPlayer } from '../state/media-player.svelte.js';
 import { createMediaStore } from '../state/media-store.svelte.js';
+import { appleStore } from '../state/media-test-stores.js';
 import { StubAudio } from '../state/media-test-audio.js';
 import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
 import MediaPicker from './MediaPicker.svelte';
@@ -49,15 +52,14 @@ async function setup(
 	const props: ComponentProps<typeof MediaPicker> = { media };
 	if (options.draftTitle !== undefined) props.draftTitle = options.draftTitle;
 	const view = await render(MediaPicker, { props });
-	// The triggers live where they act now (the tray's note glyph, the strip's
-	// pencil) so the suite opens the dialog the way they do, through the one
-	// shared `open` they all call.
+	// The trigger lives in the editor's action tray. The suite opens the dialog
+	// through the same `open` it calls.
 	return {
 		media,
 		youtube,
 		openImmediately: () => view.component.open(),
-		openDialog: async () => {
-			await view.component.open();
+		openDialog: async (source?: HTMLButtonElement) => {
+			await view.component.open(source);
 			await expect.element(page.getByLabelText('YouTube link')).toBeVisible();
 		}
 	};
@@ -85,7 +87,7 @@ describe('MediaPicker', () => {
 	it('renders only the closed dialog until it is opened', async () => {
 		const { youtube, openDialog } = await setup();
 
-		// No trigger of its own: the tray's note and the strip's pencil open it.
+		// The picker has no trigger of its own.
 		expect(page.getByRole('button', { name: 'Add audio' }).elements()).toHaveLength(0);
 		expect(page.getByRole('button', { name: 'Change audio' }).elements()).toHaveLength(0);
 		expect(dialog()?.open).toBe(false);
@@ -93,6 +95,16 @@ describe('MediaPicker', () => {
 		expect(youtube.loads).toBe(0);
 
 		await openDialog();
+		const body = dialog()?.querySelector('.media-dialog__body');
+		expect(
+			body?.querySelector('form:has(input[aria-label="YouTube link"]) img')?.getAttribute('src')
+		).toBe(youtubeIcon);
+		expect(
+			body
+				?.querySelector('form:has(input[aria-label="Apple Music search"]) img')
+				?.getAttribute('src')
+		).toBe(appleMusicIcon);
+		expect(body?.querySelector('section:last-child .media-dialog__url svg')).toBeTruthy();
 		await expect.element(page.getByRole('button', { name: 'Choose a file…' })).toBeVisible();
 	});
 
@@ -417,7 +429,7 @@ describe('MediaPicker', () => {
 		expect(search.href).toBe(
 			'https://www.youtube.com/results?search_query=Mul%20%E2%80%94%20Sensommer'
 		);
-		expect(search.textContent?.trim()).toBe('Search YouTube for “Mul — Sensommer”');
+		expect(search.textContent?.trim()).toBe('Search YouTube');
 		// A new tab, because the workbench is a document being typed into.
 		expect(search.target).toBe('_blank');
 	});
@@ -447,11 +459,61 @@ describe('MediaPicker', () => {
 
 		await media.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		await openDialog();
+		const top = dialog()?.querySelector('.media-dialog__body section:first-child');
+		expect(top?.classList.contains('media-dialog__attached')).toBe(true);
+		expect(top?.querySelector('.media-dialog__identity')?.textContent).toContain('track.mp3');
+		expect(top?.textContent).not.toContain('Line timings stay');
 		await page.getByRole('button', { name: 'Detach track.mp3' }).click();
 
 		expect(media.player.attached).toBe(false);
 		expect(media.pendingName).toBeUndefined();
 		expect(dialog()?.open).toBe(false);
+	});
+
+	it('reconnects remembered audio when opened from the note button', async () => {
+		const { media, openDialog } = await setup();
+		await media.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		await media.openFor('draft-1');
+		expect(media.pendingName).toBe('track.mp3');
+		await openDialog(document.createElement('button'));
+		await vi.waitFor(() => expect(media.player.attached).toBe(true));
+		expect(media.pendingName).toBeUndefined();
+	});
+
+	it('keeps a long attached name and detach control inside the dialog at phone and desktop widths', async () => {
+		const { media, openDialog } = await setup();
+		await media.attachFile(
+			new File(
+				[''],
+				'A very long song title with a featured artist and an extended live recording.mp3'
+			)
+		);
+		await openDialog();
+		for (const width of [320, 1280]) {
+			await page.viewport(width, 844);
+			const row = dialog()!.querySelector('.media-dialog__attached-row')!;
+			const button = row.querySelector('button')!;
+			const bounds = row.getBoundingClientRect();
+			const buttonBounds = button.getBoundingClientRect();
+			expect(buttonBounds.right).toBeLessThanOrEqual(bounds.right);
+			expect(bounds.right).toBeLessThanOrEqual(width);
+		}
+	});
+
+	it('leads with the attached catalogue artwork, song and artist', async () => {
+		const { media } = await appleStore({ artwork: 'https://example.com/cover.png' });
+		const view = await render(MediaPicker, { props: { media } });
+		await view.component.open();
+		await expect.element(page.getByLabelText('YouTube link')).toBeVisible();
+		await page.viewport(320, 844);
+		const row = dialog()?.querySelector('.media-dialog__attached-row');
+		expect(row?.querySelector('img')?.getAttribute('src')).toBe('https://example.com/cover.png');
+		expect(row?.querySelector('strong')?.textContent).toBe('Stole the Show');
+		expect(row?.querySelector('.media-dialog__identity span')?.textContent).toBe('Kygo');
+		expect(row?.querySelector('button')?.getAttribute('aria-label')).toBe(
+			'Detach Kygo — Stole the Show'
+		);
+		expect(row!.querySelector('button')!.getBoundingClientRect().right).toBeLessThanOrEqual(320);
 	});
 });
 

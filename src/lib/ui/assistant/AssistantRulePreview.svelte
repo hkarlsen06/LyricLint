@@ -8,7 +8,7 @@
 	 * here is resolved from the local corpus, never from model output, and the
 	 * complete reference opens on the rule's own page in a new tab.
 	 */
-	import ExternalLink from 'lucide-svelte/icons/external-link';
+	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
 	import { resolve } from '$app/paths';
 	import type { Severity } from '$lib/core/types.js';
 	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
@@ -35,7 +35,7 @@
 			rel="noopener noreferrer"
 		>
 			{rule.title}
-			<ExternalLink aria-hidden="true" size={11} strokeWidth={2.4} />
+			<ArrowSquareOutIcon aria-hidden="true" size={11} weight="bold" />
 		</a>
 	</h4>
 	<p class="assistant-rule__meta">

@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Decision record: docs/subsystems/section-links.md.
 	import { tick, untrack } from 'svelte';
-	import Link2 from 'lucide-svelte/icons/link-2';
+	import LinkSimpleHorizontalIcon from 'phosphor-svelte/lib/LinkSimpleHorizontalIcon';
 	import { lineNumberAt } from '$lib/core/line-numbers.js';
 	import type { SectionLinkChoice } from '$lib/core/types.js';
 	import { linkOccurrences } from '$lib/editor/section-links.js';
@@ -241,7 +241,7 @@
 									<div class="linking-group__footer">
 										{#if category.linked}
 											<span class="linking-group__state"
-												><Link2 size={16} aria-hidden="true" /> Linked</span
+												><LinkSimpleHorizontalIcon size={16} aria-hidden="true" weight="bold" /> Linked</span
 											>
 										{/if}
 										<button

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Trash2 from 'lucide-svelte/icons/trash-2';
+	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	/**
 	 * Taking a row out of a list, in one place, in two presses.
 	 *
@@ -76,6 +76,6 @@
 		title={label}
 		onclick={() => onRequest()}
 	>
-		<Trash2 aria-hidden="true" size={14} strokeWidth={2.25} />
+		<TrashIcon aria-hidden="true" size={14} weight="bold" />
 	</button>
 {/if}

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Check from 'lucide-svelte/icons/check';
-	import Copy from 'lucide-svelte/icons/copy';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
 	import { copyText, downloadImage } from '../clipboard.js';
 	import LoadingMark from '../primitives/LoadingMark.svelte';
 
@@ -58,9 +58,9 @@
 <div class="artwork-actions">
 	<button type="button" class="button" onclick={() => copyUrl()}>
 		{#if copied}
-			<Check aria-hidden="true" size={14} strokeWidth={2.25} />
+			<CheckIcon aria-hidden="true" size={14} weight="bold" />
 		{:else}
-			<Copy aria-hidden="true" size={14} strokeWidth={2.25} />
+			<CopyIcon aria-hidden="true" size={14} weight="bold" />
 		{/if}
 		{copied ? 'Image URL copied' : 'Copy image URL'}
 	</button>

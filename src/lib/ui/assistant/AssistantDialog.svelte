@@ -4,7 +4,7 @@
 	 * dismissal, and focus restoration; AssistantConversation owns everything
 	 * below this header and is shared verbatim with the workbench panel.
 	 */
-	import X from 'lucide-svelte/icons/x';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { Dialog } from 'bits-ui';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import AssistantChatControls from './AssistantChatControls.svelte';
@@ -51,7 +51,7 @@
 						onConversationEmptied={() => conversation?.focusComposer()}
 					/>
 					<Dialog.Close class="icon-button button--quiet" aria-label="Close">
-						<X aria-hidden="true" size={12} strokeWidth={3} />
+						<XIcon aria-hidden="true" size={12} weight="bold" />
 					</Dialog.Close>
 				</div>
 			</header>

@@ -123,9 +123,9 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   local exclusions remain local. Validated clipboard metadata takes precedence over recovery.
   Deletion followed by a separate plain paste retains no hidden link history.
   The link icon opens that section in Linking on click,
-  Enter, or Space. The management icon is Lucide `Link` during shared editing and `Unlink`
+  Enter, or Space. The management icon is Phosphor `Link` during shared editing and `LinkBreak`
   during local editing; both open management rather than unlinking the section. The adjacent
-  mode control uses `Pen` for shared editing and `PenLine` for `Edit this section only`, with a
+  mode control uses `Pen` for shared editing and `PencilLine` for `Edit this section only`, with a
   stable accessible name, `aria-pressed`, and its own shared hint. It preserves the panel and
   caret. These inline actions follow one header-character space after `]`, with separate
   24px targets centered around a text-height background centered on the header’s capital height.
@@ -305,7 +305,7 @@ The same release made the header hint say “Manage linking,” burying “Edit 
 the panel. The header is where a transcriber is deciding whether this edit should spread, but
 repurposing the familiar `⇄` control to toggle that mode changed its established meaning. Keep
 the linking control opening the respective Linking view. It uses `Link` during shared editing
-and `Unlink` during local editing, while the adjacent mode control uses `Pen` and `PenLine`.
+and `LinkBreak` during local editing, while the adjacent mode control uses `Pen` and `PencilLine`.
 The icons communicate state without changing what either control does. Both pairs sit inline
 after one character-space from the bracket. Glyph-sized targets crowded the icons and made
 them difficult to press; baseline alignment also lifted the controls above the header. Each

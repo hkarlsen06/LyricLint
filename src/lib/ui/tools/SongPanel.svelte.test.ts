@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import youtubeIcon from '$lib/assets/youtube-icon.svg';
 import type { WorkbenchController } from '../state/workbench.svelte.js';
 import type { MediaPlayer, SongDetails } from '../state/media-player.svelte.js';
 import type { MediaStore } from '../state/media-store.svelte.js';
@@ -77,8 +78,7 @@ describe('SongPanel skimmability', () => {
 			})
 		);
 		expect(reconnect).toHaveBeenCalledOnce();
-		// The picker itself lives in the workbench (the tray's note glyph, the
-		// strip's pencil), so this tab names no second way into it.
+		// The picker opens from the workbench tray, so this tab names no second way into it.
 		expect(screen.queryByRole('button', { name: 'Change audio source' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Add audio source' })).toBeNull();
 	});
@@ -258,7 +258,7 @@ describe('SongPanel song metadata', () => {
 			'https://www.youtube.com/results?search_query=Mul%20%E2%80%94%20Sensommer'
 		);
 		expect(search.target).toBe('_blank');
-		expect(search.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+		expect(search.querySelector('img[alt=""]')?.getAttribute('src')).toBe(youtubeIcon);
 
 		const section = songSection(container)!;
 		const actions = section.querySelector('.tool-actions') as HTMLElement;

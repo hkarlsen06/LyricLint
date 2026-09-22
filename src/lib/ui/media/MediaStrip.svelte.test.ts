@@ -67,42 +67,16 @@ async function fontsSettled(): Promise<void> {
 }
 
 describe('MediaStrip', () => {
-	/*
-	 * The way back in sits after the song name and stays quiet:
-	 * swapping tracks is a decision about the draft's song, so it opens the
-	 * shared dialog rather than acting here. It draws wherever the strip draws
-	 * (attached or remembered) and only where the shell hands the opener down,
-	 * so a strip without one names no way in at all.
-	 */
-	it('places the audio pencil after the pending name, or nothing without its opener', async () => {
+	it('keeps a remembered source and its load control without an edit action', async () => {
 		const { media } = store({
 			records: [{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }]
 		});
 		await media.openFor('draft-1');
 
-		const opened: HTMLButtonElement[] = [];
-		const { unmount } = await render(MediaStrip, {
-			props: {
-				media,
-				openMediaPicker: (source: HTMLButtonElement) => void opened.push(source)
-			}
-		});
-
-		const pencil = page.getByRole('button', { name: 'Change audio source' });
-		await expect.element(pencil).toBeVisible();
+		await render(MediaStrip, { props: { media } });
 		const controls = [...document.querySelector('.media-strip__controls')!.children];
 		expect(controls[0]).toHaveClass('media-strip__pending-name');
-		expect(controls[1]).toBe(pencil.element());
-		expect(pencil.element().getAttribute('aria-haspopup')).toBe('dialog');
-
-		// Synthetic: userEvent's hover would show the shared tooltip box, which is
-		// module state that outlives the render. This press is about the
-		// wiring, not the hover.
-		pencil.element().dispatchEvent(new MouseEvent('click', { bubbles: true }));
-		expect(opened).toEqual([pencil.element()]);
-		await unmount();
-
-		await render(MediaStrip, { props: { media } });
+		expect(controls[1]).toHaveClass('media-strip__reconnect');
 		expect(page.getByRole('button', { name: 'Change audio source' }).elements()).toHaveLength(0);
 	});
 
@@ -843,7 +817,7 @@ describe('MediaStrip attribution', () => {
 			const { media, player } = await open();
 			expect(player.artwork).toBeUndefined();
 
-			await render(MediaStrip, { props: { media, openMediaPicker: () => {} } });
+			await render(MediaStrip, { props: { media } });
 
 			const strip = page.getByTestId('media-strip').element();
 			expect(strip.querySelector('.media-artwork__title')?.textContent).toBeTruthy();
@@ -851,9 +825,7 @@ describe('MediaStrip attribution', () => {
 				strip.querySelectorAll('.media-attribution__spotify, .media-attribution__apple')
 			).toHaveLength(1);
 			expect(strip.querySelector('.media-strip__controls .media-artwork')).toBeNull();
-			const pencil = page.getByRole('button', { name: 'Change audio source' }).element();
-			expect(pencil.previousElementSibling).toHaveClass('media-artwork__meta');
-			expect(strip.querySelector('.media-strip__controls')!.contains(pencil)).toBe(false);
+			expect(page.getByRole('button', { name: 'Change audio source' }).elements()).toHaveLength(0);
 			await expect.element(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 
 			// Source links are siblings of playback, including display:contents on
@@ -917,7 +889,6 @@ it.each([320, 390])(
 			const view = await render(MediaStrip, {
 				props: {
 					media,
-					openMediaPicker: () => {},
 					follow: { available: true, active: false, toggle: () => {} },
 					sync: { active: false, toggle: () => {}, tap: () => {} }
 				}
