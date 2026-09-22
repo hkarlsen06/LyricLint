@@ -309,6 +309,12 @@
 			<li>
 				<details data-check-id={check.id}>
 					<summary><GuidanceSearchHighlight text={check.title} /></summary>
+					<!-- A check's sources are often not the convention's own, so they
+					     stand under the summary in the entry heading's meta idiom rather
+					     than one link away on the check page. -->
+					<div class="site-meta">
+						<SiteSourceFold sources={check.sources} text={marked} />
+					</div>
 					<figure class="site-sample site-sample--invalid">
 						<figcaption class="site-sample__label">Flagged example</figcaption>
 						<pre

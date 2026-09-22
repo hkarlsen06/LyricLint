@@ -16,6 +16,9 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
 - Guidelines explain sourced conventions; rules explain the linter's exact triggers and fixes.
   One guide at `/guidelines/` uses `ReferenceIndex`, shared topics, and one server-derived corpus.
   Check details live at `/guidelines/checks/[rule]/`; the old `/rules/` routes only redirect.
+  Each check disclosure in the guide opens with the check's own source citations (the same
+  `SiteSourceFold` meta line an entry heading uses), since a check often cites a Genius page
+  its convention does not; `topic-checks.test.ts` pins that the loader carries them.
   No rule engine or statistical language corpus is imported by the client finder.
   `reference/search.test.ts` pins catalog coverage and topic routing.
 - Search is ranked; browsing follows the catalog. Exact titles and identifiers outweigh body

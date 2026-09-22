@@ -23,6 +23,7 @@ describe('checks within a convention', () => {
 					invalid: rule.invalid,
 					valid: rule.valid,
 					language: rule.language,
+					sources: rule.sources,
 					href: `/guidelines/checks/${rule.slug}/`
 				});
 			}
