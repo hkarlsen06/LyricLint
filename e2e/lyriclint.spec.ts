@@ -681,7 +681,7 @@ test('integrated checks keep the topic reading position and expose unmatched che
 		.locator('.guidelines__entry:has(#voice-order) .guidelines__checks details')
 		.first();
 	await disclosure.locator('summary').click();
-	const check = disclosure.locator('a');
+	const check = disclosure.getByRole('link', { name: /See trigger and fix/u });
 	await check.scrollIntoViewIfNeeded();
 	const detail = page.locator('.site-split__detail');
 	const before = await detail.evaluate((node) => node.scrollTop);
@@ -922,7 +922,7 @@ test('the spelling topic lists the standardized spellings, and the finder search
 	// promising every convention names its tier and its source, and was the one
 	// section naming neither. The tier and the citation come off the landmark's
 	// own record, so what is checked here is that the section draws them.
-	const landmark = page.locator('.guidelines__landmark');
+	const landmark = page.locator('.guidelines__landmark .guidelines__entry-heading');
 	await expect(landmark.locator('.site-meta')).toContainText('Genius staff guidance');
 	await expect(landmark.locator('.site-meta a[href="https://genius.com/9298624"]')).toHaveCount(1);
 
@@ -1426,7 +1426,7 @@ test.describe('phone reference sections', () => {
 			.locator('.guidelines__entry:has(#voice-order) .guidelines__checks details')
 			.first();
 		await disclosure.locator('summary').click();
-		const check = disclosure.locator('a');
+		const check = disclosure.getByRole('link', { name: /See trigger and fix/u });
 		await check.scrollIntoViewIfNeeded();
 		const detail = page.locator('.site-split__detail');
 		const before = await detail.evaluate((pane) => pane.scrollTop);
