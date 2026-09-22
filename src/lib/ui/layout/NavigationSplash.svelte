@@ -6,6 +6,9 @@
 	let { active }: { active: boolean } = $props();
 	let requested = $state(false);
 	let visible = $state(false);
+	// True once no entry view transition is running, so the cover's spring can
+	// start on a frame budget of its own instead of under the root crossfade.
+	let settled = $state(true);
 	let transition: ViewTransition | undefined;
 	let interrupted = false;
 
@@ -32,6 +35,7 @@
 		interrupted = false;
 		if (skip || !document.startViewTransition) {
 			visible = show;
+			settled = true;
 			return;
 		}
 
@@ -42,6 +46,7 @@
 			await tick();
 		};
 		document.documentElement.setAttribute('data-navigation-transition', '');
+		settled = false;
 		try {
 			const current = (transition = document.startViewTransition(update));
 			void current.ready.catch(() => {});
@@ -49,6 +54,7 @@
 				.finally(() => {
 					if (transition !== current) return;
 					transition = undefined;
+					settled = true;
 					document.documentElement.removeAttribute('data-navigation-transition');
 				})
 				.catch(() => {});
@@ -56,6 +62,7 @@
 		} catch {
 			document.documentElement.removeAttribute('data-navigation-transition');
 			visible = show;
+			settled = true;
 		}
 	});
 </script>
@@ -63,7 +70,7 @@
 <svelte:window onpointerdown={interrupt} onkeydown={interrupt} />
 
 {#if visible}
-	<BootScreen ready={!active} ondone={() => (requested = false)} />
+	<BootScreen ready={!active} start={settled} ondone={() => (requested = false)} />
 {/if}
 
 <style>

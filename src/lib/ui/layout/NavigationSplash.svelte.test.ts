@@ -58,7 +58,10 @@ test('a ready destination still gets the spring and explosion after a delayed en
 		await view.rerender({ active: false });
 		await updates[0]();
 		const splash = view.container.querySelector('.navigation-splash') as HTMLElement;
-		expect(splash.dataset.stage).toBe('pull');
+		// The spring waits for the entry crossfade so the two never share frames.
+		expect(splash.dataset.stage).toBe('hold');
+		completed.resolve();
+		await waitFor(() => expect(splash.dataset.stage).toBe('pull'));
 		expect(start).toHaveBeenCalledTimes(1);
 		await waitFor(() => {
 			const mark = splash.querySelector('.app-wordmark') as HTMLElement;
