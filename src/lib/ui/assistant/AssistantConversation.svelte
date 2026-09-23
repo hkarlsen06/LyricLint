@@ -524,3 +524,337 @@
 		</form>
 	</div>
 </div>
+
+<style>
+	/*
+	 * The transcript reads as a conversation, not a log: the user's words are a
+	 * compact filled bubble on the right (the one familiar mark every chat reader
+	 * already knows), and the assistant answers as plain prose on the surface, so
+	 * neither turn needs a "You"/"Assistant" caption or a hairline to say whose it
+	 * is. Those captions stay in the accessible tree (`sr-only`), because position
+	 * and fill reach nobody who cannot see them. The whole run sits in one centered
+	 * reading column, and a cited rule is one quiet meta line in the diagnostics
+	 * idiom rather than a labelled attachment block.
+	 */
+
+	/* Both hosts give the conversation their remaining height. The transcript is
+	 * the only scrolling region; the composer stays at the foot while the privacy
+	 * disclosure belongs to the empty state above it. */
+	.assistant-conversation {
+		display: flex;
+		min-height: 0;
+		flex: 1;
+		flex-direction: column;
+	}
+
+	.assistant-conversation__foot {
+		flex: none;
+		margin-top: auto;
+	}
+
+	/* The transcript is one centered reading column; spacing separates the turns,
+	 * so no hairlines between them. */
+	.assistant-transcript {
+		overflow-y: auto;
+		flex: 1;
+		min-height: 14rem;
+		padding: var(--space-5);
+	}
+
+	.assistant-transcript > * {
+		width: 100%;
+		max-width: 40rem;
+		margin-inline: auto;
+	}
+
+	.assistant-turn {
+		padding-block: var(--space-3);
+	}
+
+	.assistant-turn[data-role='user'] {
+		display: flex;
+		justify-content: flex-end;
+	}
+
+	.assistant-turn[data-role='user'] .assistant-turn__text {
+		max-width: min(85%, 32rem);
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-lg);
+		background: var(--color-fill-subtle);
+	}
+
+	.assistant-turn__text {
+		margin: 0;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+
+	.assistant-turn .button {
+		margin-block-start: var(--space-2);
+	}
+
+	/* Proposals repeat as independently reviewable units, so each earns a
+	 * softly raised surface (the cards themselves, in `assistant.css`). */
+	.assistant-proposals {
+		display: grid;
+		gap: var(--space-2);
+		margin-block: var(--space-2) var(--space-3);
+	}
+
+	/* The empty state is prose on the surface: a question, one sentence, the
+	 * suggestions as quiet rows, then the privacy boundary while the reader is
+	 * deciding whether to begin. */
+	.assistant-empty {
+		display: flex;
+		height: 100%;
+		min-height: 20rem;
+		align-items: center;
+		justify-content: center;
+		flex-direction: column;
+		text-align: center;
+		color: var(--color-text-muted);
+	}
+
+	.assistant-empty h3 {
+		margin: 0 0 var(--space-2);
+		color: var(--color-text);
+		font-size: var(--font-size-xl);
+		font-weight: var(--font-weight-medium);
+	}
+
+	.assistant-empty > p {
+		max-width: 28rem;
+		margin: 0;
+		font-size: var(--font-size-sm);
+	}
+
+	.assistant-suggestions {
+		display: grid;
+		width: min(100%, 24rem);
+		gap: var(--space-0-5);
+		margin-block-start: var(--space-5);
+	}
+
+	.assistant-suggestions button {
+		display: flex;
+		min-height: var(--control-height-md);
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding: var(--space-1-5) var(--space-3);
+		border: 0;
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: var(--color-text);
+		font: inherit;
+		font-size: var(--font-size-sm);
+		text-align: start;
+		cursor: pointer;
+	}
+
+	.assistant-suggestions button :global(svg) {
+		flex: none;
+		color: var(--color-text-muted);
+	}
+
+	.assistant-suggestions button:hover {
+		background: var(--color-control-hover);
+	}
+
+	.assistant-divider {
+		margin-block: var(--space-3);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		text-align: center;
+	}
+
+	.assistant-status {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-5);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	.assistant-status--failure {
+		color: var(--color-text);
+	}
+
+	.assistant-challenge {
+		padding: var(--space-2) var(--space-5);
+	}
+
+	/* The composer's foot is its own gutter, so the field sits in an even inset
+	 * rather than pressed against the bottom edge. It is one custom property
+	 * because the dialog and the panel gutter differently and the two edges must
+	 * not be able to disagree. */
+	.assistant-composer {
+		--composer-gutter: var(--space-5);
+
+		display: grid;
+		padding: var(--space-2) var(--composer-gutter) var(--composer-gutter);
+		gap: var(--space-1);
+	}
+
+	.assistant-composer__field {
+		display: flex;
+		align-items: center;
+		padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+		border-radius: var(--radius-control);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-control);
+	}
+
+	.assistant-composer__limit {
+		margin: 0;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+	}
+
+	.assistant-composer__limit.danger-text {
+		color: var(--color-danger);
+	}
+
+	.assistant-composer textarea {
+		flex: 1;
+		height: auto;
+		min-height: 2.5rem;
+		max-height: 9rem;
+		padding: var(--space-2) 0;
+		border: 0;
+		outline: 0;
+		background: transparent;
+		box-shadow: none;
+		color: var(--color-text);
+		font: inherit;
+		resize: none;
+		overflow-y: hidden;
+	}
+
+	/* Desktop keeps the shared field hover (`controls.css`). It outranked the
+	 * transparent fill above while this rule was global; scoping lifts this rule
+	 * to a tie, so the hover is stated here rather than left to load order. */
+	.assistant-composer textarea:hover:not(:disabled) {
+		background: var(--color-control-hover);
+	}
+
+	.assistant-composer__field:focus-within {
+		border-color: var(--color-focus);
+		box-shadow: 0 0 0 var(--focus-ring-width) var(--color-focus-soft);
+	}
+
+	/* Sizing only. Everything the control *is* (the silhouette, the contrast
+	   tier's inversion, and the muted-surface disabled state) comes from
+	   `controls.css`, so this cannot drift into a fourth tier again. */
+	.assistant-composer__send {
+		flex: none;
+		width: var(--control-height-lg);
+		height: var(--control-height-lg);
+	}
+
+	@media (pointer: coarse) and (max-width: 68rem) {
+		.assistant-composer textarea {
+			appearance: none;
+			min-width: 0;
+			border-radius: 0;
+			font-size: var(--font-size-editor);
+			min-height: var(--control-height-touch);
+		}
+
+		/* The enclosing field owns the surface, including on sticky touch hover. */
+		.assistant-composer textarea:hover:not(:disabled) {
+			background: transparent;
+		}
+
+		.assistant-composer__send {
+			width: var(--control-height-touch);
+			height: var(--control-height-touch);
+		}
+
+		.assistant-composer__keyboard-hint {
+			display: none;
+		}
+	}
+
+	/* The workbench's coarse-pointer field floor (`.workspace textarea` in
+	 * `responsive.css`) outranked this composer's own sizing while these rules
+	 * were global. Scoping reverses that, so the floor is restated here. */
+	@media (pointer: coarse) {
+		:global(.workspace) .assistant-composer textarea {
+			font-size: var(--font-size-lg);
+			min-height: var(--control-height-touch);
+		}
+	}
+
+	.assistant-disclosure {
+		max-width: 30rem;
+		padding: 0;
+		margin-block-start: var(--space-5);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-2xs);
+		text-align: center;
+	}
+
+	.assistant-disclosure p {
+		margin: 0;
+	}
+
+	.assistant-disclosure .button {
+		min-height: var(--control-height-sm);
+		margin-block-start: var(--space-1);
+		font-size: var(--font-size-xs);
+	}
+
+	/* The shared touch and narrow-width control floors (`:root .button` in
+	 * `responsive-shared.css`, `.workspace .button` in `responsive.css`)
+	 * outranked the compact height above while it was global. Scoping reverses
+	 * that, so the floors are restated here in their original order. */
+	@media (max-width: 46rem) {
+		.assistant-disclosure .button {
+			min-height: var(--control-height-lg);
+		}
+	}
+
+	@media (pointer: coarse) {
+		.assistant-disclosure .button {
+			min-height: var(--control-height-touch);
+		}
+	}
+
+	:global(.assistant-panel) .assistant-transcript {
+		min-height: 0;
+		padding: var(--space-3);
+	}
+
+	:global(.assistant-panel) .assistant-empty {
+		min-height: 14rem;
+	}
+
+	:global(.assistant-panel) .assistant-status,
+	:global(.assistant-panel) .assistant-challenge {
+		padding-inline: var(--space-3);
+	}
+
+	:global(.assistant-panel) .assistant-composer {
+		--composer-gutter: var(--space-3);
+		/* Match the media strip's bottom padding. */
+		padding-bottom: var(--space-2-5);
+	}
+
+	@media (max-width: 36rem) {
+		.assistant-transcript,
+		.assistant-status,
+		.assistant-challenge {
+			padding-inline: var(--space-3);
+		}
+
+		.assistant-composer {
+			--composer-gutter: var(--space-3);
+		}
+
+		.assistant-disclosure {
+			padding-inline: var(--space-3);
+		}
+	}
+</style>

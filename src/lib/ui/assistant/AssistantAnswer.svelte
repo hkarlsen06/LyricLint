@@ -139,3 +139,102 @@
 		The canonical references could not be loaded. Reload to show this answer’s citations.
 	</p>
 {/if}
+
+<style>
+	.assistant-block {
+		margin: 0 0 var(--space-3);
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+
+	.assistant-block--example {
+		overflow-x: auto;
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-sm);
+		background: var(--color-fill-subtle);
+		font-family: var(--font-mono);
+		font-size: var(--font-size-sm);
+	}
+
+	.assistant-block__sources {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+	}
+
+	.assistant-block__sources .assistant-citation-number {
+		margin-inline-end: var(--space-0-5);
+	}
+
+	.assistant-block__sources a {
+		color: inherit;
+	}
+
+	.assistant-block__sources a:hover {
+		color: var(--color-text);
+	}
+
+	.assistant-general {
+		display: inline-block;
+		margin-block-end: var(--space-1);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-medium);
+	}
+
+	.assistant-scope {
+		margin: 0 0 var(--space-2);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	.assistant-reference-error {
+		margin: calc(-1 * var(--space-2)) 0 var(--space-3);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+	}
+
+	/* The answer's citations, collected once at its foot. Cards after every
+	 * paragraph chopped the answer into fragments, and the same source was cited
+	 * three times down one reply. The references form a quiet run separated
+	 * by space, matching the review list, and each is a title over one meta
+	 * line: severity, fix behavior, source. */
+	.assistant-citations {
+		display: grid;
+		gap: var(--space-2);
+		margin-block: var(--space-4) var(--space-3);
+	}
+
+	.assistant-citations__label {
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-medium);
+	}
+
+	.assistant-rule-run {
+		display: grid;
+		gap: var(--space-2);
+	}
+
+	.assistant-block__refs {
+		display: inline-flex;
+		gap: var(--space-1);
+		margin-inline-start: var(--space-0-5);
+		vertical-align: 0.35em;
+	}
+
+	/* The example's marks ride the block's own corner: inside the `pre` they
+	 * would read as part of the quoted document. */
+	.assistant-example {
+		position: relative;
+	}
+
+	.assistant-block__refs--example {
+		position: absolute;
+		top: var(--space-2);
+		right: var(--space-3);
+		margin: 0;
+	}
+</style>

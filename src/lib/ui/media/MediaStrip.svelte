@@ -479,7 +479,7 @@
 					coarse one. The command is the same command, pressing it is a legitimate
 					way to time a line with a mouse, and a button that exists only on some
 					devices is one nobody documents and nobody tests. What the pointer
-					changes is its width (`responsive.css`): under a finger it takes the
+					changes is its width (this file's styles): under a finger it takes the
 					row's slack, because a target tapped in rhythm has to be found without
 					looking.
 
@@ -585,3 +585,542 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	/*
+		The row scrolls sideways rather than dropping controls off its end. Every
+		control here is `flex: none` on purpose (a transport glyph that shrank would
+		stop being aimable), so in a narrow window the sync button, the track's name
+		and the detach control simply left the strip, silently, clipped by the editor
+		column. There is no second place any of them appear. Scrolling keeps the row
+		one line tall, which is what the strip is worth, and keeps every control
+		reachable. The bar itself is hidden: it would draw a permanent grey rule
+		across the shortest row in the window for an overflow that only happens at
+		the narrowest widths.
+	*/
+	.media-strip__controls {
+		display: flex;
+		min-height: var(--control-height-lg);
+		/* Let the outer controls' shadow rings clear the scrollport without moving them. */
+		margin-inline: calc(-1 * var(--space-0-5));
+		padding-inline: var(--space-0-5);
+		overflow-x: auto;
+		scrollbar-width: thin;
+		gap: var(--space-3);
+		align-items: center;
+	}
+
+	/* Animate the whole player so catalogue identity and attribution arrive with
+	   playback, including the wide layout where artwork uses display: contents.
+	   Playback ticks do not restart the entrance; layout height stays unchanged. */
+	@media (prefers-reduced-motion: no-preference) {
+		.media-strip[data-loaded='true'] {
+			animation: media-strip-arrive var(--duration-slow) var(--ease-out-quart);
+		}
+	}
+
+	@keyframes media-strip-arrive {
+		from {
+			translate: 0 var(--space-2);
+		}
+		to {
+			translate: 0 0;
+		}
+	}
+
+	/* Identity and controls share a surface; the cover remains an artwork action. */
+	.media-strip :global(.media-artwork) {
+		--media-thumb: var(--control-height-lg);
+		padding: var(--space-1) 0 var(--space-2);
+		background: transparent;
+	}
+
+	/* Two compact caption lines, aligned to the transport rather than body prose. */
+	.media-strip :global(.media-artwork__meta) {
+		gap: 0;
+		line-height: var(--line-height-tight);
+	}
+
+	.media-strip :global(.media-artwork__title),
+	.media-strip :global(.media-artwork__artist) {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/* The pending row is the song at one end and its one command at the other: the
+	   name holds the start while the Load control takes the far end, so the action
+	   keeps a stable home instead of sliding with the length of the song's name. */
+	.media-strip__pending-name {
+		flex: 0 1 auto;
+		min-width: 0;
+		max-width: var(--measure-prose);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		color: var(--color-text);
+		font-size: var(--font-size-sm);
+	}
+
+	.media-strip__transport,
+	.media-strip__meta {
+		display: flex;
+		flex: none;
+		min-width: 0;
+		gap: var(--space-1);
+		align-items: center;
+	}
+
+	.media-strip__meta {
+		gap: var(--space-2);
+	}
+
+	/* Tabular so the elapsed readout does not shuffle its neighbours every tick. */
+	.media-strip__time {
+		color: var(--color-text-muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.media-strip__name {
+		max-width: 14rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/*
+	 * The one bordered control in the row, and it earns the step up.
+	 *
+	 * Set quiet, it was a word in the same muted type as the readouts either side of
+	 * it, in the shortest row in the window: the entry point to a whole mode,
+	 * indistinguishable from the track's name. Everything else here is a transport
+	 * glyph the user already knows how to find or a number they read; this is the
+	 * only thing in the strip that starts something, so it is the only thing in the
+	 * strip drawn as a command.
+	 *
+	 * Bordered rather than contrast: the tier above belongs to a surface's primary
+	 * action, and the primary thing this row does is play and pause. A white button
+	 * beside the transport would compete for attention on every glance with the
+	 * controls used constantly, for the sake of one pressed once per song.
+	 */
+	.media-strip__sync {
+		display: inline-flex;
+		flex: none;
+		min-height: var(--control-height-sm);
+		padding: 0 var(--space-2);
+		gap: var(--space-1-5);
+		align-items: center;
+		font-size: var(--font-size-xs);
+		white-space: nowrap;
+	}
+
+	.media-strip__sync :global(svg) {
+		flex: none;
+		color: var(--color-text-muted);
+	}
+
+	.media-strip__sync:hover :global(svg) {
+		color: var(--color-text);
+	}
+
+	/* The tap and the way out, in the slot the file name gives up while a run is
+	   under way. The tap is bordered like the sync control beside it: both are
+	   commands rather than readouts, and the row's contrast tier belongs to play.
+	   Its width is the pointer's business; see the coarse-pointer block below. */
+	.media-strip__tap {
+		flex: none;
+		white-space: nowrap;
+	}
+
+	/* The skip past already-timed lines, drawn only while a run has somewhere to
+	   skip to. It sits before the tap so the tap keeps its place next to the hint
+	   (the coarse-pointer block below hides `Esc stops` off that adjacency), and it
+	   never takes the row's slack: the control found without looking is the tap,
+	   not this one. */
+	.media-strip__skip {
+		flex: none;
+		white-space: nowrap;
+	}
+
+	.media-strip__hint {
+		white-space: nowrap;
+	}
+
+	.media-strip__error {
+		flex: 1 1 auto;
+		margin: 0;
+		color: var(--color-danger);
+	}
+
+	/*
+	 * The scrubber takes the slack between the two ends, which is what keeps the
+	 * strip from being one control marooned in half a row of empty gutter.
+	 *
+	 * It has to opt out of the shared `input` silhouette in controls.css (a range
+	 * with a border, a fill and a 2rem min-height draws a box around a track), so
+	 * every one of those is reset here rather than weakened there.
+	 *
+	 * It is drawn rather than left to `accent-color`, because the browser's stock
+	 * range is the one dated control in the most-operated row of the window: a
+	 * thick track, no elapsed side, and a thumb sized for a settings page. The
+	 * drawn one is the transport idiom every player has taught (a thin track, the
+	 * played half filled in accent, a round thumb that grows under the pointer),
+	 * and the fill's stop is `--seek-fill`, fed by the component from the same
+	 * `currentTime` mirror the readouts print. The input's own box stays a full
+	 * control height, so the thin track costs nothing in aimability.
+	 */
+	.media-strip__seek {
+		min-width: 6rem;
+		min-height: 0;
+		height: var(--control-height-sm);
+		flex: 1 1 auto;
+		padding: 0;
+		border: none;
+		box-shadow: none;
+		background: transparent;
+		appearance: none;
+		cursor: pointer;
+	}
+
+	.media-strip__seek:hover:not(:disabled) {
+		border: none;
+		background: transparent;
+	}
+
+	/* WebKit has no progress pseudo-element, so the played half is a hard-stop
+	   gradient. Firefox gets the honest pseudo below. */
+	.media-strip__seek::-webkit-slider-runnable-track {
+		height: var(--space-1);
+		border-radius: var(--radius-pill);
+		background: linear-gradient(
+			to right,
+			var(--color-accent) var(--seek-fill, 0%),
+			var(--color-fill-strong) var(--seek-fill, 0%)
+		);
+	}
+
+	/* The thumb centers on the thin track by its own arithmetic: WebKit positions
+	   it against the track's top edge, so half the height difference pulls it up. */
+	.media-strip__seek::-webkit-slider-thumb {
+		width: var(--space-3);
+		height: var(--space-3);
+		margin-top: calc((var(--space-1) - var(--space-3)) / 2);
+		border: none;
+		border-radius: var(--radius-round);
+		background: var(--color-accent);
+		appearance: none;
+	}
+
+	.media-strip__seek::-moz-range-track {
+		height: var(--space-1);
+		border-radius: var(--radius-pill);
+		background: var(--color-fill-strong);
+	}
+
+	.media-strip__seek::-moz-range-progress {
+		height: var(--space-1);
+		border-radius: var(--radius-pill);
+		background: var(--color-accent);
+	}
+
+	.media-strip__seek::-moz-range-thumb {
+		width: var(--space-3);
+		height: var(--space-3);
+		border: none;
+		border-radius: var(--radius-round);
+		background: var(--color-accent);
+	}
+
+	/* The grown thumb is the scrubber answering the pointer that is about to drag
+	   it: hover, the drag itself, and keyboard focus all mean the same aim. The
+	   growth is a transform, so nothing in the row reflows under the pointer. */
+	.media-strip__seek:hover:not(:disabled)::-webkit-slider-thumb,
+	.media-strip__seek:active:not(:disabled)::-webkit-slider-thumb,
+	.media-strip__seek:focus-visible::-webkit-slider-thumb {
+		transform: scale(1.3);
+	}
+
+	.media-strip__seek:hover:not(:disabled)::-moz-range-thumb,
+	.media-strip__seek:active:not(:disabled)::-moz-range-thumb,
+	.media-strip__seek:focus-visible::-moz-range-thumb {
+		transform: scale(1.3);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.media-strip__seek::-webkit-slider-thumb {
+			transition: transform var(--duration-fast) var(--ease-out-quart);
+		}
+
+		.media-strip__seek::-moz-range-thumb {
+			transition: transform var(--duration-fast) var(--ease-out-quart);
+		}
+	}
+
+	/* Disabled is a real color and a real cursor, never opacity: the track has to
+	   stay legible while the browser is still reading the file's duration. */
+	.media-strip__seek:disabled {
+		background: transparent;
+		cursor: default;
+	}
+
+	.media-strip__seek:disabled::-webkit-slider-runnable-track {
+		background: var(--color-fill);
+	}
+
+	.media-strip__seek:disabled::-webkit-slider-thumb {
+		background: var(--color-control-disabled);
+	}
+
+	.media-strip__seek:disabled::-moz-range-track {
+		background: var(--color-fill);
+	}
+
+	.media-strip__seek:disabled::-moz-range-thumb {
+		background: var(--color-control-disabled);
+	}
+
+	/* No indicator glyph: the number is the control, and a chevron beside four
+	   characters of muted type is a second mark for the press the pointer is
+	   already on. */
+	.media-strip__rate select {
+		appearance: none;
+		/* A select is otherwise as wide as `0.75×` in every state, including the
+		   `1×` it sits at nearly always. */
+		field-sizing: content;
+		min-height: var(--control-height-sm);
+		padding: 0 var(--space-1);
+		border-color: transparent;
+		background: transparent;
+		box-shadow: none;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.media-strip__rate select:hover:not(:disabled) {
+		background: var(--color-control-hover);
+		color: var(--color-text);
+	}
+
+	.media-strip__reconnect {
+		flex: none;
+		margin-inline-start: auto;
+		min-height: var(--control-height-md);
+		font-size: var(--font-size-sm);
+	}
+
+	/* `:root .button` in responsive-shared.css steps every button up to `lg` at
+	   this width. Scoped, the two heights above would outrank it, so the step is
+	   restated here to keep it. */
+	@media (max-width: 46rem) {
+		.media-strip__sync,
+		.media-strip__reconnect {
+			min-height: var(--control-height-lg);
+		}
+	}
+
+	/* Global because the artwork dialog's close control, rendered by MediaArtwork
+	   inside this row, wears the same size. */
+	.media-strip :global(.icon-button) {
+		width: var(--control-height-sm);
+		min-height: var(--control-height-sm);
+		color: var(--color-text);
+	}
+
+	/* A wide editor can keep identity and playback on the same baseline. Narrower
+	   layouts keep the two rows, preserving useful seek width and source marks. */
+	@media (min-width: 90rem) {
+		.media-strip:has(> :global(.media-artwork)) {
+			display: grid;
+			grid-template-columns: auto fit-content(12rem) minmax(0, 1fr) auto;
+			gap: var(--space-3);
+			align-items: center;
+		}
+
+		.media-strip :global(.media-artwork) {
+			--media-thumb: var(--control-height-md);
+			display: contents;
+			padding: 0;
+			gap: var(--space-2);
+		}
+
+		.media-strip:has(> :global(.media-artwork)) > .media-strip__controls {
+			grid-column: 3;
+			grid-row: 1;
+			min-width: 0;
+		}
+
+		.media-strip :global(.media-artwork__thumb) {
+			grid-column: 1;
+			grid-row: 1;
+		}
+
+		.media-strip :global(.media-artwork__identity) {
+			grid-column: 2;
+			grid-row: 1;
+		}
+
+		.media-strip :global(.media-artwork__aside) {
+			grid-column: 4;
+			grid-row: 1;
+		}
+	}
+
+	/* Waiting is a small action group, not a bar stretched across the document.
+	   Pending and loaded controls use the same row height and outer spacing.
+	   Keep the pending button's shadow clear of the scrolling row's edges. */
+	.media-strip:not(:has(.media-strip__transport)) .media-strip__controls {
+		justify-content: flex-start;
+		padding-block: var(--space-0-5);
+	}
+
+	/* Keep the temporary cancel beside the endpoint control, without a second surface. */
+	.media-strip__loop {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		flex: none;
+	}
+
+	.media-strip__options,
+	.media-strip__timing,
+	.media-strip__source {
+		display: contents;
+	}
+
+	/* Audio details expand in the existing strip; playback keeps its own row. */
+	.media-strip__disclosure {
+		display: none;
+	}
+
+	@media (pointer: coarse) and (max-width: 46rem) {
+		.media-strip .media-strip__controls {
+			min-height: var(--control-height-touch);
+			flex-wrap: wrap;
+			gap: var(--space-1);
+		}
+
+		.media-strip .media-strip__disclosure {
+			display: inline-flex;
+			flex: none;
+			gap: var(--space-1);
+			padding-inline: var(--space-1);
+		}
+
+		.media-strip[data-details-open='false'] > :global(.media-artwork),
+		.media-strip[data-details-open='false'] .media-strip__meta {
+			display: none;
+		}
+
+		.media-strip .media-strip__meta {
+			flex: 1 0 100%;
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			gap: var(--space-1);
+			padding-block: var(--space-1);
+		}
+
+		.media-strip .media-strip__duration,
+		.media-strip .media-strip__hint {
+			display: none;
+		}
+
+		.media-strip__options,
+		.media-strip__timing,
+		.media-strip__source {
+			display: flex;
+			align-items: center;
+			gap: var(--space-2);
+			min-width: 0;
+		}
+
+		.media-strip__options {
+			justify-content: space-between;
+		}
+
+		.media-strip__timing {
+			flex-wrap: wrap;
+		}
+
+		.media-strip__timing:empty {
+			display: none;
+		}
+
+		.media-strip .media-strip__sync,
+		.media-strip .media-strip__tap {
+			flex: 1 1 auto;
+			justify-content: center;
+		}
+
+		.media-strip .media-strip__skip {
+			order: 1;
+			flex-basis: 100%;
+		}
+
+		.media-strip .media-strip__seek {
+			min-width: 0;
+			width: 0;
+			height: var(--control-height-touch);
+		}
+	}
+
+	/* The most-pressed controls in the workbench, at a size a finger can aim. Every
+	   button already steps up on a coarse pointer, but the scoped sizes in this row
+	   and MediaTransport would outrank that, and a tablet in landscape is a coarse
+	   pointer at a wide layout. The key is the pointer, not the width.
+
+	   It costs the strip the height the phone layout already spends, which is what
+	   `publishStripHeight` measures and republishes rather than assuming. The
+	   desktop measurement `MediaStrip.svelte.test.ts` makes is untouched: that
+	   suite runs on a fine pointer, where this block does not apply.
+
+	   Global parts reach the transport glyphs (MediaTransport) and the artwork
+	   dialog's controls (MediaArtwork, ArtworkActions) inside this row. */
+	@media (pointer: coarse) {
+		.media-strip :global(.media-strip__transport-button),
+		.media-strip :global(.icon-button),
+		.media-strip :global(.button),
+		.media-strip :global(.button--quiet),
+		.media-strip .media-strip__rate select {
+			min-width: var(--control-height-touch);
+			min-height: var(--control-height-touch);
+		}
+
+		.media-strip .media-strip__rate select {
+			font-size: var(--font-size-lg);
+		}
+	}
+
+	@media (pointer: coarse) {
+		/* The one control in the window that is pressed in rhythm, on the one pointer
+		   that cannot use the key it stands in for. It takes the row's slack so it can
+		   be found without looking away from the lyric, which is also why the hint
+		   beside it goes: a target this wide has nothing to share the slot with, and
+		   `Esc` is not a key this device has. */
+		.media-strip__tap {
+			flex: 1 1 auto;
+		}
+
+		.media-strip__tap + .media-strip__hint {
+			display: none;
+		}
+	}
+
+	@media (pointer: fine) and (max-width: 40rem) {
+		.media-strip__controls {
+			flex-wrap: wrap;
+			gap: var(--space-2);
+		}
+
+		.media-strip__meta {
+			flex: 1 0 100%;
+			overflow-x: auto;
+			padding-bottom: var(--space-1);
+		}
+
+		.media-strip__seek {
+			min-width: 0;
+			width: 0;
+		}
+	}
+</style>

@@ -74,3 +74,65 @@
 		</picture>
 	</a>
 {/if}
+
+<style>
+	/*
+	 * The two attributions, drawn in whichever surface is showing the song: the
+	 * artwork band's bar where there is one, the transport strip where there is not.
+	 * This is the single markup, so these are sized once.
+	 *
+	 * Spotify's mark is the one place in the workbench's styles a literal color is
+	 * right, the same exception the favicon takes.
+	 *
+	 * It is a third party's brand asset, not a tone from our palette, and their
+	 * guidelines fix both the color and the floor: Spotify green on a dark surface,
+	 * and never below 21px. A semantic token here would be the design system
+	 * claiming ownership of something it does not own, and would drift the moment
+	 * the theme moved. `flex: none` for the same reason: the mark may not be
+	 * squeezed by a long track name, which is exactly what the name beside it is
+	 * set up to do to its neighbours.
+	 */
+	.media-attribution__spotify {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		color: #1db954;
+		line-height: 0;
+		text-decoration: none;
+	}
+
+	/* No underline and no color change: the mark is the affordance, and recoloring
+	   a brand asset on hover is the thing their guidelines forbid outright. There
+	   was a `:hover` here doing exactly that, directly under this sentence, and it
+	   was also a second literal green in the one place these styles allow one. */
+
+	/*
+	 * Apple's `Listen on Apple Music` lockup, sized and otherwise left alone.
+	 *
+	 * The only thing set here is a height, and everything else follows from it. The
+	 * lockup is 125.1 × 27.78, and that ratio is stated here rather than left to the
+	 * `<img>`'s `width`/`height` attributes, which are parsed as integers: rounding
+	 * it to 125 × 28 squeezes the badge by 0.9% horizontally, which is invisible and
+	 * is still exactly the stretching their guidelines forbid. Declaring it in CSS
+	 * keeps the ratio exact *and* reserves the box before the file loads, which is
+	 * what the attributes were there for. There is no hover treatment for a related
+	 * reason: recoloring a brand asset under the pointer is the specific thing
+	 * Spotify's mark is also spared.
+	 *
+	 * The height matches the Spotify mark's 21px rather than the row's, so the two
+	 * attributions sit on one line and neither costs the strip any height, which is
+	 * the constraint the shortcut captions are already measured against.
+	 */
+	.media-attribution__apple {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		line-height: 0;
+	}
+
+	.media-attribution__apple img {
+		width: auto;
+		height: 21px;
+		aspect-ratio: 125.1 / 27.78;
+	}
+</style>

@@ -1366,3 +1366,406 @@
      that a workspace rendered on its own, which is how every component test
      renders it, still has somewhere to draw. -->
 <ControlTooltip />
+
+<style>
+	/* Startup reveal only: JS removes the mask before animation, on interaction,
+	   on failure, and after a bounded wait. Content is visible without JS. The
+	   attribute is set from `workspace-entrance.ts` and the lines and cards belong
+	   to CodeMirror and the linter, so the rule stays global. */
+	@media (prefers-reduced-motion: no-preference) {
+		:global([data-workspace-entrance~='lyrics'] .cm-line),
+		:global([data-workspace-entrance~='diagnostics'] .diagnostic-list > li) {
+			opacity: 0;
+		}
+	}
+
+	/* `clip`, not `hidden`: a hidden box is still a scroll container, so a stray
+	   `scrollIntoView` or focus call anywhere inside could scroll the whole shell
+	   out of view with no scrollbar or wheel gesture to bring it back. Clipping
+	   removes the scroll port itself, so the shell cannot move.
+
+	   `dvh` and not `vh`, because `vh` is the *large* viewport: the height the page
+	   would have if the browser's own chrome were retracted. On a phone that is
+	   taller than what is actually on screen by exactly the URL bar, so the shell
+	   overflowed the window and the document itself scrolled, the one scroll this
+	   application has no use for, since every region inside the shell scrolls in
+	   its own port. `dvh` is the visible height at this moment, so the shell spans
+	   the window and there is nothing for the page to scroll.
+
+	   The bar therefore never retracts, which is why `dvh` costs nothing here and
+	   is wrong on the landing page (see `.site-hero`): there the reader scrolls the
+	   document, so a `dvh` box grows underneath them as they go. `vh` stays as the
+	   fallback for browsers without the unit, where it is exactly today's
+	   behaviour. */
+	.workspace {
+		--radius-control: var(--radius-md);
+		--radius-panel: var(--radius-lg);
+		--radius-overlay: calc(var(--radius-lg) + var(--radius-xs));
+	}
+
+	.workspace {
+		position: relative;
+		display: grid;
+		/* Resolve the dock's available width before interpolation so contraction
+		   cannot hit the editor minimum early and then overshoot its final inset. */
+		grid-template-columns: minmax(44rem, 1fr) minmax(21rem, min(26rem, calc(100% - 44rem)));
+		grid-template-rows: auto minmax(0, 1fr);
+		width: 100%;
+		height: 100vh;
+		height: 100dvh;
+		overflow: clip;
+		background: var(--color-chrome);
+	}
+
+	@media (min-width: 78rem) {
+		.workspace {
+			grid-template-columns: minmax(44rem, 1fr) minmax(24rem, min(30rem, calc(100% - 44rem)));
+		}
+	}
+
+	/*
+	 * The editor column, and the second row is the audio transport.
+	 *
+	 * The strip belongs to this region rather than to the workspace grid, and that
+	 * is the whole reason it can exist without disturbing anything: a workspace row
+	 * would run under both columns and shorten the right panel, whose linter pane is
+	 * a full-height column with its recent drafts pinned to the foot. Here it hangs
+	 * under the document only, which is also the honest reading: it controls what
+	 * the document is transcribed from, not the window.
+	 *
+	 * The row is `auto`, so it costs exactly nothing while no audio is attached.
+	 *
+	 * The action tray takes no row at all. It is positioned over the document, which
+	 * is what `position: relative` here is for. See `.editor-actions` in
+	 * `EditorActions.svelte`.
+	 */
+	.editor-region {
+		/* What the find bar keeps clear so the tray never covers its way out. It is a
+		   constant because the tray is a fixed set of glyphs, and it is asserted
+		   against the tray's measured width rather than trusted. */
+		--editor-actions-reserve: calc(11rem + var(--control-height-sm) + var(--space-1));
+
+		position: relative;
+		display: grid;
+		min-width: 0;
+		min-height: 0;
+		grid-row: 2;
+		grid-template-rows: minmax(0, 1fr) auto;
+		margin-left: var(--space-4);
+		border-radius: var(--radius-panel);
+		background: transparent;
+	}
+
+	.editor-region > .editor-host {
+		border-radius: var(--radius-panel);
+	}
+
+	/* Without a transport below it, keep the rounded document clear of the window edge. */
+	.workspace:not(:has(:global(.media-strip))) .editor-region {
+		margin-bottom: var(--space-4);
+	}
+
+	/* The first row of `.editor-region`, with the transport below it and the action
+	   tray floating over its top-right corner rather than taking a row of its own.
+	   Stated rather than auto-placed, because the strip states its own row and a
+	   document that fell back to auto-placement would land wherever that left it. */
+	.editor-host {
+		min-width: 0;
+		min-height: 0;
+		grid-row: 1;
+		overflow: auto;
+		background: var(--color-surface);
+	}
+
+	/* Too narrow for two columns, so the panel stacks under the editor. It is still
+	   one window: the same grid with the second column folded into a third row, so
+	   each half scrolls inside itself and the page never grows. Laid out as blocks
+	   the page grew with the document instead, which put the status bar halfway up a
+	   long draft and pushed the panel (the reason the app exists) below the fold.
+
+	   The editor takes the larger share because it is the half being typed into.
+	   The panel's own scroll port changes with it (see `RightPanel.svelte`). */
+	@media (max-width: 68rem) {
+		.workspace {
+			grid-template-columns: 100%;
+			grid-template-rows: auto minmax(0, 3fr) minmax(0, 2fr);
+		}
+
+		.editor-region {
+			grid-row: 2;
+			margin-inline: var(--space-2);
+		}
+
+		.workspace:not(:has(:global(.media-strip))) .editor-region {
+			margin-bottom: var(--space-2);
+		}
+	}
+
+	/*
+	 * The floor the strip stands on.
+	 *
+	 * Below the visible viewport there is a band the browser owns (Safari's address
+	 * pill, the keyboard's own accessory row), and the page keeps drawing behind it.
+	 * So the tab strip and the top of the findings showed through the gaps around
+	 * that chrome, in pieces, under a row that had just been pinned above them. The
+	 * fill ends it: from the strip's bottom edge to the foot of the layout viewport,
+	 * in the strip's own `--color-chrome`, so the two read as one band resting on
+	 * the keyboard rather than as a bar floating over a cut-off panel.
+	 *
+	 * It is a pseudo-element of the workspace and not of the strip, because the
+	 * strip is a horizontal scroller: `overflow-x: auto` computes `overflow-y` to
+	 * `auto` as well, so anything absolutely positioned below the strip inside it
+	 * would be clipped and would give the shortest row in the window a vertical
+	 * scroll port. `.workspace` is not a containing block for fixed descendants
+	 * (no transform, no filter, no containment), so this escapes its `overflow: clip`
+	 * exactly as the strip does.
+	 *
+	 * One layer under the strip and above the panel: it hides the panel, and the
+	 * strip's border draws over it.
+	 */
+	:global(:root[data-keyboard-inset]) .workspace::after {
+		content: '';
+		position: fixed;
+		top: var(--keyboard-top);
+		right: 0;
+		bottom: 0;
+		left: 0;
+		z-index: var(--layer-panel);
+		background: var(--color-chrome);
+	}
+
+	/* An explicit writing view keeps the same editor and its scroll position.
+	   The toolbar remains the visible, keyboard-reachable way back to the tools. */
+	.workspace.workspace--expanded {
+		grid-template-columns: minmax(44rem, 1fr) minmax(0, 0rem);
+	}
+
+	.workspace--expanded .editor-region {
+		margin-right: var(--space-2);
+	}
+
+	@media (max-width: 68rem) {
+		.workspace.workspace--expanded {
+			grid-template-columns: 100%;
+			grid-template-rows: auto minmax(0, 3fr) minmax(0, 0fr);
+		}
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.workspace {
+			transition:
+				grid-template-columns var(--duration-slow) var(--ease-out-quart),
+				grid-template-rows var(--duration-slow) var(--ease-out-quart);
+		}
+
+		.editor-region {
+			transition: margin-right var(--duration-slow) var(--ease-out-quart);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.workspace,
+		.editor-region {
+			transition-property: none;
+		}
+	}
+
+	/* The media stays mounted outside the task regions. Desktop retains its two
+	   columns, with audio under the lyrics and the video over the editor’s corner. */
+	.workspace {
+		grid-template-rows: auto minmax(0, 1fr) auto;
+	}
+	.editor-region {
+		/* Both occupants name their column: the explicit video otherwise pushes
+		   this auto-placed editor into an implicit second column when stacked. */
+		grid-column: 1;
+		grid-template-rows: minmax(0, 1fr);
+	}
+	.workspace-media {
+		grid-column: 1;
+		grid-row: 3;
+		min-width: 0;
+		margin-inline: var(--space-4) var(--space-2);
+	}
+	.workspace-video {
+		grid-column: 2;
+		grid-row: 3;
+		min-width: 0;
+	}
+	.mobile-navigation {
+		display: none;
+	}
+
+	@media (max-width: 68rem) {
+		.workspace {
+			grid-template-rows: auto minmax(0, 3fr) auto minmax(0, 2fr);
+		}
+		.workspace-media {
+			grid-row: 3;
+			margin-inline: var(--space-2);
+		}
+		.workspace-video {
+			grid-column: 1;
+			grid-row: 5;
+		}
+		.workspace.workspace--expanded {
+			grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 0fr);
+		}
+	}
+
+	/* Task views use one scroll region until a finding is explicitly opened.
+	   Keep this query aligned with PHONE_WORKSPACE_QUERY. */
+	@media (pointer: coarse) and (max-width: 68rem) {
+		.workspace,
+		.workspace.workspace--expanded {
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: auto minmax(0, 1fr) minmax(0, 0fr) auto auto auto;
+			padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+			transition: none;
+			height: var(--visual-viewport-height, 100dvh);
+			position: fixed;
+			top: var(--visual-viewport-offset, 0px);
+			left: 0;
+			right: 0;
+		}
+		.workspace .editor-region {
+			--editor-actions-reserve: 0px;
+			display: flex;
+			flex-direction: column;
+			grid-column: 1;
+			grid-row: 2;
+			margin-inline: var(--space-2);
+		}
+		.workspace .editor-host {
+			flex: 1;
+			min-height: 0;
+		}
+		.workspace[data-mobile-view='review'][data-review-focused='true'] {
+			grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto auto auto;
+		}
+		.editor-region[aria-hidden='true'] {
+			display: none;
+		}
+		.workspace-media {
+			grid-column: 1;
+			grid-row: 5;
+			margin: 0;
+		}
+		.workspace-video {
+			grid-column: 1;
+			grid-row: 4;
+		}
+		.mobile-navigation {
+			grid-column: 1;
+			grid-row: 6;
+			display: flex;
+			gap: var(--space-1);
+			padding: var(--space-1) var(--space-2);
+			padding-bottom: max(var(--space-1), env(safe-area-inset-bottom));
+			background: var(--color-chrome);
+		}
+		.mobile-navigation .button {
+			flex: 1;
+			min-height: var(--control-height-touch);
+		}
+		/* `:where()` holds this at the specificity it had as a global rule, so the
+		   shared quiet tier's hover fill still outranks it. */
+		.mobile-navigation :where([aria-pressed='true']) {
+			background: var(--color-fill-strong);
+			color: var(--color-text);
+			box-shadow: inset 0 calc(-1 * var(--focus-ring-width)) var(--color-text);
+		}
+		/* The visual viewport supplies the keyboard floor for the whole workbench,
+		   so editor and assistant composer get the space above it, with no overlay. */
+		:global(:root[data-keyboard-inset]) .workspace::after {
+			content: none;
+		}
+		:global(:root[data-keyboard-inset]) .mobile-navigation {
+			/* Task switching rests while typing. It must not ride the keyboard or
+			   take another row from the selected passage. */
+			display: none;
+		}
+	}
+
+	/* A visible video has an external 200px floor. In short landscape windows it
+	   sits beside the task instead of consuming the remaining writing height. */
+	@media (orientation: landscape) and (max-width: 68rem) and (pointer: coarse) {
+		.workspace:has(.workspace-video) {
+			grid-template-columns: minmax(0, 1fr) var(--media-video-min);
+		}
+		.workspace:has(.workspace-video) .workspace-video {
+			grid-column: 2;
+			grid-row: 2 / 4;
+			align-self: center;
+		}
+		.workspace:has(.workspace-video) .workspace-media,
+		.workspace:has(.workspace-video) .mobile-navigation {
+			grid-column: 1 / -1;
+		}
+	}
+
+	/* If a keyboard and the video floor cannot fit together, retain a reachable
+	   writing region and allow this constrained workspace to scroll. */
+	@media (pointer: coarse) and (max-width: 46rem) and (orientation: portrait) {
+		.workspace:has(.workspace-video) {
+			grid-template-rows: auto minmax(var(--mobile-context-min), 1fr) minmax(0, 0fr) auto auto auto;
+			overflow-y: auto;
+		}
+		:global(:root[data-keyboard-inset])
+			.workspace:has(.workspace-video)[data-mobile-view='review'][data-review-focused='true'] {
+			grid-template-rows:
+				auto minmax(var(--mobile-context-min), 1fr) minmax(var(--mobile-context-min), 1fr)
+				auto auto auto;
+		}
+	}
+
+	@media (min-width: 68.001rem) {
+		/* Let each column end on its own media height: a video must not charge
+		   200px to the lyric column's shorter audio controls. */
+		.workspace .editor-region {
+			grid-column: 1;
+			grid-row: 2 / 4;
+			margin-bottom: var(--media-strip-height, 0px);
+		}
+		.workspace-media {
+			align-self: end;
+		}
+	}
+
+	/* The desktop player always occupies the editor’s bottom-right corner. It
+	   shares the explicit editor grid area without creating a new column or row. */
+	.workspace[data-video-floating='true'] .workspace-video {
+		grid-column: 1;
+		grid-row: 2;
+		align-self: end;
+		justify-self: end;
+		width: calc(var(--media-video-min) * 16 / 9);
+		margin: var(--space-3);
+		z-index: var(--layer-editor-panel);
+		box-shadow: var(--shadow-popover);
+		border-radius: var(--radius-control);
+	}
+	@media (min-width: 68.001rem) {
+		.workspace[data-video-floating='true'] .workspace-video {
+			grid-row: 2 / 4;
+			margin-bottom: calc(var(--media-strip-height, 0px) + var(--space-3));
+		}
+	}
+
+	/* Keep the final lyric scrollable above the floating frame without inserting
+	   document content or changing the editor's visible height. */
+	.workspace[data-video-floating='true']:has(.workspace-video) .editor-region {
+		--editor-scroll-padding: calc(var(--media-video-min) + var(--space-3) + var(--space-8));
+	}
+
+	/* The overlay shares the grid cell, whose edge is outside the editor's own
+	   inset in stacked and expanded layouts. Include that inset in its margin. */
+	.workspace.workspace--expanded[data-video-floating='true'] .workspace-video {
+		margin-right: calc(var(--space-2) + var(--space-3));
+	}
+	@media (max-width: 68rem) {
+		.workspace[data-video-floating='true'] .workspace-video {
+			margin-right: calc(var(--space-2) + var(--space-3));
+		}
+	}
+</style>

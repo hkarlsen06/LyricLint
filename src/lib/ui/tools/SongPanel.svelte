@@ -352,6 +352,19 @@
 </div>
 
 <style>
+	.song-metadata-actions--after-facts {
+		/* The list's final value and the first bordered action are different kinds of
+		 * content. A full stack gap keeps the button from reading as part of that last
+		 * row, especially when a long value wraps onto a second line. This is an
+		 * explicit class because SongFacts's visually hidden live region sits between
+		 * the list and this row, so an adjacent-sibling selector cannot reach it. */
+		margin-top: var(--space-4);
+	}
+
+	.youtube-logo {
+		flex: none;
+	}
+
 	.genius-page-input {
 		width: 100%;
 		min-width: 0;

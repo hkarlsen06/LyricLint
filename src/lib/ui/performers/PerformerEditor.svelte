@@ -122,3 +122,80 @@
 		</div>
 	{/if}
 </li>
+
+<style>
+	/* The row is `.list-row` (rows.css); this pulls its fill out to the panel's own
+	   inset so the names still line up with the prose above them. */
+	.performer-row {
+		margin-inline: calc(-1 * var(--space-2));
+	}
+
+	.performer-row__identity {
+		display: flex;
+		min-width: 0;
+		gap: var(--space-3);
+		flex: 1;
+		align-items: center;
+	}
+
+	/* The name is the row's rename control, and it draws nothing to say so: a
+	   bordered field on every row would be six boxes for a name that is usually
+	   only read. It takes the whole of the row's free width, so the target is the
+	   name and everything after it, and it underlines under the pointer, the same
+	   tell the linter panel's recent drafts use for a line you can press. */
+	.performer-row__name {
+		padding: 0;
+		border: 0;
+		flex: 1;
+		background: transparent;
+		color: var(--color-text);
+		text-align: start;
+	}
+
+	button.performer-row__name:hover {
+		text-decoration: underline;
+	}
+
+	.performer-color {
+		width: 1rem;
+		height: 1rem;
+		flex: none;
+		border: var(--border-width) solid color-mix(in oklch, currentColor 35%, var(--color-border));
+		border-radius: var(--radius-round);
+		background: var(--performer-color);
+	}
+
+	/* One modifier per `performerColorPalette` id (`performers/color.ts`); the
+	   class is built from the performer's `colorId` in the markup above. */
+	.performer-color--plum {
+		--performer-color: var(--performer-plum);
+	}
+
+	.performer-color--ochre {
+		--performer-color: var(--performer-ochre);
+	}
+
+	.performer-color--teal {
+		--performer-color: var(--performer-teal);
+	}
+
+	.performer-color--rose {
+		--performer-color: var(--performer-rose);
+	}
+
+	.performer-color--indigo {
+		--performer-color: var(--performer-indigo);
+	}
+
+	.performer-color--olive {
+		--performer-color: var(--performer-olive);
+	}
+
+	.performer-color--copper {
+		--performer-color: var(--performer-copper);
+	}
+
+	.performer-color--slate {
+		--performer-color: var(--performer-slate);
+	}
+</style>

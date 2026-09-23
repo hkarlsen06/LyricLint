@@ -224,6 +224,30 @@
 		     data` in the tools panel, where the paragraph above it says what local
 		     data is: a claim is made once, where the reader is deciding. -->
 <style>
+	/*
+	 * A draft is one `.list-row` (rows.css): its name, when it was last touched, and
+	 * the commands that act on it, all on one line. What is here is only what the
+	 * drafts list adds to that: the row is a way into the draft, so its name and
+	 * date are one pressable control.
+	 */
+	.draft-menu__search {
+		width: 100%;
+		margin-block: var(--space-2);
+		font-size: var(--font-size-editor);
+	}
+
+	.draft-list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	/* The draft being edited is the one the whole window is about, so it is the
+	   one name in the list drawn at full weight. */
+	.draft-list > li.current .list-row__name {
+		font-weight: var(--font-weight-semibold);
+	}
+
 	.draft-menu__identity {
 		display: grid;
 		min-width: 0;

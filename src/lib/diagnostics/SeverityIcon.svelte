@@ -41,3 +41,11 @@
 		<path d="M5.4 8.2 7.2 10l3.4-3.6" />
 	{/if}
 </svg>
+
+<style>
+	/* Shared with the linter's severity chips, which wear the same mark as the rows
+	   they filter, so it takes its color from whatever it sits in. */
+	.severity-icon {
+		flex: none;
+	}
+</style>

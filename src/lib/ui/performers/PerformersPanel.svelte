@@ -37,3 +37,33 @@
 		{active}
 	/>
 </div>
+
+<style>
+	/* The roster stays directly editable; occasional reference material opens
+	   in place with the same quiet row rhythm as Preferences. Global because the
+	   legend's heading is drawn by `PerformerLegend.svelte`. */
+	.performers-panel :global(h2) {
+		margin: 0;
+		font-size: var(--font-size-md);
+		font-weight: var(--font-weight-medium);
+		line-height: var(--line-height-ui);
+	}
+
+	.merge-suggestions {
+		margin-top: var(--space-5);
+	}
+
+	.merge-suggestions ul {
+		display: grid;
+		margin: 0;
+		padding-inline-start: var(--space-5);
+		gap: var(--space-3);
+	}
+
+	.merge-suggestions li {
+		display: flex;
+		gap: var(--space-2);
+		align-items: center;
+		justify-content: space-between;
+	}
+</style>

@@ -43,3 +43,46 @@
 {#each segments as segment, index (index)}{#if segment.match}<mark class="site-hit"
 			>{segment.text}</mark
 		>{:else}{segment.text}{/if}{/each}
+
+<style>
+	/*
+	 * What the reader's own search matched, marked on the page they opened out of
+	 * it: the title, the explanation, both examples, and every row of a lookup
+	 * table. This component is shared by both reference sections, which is why
+	 * the class is `site-`prefixed rather than either section's own.
+	 *
+	 * `--color-text-selection` rather than a highlighter yellow, and rather than a
+	 * token of its own. This is the system's one tone for a run of text picked out
+	 * of a page, its own comment already states that it is opaque and light enough
+	 * to leave the glyphs on top readable, and it is restated in the `.site`
+	 * palette, so this needs nothing added to either scheme. The yellow a browser
+	 * draws `<mark>` in is what `--color-warning-soft` means here, and this page is
+	 * covered in severities: a warning tint on text that is not a warning is the
+	 * drift the severity glyphs were reworked to stop.
+	 *
+	 * `color: inherit` is not optional. A `<mark>` takes the browser's own
+	 * `marktext` foreground, which is black: over the dark scheme's selection blue
+	 * that is text nobody can read, on the one element added to help somebody read.
+	 */
+	.site-hit {
+		border-radius: var(--radius-xs);
+		background: var(--color-text-selection);
+		color: inherit;
+	}
+
+	/*
+	 * Except inside a link, where inheriting is what breaks it. The citations are
+	 * searched with the rest of the page, so a mark lands on accent-blue text, and
+	 * measured, that is 3.92:1 against this fill in the dark scheme where the body
+	 * colour is 9.28:1. Under AA, on the one element added to help somebody read.
+	 *
+	 * The word gives up the accent and keeps everything else: the underline runs
+	 * through it and the external-link glyph is at the end of the same link, so
+	 * what says "link" here was never the colour on its own, which is this
+	 * system's rule about colour everywhere else, applied to the one run of a link
+	 * that has a second thing to say.
+	 */
+	:global(.site-split__page a) .site-hit {
+		color: var(--color-text);
+	}
+</style>

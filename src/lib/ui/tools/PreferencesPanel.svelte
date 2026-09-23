@@ -289,3 +289,165 @@
 		>
 	</footer>
 </div>
+
+<style>
+	.source-list {
+		margin-top: var(--space-3);
+	}
+
+	.source-list :global(.source-reference) {
+		margin-top: var(--space-3);
+	}
+
+	.backup-status {
+		overflow-wrap: anywhere;
+		color: var(--color-text-muted);
+	}
+
+	/* The warning token is a severity mark's colour, and it is read here as a
+	   sentence on the panel's own canvas. Measured, bare `--color-warning` on
+	   `--color-canvas` is 4.21:1 in light, under AA at this size, where dark is
+	   9.69:1. The token is not retuned for it, because every other surface it is
+	   spent on is a glyph or a fill rather than 15px of prose; the text is pulled
+	   toward the body colour instead, which is 5.53:1 light and 10.86:1 dark. */
+	.backup-status.backup-status--warning {
+		color: color-mix(in oklch, var(--color-warning) 80%, var(--color-text));
+	}
+
+	/* The foot of the application tab: the named way out, kept quiet. Navigation
+	   keeps link semantics, with the same quiet target app controls use: no
+	   permanent underline, the text color rather than the accent. */
+	.panel-foot {
+		margin-top: var(--space-7);
+	}
+
+	.about-link {
+		display: inline-flex;
+		min-height: var(--control-height-sm);
+		padding: var(--space-1) var(--space-2);
+		align-items: center;
+		gap: var(--space-1-5);
+		border-radius: var(--radius-control);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		text-decoration: none;
+		transition: background var(--duration-fast) var(--ease-out-quart);
+	}
+
+	.about-link:hover {
+		background: var(--color-fill);
+		color: var(--color-text);
+	}
+
+	/* Preferences is a list of settings, not a stack of articles. The row owns
+	   its description and disclosure; expanded content stays on the same canvas. */
+	.preferences-panel {
+		padding-block: var(--space-3);
+	}
+
+	.preferences-panel section + section {
+		margin-top: var(--space-1);
+	}
+
+	.preferences-panel h2 {
+		margin: 0;
+		font-size: var(--font-size-md);
+		font-weight: var(--font-weight-medium);
+		line-height: var(--line-height-ui);
+	}
+
+	.preferences-panel p:not(.sr-only) {
+		margin-block: 0 var(--space-3);
+		font-size: var(--font-size-sm);
+		line-height: var(--line-height-body);
+	}
+
+	.preferences-panel p:not(.backup-status--warning),
+	.preferences-panel__disclosure summary span {
+		color: var(--color-text-muted);
+	}
+
+	.preferences-panel > section:first-child:has(.toggle-field) {
+		padding-block: var(--space-4);
+	}
+
+	.preferences-panel .preferences-panel__heading {
+		min-height: var(--control-height-md);
+		margin-bottom: var(--space-1);
+	}
+
+	.preferences-panel__heading label {
+		cursor: pointer;
+	}
+
+	/* The switch is Bits UI's own element, so it is reached globally. */
+	.preferences-panel :global(.switch::after) {
+		position: absolute;
+		inset: calc(-1 * var(--space-2)) 0;
+		content: '';
+	}
+
+	.preferences-panel__disclosure > summary {
+		display: flex;
+		min-height: var(--control-height-lg);
+		padding-block: var(--space-4);
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		list-style: none;
+		cursor: pointer;
+	}
+
+	.preferences-panel__disclosure summary span {
+		display: block;
+		margin-top: var(--space-1);
+		font-size: var(--font-size-sm);
+		line-height: var(--line-height-body);
+	}
+
+	.preferences-panel__disclosure > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.preferences-panel__disclosure > summary:hover h2 {
+		text-decoration: underline;
+		text-underline-offset: var(--space-1);
+	}
+
+	.preferences-panel__disclosure :global(.preferences-panel__chevron) {
+		width: var(--space-4);
+		height: var(--space-4);
+		flex: none;
+		color: var(--color-text-muted);
+	}
+
+	.preferences-panel__disclosure[open] > summary :global(.preferences-panel__chevron) {
+		transform: rotate(90deg);
+	}
+
+	.preferences-panel__detail {
+		padding-block: var(--space-1) var(--space-4);
+	}
+
+	.preferences-panel__reset {
+		margin-top: var(--space-4);
+	}
+
+	.preferences-panel__backup .tool-actions + p,
+	.preferences-panel__reset .tool-actions + p:not(.sr-only) {
+		margin-top: var(--space-3);
+	}
+
+	.preferences-panel .panel-foot {
+		margin-top: var(--space-5);
+	}
+
+	.preferences-panel .about-link {
+		margin-inline-start: calc(-1 * var(--space-2));
+	}
+
+	/* Preserve the reset target's position during its single pending decision. */
+	.preferences-panel__inactive {
+		visibility: hidden;
+	}
+</style>

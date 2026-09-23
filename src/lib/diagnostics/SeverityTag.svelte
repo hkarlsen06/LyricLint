@@ -32,3 +32,51 @@
 		<span class="sr-only">{label}</span>
 	{/if}
 </span>
+
+<style>
+	/*
+	 * Not a badge. A mark. The severity used to be a filled tag on a line of its
+	 * own, which cost the card a full line of height to say one word that the
+	 * metadata line was already the place for. No fill, no border, no radius, so
+	 * nothing about it reads as pressable next to the severity filters that
+	 * genuinely are.
+	 *
+	 * On the rule reference it is the glyph and the colored word. On a diagnostic's
+	 * meta line it is the glyph alone, leading the line: `⚠ Line 47 · Repeated
+	 * sections`. A word that is the same word down every row of a nine-item panel
+	 * has stopped being read by the second one: what the eye was using there is
+	 * the shape and the color, and both survive dropping it.
+	 *
+	 * The color is the whole signal, so it is the text color rather than a wash
+	 * behind muted text: `--color-danger` and its siblings are text-grade against
+	 * both `--color-surface` and the recessed `--color-canvas` an expanded card
+	 * drops to. It is never the *only* signal: the four glyphs are drawn to
+	 * separate at 12px in greyscale, which is what `SeverityIcon.svelte` is for.
+	 */
+	.severity {
+		display: inline-flex;
+		width: fit-content;
+		gap: var(--space-1);
+		align-items: center;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-semibold);
+		letter-spacing: 0.01em;
+	}
+
+	.severity--error {
+		color: var(--color-danger);
+	}
+
+	.severity--warning {
+		color: var(--color-warning);
+	}
+
+	.severity--suggestion {
+		color: var(--color-suggestion);
+	}
+
+	.severity--manual-review {
+		color: var(--color-manual);
+	}
+</style>

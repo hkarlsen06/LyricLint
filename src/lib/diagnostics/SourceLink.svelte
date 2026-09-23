@@ -58,3 +58,52 @@
 	</span>
 	<span class="source-reference__section">{@render (text ?? plain)(source.sectionTitle)}</span>
 </div>
+
+<style>
+	/*
+	 * The block citation, which is no longer how a diagnostic shows its provenance:
+	 * a diagnostic cites its source as a link on the meta line. What is left here
+	 * serves the tools panel's reviewed-source snapshot, which is an inventory of
+	 * every citation rather than one card's, and wants the verified date and the
+	 * section on the page.
+	 */
+	.source-reference {
+		display: grid;
+		gap: 0.1rem;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+	}
+
+	.source-reference a {
+		display: inline-flex;
+		width: fit-content;
+		gap: 0.25rem;
+		align-items: center;
+		font-weight: var(--font-weight-semibold);
+	}
+
+	.source-reference__title {
+		display: flex;
+		gap: var(--space-2);
+		flex-wrap: wrap;
+		align-items: baseline;
+	}
+
+	.source-reference :global(.source-reference__external) {
+		flex: none;
+	}
+
+	/* The favicon at the text's own size, rounded as `SourceCitation.svelte`
+	   rounds its own: half of `--radius-xs`, because at this size the full token
+	   reads as a circle. */
+	.source-reference__favicon {
+		flex: none;
+		width: 1em;
+		height: 1em;
+		border-radius: calc(var(--radius-xs) / 2);
+	}
+
+	.source-reference__verified {
+		white-space: nowrap;
+	}
+</style>

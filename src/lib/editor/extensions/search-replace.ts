@@ -306,7 +306,7 @@ const searchReplaceTheme = EditorView.theme({
 	 * what made the pair look like two bands of chrome for one job.
 	 *
 	 * What that means here is that the tray covers the right end of this row, so
-	 * the row keeps that width clear: `--editor-actions-reserve` in `shell.css` is
+	 * the row keeps that width clear: `--editor-actions-reserve` in `Workspace.svelte` is
 	 * the number, and `Workspace.svelte.test.ts` measures the tray against it
 	 * rather than trusting the two to stay in step.
 	 */

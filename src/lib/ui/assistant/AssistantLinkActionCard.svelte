@@ -110,3 +110,11 @@
 		</p>
 	{/if}
 </article>
+
+<style>
+	.assistant-link-action__title {
+		margin: 0;
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-semibold);
+	}
+</style>

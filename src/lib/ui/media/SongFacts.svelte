@@ -155,3 +155,39 @@
 
 <!-- Success stays beside the facts; refusals use the shared visible and live feedback. -->
 <span class="sr-only" aria-live="polite">{announcement}</span>
+
+<style>
+	/* A value is a control, because each of these is retyped into a field of its own
+	 * on the other end, and the page they are retyped into takes one writer at a
+	 * time. It draws nothing at rest: a bordered chip per fact would be six boxes in
+	 * a list whose whole job is to be read, and the affordance a name has always had
+	 * is the one used here: it underlines under the pointer, exactly as a performer's
+	 * name does in the roster. */
+	.metadata-copy {
+		max-width: 100%;
+		padding: 0;
+		border: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-align: start;
+		overflow-wrap: anywhere;
+		cursor: pointer;
+	}
+
+	.metadata-copy:hover,
+	.metadata-copy:focus-visible {
+		text-decoration: underline;
+	}
+
+	/* A double underline distinguishes success without color or moving the credit text. */
+	.metadata-copy.is-copied {
+		color: var(--color-success);
+		text-decoration-line: underline;
+		text-decoration-style: double;
+	}
+
+	.metadata-copy__separator {
+		white-space: pre;
+	}
+</style>

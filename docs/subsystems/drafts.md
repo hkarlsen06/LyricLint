@@ -204,7 +204,7 @@ both list states, because re-adding it to the empty menu is the specific regress
 Implementation: `src/lib/ui/primitives/RemoveButton.svelte` (the shared confirm) and
 `src/lib/ui/styles/rows.css` (`.list-row` and its commands, shared by the drafts menu and the
 performer roster); `src/lib/ui/drafts/draft-date.ts` for the dates; what each surface adds on top in
-`overlays.css`, `linter.css`, and `performers.css`; and the persistence rule in
+`DraftMenu.svelte`, `DraftMenuBody.svelte`, `LinterPanel.svelte`, and `PerformerEditor.svelte`; and the persistence rule in
 `draft-store.svelte.ts` and `persistence/recovery.ts`.
 
 Preview extraction shares the `isReadableDraft` boundary predicate with recovery. Unreadable

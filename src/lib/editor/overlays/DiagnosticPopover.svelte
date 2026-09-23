@@ -143,8 +143,9 @@
 
 <style>
 	/* The card's chrome only. Everything inside it (meta line, explanation,
-	   action row) is shared with the linter panel and styled with it in
-	   `diagnostics.css`, so the two surfaces cannot drift apart. */
+	   action row) is shared with the linter panel and styled with it, in
+	   `diagnostics.css` and the shared components in `src/lib/diagnostics/`, so
+	   the two surfaces cannot drift apart. */
 	.popover {
 		--ll-card-width: min(26rem, calc(100vw - 1rem));
 

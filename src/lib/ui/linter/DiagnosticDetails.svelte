@@ -51,3 +51,22 @@
 		{onIgnore}
 	/>
 </div>
+
+<style>
+	/* The expanded card's body (explanation and actions) is shared with the
+	   editor's diagnostic popover and styled in `diagnostics.css`, as is the meta
+	   line above it. What stays here is the body's own inset. */
+	.diagnostic-details {
+		display: grid;
+		padding: 0 var(--space-4) var(--space-3);
+		gap: var(--space-3);
+	}
+
+	/* Every decision in the expanded card rides above the navigate button's
+	   stretched press layer (`DiagnosticList.svelte`) and takes its own press. A
+	   z-index only counts on a positioned box. */
+	.diagnostic-details :global(:is(button, a)) {
+		position: relative;
+		z-index: 1;
+	}
+</style>

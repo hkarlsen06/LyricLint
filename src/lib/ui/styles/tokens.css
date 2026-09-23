@@ -466,7 +466,7 @@
 		 * in front of for an hour), and the two were near enough to look like the
 		 * same product in a screenshot and plainly not the same product when a
 		 * reader pressed `Open the workbench` and watched every surface in the
-		 * window lift four points. The header band that `site.css` goes to some
+		 * window lift four points. The header band that the site layout goes to some
 		 * trouble to make the same height as the document toolbar arrived a
 		 * different colour than the toolbar it was matched to. A tool and its
 		 * marketing site are one thing, so they are one palette, and `.site` is
@@ -507,7 +507,7 @@
 		 * read as a continuation of whichever card was open below it. At 2.5
 		 * points the fill no longer carries that on its own. What does is the
 		 * hairline the strip already draws along its bottom edge (`.linter-panel__bulk`
-		 * in `linter.css`, and `__filters` above it), which is 8.5 points off
+		 * in `LinterPanel.svelte`, and `__filters` above it), which is 8.5 points off
 		 * either surface and is the same way the site's own header is told apart
 		 * from the hero it sits on. Do not take that border off.
 		 */

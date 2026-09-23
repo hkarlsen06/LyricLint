@@ -145,3 +145,35 @@
 		</p>
 	{/if}
 </article>
+
+<style>
+	.assistant-proposal__diff {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: var(--font-size-sm);
+		line-height: var(--line-height-editor);
+		overflow-wrap: anywhere;
+		white-space: pre-wrap;
+	}
+
+	.assistant-proposal__diff del {
+		color: var(--color-danger);
+		text-decoration: line-through;
+	}
+
+	.assistant-proposal__diff ins {
+		color: var(--color-success);
+		text-decoration: underline;
+	}
+
+	.assistant-proposal__diff del + ins {
+		margin-inline-start: var(--space-1);
+	}
+
+	.assistant-proposal__scope {
+		margin: 0;
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-text);
+	}
+</style>

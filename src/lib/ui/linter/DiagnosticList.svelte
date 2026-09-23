@@ -366,3 +366,199 @@
 		{/each}
 	</ol>
 {/if}
+
+<style>
+	/* Cards are edge to edge, but prose is not: inset the empty state to line up
+	   with the filter row above it. */
+	:global(.linter-panel) > .empty-state {
+		padding: var(--space-2) var(--space-3) var(--space-4);
+		margin: 0;
+	}
+
+	/* One short title naming the state, one muted line saying why and what to do.
+	   Prose only: the bare panel canvas is the surface, not a box. */
+	.diagnostic-list__empty {
+		display: grid;
+		gap: var(--space-1);
+	}
+
+	/* An empty or completed review should feel settled, not like a missing list.
+	   Filtered findings stay beside their filters; the three resting states share
+	   a composed, unboxed message. Set-aside findings remain distinct from clean. */
+	.diagnostic-list__empty--clean,
+	.diagnostic-list__empty--settled,
+	.diagnostic-list__empty--waiting {
+		flex: 1;
+		/* Center against the panel, not a prose-width box parked at its left edge. */
+		max-width: none;
+		align-content: center;
+		justify-items: center;
+		gap: var(--space-2);
+		text-align: center;
+	}
+
+	.diagnostic-list__empty p {
+		margin: 0;
+		max-width: var(--measure-prose);
+		font-size: var(--font-size-sm);
+		line-height: var(--line-height-body);
+		white-space: pre-line;
+	}
+
+	/* Global because two of the three marks are icon components, which render
+	   their own `<svg>`. */
+	.diagnostic-list__empty :global(.diagnostic-list__empty-mark) {
+		width: var(--space-8);
+		height: var(--space-8);
+		margin-bottom: var(--space-4);
+		color: var(--color-text-muted);
+	}
+
+	.diagnostic-list__empty--clean :global(.diagnostic-list__empty-mark) {
+		color: var(--color-success);
+	}
+
+	.diagnostic-list__empty .diagnostic-list__empty-title {
+		color: var(--color-text);
+		font-size: var(--font-size-xl);
+		font-weight: var(--font-weight-medium);
+		line-height: var(--line-height-tight);
+	}
+
+	/* Inset findings separate by space; only the open finding takes depth. */
+	.diagnostic-list {
+		display: grid;
+		margin: 0;
+		padding: var(--space-2) var(--space-3);
+		gap: var(--space-2);
+		list-style: none;
+	}
+
+	/* Resting findings read as a list. The open finding is the one surface with
+	   an independent decision, so only it takes a fill and elevation. */
+	.diagnostic-list > li {
+		position: relative;
+		border: 0;
+		border-radius: var(--radius-panel);
+		background: transparent;
+	}
+
+	.diagnostic-list > li.diagnostic-card--expanded,
+	.diagnostic-list > li.diagnostic-card--active {
+		z-index: 1;
+		background: var(--color-surface);
+		box-shadow: var(--shadow-raised);
+	}
+
+	/* The depth answers a press, so it arrives at the control tier's rate rather
+	   than snapping. Only the tone, the shadow and the seams ease. The card's own
+	   expansion stays instant, because a height between two documents' worth of
+	   content has no honest intermediate frame. */
+	@media (prefers-reduced-motion: no-preference) {
+		.diagnostic-list > li {
+			transition:
+				background-color var(--duration-fast) var(--ease-out-quart),
+				box-shadow var(--duration-fast) var(--ease-out-quart),
+				border-color var(--duration-fast) var(--ease-out-quart);
+		}
+	}
+
+	/* The head (not the list item) carries the card's padding: there is no dead
+	   margin around the heading where a press lands on nothing. It is deliberately
+	   unpositioned: the stretched press layer below resolves against the row, so a
+	   containing block here would stop it at the head's own bottom edge. */
+	.diagnostic-list__head {
+		border-radius: inherit;
+		display: grid;
+		padding: var(--space-3) var(--space-4);
+		gap: var(--space-1);
+		justify-items: start;
+	}
+
+	/* Expanded, the head hands off to the details below it, so its bottom padding
+	   becomes the seam between the two rather than a second full inset. */
+	.diagnostic-card--expanded > .diagnostic-list__head {
+		padding-bottom: var(--space-2);
+	}
+
+	/*
+	 * The card's whole face is still the control, but the button no longer contains
+	 * it: the meta line ends in a link to the cited source, and an `<a>` inside a
+	 * `<button>` is neither valid nor reliably pressable. The button holds the
+	 * message and stretches its hit area over the whole *row* instead (the head,
+	 * the explanation under it, and the slack beside the actions), so a press
+	 * anywhere on the card that is not aimed at something else opens the diagnostic.
+	 */
+	.diagnostic-list__navigate {
+		display: block;
+		width: 100%;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: var(--color-text);
+		text-align: start;
+	}
+
+	.diagnostic-list__navigate::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+	}
+
+	/* Whatever does something else rides above the stretched layer and takes its own
+	   press: the citation, its disclosure, and every decision in the expanded card
+	   (lifted by `DiagnosticDetails.svelte`). The buttons and not the row they sit
+	   in: lifting `.diagnostic-actions` would make the whole band dead, and the
+	   slack beside the last control is card. */
+	.diagnostic-list__head :global(.source-citation),
+	.diagnostic-list__head :global(.diagnostic-meta__disclosure) {
+		z-index: 1;
+	}
+
+	/* A z-index only counts on a positioned box, and only the citation brings its
+	   own. */
+	.diagnostic-list__head :global(.diagnostic-meta__disclosure) {
+		position: relative;
+	}
+
+	/*
+	 * Hover and focus belong to the whole head, because that is what the press
+	 * target covers. Reading them off the button alone would light up only the
+	 * message. Hovering the citation deliberately does not raise the row: the
+	 * pointer is over the link, and the link is where the press would land.
+	 */
+	.diagnostic-list
+		> li:not(.diagnostic-card--expanded)
+		.diagnostic-list__head:has(.diagnostic-list__navigate:hover) {
+		background: var(--color-control-hover);
+	}
+
+	/* Inset, because a full-bleed row's ring would otherwise be drawn over the
+	   hairline into the neighbouring card. */
+	.diagnostic-list__head:has(.diagnostic-list__navigate:focus-visible) {
+		outline: var(--focus-ring-width) solid var(--color-focus);
+		outline-offset: var(--focus-ring-offset);
+	}
+
+	.diagnostic-list__navigate:focus-visible {
+		outline: none;
+	}
+
+	.diagnostic-list__title {
+		font-weight: var(--font-weight-medium);
+	}
+
+	/* Keep this query aligned with PHONE_WORKSPACE_QUERY. An opened finding is
+	   the task view's whole content, so it sheds the card's depth. */
+	@media (pointer: coarse) and (max-width: 68rem) {
+		:global(.linter-panel--focused) .diagnostic-list > li {
+			background: transparent;
+			box-shadow: none;
+			padding-inline: 0;
+		}
+
+		.diagnostic-list > li[hidden] {
+			display: none;
+		}
+	}
+</style>

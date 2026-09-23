@@ -361,3 +361,227 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	/* A full-height column keeps recent drafts at the foot. Findings are inset
+	   rounded rows, separated by space rather than a ruled grid. */
+	.panel-content.linter-panel {
+		display: flex;
+		padding: 0;
+		flex: 1;
+		flex-direction: column;
+	}
+
+	.linter-panel .linter-panel__heading {
+		margin: 0;
+		padding: var(--space-5) var(--space-4) var(--space-3);
+		font-size: var(--font-size-xl);
+		font-weight: var(--font-weight-medium);
+	}
+
+	/* The drafts sit at the foot of the column, pushed there by the auto margin
+	   rather than by whatever is above them: on an empty document that is a short
+	   paragraph, and a list of destinations left directly under it read as part of
+	   the message. Still prose on the canvas: a list of the user's own drafts is
+	   not a region anyone acts on independently of its neighbours, so there is no
+	   border to draw around it, and the empty canvas above is the separation. */
+	.linter-panel__drafts {
+		padding: var(--space-4) var(--space-3);
+		margin-top: auto;
+	}
+
+	.linter-panel__empty-label {
+		margin: 0 0 var(--space-1);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-medium);
+	}
+
+	.linter-panel__recent {
+		display: grid;
+		padding: 0;
+		margin: 0;
+		list-style: none;
+	}
+
+	/* The row is the draft; the delete rides at its end. Both surfaces that list
+	   drafts offer the same way out of one, so neither is the place a user has to
+	   remember to go. */
+	.linter-panel__recent > li {
+		display: flex;
+		gap: var(--space-2);
+		align-items: center;
+	}
+
+	/* A draft is a destination, so it reads as a line of text you can press rather
+	   than as a button: full-width target, title first, and the date it was last
+	   touched trailing on the same line to tell two similar titles apart. */
+	.linter-panel__recent-draft {
+		display: flex;
+		width: 100%;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding: var(--space-1) 0;
+		border: 0;
+		background: none;
+		color: var(--color-text);
+		font-family: inherit;
+		font-size: var(--font-size-sm);
+		text-align: start;
+		cursor: pointer;
+	}
+
+	.linter-panel__recent-draft {
+		flex: 1;
+		min-width: 0;
+	}
+
+	/* While its deletion is the question the row is not also a way into the draft:
+	   same line, same columns, one decision. */
+	.linter-panel__recent-draft--static {
+		cursor: default;
+	}
+
+	.linter-panel__recent-draft:hover .linter-panel__recent-title {
+		text-decoration: underline;
+	}
+
+	.linter-panel__recent-title {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/* The delete stays out of the way until the row is: a muted glyph that only
+	   colors under the pointer or focus (see RemoveButton.svelte). */
+	.linter-panel__recent :global(.remove-button) {
+		flex: none;
+	}
+
+	.linter-panel__recent-draft:focus-visible {
+		outline: var(--focus-ring-width) solid var(--color-focus);
+		outline-offset: var(--focus-ring-offset);
+	}
+
+	.linter-panel__recent-draft time {
+		flex: none;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* The grid stretches its items, and a button that spans the prose measure reads
+	   as a banner rather than an offer. */
+	.linter-panel__empty-action {
+		justify-self: center;
+		padding-top: var(--space-3);
+	}
+
+	/* The list ends deliberately: a muted line after the last card says whether
+	   anything else is hidden, so the canvas below never reads as an accident. */
+	.linter-panel__afterword {
+		padding: var(--space-3) var(--space-3) var(--space-4);
+		margin: 0;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+	}
+
+	/* Chrome, like the tab strip above and the ignored-rules footer at the far end
+	   of the panel: this row is not part of the list it acts on. The fill is load
+	   bearing rather than decorative: `--color-canvas` is already spoken for as
+	   the *selected* card's recessed level, so a row of bare canvas here read as a
+	   continuation of whichever card was open and the button looked loose inside
+	   it. Same inset as the chips row, which is the other strip that hangs here. */
+	.linter-panel__bulk {
+		display: flex;
+		flex-wrap: wrap;
+		padding: var(--space-2) var(--space-3);
+		border-bottom: 0;
+		margin: 0;
+		gap: var(--space-2);
+		align-items: center;
+		justify-content: space-between;
+		background: var(--color-chrome);
+	}
+
+	/* Compact, and bordered rather than quiet: it has to read as pressable against
+	   a strip that is otherwise inert. It keeps the default tier: the contrast
+	   action on this surface belongs to the fix a card is previewing, and there is
+	   one of those per surface. */
+	.linter-panel__bulk-action {
+		min-height: var(--control-height-sm);
+		padding: var(--space-1) var(--space-2-5);
+		font-size: var(--font-size-xs);
+	}
+
+	/* The shared size floors for a phone's `.button` (responsive-shared.css) used to
+	   outrank the compact height above on specificity. Scoped, this rule ties
+	   them, so the floors are restated here rather than left to stylesheet order. */
+	@media (max-width: 46rem) {
+		:global(:root) .linter-panel__bulk-action {
+			min-height: var(--control-height-lg);
+		}
+	}
+
+	@media (pointer: coarse) {
+		:global(:root) .linter-panel__bulk-action {
+			min-height: var(--control-height-touch);
+		}
+	}
+
+	/* Rides the far end of the row, which is the same thing as saying the command
+	   does not fill it: a lone button with an empty half-row beside it was the
+	   shape this strip started as. */
+	.linter-panel__bulk-note {
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+	}
+
+	/* The chips hang from the tab strip: no gap above them, and a rule below
+	   separating them from the run of diagnostic cards. They are drawn whenever the
+	   document has a finding of any kind: one chip per kind that is actually
+	   there, so the row costs the panel nothing on a clean draft and never offers
+	   to filter out a severity with nothing in it. */
+	.linter-panel__filters {
+		display: flex;
+		padding: var(--space-2) var(--space-3);
+		border-bottom: 0;
+		flex-wrap: wrap;
+		gap: var(--space-1);
+		/* Chrome, like the tab strip it drops out of: the row is an extension of
+		   the tabs, not the first item in the list of diagnostics. */
+		background: var(--color-chrome);
+	}
+
+	/* The chip itself is `.filter-chip` in `controls.css`, the same control
+	   filtering the same kinds out of a list wherever one is drawn, so it is one
+	   implementation and not two. Nothing about it needs overriding here; this
+	   row only decides where the chips sit. */
+
+	/* The count is what pressing the chip puts back. A kind with nothing in it
+	   draws no chip rather than printing a zero. It used to also drop to
+	   `opacity: 0.45` (2.2:1), which made the number the hardest thing on the
+	   chip to read. */
+	.filter-chip__count {
+		min-width: 1.1em;
+		color: inherit;
+		font-variant-numeric: tabular-nums;
+		text-align: end;
+	}
+
+	/* Keep this query aligned with PHONE_WORKSPACE_QUERY. An opened finding is
+	   the whole task view, so the list's chrome steps aside for it. */
+	@media (pointer: coarse) and (max-width: 68rem) {
+		.linter-panel--focused > .linter-panel__heading,
+		.linter-panel--focused > .linter-panel__filters,
+		.linter-panel--focused > .linter-panel__bulk,
+		.linter-panel--focused > .linter-panel__afterword {
+			display: none;
+		}
+
+		.mobile-review-back {
+			align-self: flex-start;
+		}
+	}
+</style>

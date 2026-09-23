@@ -65,7 +65,12 @@ function actions(root: ParentNode): RenderedAction[] {
 	return [...root.querySelectorAll<HTMLButtonElement>('.diagnostic-actions button')].map(
 		(button) => ({
 			label: button.textContent?.replace(/\s+/gu, ' ').trim() ?? '',
-			classes: [...button.classList].sort().join(' ')
+			// Svelte's scoping hash is how the component's own `<style>` reaches the
+			// button, not a tier, so it is not part of what the surfaces compare.
+			classes: [...button.classList]
+				.filter((name) => !name.startsWith('svelte-'))
+				.sort()
+				.join(' ')
 		})
 	);
 }

@@ -1,7 +1,7 @@
 # The marketing site: the landing composition, its shots and loops, the palette, the brand
 
-Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
-`src/lib/ui/styles/site.css`, `src/lib/ui/styles/wordmark.css`,
+Touches: `src/routes/(site)/+page.svelte`, `src/routes/(site)/+layout.svelte`,
+`src/lib/ui/styles/site.css`, `src/lib/ui/layout/AppWordmark.svelte`,
 `src/lib/ui/styles/global.css`, `src/lib/ui/styles/workbench.css`,
 `scripts/render-workbench-shot.mjs`,
 `scripts/render-motion.mjs`, `scripts/render-mobile-loop.mjs`, `scripts/key-overlay.mjs`,
@@ -250,14 +250,14 @@ settings remain unchanged. Refresh the player sharing GIF from its encoded video
 ### Each route loads the styles its surfaces use
 
 The root stylesheet used to include every workbench, reference and landing selector. It now
-keeps the shared foundations, controls, wordmark, diagnostics, overlays and assistant, while
+keeps the shared foundations, controls, diagnostics, overlays and assistant, while
 the route layouts import their own content styles. `workbench.css` preserves the original
 app-part order and ends with the app's responsive overrides. `responsive-shared.css` keeps
 the common touch-target sizes, input floor and reduced-motion behavior on every route; the
-finder's class-specific input override follows its own styles in `site.css`.
+finder's class-specific input override follows its own styles in `ReferenceIndex.svelte`.
 
-The wordmark rules moved verbatim out of `shell.css` so the masthead and loading marks do not
-require the workspace grid and toolbar. Shared diagnostics and overlays remain available to
+The wordmark rules live in `AppWordmark.svelte`'s own `<style>`, so the masthead and loading marks
+get them with the component and do not require the workspace grid and toolbar. Shared diagnostics and overlays remain available to
 the lazy homepage editor, assistant modal and root error page. No cascade layers, deferred CSS,
 font-display changes or coverage-based deletion were introduced. Component test setup imports
 the route sheets beside the shared sheet because standalone components have no route layout.
@@ -493,7 +493,8 @@ The masthead consistently says Transcription guide. Landing-page citations open 
 topic, and the full reference link opens the unified guide. The reference subsystem
 owns query serialization and restoration; the header consumes that owner rather than rebuilding
 query parameters. The cross-section search e2e task pins this behavior. Homepage reference question
-links and native disclosures use token-based prose styles in `site.css`, with no added panels.
+links and native disclosures use token-based prose styles in `GuideWelcome.svelte`, with no added
+panels.
 
 
 ### The landing page is a composition, and the workbench is the evidence in it
@@ -825,9 +826,10 @@ that was meant; the hero's actions are already a column at every width. The comm
 above the CTA draws its own bordered pair (`.lp-join`), left-aligned against its copy: the
 Discord invite again and a Guidelines button beside it.
 
-Implementation: `src/lib/ui/styles/landing.css` (the whole system),
-`src/routes/(site)/+page.svelte`, and `scripts/render-workbench-shot.mjs`. `.site-meta__fact`
-survives in `site.css` because three surfaces draw a meta line, not one.
+Implementation: `src/routes/(site)/+page.svelte` (the whole system, in its own `<style>` block),
+`src/lib/ui/site/LyricIcon.svelte` (the mark inside the actions), and
+`scripts/render-workbench-shot.mjs`. `.site-meta*` survives in `site.css` because three surfaces
+draw a meta line, not one.
 
 ### Spacing comes from the scale or from the geometry it aligns
 
@@ -858,7 +860,7 @@ uses all resolve there.
 palette: deeper surfaces of the site's own, on the reasoning that a landing page wants contrast
 under a display headline where a workbench wants a document somebody can live in. Read one after
 the other that was two products: pressing `Open the workbench` lifted every surface in the window
-four points of lightness, including the masthead `site.css` goes to some trouble to draw at
+four points of lightness, including the masthead the site layout goes to some trouble to draw at
 _exactly_ the document toolbar's height, so the band arrived a different colour than the band it
 was matched to. It was never wrong enough to catch in a screenshot and always wrong in the
 transition. The site's numbers won, because they are the ones a composition is built on and
@@ -873,7 +875,7 @@ document is mounted in rather than as a surface above it. What that costs is the
 band to the canvas, 8.5 points down to 2.5, and the bulk-fix strip reads that step, because it
 hangs over a run of cards whose selected member drops to `--color-canvas` and it was made chrome
 precisely so it would not be taken for one. The hairline along its bottom edge is what carries it
-now (`.linter-panel__bulk` and `__filters` in `linter.css`), which is how the site's own header is
+now (`.linter-panel__bulk` and `__filters` in `LinterPanel.svelte`), which is how the site's own header is
 told apart from the hero it sits on. **Do not take that border off.**
 
 The product colors (severity, accent, focus, the performer identities) were always shared, because
@@ -942,7 +944,7 @@ grey field, which is the two-mismatched-bands failure this section opens with, a
 other direction. Its border is transparent for the same reason a phone's is absent: a hairline
 under a band near the colour of the page rules a line across the canvas for nothing.
 
-**Its height is fixed by something outside `site.css` and must not move; its contents align with
+**Its height is fixed by something outside the site layout and must not move; its contents align with
 the page, not the viewport.** `e2e/lyriclint.spec.ts` asserts that this band is exactly as tall as
 the workbench's document toolbar (which is what makes arriving at the tool from here read as the
 same window rather than as a second product), and that the wordmark's left edge is the page
@@ -972,7 +974,9 @@ every width: `--color-text-muted`, resolving to the body color under the pointer
 workbench's toolbar commands answer one. The page the reader is on is still named rather than
 linked, but it says so with a step up in color now instead of the absence of an underline.
 
-Implementation: the `max-width: 46rem` block and `.site-nav` in `src/lib/ui/styles/site.css`.
+Implementation: the masthead and footer styles, including their `max-width: 46rem` block and
+`.site-nav`, in `src/routes/(site)/+layout.svelte`; `.site-main`'s phone padding stays in
+`src/lib/ui/styles/site.css`.
 
 ### The demo is as tall as its verse
 
@@ -1110,8 +1114,8 @@ Three things the arithmetic depends on, all easy to break:
   waveform's `vector-effect: non-scaling-stroke` width, both slot widths. A surface resizes the
   whole brand by setting `font-size`, and that is the only override it is allowed.
 
-Implementation: `src/lib/ui/layout/AppWordmark.svelte` (state and markup only) and the arithmetic
-in `src/lib/ui/styles/shell.css`. `src/lib/assets/lyriclint-mark.svg` is the static mark and
+Implementation: `src/lib/ui/layout/AppWordmark.svelte` (state, markup, and the arithmetic in its
+`<style>` block). `src/lib/assets/lyriclint-mark.svg` is the static mark and
 carries the same geometry. The closed lockup has to keep matching it.
 
 ### The favicon uses the full mark on dark yellow

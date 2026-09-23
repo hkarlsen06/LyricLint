@@ -158,3 +158,32 @@
 		</ul>
 	{/if}
 </div>
+
+<style>
+	/*
+	 * The check is LyricLint's own reading of the sources cited after it (the
+	 * `derivation` set docs/rules.md names), and this is where the card says so.
+	 * The mark is the deployed favicon's waveform, the one mark this application
+	 * owns; the words beside it carry the fact for anything that cannot see it.
+	 */
+	.diagnostic-meta__derivation {
+		display: inline-flex;
+		gap: 0.25rem;
+		align-items: center;
+		font-weight: var(--font-weight-semibold);
+	}
+
+	/* The mark is the actual `lyriclint-mark.svg`, inlined so its brackets take
+	   `currentColor` from this line's own text. The waveform keeps its fixed
+	   amber, exactly as the favicon and the wordmark draw it. No radius: this is
+	   our mark, not a square tile fetched from somebody else's site. */
+	.diagnostic-meta__derivation-mark {
+		display: inline-flex;
+		flex: none;
+	}
+
+	.diagnostic-meta__derivation-mark :global(svg) {
+		width: 1em;
+		height: 1em;
+	}
+</style>

@@ -64,3 +64,77 @@
 		</p>
 	</details>
 </section>
+
+<style>
+	.performer-add {
+		display: grid;
+		margin-bottom: var(--space-4);
+		gap: var(--space-2);
+		font-weight: var(--font-weight-regular);
+	}
+
+	/* Assignment stays beside the lyrics; this is supporting guidance, not a divider. */
+	.roster-hint {
+		margin: 0 0 var(--space-3);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	.inline-form {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		align-items: center;
+	}
+
+	.inline-form input {
+		min-width: 8rem;
+		flex: 1;
+	}
+
+	.performer-list {
+		display: grid;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.performer-add input {
+		font-size: var(--font-size-editor);
+		font-weight: var(--font-weight-regular);
+	}
+
+	.performer-help {
+		margin-top: var(--space-3);
+	}
+
+	/* The same disclosure row as the legend's summary (`PerformerLegend.svelte`). */
+	.performer-help > summary {
+		display: flex;
+		min-height: var(--control-height-lg);
+		padding-block: var(--space-3);
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		list-style: none;
+		cursor: pointer;
+	}
+
+	.performer-help > summary {
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	.performer-help > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.performer-help > summary:hover {
+		text-decoration: underline;
+		text-underline-offset: var(--space-1);
+	}
+
+	.performer-help[open] > summary :global(.performer-legend__chevron) {
+		transform: rotate(90deg);
+	}
+</style>

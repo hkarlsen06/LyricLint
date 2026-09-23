@@ -147,3 +147,172 @@
 		</dialog>
 	{/if}
 {/if}
+
+<style>
+	/*
+	 * The cover, in the video's band and under the video's rules: chrome, a hairline
+	 * over it, flush with the column.
+	 *
+	 * The picture is the surface here rather than a thing inside one. This band used
+	 * to be a chrome bar with a cover under it: a whole row of the panel's height
+	 * spent on two facts and one control, above a picture with four unused corners.
+	 * The facts sit on the artwork now, and the row that is left is the folded state.
+	 *
+	 * `--media-thumb` is the folded picture, and it is read off the strip's control
+	 * height rather than picked: the folded row is a thumbnail beside a stack of
+	 * artist, title and mark, and tying it to that token keeps it in the same family
+	 * as the row at the foot of the other column.
+	 */
+	.media-artwork {
+		--media-thumb: calc(var(--control-height-lg) * 2);
+
+		display: flex;
+		flex: none;
+		gap: var(--space-3);
+		align-items: center;
+		padding: var(--space-3);
+		background: var(--color-chrome);
+	}
+
+	/*
+	 * The thumbnail is the way to the full-size picture, so it is a button rather
+	 * than a box: no border and no fill of its own, because the press target *is*
+	 * the picture, and a frame around it would be a card inside the row.
+	 */
+	.media-artwork__thumb {
+		display: block;
+		width: var(--media-thumb);
+		flex: none;
+		overflow: hidden;
+		padding: 0;
+		border: 0;
+		border-radius: var(--radius-control);
+		background: none;
+		cursor: pointer;
+	}
+
+	.media-artwork__thumb:focus-visible {
+		outline: var(--focus-ring-width) solid var(--color-focus);
+		outline-offset: var(--focus-ring-offset);
+	}
+
+	.media-artwork__cover {
+		display: block;
+		width: 100%;
+		/* Square because a cover is square. Nothing is boxed: the picture sits on the
+		   band's own chrome, so it needs no frame of its own. */
+		aspect-ratio: 1;
+		object-fit: cover;
+		background: var(--color-canvas);
+	}
+
+	/* Both halves ellipsize, so a long title never pushes the mark off the end of
+	   its own row. */
+	.media-artwork__artist,
+	.media-artwork__title {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/*
+	 * Title over artist, centred against the thumbnail: the song is what the row
+	 * is about and the artist qualifies it. These two lines *are* the row, with a
+	 * whole thumbnail's height to fill, which is why they sit a step up from
+	 * caption type.
+	 */
+	.media-artwork__identity {
+		display: flex;
+		flex: 1 1 auto;
+		min-width: 0;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.media-artwork__meta {
+		display: flex;
+		flex: 0 1 auto;
+		min-width: 0;
+		flex-direction: column;
+		gap: var(--space-1);
+		align-items: start;
+		justify-content: center;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	.media-artwork__meta .media-artwork__title {
+		max-width: 100%;
+		color: var(--color-text);
+	}
+
+	.media-artwork__meta .media-artwork__artist {
+		max-width: 100%;
+	}
+
+	/* The mark alone at the far end: the one thing in the row that has to be seen
+	   rather than pressed. */
+	.media-artwork__aside {
+		display: flex;
+		flex: none;
+		flex-direction: column;
+		gap: var(--space-2);
+		align-items: end;
+		justify-content: center;
+	}
+
+	/*
+	 * The full-size picture, behind a press on the thumbnail. Looking at artwork is
+	 * a detour from transcribing, which is what a modal is for, and the dialog is
+	 * where the two artwork commands ride, under the picture they act on.
+	 *
+	 * The width caps against the viewport's *height* as well as its width, because
+	 * the surface is a square picture plus two rows of chrome: on a short window a
+	 * width-only cap would push the actions below the fold of the dialog itself.
+	 */
+	.artwork-dialog {
+		width: min(28rem, calc(100vw - var(--space-6)), calc(100dvh - 11rem));
+		max-width: none;
+		padding: 0;
+		border: 0;
+		border-radius: var(--radius-overlay);
+		background: var(--color-overlay);
+		color: var(--color-text);
+		box-shadow: var(--shadow-overlay);
+	}
+
+	.artwork-dialog::backdrop {
+		background: var(--color-backdrop);
+	}
+
+	.artwork-dialog__header {
+		display: flex;
+		min-height: 3.25rem;
+		padding: var(--space-4) var(--space-4) var(--space-2) var(--space-5);
+		gap: var(--space-3);
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.artwork-dialog__header strong {
+		overflow: hidden;
+		font-size: var(--font-size-lg);
+		font-weight: var(--font-weight-semibold);
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.artwork-dialog__cover {
+		display: block;
+		width: 100%;
+		aspect-ratio: 1;
+		object-fit: cover;
+		background: var(--color-canvas);
+	}
+
+	.artwork-dialog__actions {
+		display: flex;
+		padding: var(--space-3) var(--space-5) var(--space-5);
+	}
+</style>

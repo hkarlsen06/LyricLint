@@ -451,6 +451,52 @@
 </div>
 
 <style>
+	/* The finder stays above scrolling rows. Its padding reserves focus-ring space;
+	   the pane's shared glass covers its full height along with the current topic.
+	   reveal-selected.ts measures that same pinned region. */
+	.site-finder {
+		position: sticky;
+		display: grid;
+		padding-block: var(--space-5) var(--space-3);
+		gap: var(--space-2);
+		inset-block-start: 0;
+	}
+
+	.site-finder__search {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.site-run__title {
+		font-weight: var(--font-weight-medium);
+	}
+
+	/* Selection is depth, not hue. No accent wash and no ring: the severity tag is
+	   already the one colored thing in the row, and a second color would compete
+	   with it.
+
+	   THIS STAYS RECESSED IN BOTH SCHEMES, and the linter's run of diagnostics no
+	   longer does, so the two are worth telling apart rather than assuming they
+	   drifted. A diagnostic card is a work surface: it opens, it carries the fix
+	   the reader is about to press, and in light mode sinking it to grey made the
+	   one active thing on the column read as the spent one. A row here is a nav
+	   item saying which page is on screen. Grey for "you are here" is what a
+	   selected item in a list of links has always looked like, and there is nothing
+	   in the row to press but the row.
+
+	   A result row gives the marker to its `.reference-entry` below; a related
+	   check keeps it. Declared before `.reference-related a:hover` so that hover
+	   still fills a current related check, as it did when this rule was global. */
+	.site-split__index a[aria-current='page'] {
+		background: var(--color-canvas);
+		box-shadow: var(--shadow-recessed);
+	}
+
+	/* The width of the upright that marks the current entry's start edge. */
+	.site-split__index {
+		--current-row-marker-width: calc(var(--border-width) * 3);
+	}
+
 	.reference-index {
 		padding-block-end: max(var(--space-6), var(--split-navigation-clearance, 0px));
 	}
@@ -462,11 +508,25 @@
 		font-weight: var(--font-weight-medium);
 	}
 	.site-finder {
+		/* Above the rows it is pinned over, and above the recessed shadow the open
+		   rule's row casts. */
 		z-index: 3;
 	}
 	.site-finder__search,
 	select {
 		font-size: var(--font-size-editor);
+	}
+	@media (pointer: coarse) {
+		/* Shared input selectors have specificity (0,0,1), so any class that
+		   sizes a field elsewhere in the system quietly outranks them, which is how
+		   the reference sections' search fields shipped at 13px under a finger and
+		   re-created the Safari focus-zoom `responsive-shared.css` exists to
+		   prevent. The raise is restated here at the finder's own specificity.
+		   `e2e/lyriclint.spec.ts` pins this one's computed size under a coarse
+		   pointer. */
+		.site-finder__search {
+			font-size: var(--font-size-lg);
+		}
 	}
 	.reference-controls {
 		display: flex;

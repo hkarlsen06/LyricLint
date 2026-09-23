@@ -184,6 +184,106 @@
 </div>
 
 <style>
+	/*
+	 * The editor column's commands, as a tray over the top-right corner of the
+	 * document.
+	 *
+	 * **It costs the document no height, and that is the third shape this took.**
+	 * Drawn full width across the column it made the row the object: a strip of
+	 * chrome as wide as the document with two words at one end and a hand of empty
+	 * gutter after them. Hugged to its contents it was the right size and, at the
+	 * left of the column, belonged to nothing. Given a grid row of its own at the
+	 * right it belonged to the tab strip, and charged 44px of the document for the
+	 * privilege, every pixel of it beside the text rather than above it, because
+	 * the lyric column is capped at `--measure-editor` and left-aligned. So the row
+	 * went and the tray is `position: absolute` over the space that was already
+	 * empty.
+	 *
+	 * `--panel-tabs-height` is kept, so its foot still lands level with the panel's
+	 * tab strip: the chrome under the toolbar ends at one height across the window
+	 * even though the two surfaces do not touch.
+	 *
+	 * A rounded inner corner and a tonal change separate the tray; no hairline
+	 * connects it to the rest of the window.
+	 *
+	 * `--color-chrome`, like the toolbar above it. The bulk-fix strip learned the
+	 * alternative the long way: drawn as bare canvas it took the tone of whatever it
+	 * touched and its controls read as loose inside the surface below, which is a
+	 * live hazard here rather than a remembered one, since this tray floats directly
+	 * over the document.
+	 */
+	.editor-actions {
+		position: absolute;
+		top: 0;
+		right: 0;
+		z-index: var(--layer-toolbar);
+		display: flex;
+		min-height: var(--panel-tabs-height);
+		padding: 0 var(--space-3);
+		border: 0;
+		border-bottom-left-radius: var(--radius-panel);
+		gap: var(--space-1);
+		align-items: center;
+		background: var(--color-chrome);
+	}
+
+	.editor-actions__button {
+		display: inline-grid;
+		min-width: var(--control-height-sm);
+		min-height: var(--control-height-sm);
+		flex: none;
+		padding: 0 var(--space-1);
+		place-items: center;
+		color: var(--color-text);
+		font-size: var(--font-size-xs);
+		line-height: 1;
+	}
+
+	.editor-actions__mark {
+		font-family: var(--font-mono);
+		white-space: nowrap;
+	}
+
+	/* The one glyph that is not a mark. A magnifier at `1em` is optically smaller
+	   than three mono characters beside it, so it is stepped up to the slot's own
+	   size rather than left to look like a shrunken third sibling. */
+	.editor-actions :global(.editor-actions__glyph) {
+		flex: none;
+		font-size: var(--font-size-md);
+	}
+
+	/*
+	 * Find and replace is showing.
+	 *
+	 * The accent is on the glyph and not on the button, because a filled or ringed
+	 * control here would be a second box inside a tray that is already one, and
+	 * because what is being reported is the state of a panel, not a control being
+	 * hovered. `aria-pressed` is what carries it to anything that cannot see a
+	 * color, which is why the state is a toggle button rather than a class.
+	 */
+	.editor-actions__button[aria-pressed='true'] {
+		color: var(--color-accent);
+	}
+
+	/* Stacked, the panel sits under the editor rather than beside it. */
+	@media (max-width: 68rem) {
+		.editor-actions__button[aria-controls='document-panel'] :global(.editor-actions__glyph) {
+			transform: rotate(90deg);
+		}
+	}
+
+	@media (pointer: coarse) and (max-width: 68rem) {
+		:global(.workspace) .editor-actions {
+			position: static;
+			align-self: flex-end;
+			flex: none;
+		}
+
+		:global(.workspace[data-mobile-view='review'][data-review-focused='true']) .editor-actions {
+			display: none;
+		}
+	}
+
 	.editor-actions--phone {
 		max-width: 100%;
 		padding-inline: var(--space-1);

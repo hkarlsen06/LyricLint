@@ -103,33 +103,5 @@
 	font-size: var(--font-size-sm);
 }
 
-/*
- * The way out of a row, wherever a list offers one: the drafts menu, the linter
- * panel's recent drafts, and the performer roster share one control
- * (`primitives/RemoveButton.svelte`), so they share its look.
- *
- * The trigger is muted, not red. A list of seven rows drew seven red words down
- * its right edge, which is a warning about nothing. The row is not dangerous,
- * the press is. So the glyph earns its color under the pointer, and the fill is
- * spent on the confirm that follows it.
- */
-.remove-button,
-.remove-button__confirm,
-.remove-button__cancel {
-	min-height: var(--control-height-sm);
-	padding-block: 0;
-	font-size: var(--font-size-sm);
-}
-
-.remove-button {
-	width: 1.75rem;
-	color: var(--color-text-muted);
-}
-
-/* Written to outrank the row's own quieting of the glyphs beside it. */
-.remove-button:hover:not(:disabled),
-.remove-button:focus-visible,
-.list-row .remove-button:hover:not(:disabled),
-.list-row .remove-button:focus-visible {
-	color: var(--color-danger);
-}
+/* The way out of a row (`primitives/RemoveButton.svelte`) styles itself; its
+   selectors are written against the row rules above. */

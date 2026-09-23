@@ -49,7 +49,7 @@ describe('RuleSearchHighlight', () => {
 		expect(marks()).toEqual(['Verse', 'Verse']);
 		// The mark is a `<mark>` rather than a coloured span, so the fact is in
 		// the accessible tree and not carried by colour alone.
-		expect(container.querySelector('mark')?.className).toBe('site-hit');
+		expect(container.querySelector('mark')?.classList.contains('site-hit')).toBe(true);
 	});
 
 	it('adds not one character to the text it marks', async () => {

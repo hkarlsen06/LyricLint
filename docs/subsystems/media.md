@@ -569,7 +569,9 @@ settled callback after a successful position write.
 
 Implementation: `src/lib/ui/state/media-player.svelte.ts` (the transport and its arithmetic),
 `media-store.svelte.ts` (attachment, permission, and the durable position),
-`src/lib/ui/media/MediaStrip.svelte`, `src/lib/ui/styles/media.css`, and
+`src/lib/ui/media/MediaStrip.svelte` (the strip and its styles; `MediaTransport.svelte` styles
+the glyphs), `src/lib/ui/styles/media.css` (only the strip's surface, global because
+`Workspace.svelte` draws it too while the strip loads), and
 `src/lib/persistence/media-repository.ts`. `media-test-audio.ts` is the stub both test files drive:
 a real `<audio>` rejects `play()` on a synthetic object URL and ignores `currentTime` until metadata
 arrives, so what is under test is the transport's arithmetic rather than the browser's.

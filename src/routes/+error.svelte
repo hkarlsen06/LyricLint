@@ -50,3 +50,18 @@
 		</p>
 	</div>
 </main>
+
+<style>
+	/* The ways out, in one row. Anchors carrying a button silhouette need the
+	   underline taken off; the tier itself is unchanged. */
+	.error-page__actions {
+		display: flex;
+		gap: var(--space-2);
+		flex-wrap: wrap;
+		align-items: center;
+	}
+
+	.error-page__actions .button {
+		text-decoration: none;
+	}
+</style>

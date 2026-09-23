@@ -175,11 +175,10 @@ textarea:disabled {
  * A categorical toggle over a list: pressed means "I am looking at this kind",
  * and the list underneath holds only the kinds that are pressed.
  *
- * It lives here rather than in `linter.css` because two surfaces filter a list
- * by severity (the linter panel's run of diagnostics and the rule reference's
- * index), and the states below are the whole of what the control says. Drawn
- * twice, the copy that drifted would be the one nobody is looking at, which is
- * the same argument the diagnostic card and its popover share components for.
+ * Only `LinterPanel.svelte` draws it today, but it stays global beside `.button`
+ * and `.icon-button` because the touch floors in `responsive-shared.css` and
+ * `responsive.css` size all three together. Scoped into the panel, the chip would
+ * tie those floors on specificity and its size would hang on stylesheet order.
  * A pill radius is right here and only here: this is a categorical chip, never
  * an action button.
  */
@@ -256,18 +255,6 @@ textarea:disabled {
 	color: var(--color-manual);
 }
 
-/* The count is what pressing the chip puts back. A zero on one is a fact about
-   the rule reference's query: the linter panel drops a chip whose kind has
-   nothing in it rather than printing one. It used to also drop to
-   `opacity: 0.45` (2.2:1), which made the zero it was trying to communicate the
-   hardest thing on the chip to read. */
-.filter-chip__count {
-	min-width: 1.1em;
-	color: inherit;
-	font-variant-numeric: tabular-nums;
-	text-align: end;
-}
-
 @media (prefers-reduced-motion: reduce) {
 	.filter-chip {
 		transition: none;
@@ -291,47 +278,4 @@ textarea:disabled {
 			border-color var(--duration-fast) var(--ease-out-quart),
 			color var(--duration-fast) var(--ease-out-quart);
 	}
-}
-
-/*
- * A wait with no measurable end: the brand mark, closed, with its own waveform
- * running through it.
- *
- * It takes `1em`, so it fits wherever it is used: a quiet button in a chrome row,
- * a bordered button in a dialog, or a whole loading region whose own font size
- * makes the mark larger.
- *
- * Nothing here is animated by CSS. Everything that moves is the wave, and that is
- * a curve with a phase in it, which is not something a keyframe can state.
- * `wave-loop.ts` redraws the path instead.
- */
-.loading-mark {
-	display: inline-flex;
-	flex: none;
-	width: 1em;
-	height: 1em;
-	align-items: center;
-	justify-content: center;
-	font-size: 1em;
-	line-height: 1;
-}
-
-/*
- * The lockup is parked closed and inert.
- *
- * The attribute selector is not decoration: `.app-wordmark[data-state='static']`
- * in `shell.css` sets the driver to 1, `controls.css` is imported *before*
- * `shell.css`, and a plain `.loading-mark .app-wordmark` ties it on specificity
- * and therefore loses on order. Matching the attribute outranks it outright and
- * stops this depending on which order the sheets happen to be concatenated in.
- */
-.loading-mark .app-wordmark[data-state] {
-	--wm-open: 0;
-
-	/* The closed mark is wider than it is tall. Scaling its own font size lets it
-	   fit the same square slot as any other one-em loading glyph. */
-	font-size: 0.64em;
-	cursor: default;
-	pointer-events: none;
-	transition: none;
 }

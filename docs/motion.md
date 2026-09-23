@@ -27,10 +27,11 @@ Reopening an earlier ’scribe does replay it; opening the already active one do
 The attachment skips animation when reduced motion or a hidden document is already active. A temporary
 mutation observer waits for the initial groups, batching scans through `requestAnimationFrame`.
 It disconnects when both groups have been handled. Before asynchronous content can paint,
-`data-workspace-entrance` activates a temporary opacity mask in `shell.css`, avoiding a
-visible-then-hidden flash. Each group's mask is removed once its animations are created;
-untargeted rows then appear immediately. The mask has a two-second limit from attachment:
-slow startup reveals everything and abandons the effect instead of leaving text hidden.
+`data-workspace-entrance` activates a temporary opacity mask (a global rule in the styles of
+`Workspace.svelte`), avoiding a visible-then-hidden flash. Each group's mask is removed once
+its animations are created; untargeted rows then appear immediately. The mask has a two-second
+limit from attachment: slow startup reveals everything and abandons the effect instead of leaving
+text hidden.
 A separate two-second cleanup deadline starts after the editor is ready. Lyrics follow
 `data-entrance-pending`; diagnostics independently follow `data-diagnostics-pending`, so a
 rules download cannot hold ready lyrics invisible. Editor readiness belongs to the newly

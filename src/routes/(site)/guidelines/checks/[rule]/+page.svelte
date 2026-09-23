@@ -280,3 +280,15 @@
 		<a class="button" href={resolve('/workbench/')}>Check a transcription in the workbench</a>
 	</div>
 </main>
+
+<style>
+	/* A lookup row's own facts, in the meta idiom: interpuncts between, muted, small. */
+	.site-run__meta {
+		display: flex;
+		gap: var(--space-2);
+		flex-wrap: wrap;
+		align-items: center;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+	}
+</style>

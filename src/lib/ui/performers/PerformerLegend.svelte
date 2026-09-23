@@ -79,3 +79,67 @@
 		</ul>
 	</details>
 {/if}
+
+<style>
+	.performer-legend {
+		margin-top: var(--space-3);
+	}
+
+	/* The same disclosure row as the roster's help (`PerformerRoster.svelte`). */
+	.performer-legend__summary {
+		display: flex;
+		min-height: var(--control-height-lg);
+		padding-block: var(--space-3);
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		list-style: none;
+		cursor: pointer;
+	}
+
+	.performer-legend__summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.performer-legend__summary:hover h2 {
+		text-decoration: underline;
+		text-underline-offset: var(--space-1);
+	}
+
+	.performer-legend[open] > summary :global(.performer-legend__chevron) {
+		transform: rotate(90deg);
+	}
+
+	.performer-legend__groups {
+		display: grid;
+		gap: var(--space-4);
+		margin: var(--space-3) 0 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.performer-legend__voices {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1) var(--space-3);
+		font-size: var(--font-size-md);
+	}
+
+	.performer-legend__voice[data-slot='2'],
+	.performer-legend__voice[data-slot='4'] {
+		font-style: italic;
+	}
+
+	.performer-legend__voice[data-slot='3'],
+	.performer-legend__voice[data-slot='4'] {
+		font-weight: var(--font-weight-bold);
+	}
+
+	.performer-legend__sections {
+		margin: var(--space-1) 0 0;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		line-height: var(--line-height-body);
+		overflow-wrap: anywhere;
+	}
+</style>

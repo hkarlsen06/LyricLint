@@ -312,6 +312,215 @@
 </header>
 
 <style>
+	/* The full width of the window, above both columns. */
+	.document-toolbar {
+		z-index: var(--layer-toolbar);
+		display: flex;
+		min-height: var(--header-height);
+		grid-row: 1;
+		grid-column: 1 / -1;
+		padding: var(--space-2-5) var(--space-4);
+		border-bottom: 0;
+		gap: var(--space-3);
+		align-items: center;
+		justify-content: space-between;
+		background: var(--color-chrome);
+	}
+
+	.document-toolbar__identity,
+	.document-toolbar__commands {
+		display: flex;
+		min-width: 0;
+		gap: var(--space-2);
+		align-items: center;
+	}
+
+	/* The identity strip absorbs the slack so the commands stay pinned right. Its
+	   own gap is tighter than the toolbar's so the plus reads as belonging to the
+	   draft's name rather than as a third, separate item. */
+	.document-toolbar__identity {
+		flex: 1 1 auto;
+		gap: var(--space-1);
+	}
+
+	.document-toolbar__commands {
+		flex: none;
+	}
+
+	/* The destination action keeps a permanent surface; the shared button tiers own
+	   hover/focus. */
+	.document-toolbar__commands > .button {
+		white-space: nowrap;
+	}
+
+	.document-toolbar__commands > .button > :global(svg) {
+		flex: none;
+	}
+
+	/* Undo and redo are one pair, not two items in the strip, so they sit against
+	   each other rather than at the gap that separates commands from one another. */
+	.document-toolbar__history + .document-toolbar__history {
+		margin-left: calc(-1 * var(--space-2));
+	}
+
+	/* The brand is the way back to the marketing home. The link draws no extra
+	   surface, so the lockup keeps exactly the same geometry it had when it was
+	   inert. It buys a little extra room before the adjacent bold draft name so the
+	   two do not read as one phrase. */
+	.document-toolbar__home {
+		display: inline-flex;
+		margin-inline-end: var(--space-2);
+		color: inherit;
+		text-decoration: none;
+	}
+
+	/* The draft's name and the way into the other drafts are one control, so they
+	   share one surface: the border and fill are drawn on the group, and hovering
+	   either half (or opening the menu) lights the whole thing rather than the
+	   half the pointer happens to be over. It is also what the popover hangs from,
+	   so the list of drafts opens under the name it would replace. */
+	.draft-switcher {
+		position: relative;
+		display: flex;
+		border: var(--border-width) solid transparent;
+		border-radius: var(--radius-control);
+		align-items: center;
+	}
+
+	.draft-switcher:hover,
+	.draft-switcher:focus-within,
+	.draft-switcher:has(:global(.draft-menu[open])) {
+		background: var(--color-surface);
+		box-shadow: var(--shadow-control);
+	}
+
+	/* Hugs its own text so the save status sits right beside the title instead of
+	   being pushed out by a fixed-width field. `size` covers browsers without
+	   `field-sizing`. It sits below the wordmark's weight so the brand and the
+	   document name stay distinguishable side by side. The field draws no box
+	   of its own at any point: a border inside the group's border is two rectangles
+	   for one control. */
+	.draft-title {
+		text-overflow: ellipsis;
+		width: auto;
+		min-width: 4rem;
+		max-width: min(34rem, 42vw);
+		border-color: transparent;
+		background: transparent;
+		box-shadow: none;
+		field-sizing: content;
+		font-size: var(--font-size-md);
+		font-weight: var(--font-weight-medium);
+	}
+
+	/* The workbench's coarse-pointer field floor (`.workspace input` in
+	   `responsive.css`) outranked the title's own size while both were global;
+	   scoped, the title would win, so the floor is restated for it. */
+	@media (pointer: coarse) {
+		:global(.workspace) .draft-title {
+			font-size: var(--font-size-lg);
+		}
+	}
+
+	/* The healthy states draw nothing at all (the readout is `sr-only` until it has
+	   something to report), so everything here is for the failed state. */
+	.save-status {
+		display: inline-flex;
+		gap: var(--space-1-5);
+		align-items: center;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		white-space: nowrap;
+	}
+
+	.save-status :global(.save-status__icon) {
+		flex: none;
+	}
+
+	.save-status.failed {
+		color: var(--color-danger);
+		font-weight: var(--font-weight-semibold);
+	}
+
+	/* The toolbar scrolls sideways rather than wrapping, for the reason the transport
+	   strip does: wrapped, it became a two-line band across the top of the window,
+	   which is a second header's worth of chrome taken off the document for a row
+	   whose contents never grew. Both groups stop absorbing slack (a growing
+	   identity strip has nothing to push the commands against once the row is wider
+	   than the window), and the bar is hidden, like the strip's, so a permanent grey
+	   rule is not drawn under the toolbar at every narrow width. */
+	@media (max-width: 78rem) {
+		.document-toolbar {
+			overflow-x: auto;
+			scrollbar-width: none;
+		}
+
+		.document-toolbar__identity,
+		.document-toolbar__commands {
+			flex: none;
+		}
+	}
+
+	@media (pointer: fine) and (max-width: 46rem) {
+		/* Identity and commands get their own row before either can be clipped.
+		   Labels stay visible; very narrow windows wrap the command row. */
+		.document-toolbar {
+			flex-wrap: wrap;
+			padding: var(--space-2);
+			gap: var(--space-2);
+		}
+
+		.document-toolbar__identity,
+		.document-toolbar__commands {
+			flex: 1 1 100%;
+		}
+
+		.document-toolbar__identity {
+			flex-wrap: wrap;
+		}
+
+		.document-toolbar__home,
+		.new-draft-trigger {
+			flex: none;
+		}
+
+		.draft-switcher {
+			flex: 1;
+			min-width: 0;
+		}
+
+		.draft-switcher .draft-title {
+			width: 100%;
+			min-width: 0;
+			max-width: none;
+		}
+
+		.document-toolbar__commands {
+			flex-wrap: wrap;
+			justify-content: flex-end;
+			gap: var(--space-1);
+		}
+
+		.document-toolbar__commands > .button {
+			padding-inline: var(--space-2);
+			font-size: var(--font-size-sm);
+		}
+
+		/* The words already name these actions. Keep the history glyphs, which
+		   have no visible text, and spend the remaining width on full labels. */
+		.document-toolbar__commands > .button > :global(svg) {
+			display: none;
+		}
+
+		.document-toolbar__history + .document-toolbar__history {
+			margin-left: calc(-1 * var(--space-1));
+		}
+
+		.draft-title {
+			max-width: min(15rem, 60vw);
+		}
+	}
+
 	.document-toolbar__secondary-actions {
 		display: flex;
 		align-items: center;

@@ -88,3 +88,35 @@
 		</p>
 	</article>
 {/if}
+
+<style>
+	/* A reference's quote is the card's one control: the whole card reveals under
+	 * the pointer, and the quote is the press a finger or the keyboard makes. It
+	 * draws as the proposal diff's quiet mono line (the button is a reset, not a
+	 * silhouette), and the exact text underlines under the pointer the way the
+	 * tools panel's copyable facts do, so the press is discoverable without a
+	 * second control beside it. */
+	.assistant-reference__quote {
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		color: inherit;
+		text-align: left;
+		font-family: var(--font-mono);
+		font-size: var(--font-size-sm);
+		line-height: var(--line-height-body);
+		overflow-wrap: anywhere;
+	}
+
+	button.assistant-reference__quote {
+		cursor: pointer;
+	}
+
+	/* Scoped through the button so a failed card, whose quote is inert prose,
+	 * promises nothing under the pointer. */
+	.assistant-reference:hover button.assistant-reference__quote .assistant-reference__exact,
+	button.assistant-reference__quote:focus-visible .assistant-reference__exact {
+		text-decoration: underline;
+	}
+</style>

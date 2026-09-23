@@ -153,3 +153,88 @@
 		</span>
 	{/if}
 </span>
+
+<style>
+	/*
+	 * The citation is a link and only a link: which part of the page was cited and
+	 * when it was last verified are its tooltip, because that is what a reader
+	 * checks before following it rather than something they need in front of them
+	 * on every card. The link sits above the stretched hit area of the card's
+	 * navigate button, which is what lets its own press reach it.
+	 */
+	.source-citation {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+	}
+
+	/* The link and the unlinkable title it falls back to, and nothing else: the
+	   tooltip is a child of this element too, and it lays itself out. */
+	.source-citation a,
+	.source-citation__label {
+		display: inline-flex;
+		gap: 0.25rem;
+		align-items: center;
+		font-weight: var(--font-weight-semibold);
+	}
+
+	.source-citation :global(.source-citation__external) {
+		flex: none;
+	}
+
+	/*
+	 * The favicon of the page the citation links to, the way a reference row in a
+	 * search result or an assistant's answer carries one: it identifies the link's
+	 * target, at the text's own size, and claims nothing else. `1em` rather than a
+	 * pixel count, so it rides the meta line's type wherever the citation is drawn.
+	 * `SourceLink.svelte` draws its favicon the same way.
+	 */
+	.source-citation__favicon {
+		flex: none;
+		width: 1em;
+		height: 1em;
+		/* Rounded the way the idiom's marks are everywhere else: a favicon is a
+		   square tile from whatever corner of the web it came from, and the radius
+		   is what keeps fourteen of them reading as one set. Half of `--radius-xs`
+		   rather than the token itself: at a mark this small the full 4px reads as
+		   a circle, and a mark that has gone circular is cropping its own tile. */
+		border-radius: calc(var(--radius-xs) / 2);
+	}
+
+	/*
+	 * Fixed rather than absolute: the citation sits inside the linter panel's
+	 * scroller and inside the editor popover's, either of which would clip a box
+	 * that stayed in flow. Above `--layer-popover`, because the popover is one of
+	 * the two places this opens from.
+	 */
+	.source-tooltip {
+		position: fixed;
+		z-index: var(--layer-tooltip);
+		/* A tooltip is a readout, never a target: without this, the box under the
+		   pointer's path intercepted the hover it was reporting on: leaving the
+		   link, flickering, and shielding whatever link it happened to overlap. */
+		pointer-events: none;
+		display: grid;
+		box-sizing: border-box;
+		width: max-content;
+		max-width: 16rem;
+		padding: var(--space-2);
+		gap: var(--space-0-5);
+		border: 0;
+		border-radius: var(--radius-overlay);
+		background: var(--color-overlay);
+		color: var(--color-text-muted);
+		box-shadow: var(--shadow-overlay);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-regular);
+		line-height: var(--line-height-body);
+	}
+
+	.source-tooltip__section {
+		color: var(--color-text);
+	}
+
+	.source-tooltip__verified {
+		white-space: nowrap;
+	}
+</style>

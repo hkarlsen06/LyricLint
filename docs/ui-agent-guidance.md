@@ -102,6 +102,22 @@ anything. Use `--color-text-disabled` / `--color-control-disabled` / `--color-bo
 an opaque muted color, plus a non-color cue. Opacity stacks, drops contrast below AA, and dims the
 focus ring along with the label.
 
-Component tests load `global.css` and the route styles through `vitest-setup-client.ts`, so a
-computed-style assertion sees the real tokens and surface styles. Do not reintroduce literal
-fallbacks to make a test pass.
+**A component's styles live in its own `<style>` block.** The global files under
+`src/lib/ui/styles/` hold only the foundations (`tokens.css`, `fonts.css`, `base.css`), vocabulary
+that several templates draw (`.button*`, `.icon-button`, `.filter-chip`, `.list-row*`,
+`.panel-content`, `.site-prose`, and the like), classes that TypeScript applies or CodeMirror
+renders, and the shared touch floors in `responsive-shared.css` and `responsive.css`. A new rule
+for one component's markup goes in that component, and its phone overrides go with it in an
+`@media` block. Svelte flags a scoped selector that matches nothing, so dead rules surface in
+`bun run check`. Two consequences of scoping to keep in mind:
+
+- Scoping adds one class of specificity, so a scoped rule beats a global rule it used to lose to
+  on source order. Where a global floor must still win (the `:root .button` touch height, say),
+  restate it in the component or lower the local rule with `:where()`.
+- Scoping reaches only this template's elements. Parts rendered by a child component, a bits-ui
+  part, `{@html}`, or CodeMirror need `:global(...)`, anchored on an element the template owns.
+
+Component tests load `global.css`, `workbench.css`, and `site.css` through
+`vitest-setup-client.ts`, and each component brings its own scoped styles, so a computed-style
+assertion sees the real tokens and surface styles. Do not reintroduce literal fallbacks to make a
+test pass.

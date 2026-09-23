@@ -73,3 +73,16 @@
 		Download album art
 	</button>
 </div>
+
+<style>
+	/* Copying the cover's address and saving its bytes are the two forms of one
+	 * artwork action. They travel as one flex item in the larger command row so a
+	 * preceding search control cannot strand the download button on its own line.
+	 * The inner wrap remains for a panel narrower than the pair itself. */
+	.artwork-actions {
+		display: inline-flex;
+		max-width: 100%;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+</style>

@@ -197,3 +197,160 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	/* Three real columns share a native horizontal scroll port. The full pane,
+	   including its margins, owns vertical scrolling. */
+	.site-split-frame {
+		--split-lane-start: max(
+			var(--space-5),
+			calc((100vw - var(--measure-split)) / 4 + var(--space-5))
+		);
+		--split-lane-end: var(--split-lane-start);
+		--split-heading-clearance: var(--space-4);
+		display: grid;
+		grid-template-rows: auto minmax(0, 1fr);
+		min-height: 0;
+	}
+
+	.site-split {
+		display: grid;
+		grid-auto-flow: column;
+		grid-auto-columns: 50%;
+		grid-template-rows: minmax(0, 1fr);
+		width: 100%;
+		min-height: 0;
+		overflow-x: auto;
+		overflow-y: hidden;
+		scroll-snap-type: x mandatory;
+		overscroll-behavior-x: contain;
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-border-strong) transparent;
+	}
+
+	.site-split__intro,
+	.site-split__detail,
+	/* The index column is `ReferenceIndex.svelte`'s own root, so it takes the lane
+	   at its original specificity: its own `.reference-index` padding still wins. */
+	:global(.site-split__index) {
+		min-width: 0;
+		min-height: 0;
+		padding: 0 var(--split-lane-end) max(var(--space-5), var(--split-navigation-clearance, 0px))
+			var(--split-lane-start);
+		overflow-x: hidden;
+		overflow-y: auto;
+		overscroll-behavior-y: contain;
+		scroll-snap-align: start;
+		scrollbar-gutter: stable;
+		scrollbar-width: thin;
+		--reference-scrollbar-thumb: var(--color-text-muted);
+		scrollbar-color: var(--reference-scrollbar-thumb) transparent;
+	}
+
+	.site-split:global([data-scrollbars-ready]) > :global(:not([data-scrolling])) {
+		--reference-scrollbar-thumb: transparent;
+	}
+
+	@supports not (scrollbar-width: thin) {
+		.site-split > :global(div)::-webkit-scrollbar {
+			width: var(--space-1);
+		}
+		.site-split > :global(div)::-webkit-scrollbar-track {
+			background: transparent;
+		}
+		.site-split > :global(div)::-webkit-scrollbar-thumb {
+			background: var(--reference-scrollbar-thumb);
+		}
+	}
+
+	@media (forced-colors: active) {
+		.site-split,
+		.site-split > :global(div) {
+			scrollbar-color: auto;
+		}
+	}
+
+	.site-split__navigation {
+		padding: var(--space-5) var(--split-lane-end) var(--space-3) var(--split-lane-start);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2);
+	}
+
+	.site-split__unavailable {
+		visibility: hidden;
+	}
+	.site-split__narrow {
+		display: none;
+	}
+
+	/* The suggestion line at the foot of the reading column. The hairline is the
+	   site footer's own rule (it says where the page stops and a note about the
+	   catalog begins), and the measure is the page's, so the line ends where every
+	   paragraph above it does rather than running on under the scrollbar's lane.
+	   Muted and a step down, because it is an offer standing under everything the
+	   reader came for, not part of it. */
+	/* No border of its own: the action row above already closed the page, and a
+	   second line directly under one lone button would fence the colophon off
+	   from the foot it belongs to. */
+	.site-split__suggest {
+		max-width: var(--measure-reference);
+		margin-block: 0;
+		padding-block: var(--space-4) var(--space-5);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	/* The citations' own mark for a link that leaves. Inline in the line's run
+	   rather than a flex item, because the text wraps and the mark belongs after
+	   its last word; the nudge sits it on the text's baseline. */
+	.site-split__suggest :global(.site-run__external) {
+		vertical-align: -0.1em;
+	}
+
+	@media (max-width: 62rem) {
+		.site-split__wide {
+			display: none;
+		}
+		.site-split__narrow {
+			display: inline;
+		}
+		.site-split {
+			grid-auto-columns: 100%;
+		}
+		.site-split-frame {
+			--split-lane-start: var(--space-5);
+			--split-navigation-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+			--split-navigation-clearance: calc(
+				var(--split-navigation-bottom) + var(--control-height-touch) + var(--space-4)
+			);
+			position: relative;
+			grid-template-rows: minmax(0, 1fr);
+		}
+		.site-split__navigation {
+			position: absolute;
+			inset-inline: 0;
+			inset-block-end: var(--split-navigation-bottom);
+			padding-block: 0;
+			z-index: var(--layer-toolbar);
+			pointer-events: none;
+		}
+		:global(:root) .site-split__navigation .button {
+			min-height: var(--control-height-touch);
+			background: var(--color-control);
+			border-color: var(--color-control-border);
+			box-shadow: var(--shadow-popover);
+			pointer-events: auto;
+		}
+		:global(:root) .site-split__navigation .button:hover {
+			background: var(--color-control-hover);
+		}
+		:global(:root) .site-split__navigation .button:active {
+			background: var(--color-control-active);
+		}
+		.site-split > :global(div) {
+			scroll-padding-block-end: var(--split-navigation-clearance);
+		}
+	}
+</style>

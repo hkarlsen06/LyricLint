@@ -678,8 +678,8 @@ and the highlight arithmetic: pure, so neither the component nor the page holds 
 `revealSelectedRow` in `src/lib/ui/site/reveal-selected.ts` (shared with the guidance catalog's
 index) with its trigger in `src/lib/ui/site/SectionSplit.svelte`, `src/lib/ui/site/GuideWelcome.svelte`,
 `src/lib/ui/site/GuideArticle.svelte`, the guide in
-`routes/(site)/rules/+page.svelte`, and `.site-finder`, `.rules__family`, `.rules__checks` and
-`.site-hit` in `site.css`. The shell itself (the grid, the choreography, the back control) is
+`routes/(site)/rules/+page.svelte`, `.site-finder` in `ReferenceIndex.svelte`, and `.site-hit` in
+`SearchHighlight.svelte`. The shell itself (the grid, the choreography, the back control) is
 the next section's subject.
 
 ### The reference sections share one split shell, and opening a page is choreographed
@@ -690,9 +690,11 @@ private layout starts to drift. `SectionSplit.svelte` owns the grid, the narrow-
 the back control, what a navigation means for each column, and the view transition; a section
 supplies its index component (`RuleIndex`, `GuidanceIndex`), which renders `.site-split__index`
 itself and shares `revealSelectedRow` in `reveal-selected.ts` and the `.site-finder` idiom. The
-shared vocabulary in `site.css` is `.site-split*`, `.site-finder*`, `.site-index__*` and
-`.site-run__message`; anything still `rules__`- or `guidelines__`-prefixed is that one section's
-own. `data-section` on the split exists for exactly one such thing, the guidance wash's paint lane
+shared vocabulary in `site.css` is `.site-split__page`, `.guide-topic*`, `.guide-glass`,
+`.site-index__empty`, `.site-run`, and `.rules__lookup-*` (drawn by both the guide and each check
+page). The shell's own `.site-split*` rules live in `SectionSplit.svelte`, the finder's in
+`ReferenceIndex.svelte`, and the guide entries' `guidelines__` rules in `GuideArticle.svelte`.
+`data-section` on the split exists for exactly one such thing, the guidance wash's paint lane
 below.
 
 **The index view leads with the welcome page, not the list.** At `/rules/` and `/guidelines/` the
@@ -957,8 +959,8 @@ reveal and the reading follow), `GuidanceIndex.svelte`, `guidance-reading.svelte
 in `routes/(site)/guidelines/[topic]/+page.svelte`, `guidance-search.svelte.ts` and
 `GuidanceSearchHighlight.svelte` beside their rule twins, the haystacks in
 `src/lib/guidance/guidance-search.ts`,
-`src/lib/ui/assistant/AssistantSpark.svelte`, the `.site-split` / `.site-finder` /
-view-transition blocks in `site.css`, and the section layouts in `routes/(site)/rules/` and
+`src/lib/ui/assistant/AssistantSpark.svelte`, the shell styles in `SectionSplit.svelte`, the
+finder styles in `ReferenceIndex.svelte`, the shared reading-column blocks in `site.css`, and the section layouts in `routes/(site)/rules/` and
 `routes/(site)/guidelines/`. The guidance catalog's content pipeline (what an entry is, the
 authority ladder, how one is added) is `docs/guidelines.md`.
 

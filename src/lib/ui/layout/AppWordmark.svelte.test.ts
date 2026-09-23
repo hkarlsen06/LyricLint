@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { tick } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-// The lockup's geometry is all `em` and `ch` against `--font-size-lg` in
-// `wordmark.css`, so a width assertion here is only meaningful with the real
-// tokens loaded.
+// The lockup's geometry is all `em` and `ch` against `--font-size-lg` in the
+// component's own styles, so a width assertion here is only meaningful with
+// the real tokens loaded.
 import '$lib/ui/styles/global.css';
 import AppWordmark from './AppWordmark.svelte';
 
@@ -247,7 +247,7 @@ describe('AppWordmark', () => {
 		await press(element);
 
 		expect(element.dataset.state).toBe('released');
-		// `released` is absent from the open-state selector list in `wordmark.css`,
+		// `released` is absent from the open-state selector list in the component's styles,
 		// and `:hover` only ever appears there alongside `idle`, so a pointer
 		// resting on a released lockup cannot reopen it.
 		expect(open(element)).toBe(0);

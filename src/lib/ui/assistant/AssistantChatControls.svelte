@@ -109,3 +109,74 @@
 		<PlusIcon aria-hidden="true" size={15} weight="bold" />
 	</button>
 </div>
+
+<style>
+	.assistant-chat-controls {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+
+	/* The conversations popover: the drafts menu's shape, a quiet disclosure, one
+	 * line per chat, commands as glyphs on the name's own line. */
+	.assistant-chats {
+		position: relative;
+	}
+
+	.assistant-chats > summary {
+		list-style: none;
+	}
+
+	.assistant-chats > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.assistant-chats__trigger {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.assistant-chats__popover {
+		position: absolute;
+		z-index: var(--layer-menu);
+		top: calc(100% + var(--space-2));
+		right: 0;
+		width: min(24rem, calc(100vw - 2rem));
+		max-height: min(24rem, 60vh);
+		padding: var(--space-2);
+		overflow: auto;
+		border: 0;
+		border-radius: var(--radius-overlay);
+		background: var(--color-overlay);
+		box-shadow: var(--shadow-overlay);
+	}
+
+	/* In the workbench this control lives in the narrow panel, whose left edge is
+	 * also a clipping boundary. Cap the popover to that host rather than only to
+	 * the viewport; at large text sizes 24rem can otherwise extend under the
+	 * editor and the start of every row disappears. The menu is anchored to the
+	 * history control, so its available width also reserves the panel's two
+	 * insets, the New chat control to its right, and the gap between them. */
+	:global(.assistant-panel) .assistant-chats__popover {
+		width: min(24rem, calc(100cqi - 2 * var(--space-3) - 2rem - var(--space-1)));
+	}
+
+	.assistant-chats__heading {
+		padding: var(--space-1) var(--space-2) var(--space-2);
+		margin: 0 0 var(--space-1);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-medium);
+	}
+
+	.assistant-chats__list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.assistant-chats__list > li.current .list-row__name {
+		font-weight: var(--font-weight-bold);
+	}
+</style>

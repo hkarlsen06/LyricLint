@@ -79,3 +79,40 @@
 		<TrashIcon aria-hidden="true" size={14} weight="bold" />
 	</button>
 {/if}
+
+<style>
+	/*
+	 * The way out of a row, wherever a list offers one: the drafts menu, the linter
+	 * panel's recent drafts, and the performer roster share this one control, so
+	 * they share its look.
+	 *
+	 * The trigger is muted, not red. A list of seven rows drew seven red words down
+	 * its right edge, which is a warning about nothing. The row is not dangerous,
+	 * the press is. So the glyph earns its color under the pointer, and the fill is
+	 * spent on the confirm that follows it.
+	 *
+	 * Every selector is element-qualified inside `:where()`, which lands it one
+	 * element above the specificity it had as a global rule: it still outranks the
+	 * shared `.button` and `.icon-button` tiers, and still yields to the
+	 * root-qualified touch floors in `responsive-shared.css` and to the row's own
+	 * focus quieting in `rows.css`, exactly as before.
+	 */
+	button:where(.remove-button, .remove-button__confirm, .remove-button__cancel) {
+		min-height: var(--control-height-sm);
+		padding-block: 0;
+		font-size: var(--font-size-sm);
+	}
+
+	button:where(.remove-button) {
+		width: 1.75rem;
+		color: var(--color-text-muted);
+	}
+
+	/* Written to outrank the row's own quieting of the glyphs beside it. */
+	button:where(.remove-button):hover:not(:disabled),
+	button:where(.remove-button):focus-visible,
+	:global(.list-row) button:where(.remove-button):hover:not(:disabled),
+	:global(.list-row) button:where(.remove-button):focus-visible {
+		color: var(--color-danger);
+	}
+</style>

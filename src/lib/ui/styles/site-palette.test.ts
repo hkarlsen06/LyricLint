@@ -186,8 +186,8 @@ describe('the marketing site pins a complete dark palette', () => {
  *
  * The math is the audit's: OKLCH → linear sRGB → WCAG relative luminance,
  * cross-checked against the stylesheet's own published figure for the accent
- * on the selection fill (3.92:1 at `site.css`'s `.site-hit` note, and this
- * implementation reproduces it at 3.91).
+ * on the selection fill (3.92:1 at the `.site-hit` note in
+ * `SearchHighlight.svelte`, and this implementation reproduces it at 3.91).
  */
 describe('control boundaries hold 3:1 in both schemes', () => {
 	function oklchToLinearSrgb(l: number, c: number, hDeg: number): [number, number, number] {

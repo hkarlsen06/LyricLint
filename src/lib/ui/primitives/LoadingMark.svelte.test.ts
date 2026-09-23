@@ -23,9 +23,9 @@ const frames = (ms: number) =>
 describe('LoadingMark', () => {
 	/**
 	 * The lockup is parked closed, and parked *hard*: `[data-state='static']` in
-	 * `wordmark.css` opens the driver to 1, and `controls.css` is imported before it,
-	 * so a rule that merely ties on specificity would lose on order and this would
-	 * draw the whole wordmark. Asserted from the computed value rather than from
+	 * `AppWordmark.svelte` opens the driver to 1, so a rule that merely ties it on
+	 * specificity would leave the winner to stylesheet order and could draw the
+	 * whole wordmark. Asserted from the computed value rather than from
 	 * the selector, because that is the failure: the CSS is valid either way.
 	 */
 	it('parks the lockup closed on the mark', async () => {

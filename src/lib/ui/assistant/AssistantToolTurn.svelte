@@ -76,3 +76,47 @@
 		</span>
 	{/if}
 </div>
+
+<style>
+	/* Tool permission is part of the assistant's prose, never a box nested inside
+	 * the turn: the question is addressed to the reader, so it is set as one of the
+	 * assistant's own sentences. Once answered, the whole prompt collapses to a
+	 * receipt. */
+	.assistant-tool-turn {
+		display: grid;
+		gap: var(--space-2);
+		margin-block-end: var(--space-3);
+	}
+
+	.assistant-tool-turn p {
+		margin: 0;
+	}
+
+	/* A resolved tool turn is a record of what the workbench did, not something the
+	 * assistant said. Set in the answer's own type it read as the whole reply to
+	 * the question, at the size and weight the prose above it uses. It is the meta
+	 * idiom instead: the tool's glyph, muted, small, and mono, so a reader scanning
+	 * the transcript tells an action from an answer without reading either. */
+	.assistant-tool-turn__receipt {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1-5);
+		color: var(--color-text-muted);
+		font-family: var(--font-mono);
+		font-size: var(--font-size-xs);
+	}
+
+	.assistant-tool-turn__receipt :global(svg) {
+		flex: none;
+	}
+
+	.assistant-tool-turn__actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.assistant-tool-turn__actions .button {
+		margin: 0;
+	}
+</style>

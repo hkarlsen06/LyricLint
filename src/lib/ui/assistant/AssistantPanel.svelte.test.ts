@@ -83,7 +83,8 @@ function distanceFromBottom(node: HTMLElement): number {
 function declaredMarginTop(selector: string): string | undefined {
 	for (const sheet of document.styleSheets) {
 		for (const rule of sheet.cssRules) {
-			if (rule instanceof CSSStyleRule && rule.selectorText === selector) {
+			// The rule is component-scoped, so its selector carries Svelte's hash class.
+			if (rule instanceof CSSStyleRule && rule.selectorText.startsWith(`${selector}.svelte-`)) {
 				return rule.style.marginTop;
 			}
 		}

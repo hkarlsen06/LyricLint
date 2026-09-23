@@ -107,3 +107,49 @@
 >
 	<SkipForwardIcon aria-hidden="true" size={14} weight="bold" />
 </button>
+
+<style>
+	/*
+		The glyph, centred, and nothing under it.
+
+		It carried the one-modifier keystroke as a caption for as long as that
+		keystroke had nowhere else to live. It has somewhere now, the shared tooltip
+		that names the control anyway (`describeControl`), and printed in both places
+		it was the same fact twice, six pixels apart, in the shortest row in the
+		window.
+
+		The height rule it was written for still governs, so it is kept here rather
+		than deleted with the caption: this row is `--control-height-lg`, every other
+		control in it is `--control-height-md` plus the row's padding, and that comes
+		to exactly the same. Anything stacked under a glyph again has to fit inside one
+		`md` control, and `MediaStrip.svelte.test.ts` measures it against a sibling
+		rather than trusting the arithmetic: every pixel this row takes is a pixel off
+		the document above it.
+
+		The strip's coarse-pointer block (`MediaStrip.svelte`) raises these to the
+		touch floor.
+	*/
+	.media-strip__transport-button {
+		display: inline-flex;
+		min-height: var(--control-height-md);
+		min-width: var(--control-height-md);
+		flex: none;
+		padding: 0 var(--space-2);
+		align-items: center;
+		justify-content: center;
+		color: var(--color-text);
+	}
+
+	.media-strip__transport-button :global(svg) {
+		flex: none;
+	}
+
+	/* `:root .button` in responsive-shared.css steps every button up to `lg` at
+	   this width. Scoped, the height above would outrank it, so the step is
+	   restated here to keep it. */
+	@media (max-width: 46rem) {
+		.media-strip__transport-button {
+			min-height: var(--control-height-lg);
+		}
+	}
+</style>

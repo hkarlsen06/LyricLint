@@ -310,7 +310,7 @@ const editorTheme = EditorView.theme({
 		// keeps the active-line wash (an inset shadow on that box, above) painting
 		// edge to edge and keeps clicks anywhere on a row landing in the line,
 		// while the text itself wraps at the measure. --measure-editor is the same
-		// token the mock editor's textarea caps at in ui/styles/editor.css; `ch`
+		// token the mock editor's textarea caps at in MockEditorPane.svelte; `ch`
 		// resolves against this element's own font (`--font-lyrics` on both
 		// surfaces now), so both cap at the same character count. The max() keeps the original --space-1 padding
 		// as the floor when the pane is narrower than the measure, and the logical

@@ -147,3 +147,90 @@
 		</ul>
 	{/if}
 </section>
+
+<style>
+	/* A quiet disclosure lives directly on the panel background. */
+	.ignored-rules {
+		padding: 0;
+	}
+
+	.ignored-rules__toggle {
+		display: flex;
+		width: 100%;
+		min-height: var(--control-height-lg);
+		padding: var(--space-1) var(--space-2);
+		border: 0;
+		border-radius: var(--radius-control);
+		gap: var(--space-2);
+		align-items: center;
+		justify-content: space-between;
+		background: transparent;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+	}
+
+	.ignored-rules__toggle:hover {
+		background: var(--color-fill);
+		color: var(--color-text);
+	}
+
+	.ignored-rules__toggle :global(.ignored-rules__chevron) {
+		flex: none;
+		transition: transform var(--duration-fast) var(--ease-out-quart);
+	}
+
+	.ignored-rules__toggle[aria-expanded='true'] :global(.ignored-rules__chevron) {
+		transform: rotate(180deg);
+	}
+
+	/* The footer owns bottom spacing in both collapsed and expanded states. */
+	.ignored-rules ul {
+		display: grid;
+		margin: 0;
+		padding: 0;
+		gap: var(--space-4);
+		list-style: none;
+	}
+
+	/* The list is a continuation of the row above it, so it is set in that row's
+	   type: a rule's name at body size beside a header at `--font-size-sm` read as
+	   two lists that had landed on top of each other. */
+	.ignored-rules li {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: var(--space-2);
+		align-items: start;
+		padding-inline: var(--space-2);
+		font-size: var(--font-size-sm);
+		overflow-wrap: anywhere;
+	}
+
+	.ignored-rules__description {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		align-items: start;
+		gap: var(--space-1);
+	}
+
+	.ignored-rules__title {
+		font-weight: var(--font-weight-medium);
+	}
+
+	.ignored-rules__rule,
+	.ignored-rules__location {
+		color: var(--color-text-muted);
+	}
+
+	.ignored-rules li > .button {
+		white-space: nowrap;
+	}
+
+	/* Muted, because it qualifies the row rather than naming it: the rule and the
+	   text it was keyed on are what the reader is scanning for. Drawn only where
+	   the footer holds both kinds, so the word never runs down every row. */
+	.ignored-rules__kind {
+		color: var(--color-text-muted);
+	}
+</style>

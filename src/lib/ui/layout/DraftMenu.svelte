@@ -95,3 +95,100 @@
 		</div>
 	{/if}
 </details>
+
+<style>
+	.draft-menu {
+		position: relative;
+	}
+
+	.draft-menu > summary {
+		list-style: none;
+	}
+
+	/* `.icon-button` centres with `place-items`, which a flex box ignores, and the
+	   flex display is what strips the summary's default disclosure triangle layout,
+	   so restate the centring here rather than dropping back to grid.
+
+	   Element-qualified inside `:where()` so the trigger's rules sit between the
+	   shared tiers: above `.icon-button`, below the root-qualified touch floors in
+	   `responsive-shared.css`, exactly where they sat as global rules. */
+	summary:where(.draft-menu__trigger) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.draft-menu > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	/* Hangs from the draft switcher rather than from the chevron inside it, so the
+	   list opens under the name it is offering to replace and lines up with its left
+	   edge. The `<details>` goes static for exactly this. */
+	.draft-menu__popover {
+		position: absolute;
+		z-index: var(--layer-menu);
+		top: calc(100% + var(--space-2));
+		left: 0;
+		width: min(30rem, calc(100vw - var(--space-4)));
+		max-height: min(36rem, calc(100vh - 5rem));
+		padding: var(--space-2);
+		overflow: auto;
+		border: 0;
+		border-radius: var(--radius-overlay);
+		background: var(--color-overlay);
+		box-shadow: var(--shadow-overlay);
+	}
+
+	/* Space separates the heading and project action from the selectable rows. */
+	.draft-menu__titlebar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding: var(--space-2) var(--space-2) var(--space-3);
+		margin: 0 0 var(--space-1);
+	}
+
+	.draft-menu__heading {
+		margin: 0;
+		font-size: var(--font-size-md);
+		line-height: var(--line-height-tight);
+	}
+
+	/* The disclosure is the field's own end, not a button parked beside it: no box,
+	   no fill of its own, and it keeps the field's height so the group reads as one
+	   row. It stays muted until the control is in play. */
+	:global(.draft-switcher) > .draft-menu {
+		position: static;
+	}
+
+	summary:where(.draft-menu__trigger) {
+		width: 1.5rem;
+		min-height: var(--control-height-sm);
+		margin-inline-end: var(--space-1);
+		color: var(--color-text-muted);
+	}
+
+	:global(.draft-switcher:hover) .draft-menu__trigger,
+	:global(.draft-switcher:focus-within) .draft-menu__trigger,
+	.draft-menu[open] .draft-menu__trigger {
+		color: var(--color-text);
+	}
+
+	/* Open is the one state the glyph carries itself: the list it points at is
+	   below it, so the arrow turns to point back at the name. */
+	.draft-menu :global(.draft-menu__chevron) {
+		transition: transform var(--duration-fast) var(--ease-out-quart);
+	}
+
+	.draft-menu[open] :global(.draft-menu__chevron) {
+		transform: rotate(180deg);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.draft-menu :global(.draft-menu__chevron) {
+			transition: none;
+		}
+	}
+</style>

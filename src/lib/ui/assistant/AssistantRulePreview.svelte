@@ -66,3 +66,81 @@
 		{/each}
 	</p>
 </section>
+
+<style>
+	/* The number is a rail beside the card, so the title and the meta line keep
+	 * one left edge under each other. */
+	.assistant-rule {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		column-gap: var(--space-2);
+		row-gap: var(--space-1);
+		padding: var(--space-2-5) var(--space-3);
+	}
+
+	.assistant-rule > .assistant-citation-number {
+		align-self: center;
+		min-width: 1ch;
+		font-size: var(--font-size-xs);
+		text-align: end;
+	}
+
+	.assistant-rule__title,
+	.assistant-rule__meta {
+		grid-column: 2;
+	}
+
+	/* The card was three shades of accent blue per row (title, arrow, source),
+	 * and a run of three cards was a wall of it. The title rests in the text
+	 * color and earns its underline under the pointer; the muted arrow is the
+	 * mark that says the press leaves. */
+	.assistant-rule__title {
+		margin: 0;
+		font-size: var(--font-size-md);
+		font-weight: var(--font-weight-semibold);
+	}
+
+	.assistant-rule__title a {
+		display: inline-flex;
+		align-items: baseline;
+		gap: var(--space-1);
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.assistant-rule__title a:hover {
+		text-decoration: underline;
+	}
+
+	.assistant-rule__title :global(svg) {
+		flex: none;
+		color: var(--color-text-muted);
+	}
+
+	/* The source is one fact on the meta line, so it wears the line's own muted
+	 * color; the underline is what says it is a link. */
+	.assistant-rule__source {
+		color: inherit;
+	}
+
+	a.assistant-rule__source:hover {
+		color: var(--color-text);
+	}
+
+	/* `center`, not `baseline`: the severity tag is an inline-flex led by its
+	 * glyph, which has no text baseline, so a baseline row seats it high. The
+	 * diagnostic meta row makes the same choice for the same reason. */
+	.assistant-rule__meta {
+		display: flex;
+		margin: 0;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--space-1-5);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+	}
+
+	.assistant-rule__separator {
+		color: var(--color-text-muted);
+	}
+</style>

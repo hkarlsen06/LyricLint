@@ -312,3 +312,19 @@
 		</button>
 	{/if}
 </div>
+
+<style>
+	.diagnostic-actions__ignore,
+	.diagnostic-actions__close {
+		color: var(--color-text-muted);
+	}
+
+	.diagnostic-actions__ignore:hover,
+	.diagnostic-actions__close:hover {
+		color: var(--color-text);
+	}
+
+	.diagnostic-actions__accept :global(svg) {
+		flex: none;
+	}
+</style>

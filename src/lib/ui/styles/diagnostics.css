@@ -1,62 +1,17 @@
 /*
  * A diagnostic, wherever it is shown. The linter panel's expanded card and the
- * editor's anchored popover are two views of one finding, so its severity tag,
- * explanation, action row, and provenance are styled once, here, and not per
- * surface. The chrome around them (a row in the run of cards, or a floating
- * overlay) is what each surface still owns.
+ * editor's anchored popover are two views of one finding, so its explanation,
+ * action row, and meta line are styled once, here, and not per surface. The
+ * chrome around them (a row in the run of cards, or a floating overlay) is what
+ * each surface still owns. What only one shared component draws lives in that
+ * component's own `<style>`: the severity tag (`SeverityTag.svelte`), its glyph
+ * (`SeverityIcon.svelte`), the citation and its tooltip (`SourceCitation.svelte`),
+ * the block citation (`SourceLink.svelte`), the derivation mark
+ * (`DiagnosticMeta.svelte`), and the quiet ways out (`DiagnosticActions.svelte`).
+ * What stays here is drawn by more than one template: the landing page and the
+ * guide's source folds reuse the meta line, and the linter's finding navigation
+ * reuses the action row.
  */
-
-/*
- * Not a badge. A mark. The severity used to be a filled tag on a line of its
- * own, which cost the card a full line of height to say one word that the
- * metadata line was already the place for. No fill, no border, no radius, so
- * nothing about it reads as pressable next to the severity filters that
- * genuinely are.
- *
- * On the rule reference it is the glyph and the colored word. On a diagnostic's
- * meta line it is the glyph alone, leading the line: `⚠ Line 47 · Repeated
- * sections`. A word that is the same word down every row of a nine-item panel
- * has stopped being read by the second one: what the eye was using there is
- * the shape and the color, and both survive dropping it.
- *
- * The color is the whole signal, so it is the text color rather than a wash
- * behind muted text: `--color-danger` and its siblings are text-grade against
- * both `--color-surface` and the recessed `--color-canvas` an expanded card
- * drops to. It is never the *only* signal: the four glyphs are drawn to
- * separate at 12px in greyscale, which is what `SeverityIcon.svelte` is for.
- */
-.severity {
-	display: inline-flex;
-	width: fit-content;
-	gap: var(--space-1);
-	align-items: center;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-	font-weight: var(--font-weight-semibold);
-	letter-spacing: 0.01em;
-}
-
-/* Shared with the linter's severity chips, which wear the same mark as the rows
-   they filter, so it takes its color from whatever it sits in. */
-.severity-icon {
-	flex: none;
-}
-
-.severity--error {
-	color: var(--color-danger);
-}
-
-.severity--warning {
-	color: var(--color-warning);
-}
-
-.severity--suggestion {
-	color: var(--color-suggestion);
-}
-
-.severity--manual-review {
-	color: var(--color-manual);
-}
 
 /*
  * One line for everything the surface knows about the finding besides its
@@ -83,33 +38,6 @@
 
 .diagnostic-meta__separator {
 	color: var(--color-text-muted);
-}
-
-/*
- * The check is LyricLint's own reading of the sources cited after it (the
- * `derivation` set docs/rules.md names), and this is where the card says so.
- * The mark is the deployed favicon's waveform, the one mark this application
- * owns; the words beside it carry the fact for anything that cannot see it.
- */
-.diagnostic-meta__derivation {
-	display: inline-flex;
-	gap: 0.25rem;
-	align-items: center;
-	font-weight: var(--font-weight-semibold);
-}
-
-/* The mark is the actual `lyriclint-mark.svg`, inlined so its brackets take
-   `currentColor` from this line's own text. The waveform keeps its fixed
-   amber, exactly as the favicon and the wordmark draw it. No radius: this is
-   our mark, not a square tile fetched from somebody else's site. */
-.diagnostic-meta__derivation-mark {
-	display: inline-flex;
-	flex: none;
-}
-
-.diagnostic-meta__derivation-mark svg {
-	width: 1em;
-	height: 1em;
 }
 
 /*
@@ -155,89 +83,6 @@
 	list-style: none;
 }
 
-/*
- * The citation is a link and only a link: which part of the page was cited and
- * when it was last verified are its tooltip, because that is what a reader
- * checks before following it rather than something they need in front of them
- * on every card. The link sits above the stretched hit area of the card's
- * navigate button, which is what lets its own press reach it.
- */
-.source-citation {
-	position: relative;
-	display: inline-flex;
-	align-items: center;
-}
-
-/* The link and the unlinkable title it falls back to, and nothing else: the
-   tooltip is a child of this element too, and it lays itself out. */
-.source-citation a,
-.source-citation__label {
-	display: inline-flex;
-	gap: 0.25rem;
-	align-items: center;
-	font-weight: var(--font-weight-semibold);
-}
-
-.source-citation__external {
-	flex: none;
-}
-
-/*
- * The favicon of the page the citation links to, the way a reference row in a
- * search result or an assistant's answer carries one: it identifies the link's
- * target, at the text's own size, and claims nothing else. `1em` rather than a
- * pixel count, so it rides the meta line's type wherever the citation is drawn.
- */
-.source-citation__favicon,
-.source-reference__favicon {
-	flex: none;
-	width: 1em;
-	height: 1em;
-	/* Rounded the way the idiom's marks are everywhere else: a favicon is a
-	   square tile from whatever corner of the web it came from, and the radius
-	   is what keeps fourteen of them reading as one set. Half of `--radius-xs`
-	   rather than the token itself: at a mark this small the full 4px reads as
-	   a circle, and a mark that has gone circular is cropping its own tile. */
-	border-radius: calc(var(--radius-xs) / 2);
-}
-
-/*
- * Fixed rather than absolute: the citation sits inside the linter panel's
- * scroller and inside the editor popover's, either of which would clip a box
- * that stayed in flow. Above `--layer-popover`, because the popover is one of
- * the two places this opens from.
- */
-.source-tooltip {
-	position: fixed;
-	z-index: var(--layer-tooltip);
-	/* A tooltip is a readout, never a target: without this, the box under the
-	   pointer's path intercepted the hover it was reporting on: leaving the
-	   link, flickering, and shielding whatever link it happened to overlap. */
-	pointer-events: none;
-	display: grid;
-	box-sizing: border-box;
-	width: max-content;
-	max-width: 16rem;
-	padding: var(--space-2);
-	gap: var(--space-0-5);
-	border: 0;
-	border-radius: var(--radius-overlay);
-	background: var(--color-overlay);
-	color: var(--color-text-muted);
-	box-shadow: var(--shadow-overlay);
-	font-size: var(--font-size-xs);
-	font-weight: var(--font-weight-regular);
-	line-height: var(--line-height-body);
-}
-
-.source-tooltip__section {
-	color: var(--color-text);
-}
-
-.source-tooltip__verified {
-	white-space: nowrap;
-}
-
 /* The reasoning reads as supporting prose on both surfaces, never as the
    headline: the message above it is the headline. */
 .diagnostic-explanation {
@@ -272,20 +117,6 @@
 	font-size: var(--font-size-sm);
 }
 
-.diagnostic-actions__ignore,
-.diagnostic-actions__close {
-	color: var(--color-text-muted);
-}
-
-.diagnostic-actions__ignore:hover,
-.diagnostic-actions__close:hover {
-	color: var(--color-text);
-}
-
-.diagnostic-actions__accept svg {
-	flex: none;
-}
-
 @media (prefers-reduced-motion: no-preference) {
 	.diagnostic-actions > .button {
 		transition:
@@ -293,41 +124,4 @@
 			border-color var(--duration-fast) var(--ease-out-quart),
 			color var(--duration-fast) var(--ease-out-quart);
 	}
-}
-
-/*
- * The block citation, which is no longer how a diagnostic shows its provenance:
- * a diagnostic cites its source as a link on the meta line. What is left here
- * serves the tools panel's reviewed-source snapshot, which is an inventory of
- * every citation rather than one card's, and wants the verified date and the
- * section on the page.
- */
-.source-reference {
-	display: grid;
-	gap: 0.1rem;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-}
-
-.source-reference a {
-	display: inline-flex;
-	width: fit-content;
-	gap: 0.25rem;
-	align-items: center;
-	font-weight: var(--font-weight-semibold);
-}
-
-.source-reference__title {
-	display: flex;
-	gap: var(--space-2);
-	flex-wrap: wrap;
-	align-items: baseline;
-}
-
-.source-reference__external {
-	flex: none;
-}
-
-.source-reference__verified {
-	white-space: nowrap;
 }

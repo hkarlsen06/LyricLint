@@ -141,7 +141,10 @@
 			#000 calc(var(--boot-front) + 1px)
 		);
 	}
-	.boot-screen :global(.app-wordmark) {
+	/* `[data-state]` outranks the lockup's own scoped
+	   `.app-wordmark[data-state='static']`, whose `transition: none` would
+	   otherwise tie this on specificity. */
+	.boot-screen :global(.app-wordmark[data-state]) {
 		--wm-open: 1;
 		position: relative;
 		font-size: inherit;

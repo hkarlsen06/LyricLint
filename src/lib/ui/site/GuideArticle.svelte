@@ -563,6 +563,124 @@
 </main>
 
 <style>
+	.guidelines__entry-heading {
+		position: sticky;
+		inset-block-start: var(--topic-compact-height, 0px);
+		z-index: 2;
+		margin-inline: calc(-1 * var(--split-lane-start)) calc(-1 * var(--split-lane-end));
+		padding: var(--space-2) var(--split-lane-end) var(--space-2) var(--split-lane-start);
+	}
+
+	.guide-topic:global([data-stuck]) .guidelines__entry-heading {
+		clip-path: inset(var(--heading-clip, 0px) 0 0);
+	}
+
+	.guidelines__entry-heading > h2,
+	.guidelines__entry-heading > .site-meta {
+		margin-block-start: 0;
+		margin-block-end: var(--space-1-5);
+	}
+
+	/* Every guidance entry is a deep-link target (the index and the assistant both
+	   name entries by fragment), and on a wide screen the masthead travels with the
+	   reader, so a jumped-to heading has to clear it or the one line the link named
+	   is the line under the chrome. (The page's own landing re-centers it; this is
+	   the no-JavaScript fallback's clearance.) */
+	.guidelines__entry-heading > h2 {
+		margin-bottom: var(--space-1-5);
+		/* Match the pinned text edge so native fragment alignment preserves Back restoration. */
+		scroll-margin-top: calc(var(--topic-compact-height, 0px) + var(--space-2));
+	}
+
+	.guidelines__additional {
+		margin-block-start: var(--space-7);
+	}
+
+	/* Where one section ends and the next begins: the hairline the linter's run
+	   draws between neighbours. Every section opens on one. Drawn only between
+	   entries, the first convention ran straight on from the topic's own lede
+	   with nothing saying where the intro stopped and the catalog began, and the
+	   spelling topic's landmark met its first entry the same way. The last entry
+	   still closes on nothing, because what follows it is not another section: a
+	   line under it would separate it from the heading that already separates
+	   itself. */
+	.guidelines__entry,
+	.guidelines__landmark {
+		border-top: var(--border-width) solid var(--color-border);
+		margin-top: var(--space-6);
+		padding-top: var(--space-6);
+	}
+
+	/* A section owns its own rhythm: the prose gap its heading used to carry moves
+	   onto the section, and the first and last children give their margins up.
+	   Read at rest this is the same page to the pixel: what it buys is the wash
+	   below, whose background paints the section's box, child margins included: a
+	   heading still carrying its own top margin put a hand of empty blue above
+	   the one line the link named. The landmark keeps the same rhythm, because it
+	   takes the same wash. */
+	.guidelines__entry > :first-child,
+	.guidelines__landmark > :first-child {
+		margin-top: 0;
+	}
+
+	.guidelines__entry > :last-child,
+	.guidelines__landmark > :last-child {
+		margin-bottom: 0;
+	}
+
+	/* The entry a deep link landed on, washed in the selection tone for as long
+	   as the hash names it. The page marks it (`data-current`, read off the hash),
+	   because `:target` cannot carry this alone: only a native fragment navigation
+	   updates the target element, and pressing an index row from another page is
+	   the router's `pushState`, which updates nothing, so the wash skipped the
+	   first press and lit only on same-path hash presses. `:target` stays in the
+	   selector as the no-JavaScript arrival's mark, handed to the whole entry by
+	   `:has()`. The wash is a pseudo-element floated behind the content rather
+	   than the entry's own background: the entry's box reaches to the hairlines,
+	   so a background would lie against both lines, and the shape wanted is a
+	   line, a breath, the box, a breath, a line. The box spills `--space-4` past
+	   the content on every side, and where a hairline sits `--space-6` off the
+	   content it therefore stops `--space-4` short of the line, the same even
+	   gap above and below. The article scopes the negative layer, leaving each
+	   sticky entry header above the pane's shared glass plane.
+
+	   A landmark is a deep-link target exactly as an entry is (the index and every
+	   rule page's guideline link both name its anchor), so it takes the same wash
+	   through the same pair of marks. One mechanism: the page sets the same
+	   `data-current`, and `:target` is the same no-JavaScript fallback. */
+	.guidelines__entry[data-current],
+	.guidelines__entry:has(:target),
+	.guidelines__landmark[data-current],
+	.guidelines__landmark:has(:target) {
+		position: relative;
+	}
+
+	.guidelines__entry[data-current]::before,
+	.guidelines__entry:has(:target)::before,
+	.guidelines__landmark[data-current]::before,
+	.guidelines__landmark:has(:target)::before {
+		content: '';
+		position: absolute;
+		z-index: -1;
+		inset: calc(-1 * var(--space-4));
+		/* Every section opens on a hairline `--space-6` above its content, so the
+		   spill that would otherwise cross it is pulled back to the same
+		   `--space-4` breath the wash keeps on every other side of the line. */
+		top: calc(var(--space-6) - var(--space-4));
+		border-radius: var(--radius-panel);
+		background: var(--color-selected);
+	}
+
+	@media (max-width: 62rem) {
+		/* The index sits offscreen on phones, so the arrival heading is enough. */
+		.guidelines__entry[data-current]::before,
+		.guidelines__entry:has(:target)::before,
+		.guidelines__landmark[data-current]::before,
+		.guidelines__landmark:has(:target)::before {
+			content: none;
+		}
+	}
+
 	.guidelines__checks {
 		list-style: none;
 		padding: 0;

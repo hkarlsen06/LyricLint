@@ -1,7 +1,8 @@
 # The shell: toolbar, tab strip, panels, and the surfaces that float over them
 
-Touches: `src/lib/ui/styles/shell.css`, `src/lib/ui/styles/panel.css`,
-`src/lib/ui/styles/linter.css`, `src/lib/ui/layout/RightPanel.svelte`,
+Touches: `src/lib/ui/layout/Workspace.svelte`, `src/lib/ui/layout/DocumentToolbar.svelte`,
+`src/lib/ui/styles/panel.css`, `src/lib/ui/styles/overlays.css`,
+`src/lib/ui/linter/` (each component styles itself), `src/lib/ui/layout/RightPanel.svelte`,
 `src/lib/ui/layout/EditorActions.svelte`, `src/lib/ui/linter/LinterPanel.svelte`,
 `src/lib/ui/state/control-tooltip.svelte.ts`, `src/lib/ui/primitives/ControlTooltip.svelte`,
 `src/lib/interaction/dismiss.ts`, `src/lib/interaction/stick-to-bottom.ts`,
@@ -544,9 +545,10 @@ The row also earns its place at rest. The card dropped the severity **word** in 
 so this is now the one surface in the workbench pairing the four marks with their names, hanging
 directly above the column it is the legend for.
 
-Implementation: `chips` in `src/lib/ui/linter/LinterPanel.svelte`, `src/lib/ui/styles/shell.css`,
-`src/lib/ui/styles/panel.css`, `src/lib/ui/styles/linter.css` (the run of cards),
-`src/lib/ui/styles/diagnostics.css` (what is inside one), and
+Implementation: `chips` in `src/lib/ui/linter/LinterPanel.svelte`, the panel column in
+`src/lib/ui/styles/panel.css`, the `<style>` blocks of `LinterPanel.svelte` (the chips row) and
+`src/lib/ui/linter/DiagnosticList.svelte` (the run of cards), `src/lib/ui/styles/diagnostics.css`
+and the components in `src/lib/diagnostics/` (what is inside one), and
 `src/lib/ui/layout/RightPanel.svelte`.
 
 ### The editor's commands are a tray on the tab strip's own edge
@@ -668,8 +670,8 @@ document.** The option prevents the default even when the command returns _false
 returns false whenever no shell is listening, which would swallow `Ctrl-Alt-U` in an editor that
 never bound it, the landing page's demo included. Returning true already prevents the default.
 
-Implementation: `src/lib/ui/layout/EditorActions.svelte`, `.editor-actions` in
-`src/lib/ui/styles/shell.css` (and the third row `.editor-region` grew for it, which is why
+Implementation: `src/lib/ui/layout/EditorActions.svelte` (`.editor-actions` in its `<style>`),
+`.editor-region` in `src/lib/ui/layout/Workspace.svelte` (the third row it grew for the tray is why
 `.editor-host` and `.media-strip` both state their own `grid-row` now), `insertUnknownMarker` in
 `src/lib/editor/keymap.ts`, `toggleSearch` on `EditorHandle`, and `onUnknownMarkerRequest` /
 `onSearchOpenChange` on the contract.

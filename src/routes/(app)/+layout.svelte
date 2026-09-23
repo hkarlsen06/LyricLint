@@ -33,3 +33,19 @@
 	<LiveRegion {feedback} />
 	<ToastRegion {feedback} />
 </div>
+
+<style>
+	/* The workbench's own radii, inherited by the workspace and by the toasts and
+	   live region beside it. */
+	.app-shell {
+		--radius-control: var(--radius-md);
+		--radius-panel: var(--radius-lg);
+		--radius-overlay: calc(var(--radius-lg) + var(--radius-xs));
+	}
+
+	/* Global, so the `<noscript>` rule above, which hides the shell, keeps
+	   outranking it on order as it did when this lived in a global sheet. */
+	:global(.app-shell) {
+		display: contents;
+	}
+</style>

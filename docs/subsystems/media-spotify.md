@@ -117,8 +117,8 @@ rediscovering that.
 **The mark beside the track name is a requirement, not decoration.** Spotify's Design Guidelines
 want their content attributed wherever it plays: the mark, the track and artist named beside it,
 and a way back to the track on Spotify. A missing one of those is the most common reason a
-quota-extension request is refused. So `.media-attribution__spotify` is the **one literal color in
-this stylesheet outside the favicon**: a third party's brand asset is not a tone from our palette, their
+quota-extension request is refused. So `.media-attribution__spotify` (in `MediaAttribution.svelte`) is the **one literal color in
+the workbench's styles outside the favicon**: a third party's brand asset is not a tone from our palette, their
 green is fixed, and their floor is 21px. A semantic token here would be the design system claiming
 ownership of something it does not own, and would drift the moment the theme moved. It opens a new
 tab, because the workbench is a document being typed into.

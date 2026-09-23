@@ -144,7 +144,9 @@
 		margin-top: var(--space-7);
 		font-size: var(--font-size-lg);
 	}
+	/* Reference entrances and disclosures are prose on the canvas, not nested panels. */
 	.reference-questions {
+		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		list-style: none;
 		padding: 0;
@@ -175,6 +177,50 @@
 	.reference-questions a > :global(svg:first-child) {
 		grid-column: 1 / -1;
 		color: var(--color-text-muted);
+	}
+	/*
+	 * The guidelines welcome page's legend for the ladder: one term per tier,
+	 * ascending as the ladder fills. The term is the ladder and the label
+	 * together (the entries' own pairing, but in the body color and weight,
+	 * because here the tier is the subject being read rather than a fact in an
+	 * entry's margin), over one sentence of what earns it.
+	 */
+	.guidelines__tiers {
+		margin: 0 0 var(--space-4);
+	}
+
+	.guidelines__tiers div + div {
+		margin-block-start: var(--space-4);
+	}
+
+	.guidelines__tiers dt {
+		display: flex;
+		gap: var(--space-2);
+		align-items: center;
+		font-weight: var(--font-weight-semibold);
+	}
+
+	.guidelines__tiers dd {
+		margin: var(--space-1) 0 0;
+	}
+
+	.reference-disclosure {
+		margin-block: var(--space-5);
+	}
+
+	.reference-disclosure > summary {
+		cursor: pointer;
+		color: var(--color-text);
+		font-weight: var(--font-weight-medium);
+	}
+
+	.reference-disclosure > summary:focus-visible {
+		outline: var(--focus-ring-width) solid var(--color-focus);
+		outline-offset: var(--focus-ring-offset);
+	}
+
+	.reference-disclosure[open] > summary {
+		margin-block-end: var(--space-3);
 	}
 	@media (max-width: 25rem) {
 		.reference-questions {
