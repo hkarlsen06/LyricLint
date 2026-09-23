@@ -18,14 +18,10 @@ export default defineConfig({
 	],
 	// No builtin rule sets: ESLint (with typescript-eslint and eslint-plugin-svelte) stays the
 	// host for general linting, and oxlint's builtins cannot see a Svelte template, so they
-	// report `bind:this` targets as never-assigned. Oxlint hosts the design-system and anti-slop
-	// plugins only.
+	// report `bind:this` targets as never-assigned. Oxlint hosts the anti-slop plugin only.
 	plugins: [],
 	categories: { correctness: 'off' },
-	jsPlugins: [
-		{ name: 'anti-slop', specifier: './tools/oxlint/anti-slop/index.ts' },
-		{ name: 'shadcn', specifier: '@shadcn/lint' }
-	],
+	jsPlugins: [{ name: 'anti-slop', specifier: './tools/oxlint/anti-slop/index.ts' }],
 	rules: {
 		'anti-slop/no-chained-type-assertions': 'error',
 		'anti-slop/no-conditional-empty-object-spread': 'error',
@@ -45,12 +41,7 @@ export default defineConfig({
 		'anti-slop/no-unknown-type-aliases': 'error',
 		'anti-slop/no-unsafe-dictionary-type': 'error',
 		'anti-slop/no-widen-then-assert': 'error',
-		'anti-slop/require-safety-comment-for-type-assertion': 'error',
-		'shadcn/no-arbitrary-values': 'error',
-		'shadcn/no-raw-colors': 'error',
-		'shadcn/no-restyle': ['error', { allow: ['layout'] }],
-		'shadcn/no-unknown-classes': 'error',
-		'shadcn/require-static-classes': 'error'
+		'anti-slop/require-safety-comment-for-type-assertion': 'error'
 	},
 	overrides: [
 		{
