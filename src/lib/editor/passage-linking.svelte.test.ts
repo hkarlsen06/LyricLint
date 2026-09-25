@@ -141,8 +141,11 @@ describe('shared passages in the reported Norwegian song', () => {
 			const { handle } = await mount();
 			linkAll(handle);
 			const position = occurrence(SONG, 'badekar', source) + 7;
-			handle.setSelection({ anchor: position, head: position });
+			// Focus first, then place the caret, and wait for focus to settle: a
+			// keystroke that races the focus handler can land before the caret syncs.
 			handle.focus();
+			handle.setSelection({ anchor: position, head: position });
+			await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toHaveFocus();
 			await userEvent.keyboard('et');
 			expect(handle.getSnapshot().text).toBe(SONG.replaceAll('badekar', 'badekaret'));
 		}
