@@ -114,7 +114,10 @@ jobs:
           PRODUCTION_BUILD: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           PUBLIC_APPLE_MUSIC_TOKEN: ${{ github.event_name == 'push' && vars.PUBLIC_APPLE_MUSIC_TOKEN || '' }}
           PUBLIC_YOUTUBE_API_KEY: ${{ github.event_name == 'push' && vars.PUBLIC_YOUTUBE_API_KEY || '' }}
-          PUBLIC_ASSISTANT_ANSWERS_URL: ${{ github.event_name == 'push' && vars.PUBLIC_ASSISTANT_ANSWERS_URL || '' }}
+          # PR builds get a stub endpoint, never the production one, so the assistant
+          # surfaces still draw for E2E. An empty value would turn the assistant off,
+          # and a production push with the variable missing still fails the guard below.
+          PUBLIC_ASSISTANT_ANSWERS_URL: ${{ github.event_name == 'push' && vars.PUBLIC_ASSISTANT_ANSWERS_URL || github.event_name != 'push' && 'https://assistant.test/v1/answers' || '' }}
           PUBLIC_TURNSTILE_SITE_KEY: ${{ github.event_name == 'push' && vars.PUBLIC_TURNSTILE_SITE_KEY || '' }}
         run: |
           if [ "$PRODUCTION_BUILD" = true ]; then

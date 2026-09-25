@@ -29,6 +29,11 @@ The optional `PUBLIC_YOUTUBE_API_KEY` variable enables YouTube search inside the
 audio picker when set.
 Spotify stays unconfigured in production. PR validation builds do not inherit
 production values, and Cloudflare's existing PR preview behavior is unchanged.
+PR builds set `PUBLIC_ASSISTANT_ANSWERS_URL` to the stub
+`https://assistant.test/v1/answers`, the same one the unit suite pins in
+`vite.config.ts`. An empty value turns the assistant off, which hid its entry
+points and failed the assistant E2E case on every PR while `main` passed. The
+stub is never reached: the E2E case aborts its `/v1/answers` request.
 
 Only a successful production E2E job uploads `build/`, named for `github.sha`.
 The deploy job downloads that artifact from the same workflow run after all three
