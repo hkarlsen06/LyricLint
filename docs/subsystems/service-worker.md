@@ -17,7 +17,8 @@ Touches: `src/service-worker.ts`, `src/routes/+layout.svelte`, `src/routes/+erro
 - The precache is `/`, `/workbench/`, static files, and non-wasm immutable assets; install copies
   immutable assets forward from the previous cache, and misses reuse the HTTP cache; rules pages
   join the snapshot by being read. The Harper wasm and marketing `.gif`/`.webm` loops stay excluded; landing stills remain
-  cached so offline home content stays visible.
+  cached so offline home content stays visible. Docs stills (`docs-*`) are excluded from install;
+  a docs page joins the snapshot by being read (`docs.md`).
 - `/lint/` remains a permanent compatibility redirect but is not a second offline shell; installed
   apps and new snapshots enter through the canonical `/workbench/` page.
 - Registration is app code, not `kit.serviceWorker.register`: registered under `!dev`,

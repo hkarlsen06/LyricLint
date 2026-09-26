@@ -17,7 +17,8 @@ const captures = [
 	['render:motion', '--harper'],
 	['render:motion', '--player'],
 	['render:motion', '--song'],
-	['render:motion', '--hero']
+	['render:motion', '--hero'],
+	['render:docs']
 ];
 
 function runCommand(args, env, signal) {

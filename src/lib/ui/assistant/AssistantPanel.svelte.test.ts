@@ -178,14 +178,15 @@ describe('the assistant panel', () => {
 		expect(screen.getByRole('button', { name: 'Conversations' })).not.toBeNull();
 	});
 
-	test('keeps narrow desktop composer appearance and resizes only after input', async () => {
+	test('keeps narrow desktop composer appearance and never clips its placeholder', async () => {
 		expect(window.matchMedia('(pointer: fine)').matches).toBe(true);
 		await page.viewport(320, 844);
 		const { assistant } = panelAssistant();
 		await render(AssistantPanel, { assistant });
 		const textarea = screen.getByRole('textbox', { name: 'Your question' }) as HTMLTextAreaElement;
 		await frames();
-		expect(textarea.style.height).toBe('');
+		// The placeholder wraps in a panel this narrow; the box grows to hold it.
+		expect(textarea.scrollHeight).toBeLessThanOrEqual(textarea.clientHeight);
 		expect(getComputedStyle(textarea).borderRadius).not.toBe('0px');
 		await page.getByRole('textbox', { name: 'Your question' }).hover();
 		await waitFor(() =>

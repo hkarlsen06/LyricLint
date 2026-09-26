@@ -37,7 +37,15 @@
 	// once-per-site requirement and the document pages still state it.
 	const windowShell = $derived(Boolean(current('/guidelines')));
 
-	const sectionTitle = $derived(current('/guidelines') ? 'Transcription guide' : undefined);
+	// The section the masthead names beside the brand, and the front page its
+	// title links to.
+	const section = $derived(
+		current('/guidelines')
+			? { title: 'Transcription guide', href: resolve('/guidelines/') }
+			: current('/docs')
+				? { title: 'Docs', href: resolve('/docs/') }
+				: undefined
+	);
 </script>
 
 <svelte:head>
@@ -113,7 +121,7 @@
 				<AppWordmark animated={!current('/')} />
 				<span class="sr-only">home</span>
 			</a>
-			{#if sectionTitle}
+			{#if section}
 				<!-- The brand, then what it is a masthead over: the workbench's own
 				     toolbar arrangement, where the lockup is followed by the name of
 				     the thing on screen. Not a heading: the page under it owns the
@@ -121,13 +129,14 @@
 				     what they are reading. It links the section's front page, as the
 				     wordmark links the site's. -->
 				<span class="site-header__section">
-					<a class="site-header__section-link" href={resolve('/guidelines/')}>{sectionTitle}</a>
+					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- both hrefs above come from resolve(). -->
+					<a class="site-header__section-link" href={section.href}>{section.title}</a>
 				</span>
 			{/if}
 			<!-- Named for what it is, not for the product: every landmark on the page
 			     belongs to LyricLint, so "LyricLint" told a reader listing them
 			     nothing about which one this is. -->
-			<!-- The three destinations that are not already the brand. There is no
+			<!-- The destinations that are not already the brand. There is no
 			     `About`: the wordmark beside this nav links the same landing page
 			     from every page, and two controls for one press on one band is the
 			     duplication the toolbar's own rules remove, since a command is offered
@@ -135,6 +144,7 @@
 			     is this product", carried now by the logo-is-home convention
 			     alone. -->
 			<nav class="site-nav" aria-label="Site">
+				<a href={resolve('/docs/')} aria-current={current('/docs')}>Docs</a>
 				<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref decorates resolve() URLs with shared search parameters. -->
 				<a
 					href={windowShell ? referenceHref(resolve('/guidelines/')) : resolve('/guidelines/')}
@@ -328,11 +338,12 @@
 	}
 
 	/*
-	 * Which of the two reference sections is on screen, said in the band rather
-	 * than left to the nav's `aria-current`. The sections are deliberately alike
-	 * (one shell, one finder, one run of rows), so at a glance the only difference
-	 * between `/rules/` and `/guidelines/` was a 15px link a shade brighter than
-	 * its neighbours, which is a difference nobody reads.
+	 * Which section is on screen (the transcription guide or the docs), said in
+	 * the band rather than left to the nav's `aria-current`. It began when the
+	 * guide was two deliberately alike sections (one shell, one finder, one run
+	 * of rows), and at a glance the only difference between `/rules/` and
+	 * `/guidelines/` was a 15px link a shade brighter than its neighbours, which
+	 * is a difference nobody reads.
 	 *
 	 * It is the biggest type in the band, and that is the whole of the effect: the
 	 * lockup beside it is set at the body size, so what a reader lands on first is

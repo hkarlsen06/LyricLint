@@ -454,7 +454,9 @@ export default defineConfig(({ mode }) => ({
 					!file.startsWith('_') &&
 					!file.endsWith('.gif') &&
 					!file.endsWith('.webm') &&
-					file !== 'workbench.png'
+					file !== 'workbench.png' &&
+					// Docs pages join the offline snapshot by being read; their stills should not bloat install.
+					!file.startsWith('docs-')
 			},
 			// A deploy reaches a client on their next full-page load (navigations
 			// are network-first through the worker, and a new build's chunks match

@@ -47,9 +47,13 @@
 			navigation.willUnload ||
 			!navigation.to?.route.id ||
 			navigation.from?.url.pathname === navigation.to.url.pathname ||
-			// Guide URLs select content within its already mounted browsing surface.
-			(navigation.from?.route.id?.startsWith('/(site)/guidelines') &&
-				navigation.to.route.id.startsWith('/(site)/guidelines'))
+			// Guide URLs select content within its already mounted browsing surface,
+			// and docs pages swap an article inside the docs frame's mounted sidebar.
+			['/(site)/guidelines', '/(site)/docs'].some(
+				(section) =>
+					navigation.from?.route.id?.startsWith(section) &&
+					navigation.to?.route.id?.startsWith(section)
+			)
 		)
 			return;
 

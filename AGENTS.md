@@ -39,6 +39,7 @@ over project defaults. `src/lib/subsystem-docs.test.ts` checks routing and claim
 | Clipboard copy/paste metadata, the audio drop, editor↔shell hooks (`createCallbackProxy`)                                                                                           | `docs/subsystems/editor.md`         |
 | The landing page, generated shots and loops, the site palette and header, the wordmark, the favicon                                                                                 | `docs/subsystems/site.md`           |
 | `/rules/`, `/guidelines/`, their search, `SectionSplit`                                                                                                                             | `docs/subsystems/reference.md`      |
+| The product docs at `/docs/`: the catalog, content pages, figures, `render-docs.mjs`                                                                                                | `docs/subsystems/docs.md`           |
 | Phone/touch behavior, `responsive.css`, mobile task views                                                                                                                           | `docs/subsystems/responsive.md`     |
 | The service worker, offline behavior, deploy freshness                                                                                                                              | `docs/subsystems/service-worker.md` |
 
@@ -191,3 +192,8 @@ headers.
 # Bro keep going
 
 Before you stop, ask yourself "is there a next step that the user would want me to do?" if so, keep going jobs not finished.
+
+## Keep going without input
+
+When a step doesn't need my input, keep going. Put status notes in the same message as your next action.
+Stop and ask only when you can't continue without me, or before anything destructive: deleting data, force-pushing, or changing anything outside this repository.

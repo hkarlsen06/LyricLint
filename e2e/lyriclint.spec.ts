@@ -6,6 +6,7 @@ import {
 	heroPlaybackRate,
 	playerCaptions
 } from '../src/lib/ui/site/demo-captions.js';
+import { docsPages as docsCatalog } from '../src/lib/docs/catalog.js';
 
 const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
 
@@ -92,12 +93,12 @@ async function expectSocialPreview(page: Page): Promise<void> {
 test('the homepage and workbench align the wordmark and link it home', async ({ page }) => {
 	await page.goto('/');
 
-	// The nav has one guide destination and the app, separate from the brand: no
-	// `About` beside a wordmark that links the same page, and `App` at the
-	// width the row actually has. Re-adding a second way home is the
-	// regression.
+	// The nav has the docs, one guide destination and the app, separate from
+	// the brand: no `About` beside a wordmark that links the same page, and
+	// `App` at the width the row actually has. Re-adding a second way home is
+	// the regression.
 	const nav = page.getByRole('navigation', { name: 'Site' });
-	await expect(nav.getByRole('link')).toHaveText(['Guide', 'App']);
+	await expect(nav.getByRole('link')).toHaveText(['Docs', 'Guide', 'App']);
 	const siteWordmark = page.locator('.site-header .app-wordmark');
 	const siteHeader = page.locator('.site-header');
 	await expect(siteWordmark).toHaveAttribute('data-state', 'static');
@@ -512,6 +513,7 @@ test('the unified guide has one entrance and exposes check metadata and language
 		.poll(() => page.locator('script[type="application/ld+json"]').textContent())
 		.toContain('"@type":"CollectionPage"');
 	await expect(page.getByRole('navigation', { name: 'Site' }).getByRole('link')).toHaveText([
+		'Docs',
 		'Guide',
 		'App'
 	]);
@@ -1012,8 +1014,14 @@ test('sitemap lists every public page including the workbench', async ({ request
 	const guidelinePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/[^/]+\/<\/loc>/gu) ?? [];
 	expect(guidelinePages).toHaveLength(10);
-	// Plus the home, about, workbench, unified guide, and privacy pages.
-	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + guidelinePages.length + 5);
+	// One page per docs catalog entry, plus the docs index.
+	const docsPages = sitemap.match(/<loc>https:\/\/lyriclint\.com\/docs\/[^/]+\/<\/loc>/gu) ?? [];
+	expect(docsPages).toHaveLength(docsCatalog.length);
+	expect(sitemap).toContain('<loc>https://lyriclint.com/docs/</loc>');
+	// Plus the home, about, workbench, unified guide, privacy, and docs index pages.
+	expect(sitemap.match(/<url>/gu)).toHaveLength(
+		rulePages.length + guidelinePages.length + docsPages.length + 6
+	);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/about/</loc>');
 	expect(sitemap).not.toContain('/rules/');

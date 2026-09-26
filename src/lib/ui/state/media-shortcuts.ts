@@ -45,6 +45,12 @@ export function transportModifier(platform = currentPlatform()): 'Control' | 'Al
 	return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'Control' : 'Alt';
 }
 
+/** The parts of a keydown the matchers read; any `KeyboardEvent` is one. */
+export type TransportKeyEvent = Pick<
+	KeyboardEvent,
+	'altKey' | 'code' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey' | 'target'
+> & { getModifierState?: KeyboardEvent['getModifierState'] };
+
 /**
  * The action a keystroke asks for, or nothing.
  *
@@ -57,7 +63,7 @@ export function transportModifier(platform = currentPlatform()): 'Control' | 'Al
  * binding would swallow one.
  */
 export function matchTransportAction(
-	event: KeyboardEvent,
+	event: TransportKeyEvent,
 	platform = currentPlatform()
 ): TransportAction | undefined {
 	// The function row and actual media keys need no modifier. Bare Space also
@@ -113,7 +119,7 @@ export function matchTransportAction(
  * Escape with nothing above it to close, is the case this exists for: the caret
  * is just sitting in the document, and the tape needs to stop.
  */
-export function matchEscapeAction(event: KeyboardEvent): TransportAction | undefined {
+export function matchEscapeAction(event: TransportKeyEvent): TransportAction | undefined {
 	if (event.key !== 'Escape') return undefined;
 	if (event.ctrlKey || event.metaKey) return undefined;
 	if (event.shiftKey && event.altKey) return undefined;

@@ -323,6 +323,21 @@ for (const width of [1440, 390]) {
 	});
 }
 
+test('moving between docs pages never starts a splash', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'no-preference' });
+	await trackViewTransitions(page);
+	await page.goto('/docs/');
+	await page.waitForLoadState('networkidle');
+	await page.locator('a[href="/docs/first-scribe/"]').first().click();
+	await expect(page).toHaveURL(/\/docs\/first-scribe\/$/);
+	await page.locator('a[href="/docs/scribes/"]').first().click();
+	await expect(page).toHaveURL(/\/docs\/scribes\/$/);
+	await page.goBack();
+	await expect(page).toHaveURL(/\/docs\/first-scribe\/$/);
+	await expect(page.locator('.navigation-splash')).toHaveCount(0);
+	await expect(page.locator('html')).not.toHaveAttribute('data-transitions-started');
+});
+
 test('history navigation transitions while query and fragment changes do not', async ({ page }) => {
 	await trackViewTransitions(page);
 	await page.goto('/about/');

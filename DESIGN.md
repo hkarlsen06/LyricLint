@@ -97,7 +97,7 @@ of controls and neighboring content before and after real interactions on deskto
   It completes the spring and radial explosion before uncovering a ready destination.
   Navigation and editor readiness proceed independently; new input dismisses it immediately,
   and reduced motion skips the minimum. It does not replay on direct loads, query or fragment changes,
-  draft changes, or browsing between topics and checks within the mounted guide.
+  draft changes, or browsing between topics and checks within the mounted guide or between docs pages.
 - The brand lockup is the one exception, and it is one because it reports nothing: `--duration-brand` and `--ease-spring-out` exist for it alone. Its easing overshoots on purpose.
 - Travel between rests (a whole surface pulled from one place to another, like the reference sections' column push) uses `--ease-in-out-cubic`. `--ease-out-quart` launches at full speed, which is right for a state answer and reads as thrown when the thing moving is a column rather than a control.
 - Reduced-motion preferences suppress transitions and animations.

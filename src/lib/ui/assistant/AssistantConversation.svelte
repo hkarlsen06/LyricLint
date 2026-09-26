@@ -212,13 +212,14 @@
 	}
 
 	function resizeComposer(textarea: HTMLTextAreaElement): void {
+		// A hidden pane has no width to wrap in; its ResizeObserver measures on reveal.
+		if (!textarea.clientWidth) return;
 		if (!phone.current) {
 			textarea.style.height = 'auto';
 			textarea.style.height = `${Math.min(textarea.scrollHeight, 144)}px`;
 			textarea.style.overflowY = textarea.scrollHeight > 144 ? 'auto' : 'hidden';
 			return;
 		}
-		if (!textarea.clientWidth) return;
 		const maximum = Number.parseFloat(getComputedStyle(textarea).maxHeight);
 		textarea.style.height = 'auto';
 		const height = textarea.scrollHeight;
@@ -226,16 +227,15 @@
 		textarea.style.overflowY = height > maximum ? 'auto' : 'hidden';
 	}
 
-	// A one-row placeholder can wrap before the first input. Re-measure when
-	// a hidden Tools pane opens or rotates, as well as when its draft changes.
+	// A one-row placeholder can wrap before the first input, at any width: the
+	// desktop panel is narrow enough to clip it too. Re-measure when the pane
+	// opens, resizes or rotates, as well as when its draft changes.
 	$effect(() => {
-		if (!phone.current) return;
 		void draft;
 		if (composerInput) resizeComposer(composerInput);
 	});
 
 	$effect(() => {
-		if (!phone.current) return;
 		const textarea = composerInput;
 		if (!textarea) return;
 		let width = -1;

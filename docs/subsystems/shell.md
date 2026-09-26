@@ -370,14 +370,15 @@ counts UTF-16 units and would silently truncate some pasted questions. The input
 and says how many characters need removing. Enter while composing belongs to the IME.
 Limit guidance sits above the field so the composer retains its shared bottom alignment.
 
-### The phone composer measures its actual text
+### The composer measures its actual text
 
-On the phone workspace query, the composer measures the placeholder before typing and remeasures when a hidden pane
+At every width, the composer measures the placeholder before typing and remeasures when a hidden pane
 opens or its width changes. A single `rows="1"` box clipped the second placeholder line
 on phones; input-only sizing missed that initial state. Typed questions grow to the CSS
 height limit, then scroll. On phones the textarea has no native appearance, fill, or rounding of its
 own, even under touch's sticky hover; the enclosing composer field owns that surface.
-Desktop retains its original input-driven sizing, rounding, and hover treatment.
+Desktop retains its rounding and hover treatment. It once sized only on input, which left the
+placeholder clipped to one row in the narrow desktop panel (visible in the docs' assistant still).
 Phone guidance keeps the character limit and omits the desktop Shift+Enter instruction.
 `AssistantPanel.svelte.test.ts` checks initial wrapping, reveal, resize, and typed overflow.
 

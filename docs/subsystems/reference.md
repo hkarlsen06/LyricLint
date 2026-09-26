@@ -118,8 +118,8 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
 - Homepage entrances are practical questions; the finder owns the only topic directory.
   Everything is searched by default; optional content/topic/check filters live in one disclosure.
   Harper is explained but has no invented rule pages.
-  Canonical metadata and the sitemap name only the unified guide and its check pages;
-  the metadata and sitemap e2e tests pin these.
+  For the reference, canonical metadata and the sitemap name only the unified guide and its
+  check pages (never the legacy `/rules/` routes); the metadata and sitemap e2e tests pin these.
 
 The guidance catalog's content pipeline stays in `docs/guidelines.md` and is followed exactly.
 

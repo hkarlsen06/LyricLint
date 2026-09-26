@@ -12,7 +12,7 @@ const destination = 'src/lib/assets/shot-dimensions.json';
 
 export async function writeShotDimensions() {
 	const files = (await readdir('static'))
-		.filter((name) => /^workbench(?:-[\w-]+)?\.(webp|webm)$/.test(name))
+		.filter((name) => /^(?:workbench|docs)(?:-[\w-]+)?\.(webp|webm)$/.test(name))
 		.sort();
 	const entries = await Promise.all(
 		files.map(async (name) => {

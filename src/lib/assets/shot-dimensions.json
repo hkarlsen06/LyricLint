@@ -1,4 +1,156 @@
 {
+	"docs-assistant-400.webp": {
+		"width": 400,
+		"height": 470
+	},
+	"docs-assistant-640.webp": {
+		"width": 640,
+		"height": 752
+	},
+	"docs-assistant-960.webp": {
+		"width": 960,
+		"height": 1128
+	},
+	"docs-assistant.webp": {
+		"width": 960,
+		"height": 1128
+	},
+	"docs-audio-400.webp": {
+		"width": 400,
+		"height": 295
+	},
+	"docs-audio-640.webp": {
+		"width": 640,
+		"height": 472
+	},
+	"docs-audio-960.webp": {
+		"width": 960,
+		"height": 708
+	},
+	"docs-audio.webp": {
+		"width": 1120,
+		"height": 826
+	},
+	"docs-findings-400.webp": {
+		"width": 400,
+		"height": 308
+	},
+	"docs-findings-640.webp": {
+		"width": 640,
+		"height": 493
+	},
+	"docs-findings-960.webp": {
+		"width": 960,
+		"height": 739
+	},
+	"docs-findings.webp": {
+		"width": 2168,
+		"height": 1670
+	},
+	"docs-first-scribe-400.webp": {
+		"width": 400,
+		"height": 262
+	},
+	"docs-first-scribe-640.webp": {
+		"width": 640,
+		"height": 419
+	},
+	"docs-first-scribe-960.webp": {
+		"width": 960,
+		"height": 628
+	},
+	"docs-first-scribe.webm": {
+		"width": 2200,
+		"height": 1440
+	},
+	"docs-first-scribe.webp": {
+		"width": 2200,
+		"height": 1440
+	},
+	"docs-phone-400.webp": {
+		"width": 400,
+		"height": 866
+	},
+	"docs-phone-640.webp": {
+		"width": 640,
+		"height": 1385
+	},
+	"docs-phone-960.webp": {
+		"width": 780,
+		"height": 1688
+	},
+	"docs-phone.webp": {
+		"width": 780,
+		"height": 1688
+	},
+	"docs-preferences-400.webp": {
+		"width": 400,
+		"height": 453
+	},
+	"docs-preferences-640.webp": {
+		"width": 640,
+		"height": 725
+	},
+	"docs-preferences-960.webp": {
+		"width": 960,
+		"height": 1088
+	},
+	"docs-preferences.webp": {
+		"width": 960,
+		"height": 1088
+	},
+	"docs-scribes-400.webp": {
+		"width": 400,
+		"height": 199
+	},
+	"docs-scribes-640.webp": {
+		"width": 640,
+		"height": 319
+	},
+	"docs-scribes-960.webp": {
+		"width": 960,
+		"height": 478
+	},
+	"docs-scribes.webp": {
+		"width": 1244,
+		"height": 620
+	},
+	"docs-section-links-400.webp": {
+		"width": 400,
+		"height": 321
+	},
+	"docs-section-links-640.webp": {
+		"width": 640,
+		"height": 514
+	},
+	"docs-section-links-960.webp": {
+		"width": 960,
+		"height": 771
+	},
+	"docs-section-links.webm": {
+		"width": 1200,
+		"height": 964
+	},
+	"docs-section-links.webp": {
+		"width": 1200,
+		"height": 964
+	},
+	"docs-sections-400.webp": {
+		"width": 400,
+		"height": 439
+	},
+	"docs-sections-640.webp": {
+		"width": 640,
+		"height": 702
+	},
+	"docs-sections-960.webp": {
+		"width": 960,
+		"height": 1053
+	},
+	"docs-sections.webp": {
+		"width": 1192,
+		"height": 1308
+	},
 	"workbench-1280.webp": {
 		"width": 1280,
 		"height": 820

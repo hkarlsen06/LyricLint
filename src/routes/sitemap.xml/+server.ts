@@ -1,3 +1,4 @@
+import { docsPages } from '$lib/docs/catalog.js';
 import { guidanceTopics } from '$lib/guidance/entries.js';
 import { currentRuleSet } from '$lib/rules/index.js';
 import { ruleReferences } from '$lib/rules/reference.js';
@@ -12,6 +13,8 @@ const paths = [
 	'/workbench/',
 	'/guidelines/',
 	'/privacy/',
+	'/docs/',
+	...docsPages.map(({ slug }) => `/docs/${slug}/`),
 	...ruleReferences().map((reference) => `/guidelines/checks/${reference.slug}/`),
 	...guidanceTopics().map(({ topic }) => `/guidelines/${topic}/`)
 ];

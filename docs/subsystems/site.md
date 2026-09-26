@@ -12,6 +12,7 @@ Touches: `src/routes/(site)/+page.svelte`, `src/routes/(site)/+layout.svelte`,
 `scripts/fixtures/city-lights.json`, `scripts/fixtures/city-lights.jpg`,
 `scripts/write-shot-dimensions.mjs`, `src/lib/assets/shot-dimensions.json`,
 `src/lib/assets/hero-tutorial.json`, `src/lib/ui/site/DemoCaptions.svelte`, `src/lib/ui/site/demo-captions.ts`,
+`src/lib/ui/site/autoplay-in-view.ts`,
 `src/lib/ui/layout/AppWordmark.svelte`, `src/lib/assets/lyriclint-mark.svg`
 
 ## The rules
@@ -29,7 +30,8 @@ Touches: `src/routes/(site)/+page.svelte`, `src/routes/(site)/+layout.svelte`,
 - Internal navigation to a different pathname starts a root-owned wordmark splash
   as route loading starts, including history traversal and different pages of the same dynamic
   route. Browsing within `/guidelines/`, including topic/check links and their Back/Forward
-  history, skips the splash because the guide remains mounted. Entering or leaving the guide
+  history, skips the splash because the guide remains mounted; so does browsing between
+  `/docs/` pages, whose frame and sidebar stay mounted. Entering or leaving either section
   still uses it. Query and fragment changes within a page do not start it. The destination loads
   concurrently and releases the splash on navigation completion. The workbench additionally
   waits for editor readiness, storage/editor failure, or its another-tab notice. Release waits
@@ -79,8 +81,8 @@ Touches: `src/routes/(site)/+page.svelte`, `src/routes/(site)/+layout.svelte`,
   download) and use `preload="none"`. Explicit video dimensions reserve the frame;
   the generators refresh `shot-dimensions.json` from the encoded files via ffprobe, and the
   page consumes it for image/video dimensions and responsive width descriptors.
-  `autoplayInView` decodes the image only on arrival, rewinds on both edges, and keeps
-  reduced-motion readers on the still. Landing video e2e checks pin the handoff and geometry.
+  `autoplayInView` (`autoplay-in-view.ts`, shared with the docs' figures) decodes the image
+  only on arrival, rewinds on both edges, and keeps reduced-motion readers on the still. Landing video e2e checks pin the handoff and geometry.
 - Harper loops/shots must keep their scene honest: lyric documents read as run-on sentences,
   and past Harper's length threshold a document-wide `Readability` finding plus `dedup: true`
   swallowed everything. The provider de-dups *after* filtering, pinned against real WASM in
