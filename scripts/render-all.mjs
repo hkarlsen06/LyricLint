@@ -83,7 +83,14 @@ export async function renderAll({ run = runCommand, startPreview = preview } = {
 		await run(
 			['build', '--mode', 'capture'],
 			// Kit's prerender workers reload Vite config using MODE, not CLI args.
-			{ ...process.env, MODE: 'capture', PUBLIC_APPLE_MUSIC_TOKEN: token },
+			// A placeholder YouTube key draws the picker's search row, as production does.
+			// Scenes only paste links or show the row at rest, so it is never sent.
+			{
+				...process.env,
+				MODE: 'capture',
+				PUBLIC_APPLE_MUSIC_TOKEN: token,
+				PUBLIC_YOUTUBE_API_KEY: 'capture-placeholder'
+			},
 			controller.signal
 		);
 		controller.signal.throwIfAborted();

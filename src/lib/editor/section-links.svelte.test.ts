@@ -1011,6 +1011,25 @@ describe('typing only in one linked copy', () => {
 		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
 	});
 
+	// CodeMirror's search keymap binds the same chord to "select all matches",
+	// and it used to win whenever the press arrived with a selection.
+	it('arms the local edit with Mod-Shift-L over a selection too', async () => {
+		const handle = await mount(SAME, englishLanguagePack);
+		handle.linkSections?.({
+			headers: [offsetOf(SAME, '[Chorus]'), offsetOf(SAME, '[Chorus 2]')]
+		});
+		const from = SAME.indexOf('tight');
+		handle.setSelection({ anchor: from, head: from + 'tight'.length });
+		handle.focus();
+
+		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
+
+		expect(document.querySelector('.ll-section-only-status')?.textContent).toBe(
+			'Editing this section only'
+		);
+		expect(handle.getSnapshot().selection).toEqual({ anchor: from, head: from + 'tight'.length });
+	});
+
 	it('turns the section mode off without discarding its local words', async () => {
 		const announcements: string[] = [];
 		const handle = await mount(SAME, englishLanguagePack, {

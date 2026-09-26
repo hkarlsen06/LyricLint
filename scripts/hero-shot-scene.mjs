@@ -103,11 +103,23 @@ export async function installHeroScene(page) {
 	}, heroSong);
 }
 
+/*
+ * The YouTube row reads "YouTube link" / "Use video" in a build without a search key
+ * and "YouTube search" / "Search" in one with it (production and `render:all`).
+ * Pasting a link and pressing the row's button attaches it either way.
+ */
+const youtubeField = (page) => page.getByLabel(/^YouTube (?:link|search)$/);
+const youtubeSubmit = (page) =>
+	page
+		.locator('form')
+		.filter({ has: youtubeField(page) })
+		.getByRole('button', { name: /^(?:Use video|Search)$/ });
+
 /** A populated frame from the same song, useful before motion and without it. */
 export async function prepareHeroScene(page, editor) {
 	await page.getByRole('button', { name: 'Add audio source', exact: true }).click();
-	await page.getByRole('textbox', { name: 'YouTube link' }).fill(heroVideoUrl);
-	await page.getByRole('button', { name: 'Use video', exact: true }).click();
+	await youtubeField(page).fill(heroVideoUrl);
+	await youtubeSubmit(page).click();
 	await page.getByRole('slider', { name: 'Seek' }).waitFor({ state: 'visible' });
 	await editor.fill(heroDraft);
 	await editor.press('Control+Home');
@@ -187,15 +199,18 @@ export async function filmHeroScene({
 	await expectLyrics('', 'Opening');
 	await at('import', 'open');
 	await click(page.getByRole('button', { name: 'Add audio source', exact: true }));
-	const url = page.getByRole('textbox', { name: 'YouTube link' });
+	const url = youtubeField(page);
 	await click(url, 0.1, 0);
+	// With search configured the field opens holding the 'scribe's name; the
+	// paste replaces it rather than appending to it.
+	await url.selectText();
 	await page.evaluate((value) => navigator.clipboard.writeText(value), heroVideoUrl);
 	await at('import', 'paste');
 	await pressKey('Control+V', 'Ctrl V', 'Paste song link');
 	await wait(0.65);
 	if ((await url.inputValue()) !== heroVideoUrl) throw new Error('The song link was not pasted');
 	await at('import', 'attach');
-	await click(page.getByRole('button', { name: 'Use video', exact: true }), 0.1, 0.25);
+	await click(youtubeSubmit(page), 0.1, 0.25);
 	const seek = page.getByRole('slider', { name: 'Seek', exact: true });
 	await seek.waitFor({ state: 'visible' });
 	await page.locator('.media-video img').evaluate((image) => image.decode());

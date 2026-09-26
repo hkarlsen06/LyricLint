@@ -34,11 +34,11 @@ The product should feel like a focused editorial instrument: dense enough for ex
 ## Anti-references
 
 - Not a visual clone of Genius.
-- Not an automated transcription product, and not a chat wrapper around the editor: linting is deterministic, reviewed rules running locally. The one AI surface is the optional rules assistant, which answers questions about the guidelines and offers general proofreading and convention help in its own modal, receives only the text typed into its own composer, and can never see a draft.
+- Not an automated transcription product, and not a chat wrapper around the editor: linting is deterministic, reviewed rules running locally. The one AI surface is the optional rules assistant, which answers questions about the guidelines and offers general proofreading and convention help in its own panel. It receives the text typed into its own composer, reads a draft only after the user grants it access to that draft, and changes the document only through edits and links the user approves one at a time.
 - Not a toy text area covered in decorative colors.
 - Not a full IDE with irrelevant programming affordances.
 - Not a warning-heavy validator that silently rewrites user work.
-- Not dependent on live scraping. Not dependent on network availability for the core job either. The exceptions are chosen by the user, each on its own press: attaching audio from YouTube, Spotify, or Apple Music loads that provider's player, and asking the rules assistant a question sends that question (never the draft) to LyricLint's answering service.
+- Not dependent on live scraping. Not dependent on network availability for the core job either. The exceptions are chosen by the user, each on its own press: attaching audio from YouTube, Spotify, or Apple Music loads that provider's player (opening the audio dialog loads Apple's MusicKit script where Apple Music is offered, so its sign-in can open on the next press), and asking the rules assistant a question sends that question, and the draft only once the user has allowed it, to LyricLint's answering service.
 
 ## Design Principles
 
@@ -46,7 +46,7 @@ The product should feel like a focused editorial instrument: dense enough for ex
 2. **Every warning earns trust.** A production rule must include an exact Genius source, a reviewed interpretation, and a last-verified date.
 3. **Automation is reversible.** Structural and performer transformations are previewable where needed and always form one undoable edit.
 4. **Expert speed, accessible operation.** Common actions have direct keyboard and touch paths, while all controls and diagnostics remain discoverable and screen-reader reachable. Phones give writing, review, and tools their own views.
-5. **Local work is durable, and draft linting is local.** Drafts autosave locally and the editor remains useful offline. What reaches a network is asked for and never assumed: online audio playback per session, and the rules assistant per question, which receives only what is typed into its own composer, never the document.
+5. **Local work is durable, and draft linting is local.** Drafts autosave locally and the editor remains useful offline. What reaches a network is asked for and never assumed: online audio playback per session, and the rules assistant per question, which receives what is typed into its own composer and reads the document only with that draft's explicit, revocable permission.
 6. **Judgment is labeled as judgment.** Contextual conventions are suggestions or manual-review items, not false errors.
 
 ## Accessibility & Inclusion

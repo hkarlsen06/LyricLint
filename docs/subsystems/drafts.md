@@ -26,8 +26,8 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 - The way into the list is the draft's own name (`.draft-switcher`): field plus chevron, one
   bordered group, popover anchored to the switcher's left edge. Dates are read, not parsed,
   and English like the rest of the chrome.
-- The menu deletes one 'scribe at a time, never all of them. `Delete all local data…` lives
-  in the tools panel beside the claim it undoes, and nowhere else.
+- The menu deletes one 'scribe at a time, never all of them. Deleting everything is
+  `Reset LyricLint…` under Preferences > Local data, beside the claim it undoes, and nowhere else.
   `DraftMenu.svelte.test.ts` asserts the absence at both list states.
 - **A `DraftRecord` field is only as safe as the least careful place that rebuilds one.**
   The copiers are `copySnapshot` (`persistence/autosave.ts`), `copyDraft` and `createRecord`

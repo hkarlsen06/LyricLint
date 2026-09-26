@@ -873,7 +873,12 @@ export function createLyricEditor(
 		sectionLinkTheme,
 		lyricSync(syncOptions),
 		lyricSyncTheme,
-		keymap.of([...searchKeymap, ...lyricLintKeymap(callbackProxy, options.keymapOverrides)]),
+		// Search's `Mod-Shift-l` (select every match) is dropped: it came first and
+		// took the chord from `Edit this section only` whenever text was selected.
+		keymap.of([
+			...searchKeymap.filter((binding) => binding.key !== 'Mod-Shift-l'),
+			...lyricLintKeymap(callbackProxy, options.keymapOverrides)
+		]),
 		selectionAnchorPlugin(
 			(anchor) => options.onSelectionAnchor?.(anchor),
 			options.selectionSettleDelay

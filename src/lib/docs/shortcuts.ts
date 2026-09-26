@@ -31,7 +31,7 @@ export const shortcuts = {
 		{
 			combos: ['Mod-Shift-l'],
 			action: 'Turn Edit this section only on or off',
-			context: 'Caret in a linked section'
+			context: 'Caret or selection in a linked section'
 		},
 		{
 			combos: ['Escape'],

@@ -73,6 +73,8 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   the mode. Turning it off resumes untouched shared passages and preserves its local exclusions.
   With audio attached, `Escape` controls playback and leaves the mode active; without audio,
   it can turn the mode off. The mode control and `Mod-Shift-L` remain explicit ways to exit.
+  The chord answers with a selection as well as a caret: `create-editor.ts` drops search's own
+  `Mod-Shift-l` (select every match), which used to take it whenever text was selected.
   The persistent panel renders a switch; the header retains its danger rail, wash, and explicit
   `Editing this section only` label. `makeDifferent` likewise records a source-only exclusion.
 - Only the active linked section shows ordinary caret/selection scope beside its header:

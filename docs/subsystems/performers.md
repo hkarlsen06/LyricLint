@@ -485,8 +485,10 @@ pins the roster interactions and the assignment guidance.
 
 ### Assignment explains both the gesture and the action
 
-The roster guidance names the explicit **Assign voices** action and **Ctrl+Alt+P** after selecting
-lyric text, and says that pointer selection opens the picker automatically on desktop. The touch
+The roster guidance names only the ways in its layout draws. On a phone it names the tray's
+**Assign voices** button; on desktop, where that button does not exist, it says a pointer
+selection opens the picker and a keyboard selection takes **Ctrl+Alt+P** (Control+Option+P on a
+Mac). Naming the phone button on desktop pointed at a control nobody could find. The touch
 task layout deliberately suppresses that automatic picker because native selection handles own
 the gesture; its Assign voices action is the aimed alternative on the surface where someone learns
 assignment. Keyboard selections deliberately do not open the picker unasked.

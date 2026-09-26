@@ -1,5 +1,7 @@
 <script lang="ts">
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
+	import { MediaQuery } from 'svelte/reactivity';
+	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { orderPerformersByAppearance } from '../state/wiring.js';
 	import PerformerEditor from './PerformerEditor.svelte';
@@ -9,6 +11,10 @@
 	// One row at a time may be armed for removal, so the pending performer is the
 	// list's state rather than each row's.
 	let removingId = $state<string | undefined>();
+	// The hint names only ways in this layout draws: `Assign voices` is the
+	// phone tray's button, and a desktop assigns from a pointer selection or the chord.
+	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
+	const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
 
 	// The roster lists performers in the order they first appear in the lyrics;
 	// performers not (yet) in the document follow in the order they were added.
@@ -59,8 +65,12 @@
 			/></summary
 		>
 		<p class="roster-hint">
-			Select lyric text, then choose Assign voices or press Ctrl+Alt+P. Pointer selections open the
-			picker automatically on desktop.
+			{#if phone.current}
+				Select lyric text, then choose Assign voices.
+			{:else}
+				Select lyric text with the pointer and the picker opens, or select it with the keyboard and
+				press {mac ? 'Control+Option+P' : 'Ctrl+Alt+P'}.
+			{/if}
 		</p>
 	</details>
 </section>

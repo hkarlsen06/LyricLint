@@ -116,14 +116,14 @@ function typeOnlyInLinkedSection(callbacks: LyricEditorCallbacks): (view: Editor
 		if (!target) {
 			return announce(
 				callbacks,
-				'Place the caret or a selection in a linked section before toggling Edit only this section.'
+				'Place the caret or a selection in a linked section before toggling Edit this section only.'
 			);
 		}
 		const turningOff = isTypeOnlyHere(view.state, target.header.from);
 		if (!typeOnlyHere(view, target.header.from)) {
 			return announce(
 				callbacks,
-				'Place the caret or a selection in a linked section before toggling Edit only this section.'
+				'Place the caret or a selection in a linked section before toggling Edit this section only.'
 			);
 		}
 		return announce(

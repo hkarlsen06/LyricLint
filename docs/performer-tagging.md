@@ -122,12 +122,12 @@ Attempting to create a fifth differentiation must never silently strip existing 
 
 The four-slot format cannot represent a fifth distinct style. Genius annotation 9250687 says to omit vocalist names when there are too many vocalists to format a section concisely. It gives an explicit more-than-four threshold for multiple vocal samples, but does not define one universal numeric threshold for every song. LyricLint should explain that distinction rather than claiming Genius always mandates removal at exactly five.
 
-Block the assignment and offer:
-
-- Merge the pending group with an existing voice group.
-- Split the content into another section.
-- Explicitly remove vocal differentiation from the section.
-- Cancel.
+The assignment is blocked and the refusal is announced (`Performer assignment blocked: …`);
+nothing in the section changes. There is no in-picker choice beyond that. The remedies are the
+reader's to carry out by hand, and the `performer-too-many-groups` check names them for imported
+documents: merge the pending group with an existing voice group, move the content into another
+section, or explicitly remove vocal differentiation from the section. (An earlier plan put Merge,
+Split, Remove and Cancel options on the blocked assignment itself; they were never built.)
 
 Imported documents with more than four groups are preserved and warned on, not normalized destructively.
 

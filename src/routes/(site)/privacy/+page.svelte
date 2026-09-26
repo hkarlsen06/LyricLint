@@ -75,16 +75,18 @@
 		<li>OpenAI generates assistant answers from the text the service forwards.</li>
 		<li>
 			Attaching audio from YouTube, Spotify, or Apple Music loads that provider's player, per
-			session, only after you choose it, exactly as before the assistant existed.
+			session, only after you choose it. The one earlier contact: where Apple Music is offered,
+			opening <em>Add audio source</em> loads Apple's MusicKit script, so that Apple's sign-in window
+			can open on your next press instead of being blocked by the browser.
 		</li>
 	</ul>
 
 	<h2>Deleting your data</h2>
 	<p>
 		Assistant conversations can be deleted one at a time inside the assistant, and
-		<em>Delete all local data</em> in the workbench's Preferences panel removes every 'scribe and every
-		conversation from this browser. The workspace backup exports transcriptions only. Chat history is
-		never part of a backup file.
+		<em>Reset LyricLint…</em>, under Local data in the workbench's Preferences panel, removes every
+		'scribe and every conversation from this browser. The workspace backup exports transcriptions
+		only. Chat history is never part of a backup file.
 	</p>
 
 	<p class="site-aside">

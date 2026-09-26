@@ -23,9 +23,10 @@
 		<p>YouTube needs no account.</p>
 		<ol>
 			<li>
-				Paste a video link into the YouTube field and press <strong>Use video</strong>. Where the
-				field reads <strong>Search YouTube, or paste a link</strong>, you can type the song's name
-				instead, press <strong>Search</strong>, and pick a result.
+				In <strong>Search YouTube, or paste a link</strong>, type the song's name and press
+				<strong>Search</strong>, then pick a result. A pasted video link attaches straight away. (A
+				copy of LyricLint built without YouTube search shows a link field and a
+				<strong>Use video</strong> button instead.)
 			</li>
 			<li>
 				The video plays in a small frame at the bottom right of the editor. YouTube's terms require

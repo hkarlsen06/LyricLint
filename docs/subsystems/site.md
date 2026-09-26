@@ -372,6 +372,8 @@ start an owned preview server on an ephemeral loopback port, then run the existi
 commands sequentially. Capture mode writes only `.svelte-kit-capture/` and `build-capture/`.
 The aggregate supplies an unsigned, one-day Apple fixture token only to that build process;
 it needs no Apple credentials and never changes an env file or the ordinary deployment build.
+It also supplies a placeholder `PUBLIC_YOUTUBE_API_KEY`, so the picker draws the search row
+production ships; no scene searches, and the hero pastes a link, which attaches in either mode.
 Never deploy the capture output. A normal `bun run build` retains its production configuration.
 Preview uses HTTP explicitly so local development certificates cannot break capture. Each
 child receives the owned server's `ORIGIN`; no existing dev server is reused or stopped.

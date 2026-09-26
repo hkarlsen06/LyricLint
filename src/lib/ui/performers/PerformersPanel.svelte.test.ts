@@ -213,11 +213,13 @@ describe('PerformersPanel', () => {
 		expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Assign' })).toBeNull();
 		const guidance = screen.getByText(
-			/select lyric text, then choose Assign voices or press Ctrl\+Alt\+P.*automatically on desktop/i
+			/select lyric text with the pointer and the picker opens.*press (Ctrl\+Alt|Control\+Option)\+P/i
 		);
 		expect(guidance).not.toBeVisible();
 		await userEvent.click(screen.getByText('How to assign voices'));
 		expect(guidance).toBeVisible();
+		// `Assign voices` is the phone tray's button, so the desktop hint may not name it.
+		expect(guidance.textContent).not.toMatch(/Assign voices/);
 	});
 
 	// A styled slot the header does not name is an unknown voice, reported once
