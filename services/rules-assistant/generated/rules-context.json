@@ -1,8 +1,8 @@
 {
 	"formatVersion": 5,
 	"ruleSetVersion": "2026.09.21.2",
-	"generatedAt": "2026-09-21T19:45:16.924Z",
-	"contentHash": "a169464a82177c87e24c6d6b748367ed4caeac65308459f7c5f11418d91f1f8a",
+	"generatedAt": "2026-09-28T18:24:30.835Z",
+	"contentHash": "bb077a1c4e92c0fd8a104dd3b2242902e727541a3cad493f6b3bbf0e96f78bbf",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -2343,7 +2343,7 @@
 			"pageTitle": "Use song part headers",
 			"sectionTitle": "Section headers, performer legends, and four differentiation styles",
 			"url": "https://genius.com/9250687",
-			"lastVerifiedAt": "2026-08-17",
+			"lastVerifiedAt": "2026-09-28",
 			"authority": "staff"
 		},
 		{

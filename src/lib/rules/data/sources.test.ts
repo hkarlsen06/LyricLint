@@ -147,10 +147,14 @@ const guidanceSourcingPass = new Set<string>([
 // The rule↔guideline linking pass of 2026-08-17: the maintainer supplied the
 // full text of these pages again, seeding the bracketed-headers,
 // header-lyrics-language, immediate-repeat, and unknown-marker entries and
-// the two G-ADD-SONGS-context advisories.
-const linkingPass = new Set<string>(['G-SECTIONS', 'G-UNKNOWN', 'G-ADD-SONGS']);
+// the two G-ADD-SONGS-context advisories. G-SECTIONS was in this pass too,
+// and was re-read again on 2026-09-28 to settle legend group separators.
+const linkingPass = new Set<string>(['G-UNKNOWN', 'G-ADD-SONGS']);
 
 function verifiedOn(id: string): string {
+	if (id === 'G-SECTIONS') {
+		return '2026-09-28';
+	}
 	if (linkingPass.has(id)) {
 		return '2026-08-17';
 	}

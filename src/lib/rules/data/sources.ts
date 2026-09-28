@@ -273,7 +273,9 @@ const sources: SourceReference[] = [
 		// entries; staff tier reconfirmed. Full text supplied and re-read on
 		// 2026-08-17 for the rule↔guideline linking pass, seeding the
 		// bracketed-headers, header-lyrics-language, and immediate-repeat
-		// entries.
+		// entries. Re-read on 2026-09-28 to settle legend separators: solo
+		// artists take commas and a final ampersand, and once a unison group
+		// appears, commas alone separate vocalists and groups.
 		...annotation(
 			'G-SECTIONS',
 			9250687,
@@ -281,7 +283,7 @@ const sources: SourceReference[] = [
 			'Section headers, performer legends, and four differentiation styles',
 			'staff'
 		),
-		lastVerifiedAt: '2026-08-17'
+		lastVerifiedAt: '2026-09-28'
 	},
 	{
 		// A Genius editorial reference image supplied by the maintainer on
