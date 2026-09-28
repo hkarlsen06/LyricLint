@@ -97,7 +97,13 @@
 	let activeIndex = $state(0);
 	let keyboardNavigated = $state(false);
 	let selectedIds = $state<PerformerId[]>([...untrack(() => initialSelectedIds)]);
-	let adding = $state(false);
+	/*
+	 * An empty roster has no voice to pick, so the name field is the answer the
+	 * card is asking for and it opens already drawn. Left behind `Add voice`, the
+	 * only thing in the roster row was the unknown-voice fallback, and it read as
+	 * the answer. Drawn is not focused: an uninvited card still takes no focus.
+	 */
+	let adding = $state(untrack(() => performers.length === 0 && onAddPerformer !== undefined));
 	let addName = $state('');
 	let pendingAddName = $state<string | undefined>();
 	let root: HTMLDivElement;
@@ -296,6 +302,21 @@
 		addInput?.focus();
 	}
 
+	/*
+	 * While the field is drawn, `Add voice` is its submit: it stays where it was
+	 * rather than vanishing under the pointer, and a typed name has a button to
+	 * press as well as Enter. Empty, the press puts the caret in the field.
+	 */
+	function pressAdd(): void {
+		if (!adding) {
+			void beginAdd();
+		} else if (addName.trim()) {
+			submitAdd();
+		} else {
+			addInput?.focus();
+		}
+	}
+
 	async function closeAdd(): Promise<void> {
 		adding = false;
 		addName = '';
@@ -343,7 +364,9 @@
 		} else if (event.key === 'Escape') {
 			event.preventDefault();
 			event.stopPropagation();
-			void closeAdd();
+			// On an empty roster the field is the card's resting state, not a
+			// level opened on top of it, so there is nothing to back out to.
+			void (performers.length === 0 ? cancel() : closeAdd());
 		}
 	}
 
@@ -377,7 +400,7 @@
 			case 'Spacebar': {
 				if (addButton) {
 					event.preventDefault();
-					void beginAdd();
+					pressAdd();
 					break;
 				}
 				if (!performerButton) {
@@ -393,7 +416,7 @@
 			case 'Enter':
 				if (addButton) {
 					event.preventDefault();
-					void beginAdd();
+					pressAdd();
 					break;
 				}
 				if (!performerButton) {
@@ -410,8 +433,15 @@
 	}
 
 	onMount(() => {
+		if (adding) {
+			activeIndex = addChipIndex;
+		}
 		if (takesFocus) {
-			focusActive();
+			if (adding) {
+				addInput?.focus();
+			} else {
+				focusActive();
+			}
 		}
 		// The picker grabs focus the moment it opens, so :focus-visible would ring
 		// the first chip before anyone navigated to it. That reads as a highlight
@@ -485,6 +515,16 @@
 					{performer.displayName}
 				</button>
 			{/each}
+			{#if onAddPerformer && adding}
+				<input
+					bind:this={addInput}
+					bind:value={addName}
+					class="chip chip--input"
+					placeholder="Performer name"
+					aria-label="New performer name"
+					onkeydown={handleAddInputKeydown}
+				/>
+			{/if}
 			{#each shownUnknownSlots as slot, unknownIndex (slot)}
 				<!-- No dot: the dot is an identity's colour, and an unknown voice's
 					     whole point is that it has none. The slot's own styling on the
@@ -507,32 +547,24 @@
 				</button>
 			{/each}
 			{#if showsNewUnknown}
-				<!-- Dashed and muted because an unknown voice is the fallback answer,
-				     not the named-voice CTA. An existing unknown draws as a plain styled
-				     chip, while the plus distinguishes minting a fresh unknown from joining
-				     one already present. -->
+				<!-- Quiet tier and a one-word label because minting an unknown voice is
+				     the fallback answer, not the named-voice CTA: bordered and spelled
+				     out, it was the widest control in the row and read as the answer the
+				     card wanted. The plus says "new"; the accessible name keeps the whole
+				     phrase. Joining an existing unknown keeps the default tier, since that
+				     is a real answer beside the named chips. -->
 				<button
 					type="button"
-					class="button unknown-voice unknown-voice--new"
+					class="button button--quiet unknown-voice unknown-voice--new"
 					data-picker-chip
 					tabindex={performers.length + shownUnknownSlots.length === activeIndex ? 0 : -1}
 					onclick={() => assignUnknown(undefined)}
 					onfocus={() => (activeIndex = performers.length + shownUnknownSlots.length)}
 				>
 					<PlusIcon aria-hidden="true" size={14} weight="bold" />
-					<span aria-hidden="true">Use new unknown voice</span>
+					<span aria-hidden="true">Unknown</span>
 					<span class="sr-only">Use new unknown voice</span>
 				</button>
-			{/if}
-			{#if onAddPerformer && adding}
-				<input
-					bind:this={addInput}
-					bind:value={addName}
-					class="chip chip--input"
-					placeholder="Performer name"
-					aria-label="New performer name"
-					onkeydown={handleAddInputKeydown}
-				/>
 			{/if}
 		</div>
 		<div class="actions">
@@ -564,14 +596,14 @@
 					<span aria-hidden="true" class="apply__key">↵</span>
 				{/if}
 			</button>
-			{#if onAddPerformer && !adding}
+			{#if onAddPerformer}
 				<button
 					type="button"
 					class="button add-voice"
 					class:button--contrast={!canApply || showsEmptyAnswer}
 					data-picker-chip
 					tabindex={activeIndex === addChipIndex ? 0 : -1}
-					onclick={beginAdd}
+					onclick={pressAdd}
 					onfocus={() => (activeIndex = addChipIndex)}
 				>
 					<PlusIcon aria-hidden="true" size={16} weight="bold" />
@@ -596,8 +628,12 @@
 		justify-items: start;
 	}
 
+	/* The question and its bar head the card; the roster and the action column
+	   share the row beneath. Set beside the roster, the question added its own
+	   width to a card that only needs the roster's and the actions'. */
 	.picker {
-		display: flex;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
 		max-width: 100%;
 		gap: var(--space-2);
 		align-items: center;
@@ -613,34 +649,16 @@
 		line-height: var(--line-height-tight);
 	}
 
-	/* The prompt is the card's own question, not a caption on it. Set muted and
-	   small it read as chrome, so a step that replaced the card's whole meaning
-	   looked like the same card glitching: the only thing that had changed was a
-	   few grey words the eye skips. It takes the picker's own type and full
-	   contrast, and the step counter rides along in it. */
-	/*
-	 * The question, centred over the bar that says how far through this flow it
-	 * is. The step used to be four words appended to the question (`· 1 of 2`),
-	 * which spent the one line of this card that asks something on chrome, and
-	 * changed the question's width at every step.
-	 *
-	 * **The block is floored at the widest question the flow can put in it**, so
-	 * `Who sings this?` and `Who sings the rest?` occupy the same box and the
-	 * roster beside them does not slide as the flow advances. That is also what
-	 * makes the bar honest: it spans the block rather than the text, so both
-	 * steps draw the same bar in the same place and only the fill moves. Centring
-	 * is what the floor buys: a shorter question left-aligned in a wider box
-	 * would read as indented rather than as centred.
-	 */
+	/* The prompt is the card's own question, not a caption on it: it takes the
+	   picker's own type at full contrast, over a bar spanning the card that says
+	   how far through the flow it is. Nothing sits beside it any more, so its
+	   length moves no chip and it needs no width floor. */
 	.picker__prompt {
-		flex: none;
+		grid-column: 1 / -1;
 		display: flex;
 		flex-direction: column;
-		min-width: 10.5rem;
-		gap: var(--space-1);
-		align-items: center;
+		gap: var(--space-1-5);
 		font-weight: var(--font-weight-semibold);
-		white-space: nowrap;
 	}
 
 	.picker__steps {
@@ -684,7 +702,6 @@
 	   and the card grows a line when the roster outgrows it. No overflow also
 	   means no clipping, so the focus rings need no reserved padding. */
 	.roster {
-		flex: 0 1 auto;
 		display: flex;
 		flex-wrap: wrap;
 		min-width: 0;
@@ -813,10 +830,10 @@
 
 	.actions {
 		/* The roster is the part that gives way when the row runs out of room (it
-		   wraps); without this the actions box shrinks under its own button and
-		   the Apply button hangs outside the picker's rounded edge. Add voice lives
-		   below it so it cannot be mistaken for an unknown-voice chip. */
-		flex: none;
+		   wraps, in the `minmax(0, 1fr)` track); the actions' `auto` track never
+		   shrinks under its own button, which once left Apply hanging outside the
+		   picker's rounded edge. Add voice lives below it so it cannot be mistaken
+		   for an unknown-voice chip. */
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1-5);
@@ -860,14 +877,6 @@
 			right: 0.5rem;
 			left: 0.5rem !important;
 			max-width: none;
-		}
-
-		.picker {
-			flex-wrap: wrap;
-		}
-
-		.roster {
-			flex-basis: 100%;
 		}
 	}
 </style>

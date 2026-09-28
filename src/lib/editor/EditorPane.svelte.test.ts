@@ -2334,7 +2334,7 @@ describe('PerformerPicker keyboard flow', () => {
 		expect(focusTarget).toBe(document.activeElement);
 	});
 
-	it('opens with an empty roster and adds a performer inline from Add voice', async () => {
+	it('opens an empty roster on the name field and adds a performer inline', async () => {
 		const focusTarget = document.createElement('button');
 		focusTarget.dataset.testFocusReturn = 'true';
 		focusTarget.textContent = 'Editor focus target';
@@ -2350,9 +2350,7 @@ describe('PerformerPicker keyboard flow', () => {
 			returnFocus: () => focusTarget.focus(),
 			onAddPerformer
 		});
-		await expect.element(page.getByRole('button', { name: 'Add voice' })).toHaveFocus();
-
-		await userEvent.keyboard('{Enter}');
+		// No voice to pick, so the field is the answer and holds the focus.
 		const nameInput = page.getByRole('textbox', { name: 'New performer name' });
 		await expect.element(nameInput).toHaveFocus();
 		await userEvent.keyboard('Avery{Enter}');
@@ -2364,6 +2362,44 @@ describe('PerformerPicker keyboard flow', () => {
 		await expect.element(page.getByRole('button', { name: /Avery/u })).toHaveFocus();
 		await userEvent.keyboard('{Enter}');
 		expect(onApply).toHaveBeenCalledWith(['avery']);
+	});
+
+	it('draws the empty-roster field without focus when uninvited, and Add voice submits it', async () => {
+		const onAddPerformer = vi.fn();
+		const onCancel = vi.fn();
+		const screen = await render(PerformerPicker, {
+			performers: [],
+			takesFocus: false,
+			onApply: vi.fn(),
+			onCancel,
+			returnFocus: () => {},
+			onAddPerformer
+		});
+		const nameInput = page.getByRole('textbox', { name: 'New performer name' });
+		await expect.element(nameInput).toBeVisible();
+		await expect.element(nameInput).not.toHaveFocus();
+
+		// Empty, the press puts the caret in the field; with a name, it submits.
+		const add = page.getByRole('button', { name: 'Add voice' });
+		await userEvent.click(add);
+		await expect.element(nameInput).toHaveFocus();
+		expect(onAddPerformer).not.toHaveBeenCalled();
+		await userEvent.keyboard('Blair');
+		await userEvent.click(add);
+		expect(onAddPerformer).toHaveBeenCalledWith('Blair');
+		await screen.unmount();
+
+		// The field is the resting state here, so Escape closes the card.
+		await render(PerformerPicker, {
+			performers: [],
+			onApply: vi.fn(),
+			onCancel,
+			returnFocus: () => {},
+			onAddPerformer
+		});
+		await expect.element(nameInput).toHaveFocus();
+		await userEvent.keyboard('{Escape}');
+		expect(onCancel).toHaveBeenCalledOnce();
 	});
 
 	it('backs out one level per Escape: input, then chips, then closed', async () => {

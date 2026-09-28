@@ -97,13 +97,16 @@
 <p>A few more things the picker does:</p>
 
 <ul>
-	<li><strong>Add voice</strong> adds a new performer to the roster without leaving the picker.</li>
+	<li>
+		<strong>Add voice</strong> adds a new performer to the roster without leaving the picker. With
+		no performers yet, the name field is already open.
+	</li>
 	<li>
 		Unpicking everyone turns the button into <strong>Remove formatting</strong>, which takes the
 		passage back to plain text.
 	</li>
 	<li>
-		<strong>Use new unknown voice</strong> marks a different singer you cannot name yet. It writes the
+		<strong>Unknown</strong> marks a different singer you cannot name yet. It writes the
 		style without a name in the header, so you can name the voice later.
 	</li>
 </ul>

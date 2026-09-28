@@ -46,7 +46,12 @@ disclosure chevron the roster help and the legend share)
   sized to its three flow labels (`Next`/`Skip`/`Apply`); `Skip` is bordered, never contrast,
   and the labeled `Add voice` button sits beneath it in the action column, away from the voice
   chips. Add voice carries contrast until a named answer is ready; then Apply takes it
-  (`actionLabel`/`showsEmptyAnswer`, one derived answer).
+  (`actionLabel`/`showsEmptyAnswer`, one derived answer). While the name field is drawn, Add
+  voice stays in place and submits it (an empty field takes the caret instead).
+- An empty roster opens with the name field already drawn, first in the roster row: with no
+  voice to pick, a name is the answer. It takes the focus only when the card does
+  (`takesFocus`), and Escape there closes the card, since the field is its resting state and not
+  a level to back out of. Pinned in `EditorPane.svelte.test.ts`.
 - The roster never scrolls: chips wrap onto further rows in stable roster order, so no chip
   (above all no *pre-selected* chip, which is part of what Apply writes) is ever off screen.
   The pre-selection stays: it is the voice groups overlapping the selection, read against
@@ -54,8 +59,9 @@ disclosure chevron the roster help and the legend share)
   rewrite, never the raw range), and it is what keeps Apply from silently stripping a covered
   voice and what the deselect-everyone route to `Remove formatting` runs on. Pinned in
   `PerformerPicker.svelte.test.ts` and `transform-boundaries.test.ts`.
-- The step indicator is an `aria-hidden` bar spanning a question block floored at the widest
-  question, with a `sr-only` `Step 2 of 2` carrying the fact.
+- The question heads the card over an `aria-hidden` step bar spanning its width, with a
+  `sr-only` `Step 2 of 2` carrying the fact; the roster and the action column share the row
+  beneath, so the card is only as wide as those two.
 - The roster is `.list-row`: the name *is* the rename (press to edit in place, no pencil), no
   `<strong>`, trash via the shared `RemoveButton`. The collapsed Performers by section reference
   groups identical voice arrangements once, preserving style differences
@@ -63,7 +69,7 @@ disclosure chevron the roster help and the legend share)
 - An **unknown voice** is derived from the text, never stored: a styled slot the section's
   legend does not name (`unaccountedStyledSlots` in `legend-cleanup.ts`, the one owner). The
   picker draws one act-on-press chip per unaccounted slot in that slot's own styling (no dot,
-  no performer colour: an unknown has no identity) plus a quiet dashed `+ Unknown voice` chip
+  no performer colour: an unknown has no identity) plus a quiet `+ Unknown` action
   while a styled slot is free of both legend and body (`unknownVoiceOffers`, the transform's own
   reading). Adding a named identity is the labeled `Add voice` button in the separate action
   column beneath Apply: it takes the contrast tier until a named answer is ready, then steps
@@ -349,13 +355,12 @@ current one; a prompt that is not part of a flow passes neither and draws no bar
 
 Three things it owes:
 
-- **The block is floored at the widest question the flow can put in it.** `Who sings this?` and
-  `Who sings the rest?` are different lengths and the roster sits directly beside them, so a prompt
-  sized to its own text slid every chip along as the flow advanced. Floored, both steps produce the
-  same card width: the whole card, both edges, measured across all three states.
-- **The bar spans the block rather than the words**, which is what makes it honest: both steps draw
-  the same bar in the same place and only the fill moves. Centring the question is what the floor
-  buys: a shorter question left-aligned in a wider box reads as indented rather than as centred.
+- **The question heads the card; it does not sit beside the roster.** It used to share the row,
+  floored at the widest question so the chips beside it did not slide as the flow advanced, and
+  that floor plus the roster plus the actions made a card far wider than its content (superseded
+  2026-09-28). Heading the card, the question's length moves no chip and needs no floor.
+- **The bar spans the card's head rather than the words**, which is what makes it honest: both
+  steps draw the same bar in the same place and only the fill moves.
 - **The bar is `aria-hidden` and a `sr-only` sentence carries the fact.** A run of empty spans says
   nothing, and `Step 2 of 2` beside it says everything the old suffix did. Described rather than
   hidden, the two would be announced twice: the same split `SourceCitation.svelte` makes, in the
@@ -522,7 +527,13 @@ Named performer chips remain selections that await Apply. Unknown voices cannot 
 group, so their immediate action remains, but their labels now say **Use unknown** and
 **Use new unknown voice**. Their accessible names include the existing styling identity. The verb
 makes the immediate write explicit instead of presenting it as another pending roster selection.
-Their geometry is the ordinary bordered `.button` tier, never the categorical chip's pill radius.
+Their geometry is the global `.button` silhouette, never the categorical chip's pill radius.
+The mint action draws as a quiet-tier **+ Unknown**, its accessible name still **Use new unknown
+voice**: minting a fresh unknown is the fallback, and on an empty roster, bordered and spelled out,
+it was the widest control and the only one in the roster row, so it read as the answer the card
+wanted while **Add voice** was the one meant (2026-09-28). The same report is why an empty roster
+now opens on the name field. Joining an existing unknown keeps the default tier, since that is a
+real answer beside the named chips.
 Named performers retain selectable chips; unknown actions retain `data-picker-chip` solely for
 shared roving keyboard navigation. The picker test pins the global button radius and the absence
 of the `.chip` class on immediate actions.

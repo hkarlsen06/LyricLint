@@ -409,12 +409,12 @@ describe('PerformerPicker step bar', () => {
 		await page.viewport(414, 896);
 	});
 
-	it('holds one prompt width across the questions a two-step flow asks', async () => {
-		// The two questions are different lengths, and the roster sits directly
-		// beside them, so a prompt that sized itself to its own text slid every
-		// chip along as the flow advanced.
+	it('heads the card with the question so its length never moves the roster', async () => {
+		// The two questions are different lengths. Set beside the roster, the
+		// prompt needed a width floor to keep the chips from sliding and made the
+		// whole card wider; heading the card, it moves nothing.
 		const widths: number[] = [];
-		const bars: Array<{ bar: number; question: number }> = [];
+		const bars: Array<{ bar: number; prompt: number }> = [];
 		for (const [prompt, step] of [
 			['Who sings this?', 1],
 			['Who sings the rest?', 2]
@@ -432,7 +432,10 @@ describe('PerformerPicker step bar', () => {
 			const box = (selector: string) =>
 				document.querySelector<HTMLElement>(selector)!.getBoundingClientRect().width;
 			widths.push(box('.picker__prompt'));
-			bars.push({ bar: box('.picker__steps'), question: box('.picker__question') });
+			bars.push({ bar: box('.picker__steps'), prompt: box('.picker__prompt') });
+			const promptBox = document.querySelector('.picker__prompt')!.getBoundingClientRect();
+			const rosterBox = document.querySelector('.roster')!.getBoundingClientRect();
+			expect(rosterBox.top).toBeGreaterThanOrEqual(promptBox.bottom);
 
 			// The reached stops are the visual half; the sentence is the whole of
 			// what a screen reader gets, since a run of empty spans says nothing.
@@ -446,9 +449,9 @@ describe('PerformerPicker step bar', () => {
 		}
 
 		expect(widths[1]).toBeCloseTo(widths[0], 1);
-		// The bar spans the floored block rather than the words, so both steps draw
+		// The bar spans the card's head rather than the words, so both steps draw
 		// the same bar in the same place and only the fill moves.
-		for (const { bar, question } of bars) expect(bar).toBeGreaterThanOrEqual(question);
+		for (const { bar, prompt } of bars) expect(bar).toBeCloseTo(prompt, 1);
 	});
 
 	it('draws no bar for a prompt that is not a step in a flow', async () => {
@@ -516,6 +519,7 @@ describe('PerformerPicker unknown voices', () => {
 		expect(add?.classList.contains('button')).toBe(true);
 		expect(add?.classList.contains('button--contrast')).toBe(true);
 		expect(unknown?.classList.contains('button--contrast')).toBe(false);
+		expect(unknown?.classList.contains('button--quiet')).toBe(true);
 		expect(unknown?.classList.contains('button')).toBe(true);
 		expect(unknown?.classList.contains('chip')).toBe(false);
 		const ordinary = document.createElement('button');
@@ -527,7 +531,7 @@ describe('PerformerPicker unknown voices', () => {
 		ordinary.remove();
 
 		// Once a named voice is selected, Apply becomes the sole contrast action;
-		// Add voice remains a filled default button above the dashed fallback.
+		// Add voice remains a filled default button above the quiet fallback.
 		await userEvent.click(page.getByRole('button', { name: 'Leif Tore' }));
 		expect(add?.classList.contains('button--contrast')).toBe(false);
 		expect(document.querySelector('.actions button')?.classList.contains('button--contrast')).toBe(
@@ -592,7 +596,12 @@ describe('PerformerPicker unknown voices', () => {
 			returnFocus: () => {}
 		});
 
-		await userEvent.click(page.getByRole('button', { name: 'Use new unknown voice' }));
+		const mint = page.getByRole('button', { name: 'Use new unknown voice' });
+		// Short on screen, whole in the accessible name.
+		expect(
+			document.querySelector('.unknown-voice--new [aria-hidden="true"]:not(svg)')?.textContent
+		).toBe('Unknown');
+		await userEvent.click(mint);
 		expect(onAssignUnknown).toHaveBeenCalledWith(undefined);
 
 		// The shared flex alignment centers the icon without a positional nudge.
