@@ -102,10 +102,11 @@ The first slot is the performer with the most lines or the first chronologically
 
 Within a section, preserve assigned slots once established. Do not silently recalculate all formatting after each edit.
 
-The header serializes individual voice groups with commas and an ampersand before the last group. A joint group uses an ampersand inside one style slot.
+The header serializes individual voice groups with commas and an ampersand before the last group. A joint group uses an ampersand inside one style slot, and once any group is joint, commas alone separate the groups, so the ampersand always means "together" (`guidance.section-headers.unison-grouping`; `joinLegendGroups` owns this).
 
 ```html
-[Chorus: A, <i>B</i>, <b>A & B</b> & <i><b>C</b></i>]
+[Chorus: A, <i>B</i> & <b>C</b>]
+[Chorus: A, <i>B</i>, <b>A & B</b>, <i><b>C</b></i>]
 ```
 
 Applying a group to selected text must:

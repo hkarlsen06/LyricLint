@@ -37,12 +37,20 @@ function serializeGroup(group: SerializableLegendGroup): string {
  * its group's wrapper, while ampersands belonging to names are escaped.
  */
 export function serializeLegend(groups: readonly SerializableLegendGroup[]): string {
-	const serialized = groups.map(serializeGroup);
+	return joinLegendGroups(groups.map(serializeGroup));
+}
+
+/**
+ * Join serialized legend groups with commas and an ampersand before the last,
+ * or with commas alone once any group is itself ampersand-joined, so a unison
+ * group reads `A & B, <i>C</i>` and never as a run of three separate voices.
+ */
+export function joinLegendGroups(serialized: readonly string[]): string {
 	if (serialized.length < 2) {
 		return serialized[0] ?? '';
 	}
-
-	return `${serialized.slice(0, -1).join(', ')} & ${serialized.at(-1)}`;
+	const last = serialized.some((group) => /\s&\s/u.test(group)) ? ', ' : ' & ';
+	return `${serialized.slice(0, -1).join(', ')}${last}${serialized.at(-1)}`;
 }
 
 /** Wrap exact lyric content in one of Genius' four supported style slots. */

@@ -20,7 +20,7 @@ import type {
 	UnknownVoiceRequest
 } from '$lib/core/types.js';
 import { headerNameIsEmpty } from '$lib/core/parser.js';
-import { serializeLegend, styleTags } from '$lib/serialization/genius-markup.js';
+import { joinLegendGroups, serializeLegend, styleTags } from '$lib/serialization/genius-markup.js';
 import { allocateStyleSlot } from './allocation.js';
 import { makeVoiceGroupKey } from './identity.js';
 import { extractPerformers } from './import.js';
@@ -664,14 +664,9 @@ interface RawLegendGroup {
 }
 
 function serializeRawGroups(groups: readonly RawLegendGroup[]): string {
-	const orderedGroups = [...groups].sort((left, right) => left.styleSlot - right.styleSlot);
-	if (orderedGroups.length < 2) {
-		return orderedGroups[0]?.raw ?? '';
-	}
-	return `${orderedGroups
-		.slice(0, -1)
-		.map((group) => group.raw)
-		.join(', ')} & ${orderedGroups.at(-1)?.raw ?? ''}`;
+	return joinLegendGroups(
+		[...groups].sort((left, right) => left.styleSlot - right.styleSlot).map((group) => group.raw)
+	);
 }
 
 function headerLegendEdit(

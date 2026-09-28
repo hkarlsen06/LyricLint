@@ -10,7 +10,23 @@ describe('Genius performer serialization', () => {
 				{ styleSlot: 3, members: ['A', 'B'] },
 				{ styleSlot: 4, members: ['C'] }
 			])
-		).toBe('A, <i>B</i>, <b>A & B</b> & <i><b>C</b></i>');
+		).toBe('A, <i>B</i>, <b>A & B</b>, <i><b>C</b></i>');
+	});
+
+	it('keeps the serial ampersand only while no group is a unison group', () => {
+		expect(
+			serializeLegend([
+				{ styleSlot: 1, members: ['A', 'B'] },
+				{ styleSlot: 2, members: ['C'] }
+			])
+		).toBe('A & B, <i>C</i>');
+		expect(
+			serializeLegend([
+				{ styleSlot: 1, members: ['A'] },
+				{ styleSlot: 2, members: ['B'] },
+				{ styleSlot: 3, members: ['Echo & The Glass'] }
+			])
+		).toBe('A, <i>B</i> & <b>Echo &amp; The Glass</b>');
 	});
 
 	it('escapes performer text while keeping generated member separators semantic', () => {
