@@ -1,10 +1,10 @@
 /**
- * The one call that leaves Cloudflare: the OpenAI Responses API through the
- * AI Gateway, with the official SDK. Output-text deltas are exposed while the
- * SDK still accumulates the final response used by the existing parser. Draft
- * tools execute in the browser and return through a later stateless request.
+ * The one call that leaves Cloudflare: Anthropic's Messages API through the AI
+ * Gateway, with the official SDK, on the newest Claude Sonnet. Text deltas are
+ * exposed while the SDK still accumulates the final message used by the parser.
+ * Draft tools execute in the browser and return through a later stateless request.
  */
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import {
 	MAX_LINK_ACTIONS,
 	MAX_LINK_HEADERS,
@@ -23,13 +23,11 @@ import {
 	proposeEditsArgumentsSchema,
 	readScribeArgumentsSchema,
 	showLyricsArgumentsSchema,
-	isJsonObject,
 	type AnswerRequest,
 	type Json,
-	type JsonObject,
 	type WireToolResult
 } from './schema';
-import { developerPrompt, promptCacheKey, pruneHistory } from './prompt';
+import { developerPrompt, pruneHistory } from './prompt';
 
 export interface ProviderUsage {
 	inputTokens: number;
@@ -76,30 +74,28 @@ export interface AnswerProvider {
 		messages: AnswerRequest['messages'],
 		safetyIdentifier: string,
 		signal: AbortSignal,
-		toolsAvailable?: boolean,
+		tools?: ToolAccess,
 		onOutputTextDelta?: (delta: string) => void,
 		onUsage?: (usage: ProviderUsage) => void
 	): Promise<ProviderResult>;
 }
 
 const VISITOR_NOTE_DESCRIPTION =
-	"Explanation displayed directly to the visitor. Use the visitor's answer language, as defined in the developer instructions, for this note just as for the final answer; never switch to the language of the corpus, quoted lyrics, or earlier assistant notes.";
+	"Explanation displayed directly to the visitor. Use the visitor's answer language, as defined in the system instructions, for this note just as for the final answer; never switch to the language of the corpus, quoted lyrics, or earlier assistant notes.";
 
-export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
+export const DRAFT_TOOLS: Anthropic.Tool[] = [
 	{
-		type: 'function',
 		name: 'read_scribe',
 		description: "Ask the visitor to share the open lyric 'scribe for this turn.",
 		strict: true,
-		parameters: { type: 'object', additionalProperties: false, required: [], properties: {} }
+		input_schema: { type: 'object', additionalProperties: false, required: [], properties: {} }
 	},
 	{
-		type: 'function',
 		name: 'propose_edits',
 		description:
 			"Offer minimal anchor-text edits for a 'scribe already read in this turn, including a whole-text insertion into an empty 'scribe.",
 		strict: true,
-		parameters: {
+		input_schema: {
 			type: 'object',
 			additionalProperties: false,
 			required: ['proposals'],
@@ -107,7 +103,7 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 				proposals: {
 					type: 'array',
 					minItems: 1,
-					maxItems: MAX_PROPOSALS,
+					description: `At most ${MAX_PROPOSALS}.`,
 					items: {
 						type: 'object',
 						additionalProperties: false,
@@ -122,10 +118,10 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 									exact: { type: 'string' },
 									before: { type: 'string' },
 									after: { type: 'string' },
-									// Nullable rather than absent: a strict schema requires every
-									// property it lists, and this is the one field that can
-									// separate repeated copies of a chorus.
-									line: { type: ['integer', 'null'], minimum: 1 }
+									// Nullable rather than absent, as the argument schema requires:
+									// this is the one field that can separate repeated copies of a
+									// chorus, so the model always states whether it has one.
+									line: { anyOf: [{ type: 'integer' }, { type: 'null' }], description: '1-based.' }
 								}
 							},
 							replacement: { type: 'string' },
@@ -143,12 +139,11 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 		}
 	},
 	{
-		type: 'function',
 		name: 'manage_links',
 		description:
 			'Offer to link repeated choruses, pre-choruses, or post-choruses, or to dissolve an existing link group.',
 		strict: true,
-		parameters: {
+		input_schema: {
 			type: 'object',
 			additionalProperties: false,
 			required: ['actions'],
@@ -156,7 +151,7 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 				actions: {
 					type: 'array',
 					minItems: 1,
-					maxItems: MAX_LINK_ACTIONS,
+					description: `At most ${MAX_LINK_ACTIONS}.`,
 					items: {
 						type: 'object',
 						additionalProperties: false,
@@ -167,14 +162,14 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 							headers: {
 								type: 'array',
 								minItems: 1,
-								maxItems: MAX_LINK_HEADERS,
+								description: `At most ${MAX_LINK_HEADERS}.`,
 								items: {
 									type: 'object',
 									additionalProperties: false,
 									required: ['text', 'occurrence'],
 									properties: {
 										text: { type: 'string' },
-										occurrence: { type: 'integer', minimum: 1 }
+										occurrence: { type: 'integer', description: '1 for the first copy.' }
 									}
 								}
 							},
@@ -186,12 +181,11 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 		}
 	},
 	{
-		type: 'function',
 		name: 'show_lyrics',
 		description:
 			"Point the visitor at exact lyric text in a 'scribe already read in this turn. Each reference draws in the conversation and reveals its quoted lines in the visitor's editor; nothing is changed and no approval is asked.",
 		strict: true,
-		parameters: {
+		input_schema: {
 			type: 'object',
 			additionalProperties: false,
 			required: ['references'],
@@ -199,7 +193,7 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 				references: {
 					type: 'array',
 					minItems: 1,
-					maxItems: MAX_REFERENCES,
+					description: `At most ${MAX_REFERENCES}.`,
 					items: {
 						type: 'object',
 						additionalProperties: false,
@@ -214,10 +208,9 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 									exact: { type: 'string' },
 									before: { type: 'string' },
 									after: { type: 'string' },
-									// Nullable rather than absent: a strict schema requires every
-									// property it lists, and the line is what separates repeated
-									// copies of a chorus.
-									line: { type: ['integer', 'null'], minimum: 1 }
+									// Nullable rather than absent, as the argument schema requires:
+									// the line is what separates repeated copies of a chorus.
+									line: { anyOf: [{ type: 'integer' }, { type: 'null' }], description: '1-based.' }
 								}
 							},
 							note: { type: 'string', description: VISITOR_NOTE_DESCRIPTION }
@@ -292,91 +285,65 @@ function toolResultOutput(result: WireToolResult): string {
 }
 
 /**
- * One content part of a settled history message. `prompt_cache_breakpoint` is a
- * documented request field the SDK's part types carry no declaration for, which
- * is why the message it goes into is asserted rather than inferred.
+ * Whether a turn's draft tools are absent, offered, or spent. Spent tools stay
+ * declared and the request sets `tool_choice: none`: a thinking block is bound to
+ * the system prompt and tools it was produced under, so withdrawing the tools
+ * on the last call would invalidate the reasoning of every earlier round.
  */
-interface SettledContentPart {
-	type: 'output_text' | 'input_text';
-	text: string;
-	prompt_cache_breakpoint?: { mode: 'explicit' };
-}
-
-function settledInputItem(
-	role: 'developer' | 'user' | 'assistant',
-	text: string,
-	cacheBreakpoint = false
-): OpenAI.Responses.ResponseInputItem {
-	const part: SettledContentPart = {
-		// Each role has its own part type, and the API enforces it: an
-		// assistant turn replays as output_text, and input_text on an
-		// assistant message is a 400. This only fires when the history
-		// holds a COMPLETED exchange (failed turns are pruned), which is
-		// why every single-question test passed over it.
-		type: role === 'assistant' ? 'output_text' : 'input_text',
-		text
-	};
-	if (cacheBreakpoint) part.prompt_cache_breakpoint = { mode: 'explicit' };
-	// SAFETY: the pairing the SDK expresses through separate message types is
-	// established on the line above (an assistant turn carries `output_text` and
-	// every other role `input_text`), and the only field beyond those types is
-	// `prompt_cache_breakpoint`, which the API accepts and the SDK never declares.
-	return { role, content: [part] } as OpenAI.Responses.ResponseInputItem;
-}
+export type ToolAccess = 'none' | 'offered' | 'spent';
 
 export function providerRequest(
 	messages: AnswerRequest['messages'],
 	safetyIdentifier: string,
-	toolsAvailable = false,
+	tools: ToolAccess = 'none',
 	selectedCorpus: RulesCorpus = corpus
-): Omit<OpenAI.Responses.ResponseCreateParamsNonStreaming, 'stream'> {
+): Omit<Anthropic.MessageCreateParamsNonStreaming, 'model' | 'stream'> {
 	const pruned = pruneHistory(messages);
 	// The history is walked in order rather than grouped by kind. Grouped, with every
 	// settled message and then every tool item, an instruction appended after the
 	// tool rounds arrived before them, so FINAL_ROUND_INSTRUCTION told the model
 	// its rounds were spent above the rounds it was talking about, and a repair
 	// prompt landed the same way.
-	const input: OpenAI.Responses.ResponseInputItem[] = [
-		settledInputItem('developer', developerPrompt(selectedCorpus), true)
-	];
+	const history: Anthropic.MessageParam[] = [];
 	for (const message of pruned) {
 		if (message.role === 'assistant' && 'toolCalls' in message) {
-			input.push(...decodeProviderItems(message.providerItems));
+			history.push({ role: 'assistant', content: decodeProviderItems(message.providerItems) });
 		} else if (message.role === 'tool') {
-			for (const result of message.results) {
-				input.push({
-					type: 'function_call_output',
-					call_id: result.callId,
-					output: toolResultOutput(result)
-				});
-			}
+			history.push({
+				role: 'user',
+				content: message.results.map((result) => ({
+					type: 'tool_result' as const,
+					tool_use_id: result.callId,
+					content: toolResultOutput(result)
+				}))
+			});
 		} else {
-			input.push(settledInputItem(message.role, message.content));
+			history.push({ role: message.role, content: message.content });
 		}
 	}
 
-	const request: Omit<OpenAI.Responses.ResponseCreateParamsNonStreaming, 'stream'> = {
-		model: MODEL.id,
-		input,
-		reasoning: MODEL.reasoning,
-		store: false,
-		max_output_tokens: MODEL.maxOutputTokens,
-		safety_identifier: safetyIdentifier,
-		prompt_cache_key: `${promptCacheKey(selectedCorpus)}${toolsAvailable ? '-tools' : ''}`,
-		prompt_cache_options: { mode: 'explicit', ttl: '30m' },
-		text: {
-			verbosity: MODEL.verbosity,
-			format: {
-				type: 'json_schema',
-				name: 'assistant_answer',
-				strict: true,
-				schema: answerJsonSchema
+	const request: Omit<Anthropic.MessageCreateParamsNonStreaming, 'model' | 'stream'> = {
+		max_tokens: MODEL.maxOutputTokens,
+		// The cached prefix is the tools and this block, byte-identical for a given
+		// corpus, so the corpus hash is the cache key without anyone naming one.
+		system: [
+			{
+				type: 'text',
+				text: developerPrompt(selectedCorpus),
+				cache_control: { type: 'ephemeral', ttl: MODEL.cacheTtl }
 			}
-		}
+		],
+		messages: history,
+		thinking: { type: 'adaptive' },
+		output_config: {
+			effort: MODEL.effort,
+			format: { type: 'json_schema', schema: answerJsonSchema }
+		},
+		metadata: { user_id: safetyIdentifier }
 	};
-	if (toolsAvailable) {
+	if (tools !== 'none') {
 		request.tools = DRAFT_TOOLS;
-		request.include = ['reasoning.encrypted_content'];
+		if (tools === 'spent') request.tool_choice = { type: 'none' };
 	}
 	return request;
 }
@@ -396,186 +363,200 @@ export function gatewayHeaders(gatewayToken: string): GatewayHeaders {
 		// released every token in one final burst (211 deltas inside 0.9s at the
 		// end of a 22s call), which defeats streaming entirely. The cache also
 		// cannot pay for that cost any more: its key includes the full request
-		// body, and agent turns carry a per-session safety_identifier plus
-		// unique encrypted reasoning items, so a hit was already impossible.
+		// body, and agent turns carry a per-session user id plus signed thinking
+		// blocks, so a hit was already impossible.
 		'cf-aig-skip-cache': 'true',
 		'cf-aig-collect-log': 'false'
 	};
 }
 
-function responseUsage(response: OpenAI.Responses.Response): ProviderUsage {
+function messageUsage(message: Anthropic.Message): ProviderUsage {
+	const cachedInputTokens = message.usage.cache_read_input_tokens ?? 0;
+	const cacheWriteTokens = message.usage.cache_creation_input_tokens ?? 0;
 	return {
-		inputTokens: response.usage?.input_tokens ?? 0,
-		cachedInputTokens: response.usage?.input_tokens_details?.cached_tokens ?? 0,
-		cacheWriteTokens: response.usage?.input_tokens_details?.cache_write_tokens ?? 0,
-		outputTokens: response.usage?.output_tokens ?? 0
+		// Anthropic reports cache reads and writes beside `input_tokens`; this total
+		// includes them, which is what `estimateSpendUsd` subtracts them back out of.
+		inputTokens: message.usage.input_tokens + cachedInputTokens + cacheWriteTokens,
+		cachedInputTokens,
+		cacheWriteTokens,
+		outputTokens: message.usage.output_tokens
 	};
 }
 
-function parseToolCall(item: OpenAI.Responses.ResponseFunctionToolCall): ProviderToolCall {
-	if (item.arguments.length > MAX_TOOL_ARGUMENT_CHARS) {
+function parseToolCall(block: Anthropic.ToolUseBlock): ProviderToolCall {
+	if ((JSON.stringify(block.input) ?? '').length > MAX_TOOL_ARGUMENT_CHARS) {
 		throw new ApiError('invalid_answer', 'The assistant returned oversized tool arguments.');
 	}
-	let raw: unknown;
-	try {
-		raw = JSON.parse(item.arguments);
-	} catch {
-		throw new ApiError('invalid_answer', 'The assistant returned malformed tool arguments.');
-	}
-	if (item.name === 'read_scribe') {
-		const parsed = readScribeArgumentsSchema.safeParse(raw);
+	if (block.name === 'read_scribe') {
+		const parsed = readScribeArgumentsSchema.safeParse(block.input);
 		if (!parsed.success) {
 			throw new ApiError('invalid_answer', 'The assistant returned malformed tool arguments.');
 		}
-		return { callId: item.call_id, name: item.name, input: parsed.data };
+		return { callId: block.id, name: block.name, input: parsed.data };
 	}
-	if (item.name === 'propose_edits') {
-		const parsed = proposeEditsArgumentsSchema.safeParse(raw);
+	if (block.name === 'propose_edits') {
+		const parsed = proposeEditsArgumentsSchema.safeParse(block.input);
 		if (!parsed.success) {
 			throw new ApiError('invalid_answer', 'The assistant returned malformed tool arguments.');
 		}
-		return { callId: item.call_id, name: item.name, input: parsed.data };
+		return { callId: block.id, name: block.name, input: parsed.data };
 	}
-	if (item.name === 'manage_links') {
-		const parsed = manageLinksArgumentsSchema.safeParse(raw);
+	if (block.name === 'manage_links') {
+		const parsed = manageLinksArgumentsSchema.safeParse(block.input);
 		if (!parsed.success) {
 			throw new ApiError('invalid_answer', 'The assistant returned malformed tool arguments.');
 		}
-		return { callId: item.call_id, name: item.name, input: parsed.data };
+		return { callId: block.id, name: block.name, input: parsed.data };
 	}
-	if (item.name === 'show_lyrics') {
-		const parsed = showLyricsArgumentsSchema.safeParse(raw);
+	if (block.name === 'show_lyrics') {
+		const parsed = showLyricsArgumentsSchema.safeParse(block.input);
 		if (!parsed.success) {
 			throw new ApiError('invalid_answer', 'The assistant returned malformed tool arguments.');
 		}
-		return { callId: item.call_id, name: item.name, input: parsed.data };
+		return { callId: block.id, name: block.name, input: parsed.data };
 	}
 	throw new ApiError('invalid_answer', 'The assistant requested an unknown tool.');
 }
 
-/** The allowlisted entries a source object actually carries, in the order named.
- * A key the item does not have is dropped rather than written as `undefined`,
- * which `JSON.stringify` would omit anyway and the API would reject if it did not. */
-function entriesOf(source: JsonObject, keys: readonly string[]): [string, Json][] {
-	return keys.flatMap((key): [string, Json][] => {
-		const value = source[key];
-		return value === undefined ? [] : [[key, value]];
-	});
-}
-
 /**
- * Reduce an output item to the fields the Responses API accepts back as input.
- * The SDK's streaming helper decorates its final response (`parsed_arguments`
- * on function calls, `parsed` on structured message parts), and the API
- * rejects the whole continuation with a 400 for any field it does not know.
- * An allowlist per type is the only shape that survives future decorations.
+ * Reduce a response content block to the fields the Messages API accepts back.
+ * Thinking blocks go back unchanged (their signature is checked against them);
+ * the rest lose response-only fields (`citations`, `caller`), so a replay holds
+ * exactly what `providerItemsSchema` lets a client send.
  */
-export function replayableItem(item: OpenAI.Responses.ResponseOutputItem): JsonObject {
-	const source: JsonObject = Object.fromEntries(Object.entries(item));
-	const pick = (keys: string[]): JsonObject => Object.fromEntries(entriesOf(source, keys));
-	if (item.type === 'function_call') {
-		return pick(['type', 'id', 'status', 'arguments', 'call_id', 'name']);
+export function replayableBlock(block: Anthropic.ContentBlock): Anthropic.ContentBlockParam {
+	switch (block.type) {
+		case 'thinking':
+			return { type: block.type, thinking: block.thinking, signature: block.signature };
+		case 'redacted_thinking':
+			return { type: block.type, data: block.data };
+		case 'text':
+			return { type: block.type, text: block.text };
+		case 'tool_use':
+			return { type: block.type, id: block.id, name: block.name, input: block.input };
+		default:
+			throw new ApiError('invalid_answer', 'The assistant returned an unexpected content block.');
 	}
-	if (item.type === 'reasoning') {
-		return pick(['type', 'id', 'status', 'summary', 'content', 'encrypted_content']);
-	}
-	// A message: its output_text parts may carry the SDK's `parsed` twin of the
-	// structured answer, which is as unknown to the API as `parsed_arguments`.
-	const base = pick(['type', 'id', 'status', 'role']);
-	const content = source['content'];
-	if (Array.isArray(content)) {
-		base['content'] = content.map((part) =>
-			isJsonObject(part) && part['type'] === 'output_text'
-				? Object.fromEntries(entriesOf(part, ['type', 'text', 'annotations']))
-				: part
-		);
-	}
-	return base;
 }
 
-/** Convert an SDK response into the worker's two possible turn outcomes. */
-export function parseProviderResponse(response: OpenAI.Responses.Response): ProviderResult {
-	if (response.status !== 'completed') {
-		// `incomplete` with reason `max_output_tokens` is a truncation, not an
-		// outage; the distinction only exists in this log.
-		console.error('assistant_response_not_completed', {
-			status: response.status,
-			reason: response.incomplete_details?.reason
-		});
+/** Convert a final message into the worker's two possible turn outcomes. */
+export function parseProviderResponse(message: Anthropic.Message): ProviderResult {
+	if (message.stop_reason === 'refusal') {
+		// A safety classifier declined. The category is the one thing worth keeping.
+		console.error('assistant_refusal', { category: message.stop_details?.category ?? null });
+		throw new ApiError('provider_error', 'The model declined to answer this.');
+	}
+	if (message.stop_reason !== 'end_turn' && message.stop_reason !== 'tool_use') {
+		// `max_tokens` is a truncation, not an outage; the distinction only exists in this log.
+		console.error('assistant_response_not_completed', { stopReason: message.stop_reason });
 		throw new ApiError('provider_error', 'The model did not finish an answer.');
 	}
-	const functionCalls = response.output.filter(
-		(item): item is OpenAI.Responses.ResponseFunctionToolCall => item.type === 'function_call'
+	const toolUses = message.content.filter(
+		(block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
 	);
-	if (functionCalls.length > 0) {
-		const calls = functionCalls.map(parseToolCall);
-		const providerItems = JSON.stringify(
-			response.output
-				.filter((item) => ['reasoning', 'function_call', 'message'].includes(item.type))
-				.map(replayableItem)
-		);
+	if (toolUses.length > 0) {
+		const calls = toolUses.map(parseToolCall);
+		const providerItems = JSON.stringify(message.content.map(replayableBlock));
 		if (!providerItemsSchema.safeParse(providerItems).success) {
 			throw new ApiError('invalid_answer', 'The assistant returned invalid continuation data.');
 		}
-		return { kind: 'tool_calls', calls, providerItems, usage: responseUsage(response) };
+		return { kind: 'tool_calls', calls, providerItems, usage: messageUsage(message) };
 	}
-	if (!response.output_text) {
+	const text = message.content
+		.flatMap((block) => (block.type === 'text' ? [block.text] : []))
+		.join('');
+	if (!text) {
 		throw new ApiError('provider_error', 'The model did not finish an answer.');
 	}
 	let raw: Json;
 	try {
-		raw = JSON.parse(response.output_text);
+		raw = JSON.parse(text);
 	} catch {
 		throw new ApiError('invalid_answer', 'The assistant returned a malformed answer.');
 	}
-	return { kind: 'answer', raw, usage: responseUsage(response) };
+	return { kind: 'answer', raw, usage: messageUsage(message) };
 }
 
-export function createOpenAiProvider(
+/**
+ * The newest Claude Sonnet by release date. There is no "latest Sonnet" alias
+ * to send instead: every Claude model id names a pinned snapshot, so following
+ * the line means asking the Models API.
+ */
+export async function newestSonnet(models: AsyncIterable<Anthropic.ModelInfo>): Promise<string> {
+	let newest: Anthropic.ModelInfo | undefined;
+	for await (const model of models) {
+		if (!model.id.startsWith('claude-sonnet-')) continue;
+		if (!newest || Date.parse(model.created_at) > Date.parse(newest.created_at)) newest = model;
+	}
+	if (!newest) throw new Error('The Models API listed no Claude Sonnet.');
+	return newest.id;
+}
+
+let sonnetLookup: Promise<string> | undefined;
+let resolvedModel = '';
+
+/**
+ * Resolved once per isolate, so a new Sonnet is picked up as isolates recycle,
+ * with no deploy; a failed lookup is forgotten and the next request retries it.
+ * The listing carries no visitor data, so it goes to Anthropic directly rather
+ * than through the Gateway.
+ */
+function latestSonnet(apiKey: string): Promise<string> {
+	sonnetLookup ??= newestSonnet(new Anthropic({ apiKey, timeout: 10_000 }).models.list()).then(
+		(id) => {
+			resolvedModel = id;
+			return id;
+		},
+		(error: unknown) => {
+			sonnetLookup = undefined;
+			throw error;
+		}
+	);
+	return sonnetLookup;
+}
+
+/** The model this isolate resolved, for metrics; empty until the first lookup lands. */
+export function modelId(): string {
+	return resolvedModel;
+}
+
+export function createAnthropicProvider(
 	baseUrl: string,
-	openAiApiKey: string,
+	anthropicApiKey: string,
 	gatewayToken: string,
 	selectedCorpus: RulesCorpus
 ): AnswerProvider {
-	const client = new OpenAI({
+	const client = new Anthropic({
 		baseURL: baseUrl,
-		apiKey: openAiApiKey,
+		apiKey: anthropicApiKey,
 		defaultHeaders: gatewayHeaders(gatewayToken)
 	});
-	return async (
-		messages,
-		safetyIdentifier,
-		signal,
-		toolsAvailable = false,
-		onOutputTextDelta,
-		onUsage
-	) => {
-		let response: OpenAI.Responses.Response;
+	return async (messages, safetyIdentifier, signal, tools = 'none', onOutputTextDelta, onUsage) => {
+		let message: Anthropic.Message;
 		try {
-			const stream = client.responses.stream(
-				providerRequest(messages, safetyIdentifier, toolsAvailable, selectedCorpus),
+			const stream = client.messages.stream(
+				{
+					model: await latestSonnet(anthropicApiKey),
+					...providerRequest(messages, safetyIdentifier, tools, selectedCorpus)
+				},
 				{ signal }
 			);
-			if (onOutputTextDelta) {
-				stream.on('response.output_text.delta', (event) => onOutputTextDelta(event.delta));
-			}
+			if (onOutputTextDelta) stream.on('text', (delta) => onOutputTextDelta(delta));
 			if (onUsage) {
-				for (const eventName of [
-					'response.completed',
-					'response.failed',
-					'response.incomplete'
-				] as const) {
-					stream.on(eventName, (event: { response: OpenAI.Responses.Response }) =>
-						onUsage(responseUsage(event.response))
-					);
-				}
+				// message_start carries the input side and message_delta the output so far,
+				// so a call that fails midway still reports what it spent.
+				stream.on('streamEvent', (event, snapshot) => {
+					if (event.type === 'message_start' || event.type === 'message_delta') {
+						onUsage(messageUsage(snapshot));
+					}
+				});
 			}
-			// The helper accumulates the completed stream back into the same Response
-			// shape the parsing, tool extraction, and spend accounting already consume.
-			response = await stream.finalResponse();
+			// The helper accumulates the stream back into the same Message shape the
+			// parsing, tool extraction, and spend accounting consume.
+			message = await stream.finalMessage();
 		} catch (error) {
 			// The worded ApiError is all a browser sees; without this line the SDK's
-			// actual refusal (a 400 on a malformed input item, an auth failure) is
+			// actual refusal (a 400 on a malformed replay, an auth failure) is
 			// invisible in every log.
 			console.error('assistant_provider_call_failed', {
 				cause: error instanceof Error ? error.message : String(error)
@@ -584,6 +565,6 @@ export function createOpenAiProvider(
 				throw new ApiError('provider_error', 'The model took too long to answer.');
 			throw new ApiError('provider_error', 'The model is unavailable right now.');
 		}
-		return parseProviderResponse(response);
+		return parseProviderResponse(message);
 	};
 }

@@ -2,7 +2,7 @@
 	// LyricLint "Ask the Rules" assistant: a Worker separate from the Pages deployment.
 	// Secrets (set with `wrangler secret put`, never committed):
 	//   AI_GATEWAY_TOKEN:       Cloudflare AI Gateway authentication token
-	//   OPENAI_API_KEY:         OpenAI project API key (BYOK through the Gateway)
+	//   ANTHROPIC_API_KEY:      Anthropic API key (BYOK through the Gateway)
 	//   TURNSTILE_SECRET:       Turnstile server-side secret
 	//   ABUSE_HMAC_SECRET:      HMAC key for hashing session/IP abuse identifiers
 	//   SESSION_SIGNING_SECRET: HMAC key for the anonymous session cookie
@@ -20,8 +20,8 @@
 		"ASSISTANT_DISABLED": "false",
 		"TURNSTILE_ALLOW_LOCALHOST": "false",
 		"ALLOWED_ORIGIN": "https://lyriclint.com,https://dev.lyriclint.com",
-		// Provider-native OpenAI endpoint (account and gateway ids are not secrets).
-		"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/ffdf1ff5874475b8eaf9f691e42f27ce/lyriclint-assistant/openai"
+		// Provider-native Anthropic endpoint (account and gateway ids are not secrets).
+		"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/ffdf1ff5874475b8eaf9f691e42f27ce/lyriclint-assistant/anthropic"
 	},
 	"durable_objects": {
 		"bindings": [{ "name": "QUOTAS", "class_name": "QuotaCounter" }]

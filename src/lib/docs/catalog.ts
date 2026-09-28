@@ -229,7 +229,7 @@ export const docsPages: readonly DocsPage[] = [
 			{ id: 'edits', title: 'Suggested edits' },
 			{ id: 'conversations', title: 'Conversations' }
 		],
-		keywords: ['ai', 'chat', 'question', 'help', 'ask', 'permission', 'proofread', 'openai']
+		keywords: ['ai', 'chat', 'question', 'help', 'ask', 'permission', 'proofread', 'anthropic', 'claude']
 	},
 	{
 		slug: 'phone',

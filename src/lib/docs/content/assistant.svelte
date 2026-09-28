@@ -64,7 +64,7 @@
 	> takes back an Allow, and <strong>Ask again before sharing this 'scribe</strong> undoes a Deny.
 </p>
 <p>
-	From the guidelines pages, the assistant has no 'scribe to read. Messages are processed by OpenAI
+	From the guidelines pages, the assistant has no 'scribe to read. Messages are processed by Anthropic
 	through Cloudflare. The <a href={resolve('/privacy/')}>privacy page</a> says exactly what is sent
 	and kept.
 </p>

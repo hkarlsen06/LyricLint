@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker, { createHandler } from '../src/index';
 import { corpus, corpusCatalog, createCorpusCatalog, type RulesCorpus } from '../src/corpus';
-import { promptCacheKey } from '../src/prompt';
 import { goodTurnstile, makeEnv, makeRequest, providerReturning, requestBody } from './harness';
 
 function snapshot(label: string): RulesCorpus {
@@ -101,51 +100,65 @@ describe('release corpus compatibility', () => {
 			const attempts = new Map<string, number>();
 			// Exercise the real SDK over its HTTP boundary. Both concurrent calls
 			// must serialize the correct prompt and keep that corpus through repair.
-			const fetchProvider = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
-				const request: { prompt_cache_key: string; input: unknown } = JSON.parse(
+			const modelCalls: string[] = [];
+			const messageCalls: string[] = [];
+			const fetchProvider = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+				const href = String(url instanceof Request ? url.url : url);
+				if (new URL(href).pathname === '/v1/models') {
+					// The listing goes to Anthropic directly: it carries no visitor data.
+					modelCalls.push(href);
+					return Response.json({
+						data: [
+							{ type: 'model', id: 'claude-opus-5-5', created_at: '2026-09-22T00:00:00Z' },
+							{ type: 'model', id: 'claude-sonnet-5-5', created_at: '2026-09-28T00:00:00Z' },
+							{ type: 'model', id: 'claude-sonnet-5', created_at: '2026-05-01T00:00:00Z' }
+						],
+						has_more: false,
+						first_id: 'claude-opus-5-5',
+						last_id: 'claude-sonnet-5'
+					});
+				}
+				messageCalls.push(href);
+				const request: { model: string; system: { text: string }[] } = JSON.parse(
 					String(init?.body)
 				);
-				const selected = [previous, candidate].find(
-					(entry) => request.prompt_cache_key === promptCacheKey(entry)
+				expect(request.model).toBe('claude-sonnet-5-5');
+				const selected = [previous, candidate].find((entry) =>
+					request.system[0]!.text.includes(entry.contentHash)
 				);
 				expect(selected).toBeDefined();
 				const held = selected!;
-				expect(JSON.stringify(request.input)).toContain(held.contentHash);
 				const attempt = (attempts.get(held.contentHash) ?? 0) + 1;
 				attempts.set(held.contentHash, attempt);
 				const other = held === previous ? candidate : previous;
 				if (attempt === 1) await firstResponses;
-				const created = {
-					id: `response-${held.contentHash}-${attempt}`,
-					object: 'response',
-					status: 'in_progress',
-					output: []
-				};
-				const completed = {
-					...created,
-					status: 'completed',
-					output: [
-						{
-							id: `message-${held.contentHash}-${attempt}`,
-							type: 'message',
-							role: 'assistant',
-							status: 'completed',
-							content: [
-								{
-									type: 'output_text',
-									annotations: [],
-									// A foreign citation must require repair even when both
-									// releases use the same ruleset version.
-									text: JSON.stringify(answerFor(attempt === 1 ? other : held))
-								}
-							]
-						}
-					]
-				};
+				// A foreign citation must require repair even when both releases use
+				// the same ruleset version.
+				const text = JSON.stringify(answerFor(attempt === 1 ? other : held));
 				return new Response(
 					[
-						{ type: 'response.created', sequence_number: 0, response: created },
-						{ type: 'response.completed', sequence_number: 1, response: completed }
+						{
+							type: 'message_start',
+							message: {
+								id: `msg-${held.contentHash}-${attempt}`,
+								type: 'message',
+								role: 'assistant',
+								model: request.model,
+								content: [],
+								stop_reason: null,
+								stop_sequence: null,
+								usage: { input_tokens: 10, output_tokens: 1 }
+							}
+						},
+						{ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+						{ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } },
+						{ type: 'content_block_stop', index: 0 },
+						{
+							type: 'message_delta',
+							delta: { stop_reason: 'end_turn', stop_sequence: null },
+							usage: { output_tokens: 20 }
+						},
+						{ type: 'message_stop' }
 					]
 						.map((event) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`)
 						.join(''),
@@ -174,7 +187,7 @@ describe('release corpus compatibility', () => {
 				)
 			);
 			try {
-				await vi.waitFor(() => expect(fetchProvider).toHaveBeenCalledTimes(2));
+				await vi.waitFor(() => expect(messageCalls).toHaveLength(2));
 			} finally {
 				release();
 			}
@@ -200,6 +213,11 @@ describe('release corpus compatibility', () => {
 					expect(events.at(-1)).toMatchObject({ type: 'done' });
 				}
 			}
+			// The Gateway carries every model call; the lookup, at most once per isolate, does not.
+			expect(
+				messageCalls.every((href) => href.startsWith('https://gateway.invalid/anthropic/'))
+			).toBe(true);
+			expect(modelCalls.every((href) => href.startsWith('https://api.anthropic.com/'))).toBe(true);
 			expect(attempts).toEqual(
 				new Map([
 					[previous.contentHash, 2],

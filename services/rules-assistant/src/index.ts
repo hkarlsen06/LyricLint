@@ -29,12 +29,14 @@ import {
 	type TurnstileVerifier
 } from './identity';
 import {
-	createOpenAiProvider,
+	createAnthropicProvider,
+	modelId,
 	estimateSpendUsd,
 	type AnswerProvider,
 	type ProviderResult,
 	type ProviderUsage,
-	type ProviderToolCall
+	type ProviderToolCall,
+	type ToolAccess
 } from './provider';
 import type { BeginBody, BeginResult, QuotaRequest } from './quota-do';
 import {
@@ -219,7 +221,7 @@ interface TurnMetric {
 
 function writeMetric(env: Env, point: TurnMetric): void {
 	env.METRICS?.writeDataPoint({
-		blobs: [point.outcome, point.code ?? '', MODEL.id, point.requestId ?? ''],
+		blobs: [point.outcome, point.code ?? '', modelId(), point.requestId ?? ''],
 		doubles: [
 			point.latencyMs,
 			point.inputTokens ?? 0,
@@ -412,9 +414,9 @@ export function createHandler(options: HandlerOptions = {}) {
 			// --- The model ---------------------------------------------------------
 			const provider =
 				options.provider ??
-				createOpenAiProvider(
+				createAnthropicProvider(
 					env.AI_GATEWAY_BASE_URL,
-					env.OPENAI_API_KEY,
+					env.ANTHROPIC_API_KEY,
 					env.AI_GATEWAY_TOKEN,
 					selectedCorpus.corpus
 				);
@@ -426,14 +428,15 @@ export function createHandler(options: HandlerOptions = {}) {
 				// left will use them, having no way to know the budget exists, and
 				// the turn then died on a gate the visitor reads as "the answer
 				// failed validation", losing everything the earlier rounds
-				// established. Withheld, the last call can only answer, which is what
-				// the visitor is owed at that point. `toolsAvailable` on the request
-				// keeps its own meaning throughout: it is what the answer's
-				// `draft-work` scope is checked against, and a turn that used tools
-				// is still a turn that used them.
+				// established. Withheld (`spent`: still declared, not callable), the
+				// last call can only answer, which is what the visitor is owed at
+				// that point. `toolsAvailable` on the request keeps its own meaning
+				// throughout: it is what the answer's `draft-work` scope is checked
+				// against, and a turn that used tools is still a turn that used them.
 				const toolBudgetSpent =
 					body.toolsAvailable === true && toolRoundCount(body.messages) >= MAX_TOOL_ROUNDS;
-				const providerTools = body.toolsAvailable === true && !toolBudgetSpent;
+				const providerTools: ToolAccess =
+					body.toolsAvailable !== true ? 'none' : toolBudgetSpent ? 'spent' : 'offered';
 				const providerMessages: AnswerRequest['messages'] = toolBudgetSpent
 					? [...body.messages, { role: 'user', content: FINAL_ROUND_INSTRUCTION }]
 					: body.messages;

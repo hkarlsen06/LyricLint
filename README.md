@@ -94,7 +94,7 @@ rather than quietly overwritten.
 - Two things contact a third party, each only when you ask: attaching audio
   from YouTube, Spotify, or Apple Music loads that provider's player per
   session; and the optional **rules assistant** sends the question you type to
-  LyricLint's answering service, which forwards it to OpenAI through Cloudflare
+  LyricLint's answering service, which forwards it to Anthropic through Cloudflare
   AI Gateway. If the assistant asks to read the open 'scribe, it is sent only
   after your explicit per-'scribe choice; the same consent gates edit proposals.
   Conversations are stored in your browser only; see

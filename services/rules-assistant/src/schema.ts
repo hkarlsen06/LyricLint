@@ -212,75 +212,24 @@ export const wireToolResultSchema = z.discriminatedUnion('name', [
 		.strict()
 ]);
 
-/** The two part types an assistant message can be replayed with. */
-const providerMessageContentSchema = z.discriminatedUnion('type', [
-	z
-		.object({
-			type: z.literal('output_text'),
-			text: z.string(),
-			// This worker enables only function tools, so its intermediate output
-			// cannot carry file or web annotations. Keeping the field exact makes
-			// the replay value assignable to the provider SDK without a cast.
-			annotations: z.array(z.never()).max(0)
-		})
-		.strict(),
-	z.object({ type: z.literal('refusal'), refusal: z.string() }).strict()
-]);
-
-const providerStatusSchema = z.enum(['in_progress', 'completed', 'incomplete']);
-
-const providerReasoningSummarySchema = z
-	.object({ type: z.literal('summary_text'), text: z.string() })
-	.strict();
-
-const providerReasoningContentSchema = z
-	.object({ type: z.literal('reasoning_text'), text: z.string() })
-	.strict();
-
 /**
- * A replay item is handed straight back to the provider as input, so what a
- * client may send is exactly what `replayableItem` in provider.ts writes: these
- * three types, these fields, and nothing else. Under a passthrough a client
- * could put a developer- or system-role message into the model's own input.
- *
- * A field is required here exactly where the provider SDK declares it required
- * on the item type, and that mirroring is what lets a parsed replay item assign to
- * `ResponseInputItem` without a cast, and it means a provider response missing
- * one fails validation as `invalid_answer` at serialization time rather than as
- * an opaque 400 when the continuation is replayed.
+ * A replay item is handed straight back to the provider as assistant content,
+ * so what a client may send is exactly what `replayableBlock` in provider.ts
+ * writes: these four block types, these fields, and nothing else. Under a
+ * passthrough a client could smuggle a block type the worker never produced
+ * into the model's own turn. A thinking block's signature is verified by the
+ * API, so a forged or edited one fails there rather than reaching the model.
  */
 const providerItemSchema = z.discriminatedUnion('type', [
+	z.object({ type: z.literal('thinking'), thinking: z.string(), signature: z.string() }).strict(),
+	z.object({ type: z.literal('redacted_thinking'), data: z.string() }).strict(),
+	z.object({ type: z.literal('text'), text: z.string() }).strict(),
 	z
 		.object({
-			type: z.literal('function_call'),
-			id: z.string().optional(),
-			status: providerStatusSchema.optional(),
-			arguments: z.string().max(MAX_TOOL_ARGUMENT_CHARS),
-			call_id: z.string().min(1),
-			name: z.enum(toolNames)
-		})
-		.strict(),
-	z
-		.object({
-			type: z.literal('reasoning'),
-			id: z.string(),
-			status: providerStatusSchema.optional(),
-			summary: z.array(providerReasoningSummarySchema),
-			content: z.array(providerReasoningContentSchema).optional(),
-			// The worker only ever asks for encrypted reasoning, so an item
-			// without it is not one it produced.
-			encrypted_content: z.string()
-		})
-		.strict(),
-	z
-		.object({
-			type: z.literal('message'),
-			id: z.string(),
-			status: providerStatusSchema,
-			// Never 'developer' or 'system': the item is replayed into the model's
-			// input, so any other role is a prompt the client wrote.
-			role: z.literal('assistant'),
-			content: z.array(providerMessageContentSchema)
+			type: z.literal('tool_use'),
+			id: z.string().min(1),
+			name: z.enum(toolNames),
+			input: z.record(z.string(), z.unknown())
 		})
 		.strict()
 ]);
@@ -316,8 +265,8 @@ const wireToolCallMessageSchema = z
 	})
 	.strict()
 	.superRefine((value, context) => {
-		// The items are replayed verbatim, so every function call in them must be
-		// one this message declares: an unmatched call is a tool round the browser
+		// The items are replayed verbatim, so every tool call in them must be one
+		// this message declares: an unmatched call is a tool round the browser
 		// never ran, carrying whatever arguments the client chose.
 		let items: Json;
 		try {
@@ -330,8 +279,8 @@ const wireToolCallMessageSchema = z
 		for (const item of items) {
 			if (!isJsonObject(item)) continue;
 			const name = item['name'];
-			const callId = item['call_id'];
-			if (item['type'] !== 'function_call' || name === undefined || callId === undefined) continue;
+			const callId = item['id'];
+			if (item['type'] !== 'tool_use' || name === undefined || callId === undefined) continue;
 			if (!declared.has(`${String(name)}\0${String(callId)}`)) {
 				context.addIssue({
 					code: 'custom',
@@ -483,7 +432,7 @@ export const structuredAnswerSchema = z
 export type AnswerBlock = z.infer<typeof answerBlockSchema>;
 export type StructuredAnswer = z.infer<typeof structuredAnswerSchema>;
 
-/** JSON Schema handed to the Responses API as the strict output format. */
+/** JSON Schema handed to the Messages API as the structured output format. */
 export const answerJsonSchema = {
 	type: 'object',
 	additionalProperties: false,

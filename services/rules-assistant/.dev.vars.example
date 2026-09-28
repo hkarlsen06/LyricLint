@@ -5,13 +5,13 @@
 # refuses any other Origin header outright.
 ALLOWED_ORIGIN=http://127.0.0.1:5173
 
-# Cloudflare's provider-native OpenAI endpoint. The account and gateway ids are
+# Cloudflare's provider-native Anthropic endpoint. The account and gateway ids are
 # not secrets.
-AI_GATEWAY_BASE_URL=https://gateway.ai.cloudflare.com/v1/YOUR_ACCOUNT_ID/lyriclint-assistant-dev/openai
+AI_GATEWAY_BASE_URL=https://gateway.ai.cloudflare.com/v1/YOUR_ACCOUNT_ID/lyriclint-assistant-dev/anthropic
 
-# The Gateway authentication token and your OpenAI project key.
+# The Gateway authentication token and your Anthropic API key.
 AI_GATEWAY_TOKEN=
-OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
 
 # Turnstile's official always-passing test pair. The matching site key for the
 # frontend is 1x00000000000000000000AA.

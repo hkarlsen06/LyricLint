@@ -71,26 +71,27 @@ export const SESSION_RULES = {
 } as const;
 
 export const MODEL = {
-	/** Provider-native OpenAI model id, routed through Cloudflare AI Gateway. */
-	id: 'gpt-5.6-sol',
-	// Sol at medium passed the short Norwegian tool-note regression that Luna
-	// failed; see ../eval/language-incident.md. Higher efforts spend more tokens and can
-	// put long stretches of silence before the first streamed token.
-	reasoning: { effort: 'medium', context: 'current_turn' },
-	/** GPT-5.6 answer-length default. The prompt already bounds what an answer
-	 * must contain (lookup-table summaries, the four-rule cap); this trims the
-	 * prose around that content rather than the content itself. */
-	verbosity: 'low',
+	// No `id`: the provider resolves the newest Claude Sonnet from the Models API
+	// (see `latestSonnet` in provider.ts), so a new Sonnet ships without a deploy.
+	// ponytail: the settings and prices below were chosen for Claude Sonnet 5.5; a
+	// future Sonnet that changes its request surface or price needs them revisited.
+	/** Adaptive thinking effort. Anthropic's starting point for multistep tool use;
+	 * higher efforts spend more tokens and put longer silences before the first
+	 * streamed token. */
+	effort: 'medium',
+	/** Thinking counts toward this as well as the answer. */
 	maxOutputTokens: 16_384,
+	/** The cached prefix (tools, instructions, corpus) outlives sparse traffic. */
+	cacheTtl: '1h',
 	/** A hung provider call must release concurrency slots; abort after this. */
 	providerTimeoutMs: 120_000,
-	/** Standard-processing prices per 1M tokens. Gateway spend limits remain the
+	/** Standard prices per 1M tokens. Gateway spend limits remain the
 	 * authoritative global ceiling; these enforce the per-session approximation. */
-	estInputUsdPerMTok: 4,
-	estCachedInputUsdPerMTok: 0.4,
-	/** GPT-5.6 explicit cache writes are billed at 1.25x uncached input. */
-	estCacheWriteUsdPerMTok: 5,
-	estOutputUsdPerMTok: 20
+	estInputUsdPerMTok: 2,
+	estCachedInputUsdPerMTok: 0.2,
+	/** One-hour cache writes are billed at 2x uncached input. */
+	estCacheWriteUsdPerMTok: 4,
+	estOutputUsdPerMTok: 10
 } as const;
 
 /** Worst-case output spend held while a global request is in flight. The
@@ -109,7 +110,7 @@ export interface Env {
 	ALLOWED_ORIGIN: string;
 	AI_GATEWAY_BASE_URL: string;
 	AI_GATEWAY_TOKEN: string;
-	OPENAI_API_KEY: string;
+	ANTHROPIC_API_KEY: string;
 	TURNSTILE_SECRET: string;
 	TURNSTILE_ALLOW_LOCALHOST?: string;
 	ABUSE_HMAC_SECRET: string;

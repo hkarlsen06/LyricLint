@@ -1,18 +1,18 @@
 /** Explicit live-evaluation entry point; never imported by the Worker or unit tests. */
 import process from 'node:process';
 import { corpus } from '../src/corpus.ts';
-import { createOpenAiProvider } from '../src/provider.ts';
+import { createAnthropicProvider } from '../src/provider.ts';
 import { evaluateToolLanguage } from './tool-language.ts';
 
-const { AI_GATEWAY_BASE_URL, OPENAI_API_KEY, AI_GATEWAY_TOKEN } = process.env;
-if (!AI_GATEWAY_BASE_URL || !OPENAI_API_KEY || !AI_GATEWAY_TOKEN) {
+const { AI_GATEWAY_BASE_URL, ANTHROPIC_API_KEY, AI_GATEWAY_TOKEN } = process.env;
+if (!AI_GATEWAY_BASE_URL || !ANTHROPIC_API_KEY || !AI_GATEWAY_TOKEN) {
 	throw new Error(
-		'Configure AI_GATEWAY_BASE_URL, OPENAI_API_KEY, and AI_GATEWAY_TOKEN; see eval/README.md.'
+		'Configure AI_GATEWAY_BASE_URL, ANTHROPIC_API_KEY, and AI_GATEWAY_TOKEN; see eval/README.md.'
 	);
 }
-const provider = createOpenAiProvider(
+const provider = createAnthropicProvider(
 	AI_GATEWAY_BASE_URL,
-	OPENAI_API_KEY,
+	ANTHROPIC_API_KEY,
 	AI_GATEWAY_TOKEN,
 	corpus
 );

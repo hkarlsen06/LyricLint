@@ -33,7 +33,7 @@ export async function evaluateToolLanguage(
 			messages,
 			'eval-norwegian-tool-notes',
 			AbortSignal.timeout(120_000),
-			round < 4
+			round < 4 ? 'offered' : 'spent'
 		);
 		if (result.kind === 'answer') {
 			const raw = structuredAnswerSchema.parse(result.raw);

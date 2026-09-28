@@ -32,7 +32,7 @@ narrow heuristic, not a general language detector; inspect printed prose on fail
 Set `TOOL_LANGUAGE_EVAL_QUESTION` to run a longer Norwegian control question.
 It makes at most five provider requests and never changes a real document.
 
-From the repository root, with `AI_GATEWAY_BASE_URL`, `OPENAI_API_KEY`, and
+From the repository root, with `AI_GATEWAY_BASE_URL`, `ANTHROPIC_API_KEY`, and
 `AI_GATEWAY_TOKEN` available in the environment or the service's `.dev.vars`:
 
 ```bash

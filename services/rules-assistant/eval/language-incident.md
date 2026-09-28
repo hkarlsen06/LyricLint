@@ -1,5 +1,9 @@
 # Norwegian tool annotations switching to German
 
+> This is a historical record. The production provider has since moved from
+> OpenAI to the newest Claude Sonnet; the Sol and Luna findings below describe
+> the OpenAI period, and the prices and model ids are those of that period.
+
 On September 9, 2026, the visitor sent `Korrekturles`. The assistant displayed
 German `show_lyrics` and `propose_edits` notes, followed by a Norwegian final
 answer. Checking only final answer blocks had missed the annotation failure.

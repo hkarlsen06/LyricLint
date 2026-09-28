@@ -181,7 +181,7 @@ export async function hashIdentifier(
 	return base64url(mac).slice(0, 32);
 }
 
-/** Privacy-preserving stable identifier forwarded to OpenAI as `safety_identifier`. */
+/** Privacy-preserving stable identifier forwarded to Anthropic as `metadata.user_id`. */
 export async function safetyIdentifier(sid: string, secret: string): Promise<string> {
 	return `ll-${await hashIdentifier('session', sid, secret)}`;
 }

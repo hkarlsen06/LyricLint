@@ -2,8 +2,8 @@
  * Prompt assembly. Order is fixed: stable developer instructions, the whole
  * reviewed corpus, an explicit cache breakpoint, pruned history, the question.
  * Everything before the breakpoint is byte-identical for a given corpus, so
- * the provider's prompt cache, keyed on ruleset version + corpus hash, hits
- * on every request after the first.
+ * the provider's prompt cache, a prefix match, hits on every request after the
+ * first and misses exactly when the corpus changes.
  */
 import { MAX_TOOL_ROUNDS, REQUEST_RULES } from './config';
 import type { RulesCorpus } from './corpus';
@@ -262,10 +262,6 @@ function corpusText(corpus: RulesCorpus): string {
 		`LyricLint reviewed corpus (ruleset ${corpus.ruleSetVersion}, content hash ${corpus.contentHash})`,
 		JSON.stringify(corpus)
 	].join('\n');
-}
-
-export function promptCacheKey(corpus: RulesCorpus): string {
-	return `lyriclint-rules-${corpus.ruleSetVersion}-${corpus.contentHash.slice(0, 16)}`;
 }
 
 function isSettledMessage(

@@ -34,9 +34,11 @@ event follows it.
   concurrency slots, and spend accounting per hashed identifier.
 - `src/identity.ts`: Turnstile verification, the signed anonymous session
   cookie, and the HMAC hashing that keeps raw IPs out of storage and metrics.
-- `src/provider.ts`: the OpenAI Responses call through the Gateway (model and
-  reasoning settings from `src/config.ts`, `store: false`, strict JSON schema
-  output, prompt cache keyed on ruleset version + corpus hash).
+- `src/provider.ts`: the Anthropic Messages call through the Gateway (the
+  newest Claude Sonnet, resolved from Anthropic's Models API once per isolate;
+  thinking and output settings from `src/config.ts`; strict JSON schema output
+  and strict tool schemas; a one-hour prompt cache on the tools and system
+  prompt).
 - `generated/rules-context.json` and `generated/rules-context-data.ts`: the
   knowledge corpus and its cast-free TypeScript loading form. The producer owns
   their dependency-free contract in `src/lib/rules/assistant-corpus-types.ts`;
@@ -70,7 +72,7 @@ for what the assistant is allowed to say:
 - **`curatedMisspellings` are LyricLint's own.** `coz`, `couse` and `tryina`
   are detected like an alternate and named by no reviewed guideline. Merged
   into `instead` they would read as Genius policy, which is the one thing the
-  developer instructions forbid.
+  system prompt forbids.
 - **`fix` is per entry.** A rule's `fixability` is a ceiling (most reviewed
   spellings are a one-press fix under `spelling.standardized`'s `preview`
   ceiling), so reporting the rule's kind for a whole table would tell the
@@ -93,7 +95,7 @@ in `show_lyrics`, `propose_edits`, and `manage_links`. These are shown directly
 in the transcript before the final answer. An instruction limited to “answer
 blocks” left Norwegian proofreading with German annotations even when the final
 answer was Norwegian. The shared tool-note description now carries the same
-language requirement as the developer prompt. Lyric anchors and replacements
+language requirement as the system prompt. Lyric anchors and replacements
 remain in the transcription's language; they are not prose to translate.
 Language evals must inspect tool notes separately from final answer blocks, since
 a Norwegian final answer does not establish that the tool annotations were Norwegian.
@@ -102,11 +104,20 @@ That instruction gap was not the whole cause. Complete tool-round reproductions
 showed Luna switching to German on `Korrekturles`, even without the reviewed
 corpus and despite stronger language instructions. Sol handled both the short
 Norwegian command and a German control with the original prompt. The provider
-therefore uses `gpt-5.6-sol` at medium reasoning, with matching spend-accounting
-rates. The [incident record](eval/language-incident.md) contains the controls,
-results, limits, and reason for retaining reasoning replay.
+therefore moved to `gpt-5.6-sol` at medium reasoning, with matching
+spend-accounting rates. The [incident record](eval/language-incident.md) contains
+the controls, results, limits, and reason for retaining reasoning replay.
 
-## The tool budget is spent by withholding the tools
+The provider has since moved from OpenAI to the newest Claude Sonnet (today
+Claude Sonnet 5.5, `claude-sonnet-5-5`) with adaptive thinking at `medium`
+effort, and spend accounting moved with it: $2 input, $10 output, $0.20 cache
+read, and $4 one-hour cache write per million tokens. The Sol and Luna findings
+describe the OpenAI period. The tool-note language requirement and the replay
+of the turn's reasoning (now its thinking blocks) carry over, and because a new
+Sonnet arrives without a deploy, the opt-in tool-language eval is how to
+re-check them.
+
+## The tool budget is spent by forbidding tool calls
 
 A turn may use the browser-executed 'scribe tools `MAX_TOOL_ROUNDS` times, and
 what happens on the round after that is the difference between an assistant
@@ -118,14 +129,18 @@ answer that failed validation_. A turn that had read the 'scribe, applied two
 headers and gone back for fresh line numbers ended with nothing shown.
 
 So the budget is spent one call earlier, and quietly: with the rounds gone, the
-provider is called with **no tools** and `FINAL_ROUND_INSTRUCTION` appended
-after the cache breakpoint, so the only thing the model can do is answer with
-what it has and say what is still outstanding. `toolsAvailable` on the request
-keeps its own separate meaning throughout: it is what a `draft-work` answer is
-validated against, and a turn that used tools is still a turn that used them.
+provider is called with the tools still declared, `tool_choice: {type: "none"}`,
+and `FINAL_ROUND_INSTRUCTION` appended after the cache breakpoint, so the only
+thing the model can do is answer with what it has and say what is still
+outstanding. The tools used to be withheld on that call instead. They must stay
+declared now: Claude Sonnet 5.5 binds thinking blocks to an unchanged system
+prompt and tools list, so removing the tools mid-turn would invalidate the
+thinking from the earlier rounds. `toolsAvailable` on the request keeps its
+own separate meaning throughout: it is what a `draft-work` answer is validated
+against, and a turn that used tools is still a turn that used them.
 The prompt states the ceiling as well, because a model that knows what a round
 costs spends them differently. The refusal in `index.ts` stays as a backstop for
-a provider that offers tools anyway; it is no longer a path a turn can reach.
+a provider that calls a tool anyway; it is no longer a path a turn can reach.
 
 The same failure had a second cause on the browser side, and it is written down
 in `src/lib/core/text-anchors.ts`: an anchor's line number is measured against
@@ -169,7 +184,7 @@ Retrying an already published revision verifies it without redeploying the Worke
 or removing compatibility for earlier clients.
 
 Requests select a known bundled corpus using `clientRuleSetVersion` and
-`clientCorpusHash`; prompts, prompt-cache keys, and citation validation use that
+`clientCorpusHash`; prompts, the prompt cache, and citation validation use that
 same selection. Legacy hashless requests are accepted only for an explicitly
 retained legacy corpus. Unknown pairs fail before provider work. Compatibility
 covers the new and actual previous live site, not arbitrary historical tabs.
@@ -200,7 +215,7 @@ Secrets (`wrangler secret put …`, never committed):
 
 | Secret                   | Purpose                                             |
 | ------------------------ | --------------------------------------------------- |
-| `OPENAI_API_KEY`         | OpenAI project API key used for model calls         |
+| `ANTHROPIC_API_KEY`      | Anthropic API key used for model calls              |
 | `AI_GATEWAY_TOKEN`       | Token created in AI Gateway Authentication settings |
 | `TURNSTILE_SECRET`       | Turnstile server-side verification                  |
 | `ABUSE_HMAC_SECRET`      | Hashing session/IP abuse identifiers                |
@@ -209,10 +224,13 @@ Secrets (`wrangler secret put …`, never committed):
 Gateway settings that are policy, not code: raw request/response payload
 logging **off**; response caching **off**; Gateway authentication **on**; and a
 $15/day spend limit as the outermost spend stop. The Worker supplies
-LyricLint's own OpenAI API key to the provider-native Gateway endpoint. It also
-sends per-request headers that authenticate to the Gateway, disable payload
-collection, and skip response caching because Gateway caching buffers the
-provider stream. Request, daily, concurrency, and spend allowances live in
+LyricLint's own Anthropic API key to the provider-native `/anthropic` Gateway
+endpoint. The one Anthropic call that bypasses the Gateway is the Models API
+lookup that picks the newest Sonnet; it goes to `api.anthropic.com` directly
+and carries no visitor data. The Worker also sends per-request headers that
+authenticate to the Gateway, disable payload collection, and skip response
+caching because Gateway caching buffers the provider stream. Request, daily,
+concurrency, and spend allowances live in
 `src/config.ts`; operational launch values and dashboard checks live in
 `LAUNCH.md`.
 
@@ -225,10 +243,9 @@ a replayed cookie cannot move. `src/identity.ts` states the trade in full.
 ## Local development
 
 1. Copy `services/rules-assistant/.dev.vars.example` to `.dev.vars` and replace
-   `YOUR_ACCOUNT_ID`, `AI_GATEWAY_TOKEN`, and `OPENAI_API_KEY` with a
-   non-production Gateway, its authentication token, and an OpenAI project API
-   key. The provided Turnstile secret is Cloudflare's always-passing test
-   secret.
+   `YOUR_ACCOUNT_ID`, `AI_GATEWAY_TOKEN`, and `ANTHROPIC_API_KEY` with a
+   non-production Gateway, its authentication token, and an Anthropic API key.
+   The provided Turnstile secret is Cloudflare's always-passing test secret.
 2. Copy `.env.example` to `.env.development.local`. Its assistant URL and
    Turnstile site key already point at Wrangler and Cloudflare's matching test
    widget.
@@ -239,16 +256,17 @@ a replayed cookie cannot move. `src/identity.ts` states the trade in full.
 ## Cloudflare setup and deployment
 
 1. Create production and staging AI Gateways and enable Gateway authentication.
-   Use the provider-native `/openai` endpoint; do not configure Unified Billing
-   or store the OpenAI key in Cloudflare. Disable Gateway payload logging,
-   disable response caching, and add a $15 UTC-daily spend rule to production.
+   Use the provider-native `/anthropic` endpoint; do not configure Unified
+   Billing or store the Anthropic key in Cloudflare. Disable Gateway payload
+   logging, disable response caching, and add a $15 UTC-daily spend rule to
+   production.
    Configure 50%, 80%, and 100% budget notifications.
 2. Create production and staging Turnstile widgets restricted to their exact
    frontend hostnames. Put each public site key in the corresponding Pages build
    as `PUBLIC_TURNSTILE_SITE_KEY`; keep the secret in its Worker.
 3. Replace `ACCOUNT_ID` in `wrangler.jsonc`, then set all five secrets with
-   `bunx wrangler secret put NAME`. Use a project-scoped OpenAI key for
-   `OPENAI_API_KEY`; never commit it or paste it into an issue or chat.
+   `bunx wrangler secret put NAME`. Use LyricLint's own Anthropic key for
+   `ANTHROPIC_API_KEY`; never commit it or paste it into an issue or chat.
 4. Create the WAF rules for outer flood protection on
    `api.lyriclint.com/v1/answers`. The rate-limit bindings and Durable Object
    handle the finer browser/IP, daily, concurrency, and session/IP/global spend

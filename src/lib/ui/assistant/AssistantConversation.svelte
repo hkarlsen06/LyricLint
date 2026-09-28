@@ -65,15 +65,15 @@
 	);
 	const disclosure = $derived.by(() => {
 		if (!assistant.draftToolsAvailable) {
-			return "Messages are processed by OpenAI through Cloudflare. The assistant cannot see your 'scribe.";
+			return "Messages are processed by Anthropic through Cloudflare. The assistant cannot see your 'scribe.";
 		}
 		if (assistant.draftAccessState === 'granted') {
-			return "Messages are processed by OpenAI through Cloudflare. This 'scribe is shared only when the assistant asks to read it.";
+			return "Messages are processed by Anthropic through Cloudflare. This 'scribe is shared only when the assistant asks to read it.";
 		}
 		if (assistant.draftAccessState === 'denied') {
-			return "Messages are processed by OpenAI through Cloudflare. This 'scribe is not shared.";
+			return "Messages are processed by Anthropic through Cloudflare. This 'scribe is not shared.";
 		}
-		return "Messages are processed by OpenAI through Cloudflare. The assistant asks before reading this 'scribe.";
+		return "Messages are processed by Anthropic through Cloudflare. The assistant asks before reading this 'scribe.";
 	});
 
 	/*
