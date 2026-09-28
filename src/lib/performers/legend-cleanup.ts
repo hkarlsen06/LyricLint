@@ -1,3 +1,4 @@
+import { legendRemovalRange } from '$lib/core/legend.js';
 import type {
 	ParsedDocument,
 	Section,
@@ -5,6 +6,7 @@ import type {
 	SupportedStyleSpan,
 	TextEdit
 } from '$lib/core/types.js';
+import { joinLegendGroups } from '$lib/serialization/genius-markup.js';
 
 function supportedSpans(section: Section): { line: number; spans: SupportedStyleSpan[] }[] {
 	return section.lines.map((line, index) => ({
@@ -53,7 +55,9 @@ export function usedStyleSlots(section: Section): Set<StyleSlot> {
 			const localTo = span.to - lyricLine.from;
 			masked = masked.slice(0, localFrom) + ' '.repeat(localTo - localFrom) + masked.slice(localTo);
 		}
-		if (masked.trim().length > 0) {
+		// Only sung text is a plain voice: the parentheses around a styled ad-lib
+		// and an annotation's `](id)` are syntax, not lyrics.
+		if (/[\p{L}\p{N}]/u.test(masked.replace(/\]\(\d+\)/gu, ''))) {
 			used.add(1);
 		}
 	}
@@ -111,18 +115,27 @@ export function unknownVoiceName(slot: StyleSlot): string {
 /**
  * Compute the edits that drop legend slots no longer used by a section body.
  *
+ * `usedBefore` narrows this to what one edit changed: given it, a group is only
+ * dropped when its slot was used before the edit and is not after it, so a
+ * legend typed ahead of its lyrics, or an unused slot the user chose to keep,
+ * is never pruned by an unrelated keystroke. It answers `undefined` for a
+ * section that did not exist before, which is left alone.
+ *
  * The rule implemented: for every cleanly parsed section whose body has any
  * non-blank content, a legend group is kept only while its style slot still
  * occurs in the body (plain text for slot 1, inline spans for slots 2–4).
- * Kept groups preserve their exact raw text; a kept group that follows a
- * dropped one keeps its own original separator. When every group is dropped
+ * Kept groups preserve their exact raw text and are rejoined with the
+ * canonical separators (`joinLegendGroups`). When every group is dropped
  * the whole legend collapses to the bare header (the `: …` part is removed).
  * Sections containing malformed or unsupported markup, unclosed headers, or a
  * still-empty body are never touched. The function is a fixpoint: applying
  * its edits and recomputing yields no further edits, so callers can safely
  * run it on every document revision without looping.
  */
-export function cleanupLegendSlots(document: ParsedDocument): TextEdit[] {
+export function cleanupLegendSlots(
+	document: ParsedDocument,
+	usedBefore?: (section: Section) => ReadonlySet<StyleSlot> | undefined
+): TextEdit[] {
 	const edits: TextEdit[] = [];
 
 	for (const section of document.sections) {
@@ -136,32 +149,26 @@ export function cleanupLegendSlots(document: ParsedDocument): TextEdit[] {
 		}
 
 		const used = usedStyleSlots(section);
-		const kept = header.legendGroups.filter((group) => used.has(group.styleSlot));
+		const before = usedBefore ? usedBefore(section) : undefined;
+		if (usedBefore && !before) {
+			continue;
+		}
+		const kept = header.legendGroups.filter(
+			(group) => used.has(group.styleSlot) || (before !== undefined && !before.has(group.styleSlot))
+		);
 		if (kept.length === header.legendGroups.length) {
 			continue;
 		}
 
 		if (kept.length === 0) {
-			const colon = document.text.lastIndexOf(':', legendRange.from);
-			if (colon < header.from) {
-				continue;
+			const removal = legendRemovalRange(header);
+			if (removal) {
+				edits.push({ ...removal, insert: '' });
 			}
-			edits.push({ from: colon, to: legendRange.to, insert: '' });
 			continue;
 		}
 
-		const first = kept[0];
-		if (!first) {
-			continue;
-		}
-		let insert = first.raw;
-		for (let index = 1; index < kept.length; index += 1) {
-			const group = kept[index];
-			if (!group) {
-				continue;
-			}
-			insert += `${group.separatorBefore ?? ', '}${group.raw}`;
-		}
+		const insert = joinLegendGroups(kept.map((group) => group.raw));
 		if (insert === document.text.slice(legendRange.from, legendRange.to)) {
 			continue;
 		}

@@ -600,7 +600,7 @@ describe('cross-rule safe fixes', () => {
 		// alone; the parentheses are already outside the formatting, which is the
 		// form the guide's own examples write, so the boundary rule has nothing to
 		// say before the merge or after it.
-		const source = '[Verse: A & <i>B</i>]\n(<i>Call</i> <i>back</i>)';
+		const source = '[Verse: A & <i>B</i>]\nA sings\n(<i>Call</i> <i>back</i>)';
 		const context = ruleContext({ performers: ['A', 'B'] });
 		const diagnostics = runRules(parseDocument(source), context);
 		const batch = collectSafeFixes(diagnostics);
@@ -610,7 +610,7 @@ describe('cross-rule safe fixes', () => {
 		);
 		expect(diagnostics.map((finding) => finding.ruleId)).toContain('performer.redundant-markup');
 		const merged = applyEdits(source, batch[0]!.edit.edits);
-		expect(merged).toBe('[Verse: A & <i>B</i>]\n(<i>Call back</i>)');
+		expect(merged).toBe('[Verse: A & <i>B</i>]\nA sings\n(<i>Call back</i>)');
 		const remaining = runRules(parseDocument(merged), context);
 		expect(remaining.map((finding) => finding.ruleId)).not.toContain(
 			'performer.parenthetical-boundary'

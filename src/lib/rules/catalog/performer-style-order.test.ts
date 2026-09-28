@@ -81,7 +81,7 @@ describe('performer.style-order', () => {
 			'[Verse: A &amp; B]\nOne'
 		);
 		expect(applyRuleFixes(rule, '[Verse: A & B, <b>C</b>]\n<b>One</b>')).toBe(
-			'[Verse: A & B & <i>C</i>]\n<i>One</i>'
+			'[Verse: A & B, <i>C</i>]\n<i>One</i>'
 		);
 	});
 

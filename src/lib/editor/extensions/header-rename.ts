@@ -7,6 +7,7 @@ import {
 	isMirrorableHeaderName,
 	nameBreaksHeaderStructure
 } from '$lib/performers/header-rename.js';
+import { decodeLegendText } from '$lib/performers/import.js';
 import {
 	editorCallbacksField,
 	editorComposingField,
@@ -36,7 +37,22 @@ interface HeaderRename {
 	started: boolean;
 }
 
-const setHeaderRenameSessionEffect = StateEffect.define<HeaderRenameSession | undefined>();
+function mapRange(range: TextRange, changes: ChangeDesc): TextRange {
+	return { from: changes.mapPos(range.from, -1), to: changes.mapPos(range.to, 1) };
+}
+
+// Mapped so a session set by this filter follows changes another filter
+// appends to the same transaction (legend cleanup pruning a group, say). The
+// specs carrying it are `sequential`, so its positions are already in the
+// post-edit document and are only mapped through what comes after.
+const setHeaderRenameSessionEffect = StateEffect.define<HeaderRenameSession | undefined>({
+	map: (session, changes) =>
+		session && {
+			...session,
+			source: mapRange(session.source, changes),
+			targets: session.targets.map((target) => mapRange(target, changes))
+		}
+});
 export const headerRenameEffect = StateEffect.define<HeaderRename>();
 
 /**
@@ -134,26 +150,32 @@ export function headerRenameFilter(): Extension {
 
 		// Insertions at either end of the name belong to the name, so the start
 		// maps before and the end maps after the inserted text.
-		const source = {
-			from: transaction.changes.mapPos(session.source.from, -1),
-			to: transaction.changes.mapPos(session.source.to, 1)
-		};
-		const name = transaction.newDoc.sliceString(source.from, source.to);
-		if (name.length === 0 || nameBreaksHeaderStructure(name)) {
-			return transaction;
-		}
-
+		const source = mapRange(session.source, transaction.changes);
+		let name = transaction.newDoc.sliceString(source.from, source.to);
 		const targets = session.targets
-			.map((target) => ({
-				from: transaction.changes.mapPos(target.from, -1),
-				to: transaction.changes.mapPos(target.to, 1)
-			}))
+			.map((target) => mapRange(target, transaction.changes))
 			.sort((left, right) => left.from - right.from);
+
+		if (nameBreaksHeaderStructure(name)) {
+			// The name was never being renamed if it survives whole beside the
+			// structure just typed (`Kim, Mara`: a new group in front of it). Put
+			// back what the letters before the comma mirrored, then end the rename.
+			const kept = name
+				.split(/[[\]<>,\n\r]/u)
+				.some((piece) => piece.trim() === session.previousName);
+			if (!continues || !kept) {
+				return transaction;
+			}
+			name = session.previousName;
+		}
 
 		if (!isMirrorableHeaderName(name)) {
 			return [
 				transaction,
-				{ effects: setHeaderRenameSessionEffect.of({ ...session, source, targets }) }
+				{
+					effects: setHeaderRenameSessionEffect.of({ ...session, source, targets }),
+					sequential: true
+				}
 			];
 		}
 
@@ -175,22 +197,30 @@ export function headerRenameFilter(): Extension {
 			}
 		}
 
+		const reverted = name !== transaction.newDoc.sliceString(source.from, source.to);
 		const effects = [
-			setHeaderRenameSessionEffect.of({
-				...session,
-				source: { from: source.from + sourceShift, to: source.to + sourceShift },
-				targets: nextTargets
-			}),
+			setHeaderRenameSessionEffect.of(
+				reverted
+					? undefined
+					: {
+							...session,
+							source: { from: source.from + sourceShift, to: source.to + sourceShift },
+							targets: nextTargets
+						}
+			),
 			headerRenameEffect.of({
 				performerId: session.performerId,
-				previousName: session.previousName,
-				displayName: name,
+				// The roster holds decoded names; the headers keep their own spelling.
+				previousName: decodeLegendText(session.previousName),
+				displayName: decodeLegendText(name),
 				occurrences: targets.length,
 				started: !continues
 			})
 		];
 		const mirrored: TransactionSpec =
-			edits.length === 0 ? { effects } : { changes: edits, sequential: true, effects };
+			edits.length === 0
+				? { effects, sequential: true }
+				: { changes: edits, sequential: true, effects };
 		return [transaction, mirrored];
 	});
 }

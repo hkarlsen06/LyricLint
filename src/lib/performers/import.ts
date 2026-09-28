@@ -93,7 +93,7 @@ function exactMembers(
 		: undefined;
 }
 
-function logicalHeaderGroups(
+export function logicalHeaderGroups(
 	document: ParsedDocument,
 	section: Section,
 	knownRoster: readonly PerformerRecord[]

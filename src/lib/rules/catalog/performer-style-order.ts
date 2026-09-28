@@ -8,7 +8,7 @@ import type {
 	TextEdit
 } from '$lib/core/types.js';
 import { usedStyleSlots } from '$lib/performers/legend-cleanup.js';
-import { styleTags, wrapVoiceSpan } from '$lib/serialization/genius-markup.js';
+import { styleTags, joinLegendGroups, wrapVoiceSpan } from '$lib/serialization/genius-markup.js';
 import { diagnostic } from './utils.js';
 
 const SLOT_ORDER =
@@ -54,10 +54,7 @@ function orderedLegend(
 	const serialized = orderedGroups(groups).map((group) =>
 		wrapVoiceSpan(group.rawNameText, ranked.get(group.styleSlot) ?? group.styleSlot)
 	);
-	if (serialized.length < 2) {
-		return serialized[0] ?? '';
-	}
-	return `${serialized.slice(0, -1).join(', ')} & ${serialized.at(-1)}`;
+	return joinLegendGroups(serialized);
 }
 
 /** Rewrite every wrapper in the section body into its group's ranked slot. */

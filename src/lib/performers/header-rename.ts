@@ -6,7 +6,7 @@ import type {
 	TextRange
 } from '$lib/core/types.js';
 import { findExactPerformer } from './identity.js';
-import { decodeLegendText } from './import.js';
+import { decodeLegendText, logicalHeaderGroups } from './import.js';
 
 /** Characters that would change how another header parses if mirrored into it. */
 const STRUCTURAL_NAME_PATTERN = /[[\]<>,\n\r]/u;
@@ -90,8 +90,10 @@ export function headerNameAtoms(
 	document: ParsedDocument,
 	roster: readonly PerformerRecord[]
 ): HeaderNameAtom[] {
+	// Import's own grouping, so a name spelled with a comma (`Tyler, The
+	// Creator`) resolves here exactly as it does on import.
 	return document.sections.flatMap((section) =>
-		(section.header?.legendGroups ?? []).flatMap((group) => atomsForGroup(group, roster))
+		logicalHeaderGroups(document, section, roster).flatMap((group) => atomsForGroup(group, roster))
 	);
 }
 

@@ -21,14 +21,14 @@ describe('cleanupLegendSlots', () => {
 	it('drops only the <b> group when every bold span is gone from the body', () => {
 		const text = `${fullLegend}\nben james sings this line\n<i>a quiet reply</i>`;
 		expect(cleaned(text)).toBe(
-			'[Vers 1: ben james, <i>Leif tore</i>]\nben james sings this line\n<i>a quiet reply</i>'
+			'[Vers 1: ben james & <i>Leif tore</i>]\nben james sings this line\n<i>a quiet reply</i>'
 		);
 	});
 
 	it('drops only the <i> group when every italic span is gone from the body', () => {
 		const text = `${fullLegend}\nben james sings this line\n<b>together now</b>`;
 		expect(cleaned(text)).toBe(
-			'[Vers 1: ben james & <b>ben james & Leif tore</b>]\nben james sings this line\n<b>together now</b>'
+			'[Vers 1: ben james, <b>ben james & Leif tore</b>]\nben james sings this line\n<b>together now</b>'
 		);
 	});
 

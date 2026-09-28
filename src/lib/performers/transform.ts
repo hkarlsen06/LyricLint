@@ -19,6 +19,7 @@ import type {
 	TextRange,
 	UnknownVoiceRequest
 } from '$lib/core/types.js';
+import { legendRemovalRange } from '$lib/core/legend.js';
 import { headerNameIsEmpty } from '$lib/core/parser.js';
 import { joinLegendGroups, serializeLegend, styleTags } from '$lib/serialization/genius-markup.js';
 import { allocateStyleSlot } from './allocation.js';
@@ -410,6 +411,24 @@ function renderPieces(pieces: readonly StyledPiece[]): RenderedLine {
 			runs.push({ slot: piece.slot, pieces: [piece] });
 		}
 	}
+	// Only a space between two runs of one styled voice is still that voice's
+	// passage: `<i>Hello</i> <i>there</i>` is one wrapper split in two, which
+	// `performer.redundant-markup` would flag the moment it was written.
+	for (let index = runs.length - 2; index > 0; index -= 1) {
+		const [before, gap, after] = [runs[index - 1], runs[index], runs[index + 1]];
+		if (
+			before &&
+			gap &&
+			after &&
+			gap.slot === 1 &&
+			before.slot !== 1 &&
+			before.slot === after.slot &&
+			gap.pieces.every((piece) => /^[^\S\r\n]*$/u.test(piece.text))
+		) {
+			before.pieces.push(...gap.pieces, ...after.pieces);
+			runs.splice(index, 2);
+		}
+	}
 
 	let text = '';
 	let selectedFrom: number | undefined;
@@ -765,6 +784,75 @@ function shrinkInsideParentheses(text: string, range: TextRange): TextRange {
 	return current;
 }
 
+const STYLE_TAG = /^<\/?[ib]>$/u;
+
+/** The style tag the offset sits strictly inside, if any (`</i` of `</i>`). */
+function enclosingTag(text: string, offset: number): TextRange | undefined {
+	const open = text.lastIndexOf('<', offset - 1);
+	const close = open === -1 ? -1 : text.indexOf('>', open);
+	return close >= offset && STYLE_TAG.test(text.slice(open, close + 1))
+		? { from: open, to: close + 1 }
+		: undefined;
+}
+
+/** The HTML entity (`&amp;`) the offset sits strictly inside, if any. */
+function enclosingEntity(text: string, offset: number): TextRange | undefined {
+	const from = text.lastIndexOf('&', offset - 1);
+	if (from === -1 || offset - from > 10) return undefined;
+	const match = /^&(?:#\d+|#x[\da-f]+|[a-z][\da-z]*);/iu.exec(text.slice(from, from + 12));
+	return match && from + match[0].length > offset
+		? { from, to: from + match[0].length }
+		: undefined;
+}
+
+/**
+ * Whitespace and style tags at either end are not what a selection means: a
+ * drag that starts on `</i> ` or stops on `</i` writes what the same visible
+ * words write. Ends inside a tag step out of it first.
+ */
+function trimMarkupRange(text: string, range: TextRange): TextRange {
+	// An entity is one character: an end inside it takes the whole of it.
+	let from =
+		enclosingTag(text, range.from)?.to ?? enclosingEntity(text, range.from)?.from ?? range.from;
+	let to = enclosingTag(text, range.to)?.from ?? enclosingEntity(text, range.to)?.to ?? range.to;
+	for (;;) {
+		const trimmed = trimWhitespaceRange(text, { from, to });
+		({ from, to } = trimmed);
+		const lead = /^<\/?[ib]>/u.exec(text.slice(from, to));
+		const trail = /<\/?[ib]>$/u.exec(text.slice(from, to));
+		if (lead) from += lead[0].length;
+		else if (trail) to -= trail[0].length;
+		else return { from, to: Math.max(from, to) };
+	}
+}
+
+/**
+ * Keep an assignment from splitting an annotation link, `[fragment](id)`, whose
+ * wrapper has to survive intact. An end inside the `](id)` tail grows to the
+ * whole link (or, for a start, steps past it); a range that holds part of a
+ * fragment and reaches outside the link grows to the whole link.
+ */
+function fitAnnotations(document: ParsedDocument, range: TextRange): TextRange {
+	let { from, to } = range;
+	for (const annotation of document.annotations) {
+		if (annotation.fragmentRange.to <= from && from < annotation.to) from = annotation.to;
+		if (annotation.fragmentRange.to < to && to < annotation.to) to = annotation.to;
+		if (annotation.from < to && to <= annotation.fragmentRange.from) to = annotation.from;
+		if (annotation.from < from && from <= annotation.fragmentRange.from)
+			from = annotation.fragmentRange.from;
+	}
+	if (to <= from) return { from, to: from };
+	for (const annotation of document.annotations) {
+		const startsInside = annotation.from < from && from < annotation.to;
+		const endsInside = annotation.from < to && to < annotation.to;
+		if (startsInside !== endsInside) {
+			from = Math.min(from, annotation.from);
+			to = Math.max(to, annotation.to);
+		}
+	}
+	return { from, to };
+}
+
 /** Why a selection names no assignable range, in the words the result reports. */
 type SelectionRefusal = 'empty-selection' | 'whitespace-selection';
 
@@ -795,7 +883,7 @@ function normalizeSelection(
 		range = { from: line.from, to: line.to };
 	}
 
-	range = trimWhitespaceRange(document.text, range);
+	range = fitAnnotations(document, trimMarkupRange(document.text, range));
 	if (range.from === range.to) {
 		return 'whitespace-selection';
 	}
@@ -940,6 +1028,10 @@ function mapOriginalOffset(offset: number, edits: readonly TextEdit[]): number {
 	for (const edit of edits) {
 		if (edit.to <= offset) {
 			mapped += edit.insert.length - (edit.to - edit.from);
+		} else if (edit.from < offset) {
+			// An offset inside rewritten text (a drag that stopped on a tag) lands
+			// at the end of what replaced it.
+			mapped += edit.insert.length - (offset - edit.from);
 		}
 	}
 	return mapped;
@@ -1075,6 +1167,117 @@ function wrapSelectionTransforms(
 }
 
 /**
+ * Drop the style tag at one end of a wrapped line, from the line's own rewrite
+ * when it wrote the tag or from the untouched text when it did not. Answers the
+ * extra edit to apply, or `undefined` when the end does not carry exactly that
+ * wrapper (`<i>` opening a bold-italic `<i><b>` is not an italic wrapper).
+ */
+function dropLineTag(
+	text: string,
+	line: LyricLine,
+	transform: LineTransform,
+	styleSlot: StyleSlot,
+	end: 'start' | 'end'
+): TextEdit[] | undefined {
+	const { opening, closing } = styleTags(styleSlot);
+	const tag = end === 'start' ? opening : closing;
+	const other = styleSlot === 2 ? (end === 'start' ? '<b>' : '</b>') : undefined;
+	const edit = transform.edit;
+	if (end === 'start') {
+		if (edit && edit.from === line.from && edit.insert.startsWith(tag)) {
+			if (other && edit.insert.startsWith(other, tag.length)) return undefined;
+			edit.insert = edit.insert.slice(tag.length);
+			transform.selectedFrom = Math.max(edit.from, transform.selectedFrom - tag.length);
+			transform.selectedTo = Math.max(transform.selectedFrom, transform.selectedTo - tag.length);
+		} else if ((!edit || edit.from >= line.from + tag.length) && text.startsWith(tag, line.from)) {
+			if (other && text.startsWith(other, line.from + tag.length)) return undefined;
+			return [{ from: line.from, to: line.from + tag.length, insert: '' }];
+		} else {
+			return undefined;
+		}
+	} else if (edit && edit.to === line.to && edit.insert.endsWith(tag)) {
+		if (other && edit.insert.slice(0, -tag.length).endsWith(other)) return undefined;
+		edit.insert = edit.insert.slice(0, -tag.length);
+		transform.selectedTo = Math.min(transform.selectedTo, edit.from + edit.insert.length);
+		transform.selectedFrom = Math.min(transform.selectedFrom, transform.selectedTo);
+	} else if ((!edit || edit.to <= line.to - tag.length) && text.endsWith(tag, line.to)) {
+		if (other && text.endsWith(other, line.to - tag.length)) return undefined;
+		return [{ from: line.to - tag.length, to: line.to, insert: '' }];
+	} else {
+		return undefined;
+	}
+	if (edit.from === edit.to && edit.insert === '') transform.edit = undefined;
+	return [];
+}
+
+/**
+ * The edits a wrap writes: its line transforms, combined into one wrapper where
+ * they can be, then joined to a wrapper of the same voice on the line directly
+ * above or below. `<i>Hello</i>` over a newly wrapped `<i>there</i>` is one
+ * passage split in two, which `performer.redundant-markup` would flag the moment
+ * it was written, so the two tags between them come off and it reads
+ * `<i>Hello\nthere</i>`. Joins are skipped while a slot remap is rewriting
+ * neighbouring tags, and across a blank line, which ends a passage.
+ */
+function wrappedEdits(
+	text: string,
+	section: Section,
+	wrapped: {
+		lineTransforms: { line: LyricLine; transform: LineTransform }[];
+		slotEdits: TextEdit[];
+	},
+	styleSlot: StyleSlot
+) {
+	const { lineTransforms, slotEdits } = wrapped;
+	const combined = combineLineTransforms(text, lineTransforms, styleSlot);
+	const transforms = combined ? [combined] : lineTransforms.map(({ transform }) => transform);
+	const edits: TextEdit[] = [...slotEdits];
+	const firstLine = lineTransforms[0]?.line;
+	const lastLine = lineTransforms.at(-1)?.line;
+	const head = transforms[0];
+	const tail = transforms.at(-1);
+	if (styleSlot !== 1 && slotEdits.length === 0 && firstLine && lastLine && head && tail) {
+		const lines = assignmentLines(text, section);
+		const index = lines.findIndex((line) => line.from === firstLine.from);
+		const lastIndex = lines.findIndex((line) => line.from === lastLine.from);
+		const before = lines[index - 1];
+		const after = lines[lastIndex + 1];
+		const joinable = (line: LyricLine | undefined): line is LyricLine =>
+			line !== undefined && line.styleSpans.every((span) => !('unsupported' in span));
+		const singleBreak = (from: number, to: number) =>
+			/^(?:\r\n|\r|\n)$/u.test(text.slice(from, to));
+		const beforeSpan = joinable(before) ? supportedSpans(before).at(-1) : undefined;
+		if (
+			before &&
+			beforeSpan?.slot === styleSlot &&
+			beforeSpan.to === before.to &&
+			singleBreak(before.to, firstLine.from)
+		) {
+			const dropped = dropLineTag(text, firstLine, head, styleSlot, 'start');
+			if (dropped) {
+				edits.push(...dropped, { from: beforeSpan.contentTo, to: beforeSpan.to, insert: '' });
+			}
+		}
+		const afterSpan = joinable(after) ? supportedSpans(after)[0] : undefined;
+		if (
+			after &&
+			afterSpan?.slot === styleSlot &&
+			afterSpan.from === after.from &&
+			singleBreak(lastLine.to, after.from)
+		) {
+			const dropped = dropLineTag(text, lastLine, tail, styleSlot, 'end');
+			if (dropped) {
+				edits.push(...dropped, { from: afterSpan.from, to: afterSpan.contentFrom, insert: '' });
+			}
+		}
+	}
+	for (const transform of transforms) {
+		if (transform.edit) edits.push(transform.edit);
+	}
+	return { transforms, edits };
+}
+
+/**
  * Where one end of a wrapped selection lands after the edit set applies: inside
  * the line's own rewrite when it has one, or shifted by the edits before it.
  */
@@ -1132,7 +1335,8 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	// selection and it sings everything around it, so there is nothing to tell
 	// apart. Name it in the plain slot and leave the lyrics alone: wrapping a
 	// passage to distinguish a performer from themselves is `Frikk & <i>Frikk</i>`,
-	// two legend groups for one singer.
+	// two legend groups for one singer. Styling inside the selection (an unknown
+	// voice) comes off too: the selection is now the named plain voice's.
 	if (
 		sectionPerformers.length > 0 &&
 		makeVoiceGroupKey(sectionPerformers.map((performer) => performer.id)) === selectedKey
@@ -1143,10 +1347,24 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		if (!plainEdit) {
 			return { status: 'blocked', reason: 'invalid-range' };
 		}
-		const edits = [plainEdit];
+		const unwrapped = wrapSelectionTransforms(request.text, section, selection, 1);
+		if (unwrapped.status === 'blocked') {
+			return { status: 'blocked', reason: unwrapped.reason };
+		}
+		const transforms = unwrapped.lineTransforms.map(({ transform }) => transform);
+		const edits = [
+			plainEdit,
+			...transforms.flatMap((transform) => (transform.edit ? [transform.edit] : []))
+		].sort(compareEdits);
+		const first = transforms[0];
+		const last = transforms.at(-1);
 		const forwardSelection = request.selection.anchor <= request.selection.head;
-		const from = mapOriginalOffset(selection.from, edits);
-		const to = mapOriginalOffset(selection.to, edits);
+		const from = first
+			? mappedTransformOffset(first, 'from', edits)
+			: mapOriginalOffset(selection.from, edits);
+		const to = last
+			? mappedTransformOffset(last, 'to', edits)
+			: mapOriginalOffset(selection.to, edits);
 		return {
 			status: 'applied',
 			styleSlot: 1,
@@ -1172,6 +1390,12 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	const resolvedSection: Section = { ...section, voiceGroups: resolvedGroups };
 	const retainedSlots = retainedStyleSlots(request.text, section, selection);
 	let allocation = allocateStyleSlot(resolvedSection, selectedKey);
+	if (allocation.status === 'unavailable') {
+		// Every slot is named, but one may be named only for the selection being
+		// reassigned (a fourth voice's only passage): that slot is free again.
+		const freedSlot = STYLE_SLOTS.find((slot) => !retainedSlots.has(slot));
+		if (freedSlot) allocation = { status: 'available', styleSlot: freedSlot };
+	}
 	let slotRemap = new Map<StyleSlot, StyleSlot>();
 	if (allocation.status === 'available') {
 		const reusableSlot = STYLE_SLOTS.find((slot) => !retainedSlots.has(slot));
@@ -1212,8 +1436,10 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	// character into the line, and the `(` must not demote the first voice to
 	// italics: only words before the selection mean somebody sang first.
 	const bounds = lyricBounds(section);
+	// The rest starts after the selection's own ad-lib parenthesis, if any.
+	const restFrom = selectionParenthetical(request.text, selection)?.to ?? selection.to;
 	const trailing = bounds
-		? trimWhitespaceRange(request.text, { from: selection.to, to: bounds.to })
+		? trimWhitespaceRange(request.text, { from: restFrom, to: bounds.to })
 		: undefined;
 	const invert =
 		allocation.status === 'available' &&
@@ -1267,17 +1493,12 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	if (wrapped.status === 'blocked') {
 		return { status: 'blocked', reason: wrapped.reason };
 	}
-	const { lineTransforms, slotEdits } = wrapped;
-
-	const combinedTransform = combineLineTransforms(
+	const { transforms: appliedTransforms, edits } = wrappedEdits(
 		request.text,
-		lineTransforms,
+		section,
+		wrapped,
 		allocation.styleSlot
 	);
-	const appliedTransforms = combinedTransform
-		? [combinedTransform]
-		: lineTransforms.map(({ transform }) => transform);
-	const edits: TextEdit[] = [...slotEdits];
 	if (allocation.status === 'available') {
 		// Inverted, the rest is the styled passage, so the rest's voices are the
 		// ones its legend group names. A skipped rest never reaches here; it
@@ -1326,11 +1547,6 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 			return { status: 'blocked', reason: 'invalid-range' };
 		}
 		edits.push(edit);
-	}
-	for (const transform of appliedTransforms) {
-		if (transform.edit) {
-			edits.push(transform.edit);
-		}
 	}
 	edits.sort(compareEdits);
 	if (edits.length === 0) {
@@ -1509,18 +1725,12 @@ export function assignUnknownVoice(request: UnknownVoiceRequest): AssignmentResu
 	if (wrapped.status === 'blocked') {
 		return { status: 'blocked', reason: wrapped.reason };
 	}
-	const { lineTransforms, slotEdits } = wrapped;
-	const combinedTransform = combineLineTransforms(request.text, lineTransforms, slot);
-	const appliedTransforms = combinedTransform
-		? [combinedTransform]
-		: lineTransforms.map(({ transform }) => transform);
-
-	const edits: TextEdit[] = [...slotEdits];
-	for (const transform of appliedTransforms) {
-		if (transform.edit) {
-			edits.push(transform.edit);
-		}
-	}
+	const { transforms: appliedTransforms, edits } = wrappedEdits(
+		request.text,
+		analysis.section,
+		wrapped,
+		slot
+	);
 	edits.sort(compareEdits);
 	if (edits.length === 0) {
 		return { status: 'blocked', reason: 'invalid-range' };
@@ -1673,7 +1883,7 @@ function emptyHeaderNameSlot(text: string, header: SectionHeader): TextRange | u
 		return undefined;
 	}
 	const from = header.from + 1;
-	const to = header.legendRange ? text.lastIndexOf(':', header.legendRange.from) : header.to - 1;
+	const to = header.legendRange ? text.indexOf(':', header.from) : header.to - 1;
 	return to >= from ? { from, to } : undefined;
 }
 
@@ -1790,11 +2000,9 @@ export function removeDifferentiation(
 
 	const edits: TextEdit[] = [];
 	const header = section.header;
-	if (header?.legendRange) {
-		const colon = request.text.lastIndexOf(':', header.legendRange.from);
-		if (colon >= header.from) {
-			edits.push({ from: colon, to: header.legendRange.to, insert: '' });
-		}
+	const removal = header && legendRemovalRange(header);
+	if (removal) {
+		edits.push({ ...removal, insert: '' });
 	}
 
 	for (const line of section.lines) {

@@ -1,4 +1,10 @@
-import type { AmbiguousAmpersand, LegendVoiceGroup, StyleSlot, TextRange } from './types.js';
+import type {
+	AmbiguousAmpersand,
+	LegendVoiceGroup,
+	SectionHeader,
+	StyleSlot,
+	TextRange
+} from './types.js';
 
 interface LocalRange {
 	from: number;
@@ -214,4 +220,14 @@ export function parseLegend(raw: string, offset = 0): LegendVoiceGroup[] {
 				index === 0 ? undefined : raw.slice(ranges[index - 1]?.to ?? range.from, range.from)
 		};
 	});
+}
+
+/**
+ * What removing a header's whole legend deletes: from the end of the name part
+ * through the legend, so the header colon, any space before it (`[Couplet 1 : A]`),
+ * and a legend that itself starts with a colon all go, leaving the bare header.
+ */
+export function legendRemovalRange(header: SectionHeader): TextRange | undefined {
+	if (!header.legendRange) return undefined;
+	return { from: header.ordinalRange?.to ?? header.nameRange.to, to: header.legendRange.to };
 }

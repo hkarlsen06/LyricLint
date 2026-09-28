@@ -88,6 +88,31 @@ disclosure chevron the roster help and the legend share)
   `performers.test.ts` (*moves an earlier unknown voice down* and *cascades contiguous unknown
   voices*).
 
+- `legendCleanupFilter` drops a legend group only when the transaction stopped its slot's use
+  (`cleanupLegendSlots`' `usedBefore`, sections matched by mapped header position). A legend
+  typed ahead of its lyrics, or an unused slot the user kept, is never pruned by an unrelated
+  keystroke; `performer.unused-legend-slot` still offers the whole-document cleanup. Kept groups
+  rejoin through `joinLegendGroups`, and a whole-legend removal goes through
+  `legendRemovalRange` (from the end of the name part, so `[Couplet 1 : A]` leaves `[Couplet 1]`).
+  Only letters and digits count as a plain voice in `usedStyleSlots`: the parentheses around
+  `(<i>ad-lib</i>)` and an annotation's `](id)` are syntax. Pin: `legend-cleanup-edges.test.ts`.
+- The rename session effect maps through changes other filters append, and the specs carrying it
+  are `sequential`. A structural character that leaves the old name whole beside it
+  (`Kim, Mara`) was a new group, not a rename: the mirrored headers go back to the old name. An
+  emptied name keeps the session open. Names reach the roster decoded (`decodeLegendText`), and
+  `headerNameAtoms` groups legends through import's `logicalHeaderGroups`, so `Tyler, The Creator`
+  resolves in both. Pin: `header-rename-edges.test.ts`.
+- `normalizeSelection` steps out of style tags, HTML entities, and annotation syntax before
+  anything else reads the range: tags and whitespace at either end come off, an entity is one
+  character, and a range that reaches into an annotation's `](id)` or crosses its boundary grows
+  to the whole link (an id-only selection refuses). Pin: `transform-edges.test.ts`.
+- A wrap never writes markup `performer.redundant-markup` would flag. Same-line neighbours of one
+  voice fold into one run in `renderPieces`; `wrappedEdits` (shared by named and unknown
+  assignment) joins the wrap to a same-voice wrapper ending the line above or starting the line
+  below, dropping the two tags between, from the rewrite or the untouched text. It does not join
+  italic to bold italic, and it stands down while a slot remap rewrites neighbouring tags. Pin:
+  `transform-edges.test.ts` (*joins a wrap to the same voice…*).
+
 ## Decision record
 
 ### Reassigning an ad-lib preserves the surrounding passage
@@ -503,3 +528,23 @@ shared roving keyboard navigation. The picker test pins the global button radius
 of the `.chip` class on immediate actions.
 `PerformerPicker.svelte.test.ts` and `EditorPane.svelte.test.ts` pin those names and the one-press
 assignment path.
+
+### Legend and lyrics stay in step only through the edit that changed them
+
+A deep pass over the header legend and its section styling (2026-09-28) found the pieces that keep
+them in step each deciding more than their own edit. Legend cleanup ran over the whole document
+on every change, so the first lyric typed under a fresh `[Verse: Avery, <i>Blair</i>]` deleted
+Blair, the closing `>` of a newly typed group deleted the group, and any keystroke rewrote
+off-screen headers the linter was only meant to suggest changes to. The rename mirror kept its
+session in coordinates another filter's appended changes had already moved, so the keystroke after
+a same-transaction cleanup overwrote lyrics or threw. The linked-section performer edit copied the
+source legend over every peer regardless of what the peer's own styling meant, deleting a peer's
+ad-lib voice or crediting it to someone else, and an unknown voice (which never touches the header)
+stripped every peer's legend. Selections that ended on a tag, inside an entity, or on an
+annotation's `](id)` wrote markup that split the entity or the link.
+
+Each fix is in the shared function every caller goes through rather than at a call site: the
+`usedBefore` narrowing in `cleanupLegendSlots`, the mapped session effect, the whole-peer rule in
+`expandLinkedPerformerEdit`, and `normalizeSelection`. A wrap beside a wrapper of the same
+voice also joins it rather than writing the split `performer.redundant-markup` would flag: on
+the same line in `renderPieces`, and across a line break in `wrappedEdits`.

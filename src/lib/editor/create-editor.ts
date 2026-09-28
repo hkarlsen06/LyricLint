@@ -101,6 +101,7 @@ import {
 	applyOnlyHereAnnotation,
 	canTypeOnlyHere,
 	expandLinkedPerformerEdit,
+	linkedPerformerAnnotation,
 	isTypeOnlyHere,
 	linkDifferencesFor,
 	linkConnectionsFor,
@@ -1088,7 +1089,12 @@ export function createLyricEditor(
 			// The expansion is computed against the same revision the domain edit
 			// targets. It reaches every peer before dispatch, so the general mirror
 			// sees one complete multi-range operation and correctly leaves it alone.
-			dispatchAtomicEdit(view, expandLinkedPerformerEdit(view.state, edit, anchor));
+			const linked = expandLinkedPerformerEdit(view.state, edit, anchor);
+			dispatchAtomicEdit(
+				view,
+				linked.edit,
+				linked.peersSkipped ? [linkedPerformerAnnotation.of(true)] : []
+			);
 			view.dispatch({
 				effects: setFixPreviewEffect.of(undefined),
 				annotations: Transaction.addToHistory.of(false)

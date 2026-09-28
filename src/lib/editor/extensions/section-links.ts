@@ -16,15 +16,18 @@ import { Decoration, EditorView } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import { randomId } from '$lib/core/random-id.js';
 import { parseDocument } from '$lib/core/parser.js';
+import { legendRemovalRange } from '$lib/core/legend.js';
 import type {
 	AtomicDocumentEdit,
 	LinkDifference,
 	LinkConnectionPreview,
 	LinkPassageOccurrence,
 	ParsedDocument,
+	Section,
 	SectionHeader,
 	SectionLink,
 	SectionLinkChoice,
+	StyleSlot,
 	TextEdit,
 	TextRange
 } from '$lib/core/types.js';
@@ -864,11 +867,8 @@ function mirroredLegendEdit(
 	legend: string | undefined
 ): TextEdit | undefined {
 	if (legend === undefined) {
-		if (!header.legendRange) return undefined;
-		const colon = text.lastIndexOf(':', header.legendRange.from);
-		return colon >= header.from
-			? { from: colon, to: header.legendRange.to, insert: '' }
-			: undefined;
+		const removal = legendRemovalRange(header);
+		return removal ? { ...removal, insert: '' } : undefined;
 	}
 	if (header.legendRange) {
 		if (text.slice(header.legendRange.from, header.legendRange.to) === legend) return undefined;
@@ -887,16 +887,58 @@ function mirroredLegendEdit(
  * linked peer cannot interpret, so every peer receives both halves in the same
  * atomic edit and therefore in the same undo step.
  *
- * Body edits are copied only while they sit wholly in shared text. A passage
- * stored as a deliberate difference stays local, exactly as it does under the
- * ordinary mirror; the legend is still shared because it is the section-wide
- * key for every styled passage that is shared.
+ * A peer is carried only whole: when its legend matched the source's before
+ * the edit and every body edit has a destination in it. A peer whose legend
+ * already differed (its own ad-lib voice) or whose wording diverged is left
+ * exactly as it was, and `peersSkipped` tells the dispatcher to keep the
+ * ordinary mirror from carrying the body half there on its own.
  */
+/** Style slots of a section's sung characters, other than those `skip` excludes. */
+function sungSlots(section: Section, skip: (at: number) => boolean): Set<StyleSlot> {
+	const slots = new Set<StyleSlot>();
+	for (const line of section.lines) {
+		for (let index = 0; index < line.text.length; index += 1) {
+			const at = line.from + index;
+			if (!/[\p{L}\p{N}]/u.test(line.text[index] ?? '') || skip(at)) continue;
+			const span = line.styleSpans.find((candidate) => candidate.from <= at && at < candidate.to);
+			if (!span) slots.add(1);
+			else if (!('unsupported' in span) && span.contentFrom <= at && at < span.contentTo)
+				slots.add(span.slot);
+		}
+	}
+	return slots;
+}
+
+/**
+ * The slots of a peer's sung words that no shared passage covers: the lyrics a
+ * performer edit cannot reach there, whose singer is read off the legend.
+ */
+function unsharedSungSlots(section: Section, passages: PassageState): Set<StyleSlot> {
+	const header = section.header?.from;
+	const covers = (members: readonly PassageMember[], at: number) =>
+		members.some((member) => member.header === header && member.from <= at && at < member.to);
+	const shared = passages.passages.flatMap((passage) => passage.members);
+	return sungSlots(section, (at) => covers(shared, at) && !covers(passages.detached, at));
+}
+
+function nameInSlot(header: SectionHeader, slot: StyleSlot): string | undefined {
+	return header.legendGroups.find((group) => group.styleSlot === slot)?.rawNameText;
+}
+
+/** An expanded performer edit, and whether any linked peer was left out of it. */
+interface LinkedPerformerEdit {
+	edit: AtomicDocumentEdit;
+	peersSkipped: boolean;
+}
+
+/** Marks an edit whose linked peers were already decided; the mirror stays out. */
+export const linkedPerformerAnnotation = Annotation.define<true>();
+
 export function expandLinkedPerformerEdit(
 	state: EditorState,
 	edit: AtomicDocumentEdit,
 	anchor: number
-): AtomicDocumentEdit {
+): LinkedPerformerEdit {
 	const parsed = parsedDocumentForState(state);
 	const sourceSection = parsed.sections.find(
 		(section) =>
@@ -906,54 +948,92 @@ export function expandLinkedPerformerEdit(
 				(section.from <= anchor && anchor <= section.to))
 	);
 	const sourceHeader = sourceSection?.header;
-	if (!sourceSection || !sourceHeader) return edit;
-	if (isTypeOnlyHere(state, sourceHeader.from)) return edit;
+	if (!sourceSection || !sourceHeader) return { edit, peersSkipped: false };
+	if (isTypeOnlyHere(state, sourceHeader.from)) return { edit, peersSkipped: false };
 
 	const group = memberGroups(state, parsed).find((headers) => headers.includes(sourceHeader.from));
-	if (!group) return edit;
+	if (!group) return { edit, peersSkipped: false };
 	const ordered = [sourceHeader.from, ...group.filter((header) => header !== sourceHeader.from)];
 	const members = groupShape(state, parsed, ordered);
 	const source = members?.[0];
-	if (!members || !source) return edit;
+	if (!members || !source) return { edit, peersSkipped: false };
 
 	const changedText = applyTextEdits(state.doc.toString(), edit.edits);
-	const changedSourceHeader = parseDocument(changedText).sections.find(
+	const changedSource = parseDocument(changedText).sections.find(
 		(section) => section.header?.from === sourceHeader.from
-	)?.header;
-	if (!changedSourceHeader) return edit;
-
-	const additions: TextEdit[] = [];
-	for (const peer of members.slice(1)) {
-		const peerHeader = parsed.sections.find(
-			(section) => section.header?.from === peer.header
-		)?.header;
-		if (!peerHeader) continue;
-		const headerEdit = mirroredLegendEdit(
-			state.doc.toString(),
-			peerHeader,
-			changedSourceHeader.legend
-		);
-		if (headerEdit) additions.push(headerEdit);
-	}
+	);
+	const changedSourceHeader = changedSource?.header;
+	if (!changedSource || !changedSourceHeader) return { edit, peersSkipped: false };
+	// Who sings the rest of the source once the edit lands: the singers a
+	// peer's own unshared words may newly be given.
+	const selected = edit.selectionAfter;
+	const restNames = new Set(
+		[
+			...sungSlots(
+				changedSource,
+				(at) =>
+					selected !== undefined &&
+					Math.min(selected.anchor, selected.head) <= at &&
+					at < Math.max(selected.anchor, selected.head)
+			)
+		].map((slot) => nameInSlot(changedSourceHeader, slot))
+	);
 
 	const bodyEdits = edit.edits.filter(
 		(change) => source.body.from <= change.from && change.to <= source.body.to
 	);
 	const passages = state.field(sectionPassageField, false) ?? emptyPassages();
-	for (const change of bodyEdits) {
-		for (const target of passageTargets(
-			passages,
-			state.doc.toString(),
-			sourceHeader.from,
-			change
-		)) {
-			if (state.doc.sliceString(target.from, target.to) !== change.insert) {
+	const text = state.doc.toString();
+	const targetsByEdit = bodyEdits.map((change) =>
+		passageTargets(passages, text, sourceHeader.from, change)
+	);
+	const legendChanged = changedSourceHeader.legend !== sourceHeader.legend;
+	const additions: TextEdit[] = [];
+	let skippedPeer = false;
+	for (const peer of members.slice(1)) {
+		const peerHeader = parsed.sections.find(
+			(section) => section.header?.from === peer.header
+		)?.header;
+		if (!peerHeader) continue;
+		// A peer is carried only whole: its legend already said what the source's
+		// did, every body edit lands in it, and the new legend gives its own
+		// unshared words to the singer they already had (or, if unnamed, to one
+		// who sings the rest of the source). Otherwise its styling means
+		// something else (its own ad-lib, a slot another voice holds) or the new
+		// legend would misdescribe lyrics it alone has, so it is left as it was.
+		const peerTargets = targetsByEdit.map((targets) =>
+			targets.find((target) => target.header === peer.header)
+		);
+		const peerSection = parsed.sections.find((section) => section.header === peerHeader);
+		const reassigned =
+			legendChanged &&
+			peerSection !== undefined &&
+			[...unsharedSungSlots(peerSection, passages)].some((slot) => {
+				const before = nameInSlot(sourceHeader, slot);
+				const after = nameInSlot(changedSourceHeader, slot);
+				return before === undefined ? !restNames.has(after) : before !== after;
+			});
+		if (
+			(peerHeader.legend ?? '') !== (sourceHeader.legend ?? '') ||
+			peerTargets.some((target) => !target) ||
+			reassigned
+		) {
+			skippedPeer = true;
+			continue;
+		}
+		const headerEdit = legendChanged
+			? mirroredLegendEdit(text, peerHeader, changedSourceHeader.legend)
+			: undefined;
+		if (headerEdit) additions.push(headerEdit);
+		peerTargets.forEach((target, index) => {
+			const change = bodyEdits[index];
+			if (target && change && text.slice(target.from, target.to) !== change.insert) {
 				additions.push({ from: target.from, to: target.to, insert: change.insert });
 			}
-		}
+		});
 	}
 
-	if (additions.length === 0) return edit;
+	if (additions.length === 0) return { edit, peersSkipped: skippedPeer };
 	const edits = [...edit.edits, ...additions].sort(
 		(left, right) => left.from - right.from || left.to - right.to
 	);
@@ -967,7 +1047,7 @@ export function expandLinkedPerformerEdit(
 			head: edit.selectionAfter.head + precedingDelta
 		};
 	}
-	return expanded;
+	return { edit: expanded, peersSkipped: skippedPeer };
 }
 
 /** Body-relative runs put back into document coordinates. */
@@ -1531,6 +1611,7 @@ export function sectionLinkMirror(): Extension {
 					];
 			}
 		}
+		if (transaction.annotation(linkedPerformerAnnotation)) return transaction;
 		const onlyHere = transaction.annotation(applyOnlyHereAnnotation);
 		if (
 			onlyHere &&

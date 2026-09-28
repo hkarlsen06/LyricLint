@@ -67,7 +67,12 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
 - Every edit must report its honest range. `narrowEdit` in `performers/transform.ts` prevents a
   performer wrapper from claiming to replace a whole line. An ad-lib present in one copy stays
   there; assignment on shared words uses the same exact destinations and updates linked legends
-  through the established performer transaction.
+  through the established performer transaction. `expandLinkedPerformerEdit` carries a peer only
+  whole: its legend matched the source's before the edit, every body edit lands in it, and the new
+  legend gives its unshared words the singer they had (or, if unnamed, one who sings the rest of
+  the source). Any other peer is left exactly as it was, and `linkedPerformerAnnotation` keeps the
+  ordinary mirror from carrying the body half there alone. An edit that leaves the source header
+  unchanged (an unknown voice) never rewrites a peer's legend. Pin: `linked-legend.svelte.test.ts`.
 - `Edit this section only` (`Mod-Shift-L`) remains a section-scoped toggle. It detaches only that
   occurrence's touched range; the other copies stay connected. Moving the caret does not disable
   the mode. Turning it off resumes untouched shared passages and preserves its local exclusions.
