@@ -1,6 +1,6 @@
-import { getLanguagePack, canLintHeaderLanguage } from '$lib/languages/registry.js';
-import { headerNameIsEmpty } from '$lib/core/parser.js';
-import type { RuleDefinition } from '$lib/core/types.js';
+import { getLanguagePack, canLintHeaderLanguage } from '#lib/languages/registry.js';
+import { headerNameIsEmpty } from '#lib/core/parser.js';
+import type { RuleDefinition } from '#lib/core/types.js';
 import { diagnostic } from './utils.js';
 
 function headerSourceIds(language: string): string[] {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
 	import { hideControlHint, shownControlHint } from '../state/control-tooltip.svelte.js';
 
 	const hint = $derived(shownControlHint());

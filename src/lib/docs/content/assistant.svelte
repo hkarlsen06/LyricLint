@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
-	import Keys from '$lib/ui/docs/Keys.svelte';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
 </script>
 
 <h2 id="ask">Ask a question</h2>
@@ -16,7 +16,7 @@
 		is under <strong>Tools</strong>.
 	</li>
 	<li>
-		On the <a href={resolve('/guidelines/')}>guidelines</a> pages, press
+		On the <a href={resolve('guidelines/')}>guidelines</a> pages, press
 		<strong>Ask a question</strong> to open <strong>Ask LyricLint</strong>.
 	</li>
 </ul>
@@ -65,7 +65,7 @@
 </p>
 <p>
 	From the guidelines pages, the assistant has no 'scribe to read. Messages are processed by Anthropic
-	through Cloudflare. The <a href={resolve('/privacy/')}>privacy page</a> says exactly what is sent
+	through Cloudflare. The <a href={resolve('privacy/')}>privacy page</a> says exactly what is sent
 	and kept.
 </p>
 
@@ -85,7 +85,7 @@
 	</li>
 	<li>
 		<strong>Section links.</strong> The assistant can also propose linking or unlinking
-		<a href={resolve('/docs/section-links/')}>repeated sections</a>, with the same
+		<a href={resolve('docs/section-links/')}>repeated sections</a>, with the same
 		<strong>Approve</strong> and <strong>Reject</strong>.
 	</li>
 </ul>

@@ -2,9 +2,9 @@
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import { onMount, tick, untrack } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
-	import type { PerformerId, PerformerRecord, StyleSlot } from '$lib/core/types.js';
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
-	import { unknownVoiceName } from '$lib/performers/legend-cleanup.js';
+	import type { PerformerId, PerformerRecord, StyleSlot } from '#lib/core/types.js';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import { unknownVoiceName } from '#lib/performers/legend-cleanup.js';
 	import type { ScreenRect } from '../contracts.js';
 	import { preferredControlPlacement } from './anchored-position.js';
 

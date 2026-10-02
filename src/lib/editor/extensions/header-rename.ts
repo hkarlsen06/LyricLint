@@ -1,13 +1,13 @@
 import { EditorState, StateEffect, StateField, Transaction } from '@codemirror/state';
 import type { ChangeDesc, Extension, TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import type { PerformerId, TextEdit, TextRange } from '$lib/core/types.js';
+import type { PerformerId, TextEdit, TextRange } from '#lib/core/types.js';
 import {
 	findHeaderRenameTargets,
 	isMirrorableHeaderName,
 	nameBreaksHeaderStructure
-} from '$lib/performers/header-rename.js';
-import { decodeLegendText } from '$lib/performers/import.js';
+} from '#lib/performers/header-rename.js';
+import { decodeLegendText } from '#lib/performers/import.js';
 import {
 	editorCallbacksField,
 	editorComposingField,

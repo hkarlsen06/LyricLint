@@ -8,9 +8,9 @@
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import ListIcon from 'phosphor-svelte/lib/ListIcon';
-	import DocsNav from '$lib/ui/docs/DocsNav.svelte';
-	import DocsSearch from '$lib/ui/docs/DocsSearch.svelte';
-	import * as Sheet from '$lib/ui/primitives/sheet/index.js';
+	import DocsNav from '#lib/ui/docs/DocsNav.svelte';
+	import DocsSearch from '#lib/ui/docs/DocsSearch.svelte';
+	import * as Sheet from '#lib/ui/primitives/sheet/index.js';
 
 	let { children } = $props();
 

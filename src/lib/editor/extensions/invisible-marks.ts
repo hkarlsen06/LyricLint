@@ -1,6 +1,6 @@
 import { EditorView, highlightSpecialChars, highlightTrailingWhitespace } from '@codemirror/view';
 import type { Extension } from '@codemirror/state';
-import { invisibleCharacterAt, invisibleCharacterPattern } from '$lib/core/invisible-characters.js';
+import { invisibleCharacterAt, invisibleCharacterPattern } from '#lib/core/invisible-characters.js';
 
 /*
  * `text.invisible-characters` reports characters the reader cannot see, and a

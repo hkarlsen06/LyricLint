@@ -8,10 +8,10 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
 	import { Tabs } from 'bits-ui';
-	import type { Diagnostic } from '$lib/core/types.js';
-	import { assistantAvailable } from '$lib/assistant/api.js';
-	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-	import LazyPanel from '$lib/interaction/LazyContent.svelte';
+	import type { Diagnostic } from '#lib/core/types.js';
+	import { assistantAvailable } from '#lib/assistant/api.js';
+	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
+	import LazyPanel from '#lib/interaction/LazyContent.svelte';
 	import LinterPanel from '../linter/LinterPanel.svelte';
 	import IgnoredRules from '../linter/IgnoredRules.svelte';
 	import MediaVideo from '../media/MediaVideo.svelte';
@@ -75,7 +75,7 @@
 	// the noun appears, and "1 visible diagnostics" is exactly the kind of thing
 	// a screen reader user hears in full. Local for the same reason as the status
 	// bar's helper in Workspace.svelte: tab chrome is always English, so the
-	// lyric-language packs under $lib/languages do not apply.
+	// lyric-language packs under #lib/languages do not apply.
 	const diagnosticBadgeLabel = $derived(
 		`${controller.visibleDiagnostics.length} visible diagnostic${
 			controller.visibleDiagnostics.length === 1 ? '' : 's'

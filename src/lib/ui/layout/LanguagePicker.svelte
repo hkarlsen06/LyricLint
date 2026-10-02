@@ -3,8 +3,8 @@
 	import GlobeIcon from 'phosphor-svelte/lib/GlobeIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
-	import { getLanguagePack } from '$lib/languages/registry.js';
-	import { languageSourceInventory } from '$lib/languages/inventory.js';
+	import { getLanguagePack } from '#lib/languages/registry.js';
+	import { languageSourceInventory } from '#lib/languages/inventory.js';
 	import { tick } from 'svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 

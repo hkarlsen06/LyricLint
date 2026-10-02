@@ -11,7 +11,7 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import { drawsCoverBand, formatTime } from '../state/media-player.svelte.js';
 	import type { MediaStore } from '../state/media-store.svelte.js';

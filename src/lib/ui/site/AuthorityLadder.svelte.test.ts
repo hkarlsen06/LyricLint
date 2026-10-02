@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { GuidanceAuthority } from '$lib/guidance/guidance.js';
+import type { GuidanceAuthority } from '#lib/guidance/guidance.js';
 import AuthorityLadder from './AuthorityLadder.svelte';
 
 function ladder() {

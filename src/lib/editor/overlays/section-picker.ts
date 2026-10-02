@@ -1,5 +1,5 @@
-import type { HeaderVocabulary, LanguagePack } from '$lib/core/types.js';
-import { escapeRegExp, headerSemanticKey, semanticPartKey } from '$lib/languages/registry.js';
+import type { HeaderVocabulary, LanguagePack } from '#lib/core/types.js';
+import { escapeRegExp, headerSemanticKey, semanticPartKey } from '#lib/languages/registry.js';
 
 interface SectionHeaderOption {
 	label: string;

@@ -5,7 +5,7 @@ import { render } from 'vitest-browser-svelte';
 // The lockup's geometry is all `em` and `ch` against `--font-size-lg` in the
 // component's own styles, so a width assertion here is only meaningful with
 // the real tokens loaded.
-import '$lib/ui/styles/global.css';
+import '#lib/ui/styles/global.css';
 import AppWordmark from './AppWordmark.svelte';
 
 function lockup(): HTMLElement {

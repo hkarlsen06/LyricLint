@@ -1,4 +1,4 @@
-import type { Diagnostic, RuleDefinition } from '$lib/core/types.js';
+import type { Diagnostic, RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 /**

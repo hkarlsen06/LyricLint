@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
-	import Keys from '$lib/ui/docs/Keys.svelte';
-	import * as Tabs from '$lib/ui/primitives/tabs/index.js';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
+	import * as Tabs from '#lib/ui/primitives/tabs/index.js';
 </script>
 
 <h2 id="roster">Build the roster</h2>
@@ -78,7 +78,7 @@
 			<li>Press <strong>Assign voices</strong> in the editor's action bar.</li>
 			<li>Press the performer who sings them, then <strong>Apply</strong>.</li>
 		</ol>
-		<p>More about touch editing is in <a href={resolve('/docs/phone/')}>On a phone</a>.</p>
+		<p>More about touch editing is in <a href={resolve('docs/phone/')}>On a phone</a>.</p>
 	</Tabs.Content>
 </Tabs.Root>
 
@@ -120,7 +120,7 @@
 
 <p>
 	Some findings about performers carry an <strong>Assign section performers</strong> button that opens
-	the picker for the right section. The guide's <a href={resolve('/guidelines/section-headers/')}
+	the picker for the right section. The guide's <a href={resolve('guidelines/section-headers/')}
 		>section headers</a
 	> topic covers the convention in full.
 </p>
@@ -164,6 +164,6 @@
 
 <p>
 	None of this changes the lyrics. What you copy is only the Genius markup. See <a
-		href={resolve('/docs/copy-paste/')}>Copy and paste</a
+		href={resolve('docs/copy-paste/')}>Copy and paste</a
 	>.
 </p>

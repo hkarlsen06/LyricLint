@@ -1,8 +1,8 @@
 <script lang="ts">
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
-	import LazyContent from '$lib/interaction/LazyContent.svelte';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import LazyContent from '#lib/interaction/LazyContent.svelte';
 	import { untrack } from 'svelte';
 
 	let { controller, open = $bindable(false) }: { controller: WorkbenchController; open?: boolean } =

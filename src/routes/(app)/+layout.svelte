@@ -1,9 +1,9 @@
 <script lang="ts">
-	import '$lib/ui/styles/workbench.css';
+	import '#lib/ui/styles/workbench.css';
 	import { resolve } from '$app/paths';
-	import LiveRegion from '$lib/ui/primitives/LiveRegion.svelte';
-	import ToastRegion from '$lib/ui/primitives/ToastRegion.svelte';
-	import { useFeedbackState } from '$lib/ui/state/feedback.svelte.js';
+	import LiveRegion from '#lib/ui/primitives/LiveRegion.svelte';
+	import ToastRegion from '#lib/ui/primitives/ToastRegion.svelte';
+	import { useFeedbackState } from '#lib/ui/state/feedback.svelte.js';
 
 	let { children } = $props();
 	const feedback = useFeedbackState();
@@ -21,7 +21,7 @@
 			<h1>LyricLint needs JavaScript</h1>
 			<p>
 				The workbench runs entirely in your browser: the linter, the editor and your saved 'scribes
-				are all script. The <a href={resolve('/guidelines/')}>transcription guide</a>
+				are all script. The <a href={resolve('guidelines/')}>transcription guide</a>
 				reads fine without it.
 			</p>
 		</div>

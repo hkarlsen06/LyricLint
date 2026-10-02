@@ -1,8 +1,8 @@
-import { normalizeGeniusUrl } from '$lib/core/genius-url.js';
-import { copyCompareBaseline, copySectionLinks } from '$lib/persistence/copy.js';
+import { normalizeGeniusUrl } from '#lib/core/genius-url.js';
+import { copyCompareBaseline, copySectionLinks } from '#lib/persistence/copy.js';
 // The broadened controller, not the frozen one: `noteDraftLoaded` is the
 // persistence layer's own hook and is what a reopened draft's saves depend on.
-import type { AutosaveController } from '$lib/persistence/types.js';
+import type { AutosaveController } from '#lib/persistence/types.js';
 import type {
 	AutosaveStatus,
 	CompareBaselineRecord,
@@ -15,11 +15,11 @@ import type {
 	PerformerRecord,
 	RuleSetManifest,
 	SectionLink
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import type { FeedbackState } from './feedback.svelte.js';
 import { NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 import { cloneRoster } from './roster-store.svelte.js';
-import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
+import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 
 const maxRecentLanguages = 5;
 

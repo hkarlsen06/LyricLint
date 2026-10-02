@@ -1,10 +1,10 @@
 <script lang="ts">
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
-	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
-	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';
-	import { formatDraftDate, fullDraftDate } from '$lib/ui/drafts/draft-date.js';
+	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import RemoveButton from '#lib/ui/primitives/RemoveButton.svelte';
+	import { formatDraftDate, fullDraftDate } from '#lib/ui/drafts/draft-date.js';
 
 	let {
 		assistant,

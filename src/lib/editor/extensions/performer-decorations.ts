@@ -2,7 +2,7 @@ import { RangeSet, StateEffect, StateField } from '@codemirror/state';
 import type { ChangeDesc, EditorState, Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, GutterMarker, ViewPlugin, gutter } from '@codemirror/view';
 import type { DecorationSet, ViewUpdate } from '@codemirror/view';
-import type { PerformerRecord } from '$lib/core/types.js';
+import type { PerformerRecord } from '#lib/core/types.js';
 import type { VoiceGroupRange } from '../contracts.js';
 import { editorCallbacksField, editorComposingField, isCompositionChange } from './editor-state.js';
 

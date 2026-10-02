@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SourceAuthority, SourceReference } from '$lib/core/types.js';
+import type { SourceAuthority, SourceReference } from '#lib/core/types.js';
 import { assertReviewedSources, getSource, sourceRegistry } from './sources.js';
 
 const reviewedIds = [

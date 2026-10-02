@@ -2,7 +2,7 @@ import {
 	createReferenceSearch,
 	type ReferenceDocument,
 	referenceSearchTokens as queryTokens
-} from '$lib/reference/search.js';
+} from '#lib/reference/search.js';
 import {
 	emptyReferenceSearch,
 	referenceSearchHref,

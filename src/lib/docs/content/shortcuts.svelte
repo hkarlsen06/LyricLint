@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { shortcuts, type ShortcutSection } from '$lib/docs/shortcuts.js';
-	import Keys from '$lib/ui/docs/Keys.svelte';
-	import * as Table from '$lib/ui/primitives/table/index.js';
+	import { shortcuts, type ShortcutSection } from '#lib/docs/shortcuts.js';
+	import Keys from '#lib/ui/docs/Keys.svelte';
+	import * as Table from '#lib/ui/primitives/table/index.js';
 </script>
 
 {#snippet table(section: ShortcutSection, caption: string)}
@@ -45,7 +45,7 @@
 
 <h2 id="findings">Findings</h2>
 <p>
-	Next and previous wrap around the ends of the 'scribe. See <a href={resolve('/docs/findings/')}
+	Next and previous wrap around the ends of the 'scribe. See <a href={resolve('docs/findings/')}
 		>Findings and fixes</a
 	>.
 </p>
@@ -60,7 +60,7 @@
 <p>
 	On keyboard layouts where Ctrl and Alt together (AltGr) type characters, use the Escape or function
 	keys instead of Ctrl+Alt with J, K, and L. See <a
-		href={resolve('/docs/audio/')}>Playing the song</a
+		href={resolve('docs/audio/')}>Playing the song</a
 	>.
 </p>
 {@render table('playback', 'Playback shortcuts')}
@@ -68,6 +68,6 @@
 <h2 id="sync">Timing and sync</h2>
 <p>
 	The sync keys answer only during a sync run. At any other time, Space, Enter, Backspace, and the
-	arrow keys edit as usual. See <a href={resolve('/docs/sync/')}>Synced lyrics</a>.
+	arrow keys edit as usual. See <a href={resolve('docs/sync/')}>Synced lyrics</a>.
 </p>
 {@render table('sync', 'Timing and sync shortcuts')}

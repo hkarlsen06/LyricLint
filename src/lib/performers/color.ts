@@ -1,4 +1,4 @@
-import type { PerformerRecord } from '$lib/core/types.js';
+import type { PerformerRecord } from '#lib/core/types.js';
 import { normalizePerformerKey } from './identity.js';
 
 /**

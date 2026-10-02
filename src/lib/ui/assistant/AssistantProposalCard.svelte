@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-	import { charDiffSegments, type DiffSegment } from '$lib/core/char-diff.js';
-	import { acquirePreview } from '$lib/diagnostics/preview-slot.js';
-	import type { AssistantProposalRecord } from '$lib/assistant/types.js';
+	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
+	import { charDiffSegments, type DiffSegment } from '#lib/core/char-diff.js';
+	import { acquirePreview } from '#lib/diagnostics/preview-slot.js';
+	import type { AssistantProposalRecord } from '#lib/assistant/types.js';
 
 	let {
 		proposal,

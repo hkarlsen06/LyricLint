@@ -1,6 +1,6 @@
 /** In-memory fakes for assistant tests: a repository with the real contract
  * and a canned answer factory. Nothing here touches Dexie or the network. */
-import type { AssistantMessageRecord } from '$lib/persistence/types.js';
+import type { AssistantMessageRecord } from '#lib/persistence/types.js';
 import type { AssistantChatRepository } from './chat-repository.js';
 import type { AnswerTurnResponse, StructuredAssistantAnswer } from './types.js';
 

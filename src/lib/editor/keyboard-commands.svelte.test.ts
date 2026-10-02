@@ -2,7 +2,7 @@ import { cdp, page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { EditorView } from '@codemirror/view';
-import type { Diagnostic, EditorHandle } from '$lib/core/types.js';
+import type { Diagnostic, EditorHandle } from '#lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
 

@@ -1,4 +1,4 @@
-import type { RuleDefinition } from '$lib/core/types.js';
+import type { RuleDefinition } from '#lib/core/types.js';
 import { type CatalogLookup, diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 export const replacements: CatalogLookup<string> = {

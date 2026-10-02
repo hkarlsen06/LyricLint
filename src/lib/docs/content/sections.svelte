@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
-	import Keys from '$lib/ui/docs/Keys.svelte';
-	import * as Table from '$lib/ui/primitives/table/index.js';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
+	import * as Table from '#lib/ui/primitives/table/index.js';
 </script>
 
 <h2 id="insert">Insert a header</h2>
@@ -94,11 +94,11 @@
 
 <p>
 	To keep repeated choruses identical while you correct them, <a
-		href={resolve('/docs/section-links/')}>link them</a
+		href={resolve('docs/section-links/')}>link them</a
 	>. The checks behind this section are
-	<a href={resolve('/guidelines/checks/section-verse-numbering/')}>verse numbering</a>,
-	<a href={resolve('/guidelines/checks/repeat-placeholder/')}>repeat placeholders</a>, and
-	<a href={resolve('/guidelines/checks/section-immediate-repeat-spacing/')}>immediate repeats</a>.
+	<a href={resolve('guidelines/checks/section-verse-numbering/')}>verse numbering</a>,
+	<a href={resolve('guidelines/checks/repeat-placeholder/')}>repeat placeholders</a>, and
+	<a href={resolve('guidelines/checks/section-immediate-repeat-spacing/')}>immediate repeats</a>.
 </p>
 
 <h2 id="languages">Headers in other languages</h2>
@@ -174,6 +174,6 @@
 <p>
 	For any other language, the picker has no list yet. Type the header and choose <strong
 		>Use “…”</strong
-	>. The guide's <a href={resolve('/guidelines/non-english/')}>non-English songs</a> and
-	<a href={resolve('/guidelines/section-headers/')}>section headers</a> topics explain the conventions.
+	>. The guide's <a href={resolve('guidelines/non-english/')}>non-English songs</a> and
+	<a href={resolve('guidelines/section-headers/')}>section headers</a> topics explain the conventions.
 </p>

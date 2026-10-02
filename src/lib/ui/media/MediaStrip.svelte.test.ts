@@ -8,7 +8,7 @@ import { createMediaStore } from '../state/media-store.svelte.js';
 import { StubAudio } from '../state/media-test-audio.js';
 import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
 import { appleStore, spotifyStore } from '../state/media-test-stores.js';
-import type { MediaHandleRecord } from '$lib/persistence/index.js';
+import type { MediaHandleRecord } from '#lib/persistence/index.js';
 import ControlTooltip from '../primitives/ControlTooltip.svelte';
 import ToastRegion from '../primitives/ToastRegion.svelte';
 import MediaStrip from './MediaStrip.svelte';

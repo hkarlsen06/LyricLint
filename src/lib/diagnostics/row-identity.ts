@@ -1,5 +1,5 @@
 import { ChangeSet, MapMode } from '@codemirror/state';
-import type { Diagnostic, EditorSnapshot, TextRange } from '$lib/core/types.js';
+import type { Diagnostic, EditorSnapshot, TextRange } from '#lib/core/types.js';
 import { diagnosticKey } from './order.js';
 
 type RowSnapshot = Pick<EditorSnapshot, 'revision' | 'text' | 'diagnostics' | 'documentChange'>;

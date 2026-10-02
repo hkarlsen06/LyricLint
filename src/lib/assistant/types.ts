@@ -5,7 +5,7 @@
  * trusts only rule ids it can resolve against its own shipped corpus.
  */
 
-import type { AnchorOccurrence } from '$lib/core/text-anchors.js';
+import type { AnchorOccurrence } from '#lib/core/text-anchors.js';
 
 /**
  * The copy of its exact text an anchor landed on when its call arrived. It is

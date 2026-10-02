@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { prefersReducedMotion } from '$lib/interaction/motion.js';
+	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	import { tick, untrack } from 'svelte';
 	import BootScreen from './BootScreen.svelte';
 

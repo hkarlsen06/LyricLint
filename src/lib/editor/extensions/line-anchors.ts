@@ -19,16 +19,16 @@ import {
 	lineNumberMarkers
 } from '@codemirror/view';
 import type { BlockInfo, ViewUpdate } from '@codemirror/view';
-import { isLyricLine } from '$lib/core/parser.js';
+import { isLyricLine } from '#lib/core/parser.js';
 import { annotationSpansFor } from './annotation-spans.js';
-import { prefersReducedMotion } from '$lib/interaction/motion.js';
+import { prefersReducedMotion } from '#lib/interaction/motion.js';
 import {
 	hideControlHint,
 	releaseControlHint,
 	showControlHint
-} from '$lib/ui/state/control-tooltip.svelte.js';
+} from '#lib/ui/state/control-tooltip.svelte.js';
 import type { Line } from '@codemirror/state';
-import type { LineAnchor } from '$lib/core/types.js';
+import type { LineAnchor } from '#lib/core/types.js';
 
 export type { LineAnchor };
 
@@ -207,7 +207,7 @@ interface LineAnchorState {
 /**
  * `m:ss`, duplicated from the media player on purpose.
  *
- * The editor may not import from `$lib/ui` (it is the rule that keeps the
+ * The editor may not import from `#lib/ui` (it is the rule that keeps the
  * shell replaceable), and four lines of arithmetic is a cheaper price than the
  * dependency.
  */

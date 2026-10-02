@@ -1,8 +1,8 @@
-import { docsPages } from '$lib/docs/catalog.js';
-import { guidanceTopics } from '$lib/guidance/entries.js';
-import { currentRuleSet } from '$lib/rules/index.js';
-import { ruleReferences } from '$lib/rules/reference.js';
-import { siteUrl } from '$lib/seo.js';
+import { docsPages } from '#lib/docs/catalog.js';
+import { guidanceTopics } from '#lib/guidance/entries.js';
+import { currentRuleSet } from '#lib/rules/index.js';
+import { ruleReferences } from '#lib/rules/reference.js';
+import { siteUrl } from '#lib/seo.js';
 import type { RequestHandler } from './$types.js';
 
 export const prerender = true;

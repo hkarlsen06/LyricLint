@@ -5,7 +5,7 @@
  * generated corpus the Worker validates citations with, never from model
  * output. Loaded lazily so the artifact stays out of the initial bundle.
  */
-import type { AssistantCorpus } from '$lib/rules/assistant-corpus-types.js';
+import type { AssistantCorpus } from '#lib/rules/assistant-corpus-types.js';
 
 export interface RulePreviewSource {
 	id: string;

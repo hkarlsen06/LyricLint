@@ -1,5 +1,5 @@
 import type { Attachment } from 'svelte/attachments';
-import { prefersReducedMotion } from '$lib/interaction/motion.js';
+import { prefersReducedMotion } from '#lib/interaction/motion.js';
 
 /*
  * A section's loop plays as an enhancement, never as the markup's own state.

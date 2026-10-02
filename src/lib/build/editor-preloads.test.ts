@@ -66,7 +66,7 @@ describe('editor preloads', () => {
 			// oxlint-disable-next-line anti-slop/no-chained-type-assertions
 			const builder = {
 				getClientDirectory: () => client,
-				config: { kit: { paths: { base: '/base', assets: '' } } },
+				config: { paths: { base: '/base', assets: '' } },
 				prerendered: { pages: new Map([['/base/workbench/', { file: 'workbench/index.html' }]]) },
 				writePrerendered(destination: string) {
 					mkdirSync(join(destination, 'workbench'), { recursive: true });

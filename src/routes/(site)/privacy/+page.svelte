@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { siteUrl } from '$lib/seo.js';
+	import { siteUrl } from '#lib/seo.js';
 
 	const pageTitle = 'Privacy · LyricLint';
 	const pageDescription =

@@ -2,13 +2,13 @@ import { render } from 'vitest-browser-svelte';
 import { describe, expect, it, vi } from 'vitest';
 // The parity assertions compare rendered geometry as well as markup, so the
 // real tokens have to be loaded rather than mocked.
-import '$lib/ui/styles/global.css';
-import type { Diagnostic } from '$lib/core/types.js';
-import DiagnosticPopover from '$lib/editor/overlays/DiagnosticPopover.svelte';
-import DiagnosticDetails from '$lib/ui/linter/DiagnosticDetails.svelte';
-import DiagnosticList from '$lib/ui/linter/DiagnosticList.svelte';
-import { hideControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
-import ControlTooltip from '$lib/ui/primitives/ControlTooltip.svelte';
+import '#lib/ui/styles/global.css';
+import type { Diagnostic } from '#lib/core/types.js';
+import DiagnosticPopover from '#lib/editor/overlays/DiagnosticPopover.svelte';
+import DiagnosticDetails from '#lib/ui/linter/DiagnosticDetails.svelte';
+import DiagnosticList from '#lib/ui/linter/DiagnosticList.svelte';
+import { hideControlHint } from '#lib/ui/state/control-tooltip.svelte.js';
+import ControlTooltip from '#lib/ui/primitives/ControlTooltip.svelte';
 
 /** The case from the screenshot: a fix whose label is already a command. */
 function contractionDiagnostic(): Diagnostic {

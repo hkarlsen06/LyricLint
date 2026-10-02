@@ -1,5 +1,5 @@
 /** Decision record: docs/subsystems/reference.md. URL state belongs to the unified transcription guide. */
-import type { Fixability, Severity } from '$lib/core/types.js';
+import type { Fixability, Severity } from '#lib/core/types.js';
 
 export interface ReferenceSearchState {
 	query: string;

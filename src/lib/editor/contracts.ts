@@ -15,7 +15,7 @@ import type {
 	StyleSlot,
 	TextRange,
 	VoiceGroup
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import type { ClipboardMediaSource } from './clipboard-metadata.js';
 
 export type { ClipboardMediaSource };

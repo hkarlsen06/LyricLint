@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { hasCompletedAnswer } from '$lib/assistant/message.js';
+	import { hasCompletedAnswer } from '#lib/assistant/message.js';
 	/**
 	 * The assistant below its surface-specific header: transcript, request
 	 * status, challenge, composer, and the empty-state disclosure. The modal
@@ -11,17 +11,17 @@
 	import { tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
-	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-	import { MAX_QUESTION_CHARS } from '$lib/assistant/types.js';
+	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
+	import { MAX_QUESTION_CHARS } from '#lib/assistant/types.js';
 	import {
 		loadRulePreviews,
 		type RulePreview,
 		type RulePreviewSource
-	} from '$lib/assistant/rule-previews.js';
-	import { renderChallenge, type ChallengeHandle } from '$lib/assistant/turnstile.js';
-	import { stickToBottom } from '$lib/interaction/stick-to-bottom.js';
-	import { PHONE_LAYOUT_QUERY } from '$lib/interaction/phone-layout.js';
-	import LoadingMark from '$lib/ui/primitives/LoadingMark.svelte';
+	} from '#lib/assistant/rule-previews.js';
+	import { renderChallenge, type ChallengeHandle } from '#lib/assistant/turnstile.js';
+	import { stickToBottom } from '#lib/interaction/stick-to-bottom.js';
+	import { PHONE_LAYOUT_QUERY } from '#lib/interaction/phone-layout.js';
+	import LoadingMark from '#lib/ui/primitives/LoadingMark.svelte';
 	import AssistantAnswer from './AssistantAnswer.svelte';
 	import AssistantLinkActionCard from './AssistantLinkActionCard.svelte';
 	import AssistantProposalCard from './AssistantProposalCard.svelte';

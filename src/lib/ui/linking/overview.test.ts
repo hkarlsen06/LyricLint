@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import { englishLanguagePack } from '$lib/languages/en.js';
+import { parseDocument } from '#lib/core/parser.js';
+import { englishLanguagePack } from '#lib/languages/en.js';
 import { linkingSectionNames, linkingOverview } from './overview.js';
 
 describe('linking overview', () => {

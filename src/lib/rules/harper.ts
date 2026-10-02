@@ -6,8 +6,8 @@ import type {
 	PerformerRecord,
 	TextEdit,
 	TextRange
-} from '$lib/core/types.js';
-import { resolveLanguageTag } from '$lib/languages/registry.js';
+} from '#lib/core/types.js';
+import { resolveLanguageTag } from '#lib/languages/registry.js';
 import { decadeApostropheTokenPattern } from './catalog/numbers-decade-apostrophe.js';
 import { standardizedSpellings } from './data/spelling.js';
 import { sortDiagnostics } from './results.js';

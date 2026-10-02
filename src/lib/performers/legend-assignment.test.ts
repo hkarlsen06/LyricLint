@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { Diagnostic } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { Diagnostic } from '#lib/core/types.js';
 import { resolveLegendAssignment } from './legend-assignment.js';
 
 /** The diagnostic `performer.inline-mismatch` reports over a styled span. */

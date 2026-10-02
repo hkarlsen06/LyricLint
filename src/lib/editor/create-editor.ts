@@ -22,13 +22,13 @@ import {
 	keymap,
 	lineNumbers
 } from '@codemirror/view';
-import { parseDocument } from '$lib/core/parser.js';
+import { parseDocument } from '#lib/core/parser.js';
 import type {
 	EditorHandle,
 	EditorSnapshot,
 	SerializedSelection,
 	TextRange
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks, SelectionAnchor } from './contracts.js';
 import {
 	editorCallbacksField,

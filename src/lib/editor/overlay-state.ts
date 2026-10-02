@@ -4,7 +4,7 @@ import type {
 	PerformerId,
 	StyleSlot,
 	TextRange
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import type { ScreenRect, SelectionAnchor } from './contracts.js';
 
 /**

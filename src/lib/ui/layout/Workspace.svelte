@@ -5,31 +5,31 @@
 		LineAnchor,
 		TextRange,
 		UnknownVoiceRequest
-	} from '$lib/core/types.js';
+	} from '#lib/core/types.js';
 	import type {
 		EditorDisplayContext,
 		EditorPaneProps,
 		LyricEditorCallbacks
-	} from '$lib/editor/index.js';
+	} from '#lib/editor/index.js';
 	import {
 		assignUnknownVoice,
 		assignVoiceGroup,
 		assignVoiceLegend,
 		insertSectionHeader
-	} from '$lib/performers/index.js';
+	} from '#lib/performers/index.js';
 	import {
 		getLanguagePack,
 		linkableSemantic,
 		resolveLanguageTag
-	} from '$lib/languages/registry.js';
-	import { lineNumberAt } from '$lib/core/line-numbers.js';
-	import { unknownVoiceAcceptanceKey } from '$lib/diagnostics/ignore.js';
-	import { prefersReducedMotion } from '$lib/interaction/motion.js';
+	} from '#lib/languages/registry.js';
+	import { lineNumberAt } from '#lib/core/line-numbers.js';
+	import { unknownVoiceAcceptanceKey } from '#lib/diagnostics/ignore.js';
+	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	import { workspaceEntrance } from './workspace-entrance.js';
-	import type { HarperDiagnosticProvider } from '$lib/rules/harper.js';
-	import { mergeHarperDiagnostics } from '$lib/rules/results.js';
-	import { useAssistantState } from '$lib/assistant/assistant.svelte.js';
-	import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
+	import type { HarperDiagnosticProvider } from '#lib/rules/harper.js';
+	import { mergeHarperDiagnostics } from '#lib/rules/results.js';
+	import { useAssistantState } from '#lib/assistant/assistant.svelte.js';
+	import type { AssistantDraftBridge } from '#lib/assistant/draft-bridge.js';
 	import { onDestroy, tick, type Component, untrack } from 'svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import {
@@ -48,14 +48,14 @@
 	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
 	import { carryHarperDiagnosticsAcrossEdit } from '../state/harper-continuity.js';
 	import { trackKeyboardInset } from '../state/keyboard-inset.js';
-	import LazyPanel from '$lib/interaction/LazyContent.svelte';
+	import LazyPanel from '#lib/interaction/LazyContent.svelte';
 	import { NOTICE_TOAST_DURATION } from '../state/feedback.svelte.js';
-	type NativeRules = typeof import('$lib/rules/engine.js').runRules;
+	type NativeRules = typeof import('#lib/rules/engine.js').runRules;
 	import MediaVideo from '../media/MediaVideo.svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import type { RightPanelTab } from '../state/panel-view.svelte.js';
-	import type { Diagnostic } from '$lib/core/types.js';
+	import type { Diagnostic } from '#lib/core/types.js';
 
 	let {
 		controller,
@@ -64,7 +64,7 @@
 		brandRevealed = true,
 		onready,
 		onerror,
-		loadNativeRules = () => import('$lib/rules/engine.js')
+		loadNativeRules = () => import('#lib/rules/engine.js')
 	}: {
 		controller: WorkbenchController;
 		editorComponent: Component<EditorPaneProps>;
@@ -368,7 +368,7 @@
 	): Promise<Diagnostic[]> {
 		const provider =
 			harperProvider ??
-			(await (harperProviderPromise ??= import('$lib/rules/harper.js').then(
+			(await (harperProviderPromise ??= import('#lib/rules/harper.js').then(
 				({ createHarperDiagnosticProvider }) => {
 					if (destroyed) return undefined;
 					return (ownedHarperProvider = createHarperDiagnosticProvider());
@@ -575,7 +575,7 @@
 		languageDetectorTimer = setTimeout(() => {
 			languageDetectorTimer = undefined;
 			languageDetectorStarted = true;
-			void import('$lib/languages/detect.js')
+			void import('#lib/languages/detect.js')
 				.then(({ loadStatisticalLanguageDetector }) => loadStatisticalLanguageDetector())
 				.then(() => {
 					if (destroyed) return;

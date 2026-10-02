@@ -6,33 +6,35 @@
 	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to base-prefixed or resolve-derived paths; the lint rule cannot inspect nested calls. */
 	import { tick } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
-	import { base, resolve } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import {
 		createReferenceResults,
 		referenceSearchQuery,
 		referenceHref
-	} from '$lib/ui/site/reference-search.svelte.js';
-	import { guidanceTopics } from '$lib/guidance/entries.js';
+	} from '#lib/ui/site/reference-search.svelte.js';
+	import { guidanceTopics } from '#lib/guidance/entries.js';
 	import {
 		authorityLabels,
 		entryAnchor,
 		guidanceTopicLandmarks,
 		guidanceTopicTitles
-	} from '$lib/guidance/guidance.js';
-	import { getSource } from '$lib/rules/data/sources.js';
-	import { referenceTopics } from '$lib/reference/topics.js';
-	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
-	import CodeProse from '$lib/ui/site/CodeProse.svelte';
-	import GuidanceSearchHighlight from '$lib/ui/site/GuidanceSearchHighlight.svelte';
-	import SiteSourceFold from '$lib/ui/site/SiteSourceFold.svelte';
-	import { setReadingAnchor } from '$lib/ui/site/guidance-reading.svelte.js';
-	import { safeDecodeHash } from '$lib/ui/site/hash.js';
+	} from '#lib/guidance/guidance.js';
+	import { getSource } from '#lib/rules/data/sources.js';
+	import { referenceTopics } from '#lib/reference/topics.js';
+	import AuthorityLadder from '#lib/ui/site/AuthorityLadder.svelte';
+	import CodeProse from '#lib/ui/site/CodeProse.svelte';
+	import GuidanceSearchHighlight from '#lib/ui/site/GuidanceSearchHighlight.svelte';
+	import SiteSourceFold from '#lib/ui/site/SiteSourceFold.svelte';
+	import { setReadingAnchor } from '#lib/ui/site/guidance-reading.svelte.js';
+	import { safeDecodeHash } from '#lib/ui/site/hash.js';
 	import { stickyTopics } from './sticky-topics.js';
 	import type { Snapshot } from '@sveltejs/kit';
 	import type { LayoutData } from '../../../routes/(site)/guidelines/$types.js';
-	import type { GuidanceTopic } from '$lib/guidance/guidance.js';
+	import type { GuidanceTopic } from '#lib/guidance/guidance.js';
 
 	let { data, topic }: { data: LayoutData; topic?: GuidanceTopic } = $props();
+	// Corpus hrefs are site-absolute; this prefixes them with the base path.
+	const root = resolve('/(site)');
 
 	const entries = $derived(
 		guidanceTopics().find((candidate) => candidate.topic === topic)?.entries ?? []
@@ -165,7 +167,10 @@
 
 	// Back restores the reader's precise position, including a check opened below
 	// the entry heading. Refresh selection without overriding browser restoration.
-	afterNavigate(({ type }) => updateLanding(type !== 'popstate'));
+	// A shallow entry only rewrites search fields in the URL.
+	afterNavigate(({ type, shallow }) => {
+		if (!shallow) updateLanding(type !== 'popstate');
+	});
 
 	/**
 	 * Which entry the reader is on: the last heading to have crossed the reading
@@ -336,7 +341,7 @@
 					</figure>
 					<p>
 						<a
-							href={referenceHref(`${base}${check.href}`)}
+							href={referenceHref(`${root}${check.href.slice(1)}`)}
 							aria-label={`See trigger and fix: ${check.title}`}>See trigger and fix</a
 						>
 					</p>
@@ -558,7 +563,7 @@
 	{/each}
 
 	<div class="site-actions">
-		<a class="button" href={resolve('/workbench/')}>Check a transcription in the workbench</a>
+		<a class="button" href={resolve('workbench/')}>Check a transcription in the workbench</a>
 	</div>
 </main>
 

@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { normalizeGeniusUrl } from '$lib/core/genius-url.js';
-	import youtubeIcon from '$lib/assets/youtube-icon.svg';
+	import { normalizeGeniusUrl } from '#lib/core/genius-url.js';
+	import youtubeIcon from '#lib/assets/youtube-icon.svg';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import type { TimedLyricsFormat } from '$lib/core/timed-lyrics.js';
-	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
+	import type { TimedLyricsFormat } from '#lib/core/timed-lyrics.js';
+	import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 	import { copyText } from '../clipboard.js';
 	import ArtworkActions from '../media/ArtworkActions.svelte';
 	import SongFacts, { hasSongFacts } from '../media/SongFacts.svelte';

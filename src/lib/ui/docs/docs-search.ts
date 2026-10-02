@@ -1,4 +1,4 @@
-import { docsPages, type DocsPage, type DocsSection } from '$lib/docs/catalog.js';
+import { docsPages, type DocsPage, type DocsSection } from '#lib/docs/catalog.js';
 
 /** A page, or one section of a page, that answers the query. */
 export interface DocsHit {

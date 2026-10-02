@@ -1,7 +1,7 @@
 // Decision record: docs/subsystems/reference.md
-import { guidanceEntries } from '$lib/guidance/entries.js';
-import { guidanceTopicLandmarks, type GuidanceTopic } from '$lib/guidance/guidance.js';
-import { ruleReferences } from '$lib/rules/reference.js';
+import { guidanceEntries } from '#lib/guidance/entries.js';
+import { guidanceTopicLandmarks, type GuidanceTopic } from '#lib/guidance/guidance.js';
+import { ruleReferences } from '#lib/rules/reference.js';
 import { referenceTopicForRule } from './topics.js';
 
 /** Derive check wording and coverage from the same records as the individual check pages. */

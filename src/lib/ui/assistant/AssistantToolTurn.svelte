@@ -1,7 +1,7 @@
 <script lang="ts">
 	import FileTextIcon from 'phosphor-svelte/lib/FileTextIcon';
-	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-	import type { AssistantToolCallRecord } from '$lib/persistence/types.js';
+	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
+	import type { AssistantToolCallRecord } from '#lib/persistence/types.js';
 
 	type DraftReadCall = Extract<AssistantToolCallRecord, { name: 'read_scribe' }>;
 

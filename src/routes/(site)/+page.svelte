@@ -1,18 +1,18 @@
 <script lang="ts">
-	import shotDimensions from '$lib/assets/shot-dimensions.json';
+	import shotDimensions from '#lib/assets/shot-dimensions.json';
 	import BookOpenIcon from 'phosphor-svelte/lib/BookOpenIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
-	import { resolve } from '$app/paths';
-	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
-	import { authorityLabels, type GuidanceAuthority } from '$lib/guidance/guidance.js';
-	import { maintainerStructuredData, siteUrl } from '$lib/seo.js';
-	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
-	import LazyLiveDemo from '$lib/ui/site/LazyLiveDemo.svelte';
-	import DemoCaptions from '$lib/ui/site/DemoCaptions.svelte';
-	import { heroCaptions, heroPlaybackRate, playerCaptions } from '$lib/ui/site/demo-captions.js';
-	import LyricIcon from '$lib/ui/site/LyricIcon.svelte';
-	import StructuredData from '$lib/ui/site/StructuredData.svelte';
-	import { createAutoplayInView } from '$lib/ui/site/autoplay-in-view.js';
+	import { asset, resolve } from '$app/paths';
+	import SeverityTag from '#lib/diagnostics/SeverityTag.svelte';
+	import { authorityLabels, type GuidanceAuthority } from '#lib/guidance/guidance.js';
+	import { maintainerStructuredData, siteUrl } from '#lib/seo.js';
+	import AuthorityLadder from '#lib/ui/site/AuthorityLadder.svelte';
+	import LazyLiveDemo from '#lib/ui/site/LazyLiveDemo.svelte';
+	import DemoCaptions from '#lib/ui/site/DemoCaptions.svelte';
+	import { heroCaptions, heroPlaybackRate, playerCaptions } from '#lib/ui/site/demo-captions.js';
+	import LyricIcon from '#lib/ui/site/LyricIcon.svelte';
+	import StructuredData from '#lib/ui/site/StructuredData.svelte';
+	import { createAutoplayInView } from '#lib/ui/site/autoplay-in-view.js';
 	import type { PageProps } from './$types.js';
 
 	let { data }: PageProps = $props();
@@ -169,11 +169,11 @@ You said we'd drive until the radio gave out (yeah)`;
 
 			<!-- The workbench is primary; the guide is the secondary action. -->
 			<div class="lp-hero__actions">
-				<a class="button button--contrast" href={resolve('/workbench/')}>
+				<a class="button button--contrast" href={resolve('workbench/')}>
 					<LyricIcon />
 					<span>Open the workbench</span>
 				</a>
-				<a class="button" href={resolve('/guidelines/')}>
+				<a class="button" href={resolve('guidelines/')}>
 					<BookOpenIcon aria-hidden="true" size={16} weight="bold" />
 					<span>Read the transcription guide</span>
 				</a>
@@ -235,11 +235,11 @@ You said we'd drive until the radio gave out (yeah)`;
 					<div class="lp-shot__media">
 						<img
 							class="lp-shot__poster"
-							src="{resolve('/')}workbench.webp"
-							srcset="{resolve('/')}workbench-640.webp {shotDimensions['workbench-640.webp']
-								.width}w, {resolve('/')}workbench-1280.webp {shotDimensions['workbench-1280.webp']
-								.width}w, {resolve('/')}workbench-1920.webp {shotDimensions['workbench-1920.webp']
-								.width}w, {resolve('/')}workbench.webp {shotDimensions['workbench.webp'].width}w"
+							src={asset('workbench.webp')}
+							srcset="{asset('workbench-640.webp')} {shotDimensions['workbench-640.webp']
+								.width}w, {asset('workbench-1280.webp')} {shotDimensions['workbench-1280.webp']
+								.width}w, {asset('workbench-1920.webp')} {shotDimensions['workbench-1920.webp']
+								.width}w, {asset('workbench.webp')} {shotDimensions['workbench.webp'].width}w"
 							sizes="(min-width: 74rem) 71rem, calc(100vw - 3rem)"
 							fetchpriority="high"
 							width={shotDimensions['workbench.webp'].width}
@@ -252,8 +252,8 @@ You said we'd drive until the radio gave out (yeah)`;
 					     `<video>`. -->
 						<video
 							{@attach autoplayInView}
-							data-src="{resolve('/')}workbench.webm"
-							data-mobile-src="{resolve('/')}workbench-mobile.webm"
+							data-src={asset('workbench.webm')}
+							data-mobile-src={asset('workbench-mobile.webm')}
 							data-playback-rate={heroPlaybackRate}
 							width={shotDimensions['workbench.webm'].width}
 							height={shotDimensions['workbench.webm'].height}
@@ -277,16 +277,15 @@ You said we'd drive until the radio gave out (yeah)`;
 					<div class="lp-shot__media">
 						<img
 							class="lp-shot__poster"
-							src="{resolve('/')}workbench-player.webp"
-							srcset="{resolve('/')}workbench-player-400.webp {shotDimensions[
+							src={asset('workbench-player.webp')}
+							srcset="{asset('workbench-player-400.webp')} {shotDimensions[
 								'workbench-player-400.webp'
-							].width}w, {resolve('/')}workbench-player-640.webp {shotDimensions[
+							].width}w, {asset('workbench-player-640.webp')} {shotDimensions[
 								'workbench-player-640.webp'
-							].width}w, {resolve('/')}workbench-player-960.webp {shotDimensions[
+							].width}w, {asset('workbench-player-960.webp')} {shotDimensions[
 								'workbench-player-960.webp'
-							].width}w, {resolve('/')}workbench-player.webp {shotDimensions[
-								'workbench-player.webp'
-							].width}w"
+							].width}w, {asset('workbench-player.webp')} {shotDimensions['workbench-player.webp']
+								.width}w"
 							sizes="(max-width: 64rem) min(56rem, calc(100vw - 3rem)), (min-width: 74rem) 34.85rem, calc((100vw - 3rem - 4vw) * 1.05 / 2.05)"
 							loading="lazy"
 							width={shotDimensions['workbench-player.webp'].width}
@@ -296,7 +295,7 @@ You said we'd drive until the radio gave out (yeah)`;
 						/>
 						<video
 							{@attach autoplayInView}
-							src="{resolve('/')}workbench-player.webm"
+							src={asset('workbench-player.webm')}
 							width={shotDimensions['workbench-player.webm'].width}
 							height={shotDimensions['workbench-player.webm'].height}
 							aria-label="An example track is synced to every lyric line with Space in an accelerated demonstration. Dragging the player’s scrubber moves the yellow highlight through the lyrics. Clicking a line number jumps to that line and plays it. On-screen keypresses show Escape pausing and resuming two seconds earlier, then Shift+Escape and Option+Escape stepping between synced lines."
@@ -340,11 +339,11 @@ You said we'd drive until the radio gave out (yeah)`;
 				<div class="lp-shot__frame">
 					<img
 						class="lp-shot__poster"
-						src="{resolve('/')}workbench-song.webp"
-						srcset="{resolve('/')}workbench-song-400.webp {shotDimensions['workbench-song-400.webp']
-							.width}w, {resolve('/')}workbench-song-640.webp {shotDimensions[
+						src={asset('workbench-song.webp')}
+						srcset="{asset('workbench-song-400.webp')} {shotDimensions['workbench-song-400.webp']
+							.width}w, {asset('workbench-song-640.webp')} {shotDimensions[
 							'workbench-song-640.webp'
-						].width}w, {resolve('/')}workbench-song.webp {shotDimensions['workbench-song.webp']
+						].width}w, {asset('workbench-song.webp')} {shotDimensions['workbench-song.webp']
 							.width}w"
 						sizes="min(26rem, calc(100vw - 3rem))"
 						loading="lazy"
@@ -355,7 +354,7 @@ You said we'd drive until the radio gave out (yeah)`;
 					/>
 					<video
 						{@attach autoplayInView}
-						src="{resolve('/')}workbench-song.webm"
+						src={asset('workbench-song.webm')}
 						width={shotDimensions['workbench-song.webm'].width}
 						height={shotDimensions['workbench-song.webm'].height}
 						aria-label="The Song panel shows release date, writers, album, and label. Clicking Avery Lane copies that writer’s name. Copy image URL confirms the artwork link was copied, then Download album art saves the cover."
@@ -411,14 +410,14 @@ You said we'd drive until the radio gave out (yeah)`;
 				<div class="lp-shot__frame">
 					<img
 						class="lp-shot__poster"
-						src="{resolve('/')}workbench-performers.webp"
-						srcset="{resolve('/')}workbench-performers-400.webp {shotDimensions[
+						src={asset('workbench-performers.webp')}
+						srcset="{asset('workbench-performers-400.webp')} {shotDimensions[
 							'workbench-performers-400.webp'
-						].width}w, {resolve('/')}workbench-performers-640.webp {shotDimensions[
+						].width}w, {asset('workbench-performers-640.webp')} {shotDimensions[
 							'workbench-performers-640.webp'
-						].width}w, {resolve('/')}workbench-performers-960.webp {shotDimensions[
+						].width}w, {asset('workbench-performers-960.webp')} {shotDimensions[
 							'workbench-performers-960.webp'
-						].width}w, {resolve('/')}workbench-performers.webp {shotDimensions[
+						].width}w, {asset('workbench-performers.webp')} {shotDimensions[
 							'workbench-performers.webp'
 						].width}w"
 						sizes="(max-width: 64rem) min(56rem, calc(100vw - 3rem)), (min-width: 74rem) 34.85rem, calc((100vw - 3rem - 4vw) * 1.05 / 2.05)"
@@ -438,7 +437,7 @@ You said we'd drive until the radio gave out (yeah)`;
 					     accessible name) is the honest description of it. -->
 					<video
 						{@attach autoplayInView}
-						src="{resolve('/')}workbench-performers.webm"
+						src={asset('workbench-performers.webm')}
 						width={shotDimensions['workbench-performers.webm'].width}
 						height={shotDimensions['workbench-performers.webm'].height}
 						aria-label="Words are selected in the editor and assigned to Avery. The rest of the section is assigned to Avery and Blair together. LyricLint adds the performer names to the header and wraps the selected words in italics markup. Coloured marks beside the lines show who sings them."
@@ -488,14 +487,14 @@ You said we'd drive until the radio gave out (yeah)`;
 				<div class="lp-shot__frame">
 					<img
 						class="lp-shot__poster"
-						src="{resolve('/')}workbench-harper.webp"
-						srcset="{resolve('/')}workbench-harper-400.webp {shotDimensions[
+						src={asset('workbench-harper.webp')}
+						srcset="{asset('workbench-harper-400.webp')} {shotDimensions[
 							'workbench-harper-400.webp'
-						].width}w, {resolve('/')}workbench-harper-640.webp {shotDimensions[
+						].width}w, {asset('workbench-harper-640.webp')} {shotDimensions[
 							'workbench-harper-640.webp'
-						].width}w, {resolve('/')}workbench-harper-960.webp {shotDimensions[
+						].width}w, {asset('workbench-harper-960.webp')} {shotDimensions[
 							'workbench-harper-960.webp'
-						].width}w, {resolve('/')}workbench-harper.webp {shotDimensions['workbench-harper.webp']
+						].width}w, {asset('workbench-harper.webp')} {shotDimensions['workbench-harper.webp']
 							.width}w"
 						sizes="(max-width: 64rem) min(56rem, calc(100vw - 3rem)), (min-width: 74rem) 34.85rem, calc((100vw - 3rem - 4vw) * 1.05 / 2.05)"
 						loading="lazy"
@@ -506,7 +505,7 @@ You said we'd drive until the radio gave out (yeah)`;
 					/>
 					<video
 						{@attach autoplayInView}
-						src="{resolve('/')}workbench-harper.webm"
+						src={asset('workbench-harper.webm')}
 						width={shotDimensions['workbench-harper.webm'].width}
 						height={shotDimensions['workbench-harper.webm'].height}
 						aria-label="The line 'I has counted every streetlight' has a wavy underline. Hovering opens a Harper suggestion that explains the grammar mistake and asks you to review it in context. The preview strikes out 'has' and adds 'have'. Pressing Replace with have fixes the line and removes the underline."
@@ -579,7 +578,7 @@ You said we'd drive until the radio gave out (yeah)`;
 					You make the judgement calls. Review the suggested edit and decide what fits the song.
 				</p>
 				<p class="lp-prose">
-					<a href={resolve('/guidelines/')}>Read the transcription guide</a>
+					<a href={resolve('guidelines/')}>Read the transcription guide</a>
 				</p>
 			</div>
 		</div>
@@ -630,7 +629,7 @@ You said we'd drive until the radio gave out (yeah)`;
 				<p class="lp-prose">
 					The rules assistant sends your question and recent chat messages to an answering service.
 					It can read your draft only after you give permission for that draft. You can revoke
-					access at any time. <a href={resolve('/privacy/')}>Read the privacy details</a>.
+					access at any time. <a href={resolve('privacy/')}>Read the privacy details</a>.
 				</p>
 			</div>
 		</div>
@@ -694,8 +693,8 @@ You said we'd drive until the radio gave out (yeah)`;
 					the guide.
 				</p>
 				<p class="lp-prose">
-					<a href={resolve('/guidelines/')}>Open the transcription guide</a>. You can read it
-					without opening the workbench.
+					<a href={resolve('guidelines/')}>Open the transcription guide</a>. You can read it without
+					opening the workbench.
 				</p>
 			</div>
 		</div>
@@ -795,7 +794,7 @@ You said we'd drive until the radio gave out (yeah)`;
 			<h2>Submit it right the first time.</h2>
 			<p>LyricLint is free and needs no account. Paste your lyrics and see what it finds.</p>
 			<div class="lp-cta__actions">
-				<a class="button button--contrast" href={resolve('/workbench/')}>
+				<a class="button button--contrast" href={resolve('workbench/')}>
 					<LyricIcon />
 					<span>Open the workbench</span>
 				</a>

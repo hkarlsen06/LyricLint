@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { LinkConnectionPreview } from '$lib/core/types.js';
-	import { lineNumberAt } from '$lib/core/line-numbers.js';
+	import type { LinkConnectionPreview } from '#lib/core/types.js';
+	import { lineNumberAt } from '#lib/core/line-numbers.js';
 	import DiffExcerpt from './DiffExcerpt.svelte';
 
 	let {

@@ -1,5 +1,5 @@
-import type { RuleDefinition } from '$lib/core/types.js';
-import { unaccountedStyledSlots, unknownVoiceName } from '$lib/performers/legend-cleanup.js';
+import type { RuleDefinition } from '#lib/core/types.js';
+import { unaccountedStyledSlots, unknownVoiceName } from '#lib/performers/legend-cleanup.js';
 import { diagnostic } from './utils.js';
 
 /**

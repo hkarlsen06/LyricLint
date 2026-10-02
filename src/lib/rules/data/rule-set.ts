@@ -1,4 +1,4 @@
-import type { RuleSetManifest } from '$lib/core/types.js';
+import type { RuleSetManifest } from '#lib/core/types.js';
 
 const previousRuleSet: RuleSetManifest = {
 	version: '2026.07.27.0',

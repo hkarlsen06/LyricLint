@@ -1,7 +1,7 @@
 <script lang="ts">
 	import InlineDiffText from '../primitives/InlineDiffText.svelte';
 	import { onMount } from 'svelte';
-	import { diffDocuments, type DiffRow } from '$lib/core/document-diff.js';
+	import { diffDocuments, type DiffRow } from '#lib/core/document-diff.js';
 	import { formatDraftDate } from '../drafts/draft-date.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 

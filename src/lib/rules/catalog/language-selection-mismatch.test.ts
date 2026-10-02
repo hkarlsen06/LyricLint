@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
+import { loadStatisticalLanguageDetector } from '#lib/languages/detect.js';
 import { checkRule, markedText } from '../rule-test-utils.js';
 import { languageSelectionMismatchRule as rule } from './language-selection-mismatch.js';
 

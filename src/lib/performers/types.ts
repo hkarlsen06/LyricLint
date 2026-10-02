@@ -9,7 +9,7 @@ import type {
 	TextRange,
 	VoiceGroup,
 	VoiceGroupKey
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 
 export type {
 	AtomicDocumentEdit,

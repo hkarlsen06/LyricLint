@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { parseDocument } from '$lib/core/parser.js';
+	import { parseDocument } from '#lib/core/parser.js';
 	import type {
 		AtomicDocumentEdit,
 		EditorSnapshot,
 		SectionLink,
 		SerializedSelection
-	} from '$lib/core/types.js';
-	import type { EditorPaneProps } from '$lib/editor/index.js';
+	} from '#lib/core/types.js';
+	import type { EditorPaneProps } from '#lib/editor/index.js';
 	import { untrack } from 'svelte';
 
 	let {

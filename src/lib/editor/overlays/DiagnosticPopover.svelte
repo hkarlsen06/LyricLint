@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import type { Diagnostic, DiagnosticFix, SourceReference } from '$lib/core/types.js';
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
-	import DiagnosticActions from '$lib/diagnostics/DiagnosticActions.svelte';
-	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
+	import type { Diagnostic, DiagnosticFix, SourceReference } from '#lib/core/types.js';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import DiagnosticActions from '#lib/diagnostics/DiagnosticActions.svelte';
+	import DiagnosticMeta from '#lib/diagnostics/DiagnosticMeta.svelte';
 	import { dismissOnHoverLeave } from './dismiss-on-hover-leave.js';
 	import type { ScreenRect } from '../contracts.js';
 	import { anchoredPosition } from './anchored-position.js';

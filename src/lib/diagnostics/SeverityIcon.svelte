@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Severity } from '$lib/core/types.js';
+	import type { Severity } from '#lib/core/types.js';
 
 	let { severity }: { severity: Severity } = $props();
 </script>

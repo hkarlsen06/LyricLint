@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { EditorState, StateEffect } from '@codemirror/state';
 import { describe, expect, it, vi } from 'vitest';
-import type { Diagnostic, LanguagePack, PerformerRecord } from '$lib/core/types.js';
-import { norwegianLanguagePack } from '$lib/languages/no.js';
+import type { Diagnostic, LanguagePack, PerformerRecord } from '#lib/core/types.js';
+import { norwegianLanguagePack } from '#lib/languages/no.js';
 import type { LyricEditorCallbacks } from './contracts.js';
 import {
 	createCallbackProxy,
@@ -23,7 +23,7 @@ import {
 } from './extensions/editor-state.js';
 import { setPlayheadEffect, setPlayingEffect } from './extensions/line-anchors.js';
 import { transactionsHaveOnlyPlayheadEffects } from './extensions/selection-anchor.js';
-import { safeExternalUrl } from '$lib/diagnostics/source-url.js';
+import { safeExternalUrl } from '#lib/diagnostics/source-url.js';
 import { sectionHeaderOptions, suggestNextOrdinal } from './overlays/section-picker.js';
 import { validateAtomicEdit } from './transaction-adapter.js';
 

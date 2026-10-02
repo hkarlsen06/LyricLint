@@ -9,9 +9,9 @@
 	 * corpus cannot resolve renders nothing: canonical facts come from the
 	 * corpus or not at all.
 	 */
-	import type { StructuredAssistantAnswer } from '$lib/assistant/types.js';
-	import { safeExternalUrl } from '$lib/diagnostics/source-url.js';
-	import type { RulePreview, RulePreviewSource } from '$lib/assistant/rule-previews.js';
+	import type { StructuredAssistantAnswer } from '#lib/assistant/types.js';
+	import { safeExternalUrl } from '#lib/diagnostics/source-url.js';
+	import type { RulePreview, RulePreviewSource } from '#lib/assistant/rule-previews.js';
 	import AssistantRulePreview from './AssistantRulePreview.svelte';
 
 	let {

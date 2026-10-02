@@ -1,10 +1,10 @@
-import { parseDocument } from '$lib/core/parser.js';
+import { parseDocument } from '#lib/core/parser.js';
 import type {
 	AtomicDocumentEdit,
 	PerformerRecord,
 	SerializedSelection,
 	TextEdit
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import { assignVoiceGroup, assignmentSelectionRange, canAssignVoiceGroup } from './transform.js';
 import { narrowEdit } from './transform.js';
 import { describe, expect, it } from 'vitest';

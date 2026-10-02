@@ -1,8 +1,9 @@
+import type { ReadonlyURL } from '$app/state';
 import type { RightPanelTab } from './panel-view.svelte.js';
 
 const defaultRightPanelTab: RightPanelTab = 'linter';
 
-export function rightPanelTabFromUrl(url: URL): RightPanelTab {
+export function rightPanelTabFromUrl(url: ReadonlyURL): RightPanelTab {
 	const panel = url.searchParams.get('panel');
 	// `tools` was the id of the catch-all tab before it was split into `song`
 	// (metadata and exports) and `preferences` (workspace and app settings). A
@@ -18,8 +19,8 @@ export function rightPanelTabFromUrl(url: URL): RightPanelTab {
 		: defaultRightPanelTab;
 }
 
-export function urlForRightPanelTab(url: URL, tab: RightPanelTab): URL {
-	const next = new URL(url);
+export function urlForRightPanelTab(url: ReadonlyURL, tab: RightPanelTab): URL {
+	const next = new URL(url.href);
 	if (tab === defaultRightPanelTab) next.searchParams.delete('panel');
 	else next.searchParams.set('panel', tab);
 	return next;

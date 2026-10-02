@@ -9,21 +9,21 @@ import type {
 	DraftIgnoreStore,
 	Severity,
 	TextRange
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import {
 	acceptsDiagnosticAsCorrect,
 	diagnosticIgnoreKey,
 	matchIgnoredDiagnostics,
 	ignoredDiagnosticAccepted,
 	ignoredDiagnosticRuleId
-} from '$lib/diagnostics/ignore.js';
-import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
-import { diagnosticRowSignature, reconcileDiagnosticRows } from '$lib/diagnostics/row-identity.js';
-import { filterProvisionalVerseNumbering } from '$lib/diagnostics/prerequisites.js';
-import { resolveLegendAssignment } from '$lib/performers/legend-assignment.js';
-import { collectMatchingFixes, mergeFixes, planBulkFix } from '$lib/rules/bulk-fix.js';
-import type { BulkFixPlan } from '$lib/rules/bulk-fix.js';
-import { ruleName } from '$lib/rules/names.js';
+} from '#lib/diagnostics/ignore.js';
+import { diagnosticKey, orderDiagnostics } from '#lib/diagnostics/order.js';
+import { diagnosticRowSignature, reconcileDiagnosticRows } from '#lib/diagnostics/row-identity.js';
+import { filterProvisionalVerseNumbering } from '#lib/diagnostics/prerequisites.js';
+import { resolveLegendAssignment } from '#lib/performers/legend-assignment.js';
+import { collectMatchingFixes, mergeFixes, planBulkFix } from '#lib/rules/bulk-fix.js';
+import type { BulkFixPlan } from '#lib/rules/bulk-fix.js';
+import { ruleName } from '#lib/rules/names.js';
 import type { FeedbackState } from './feedback.svelte.js';
 
 export type RightPanelTab =

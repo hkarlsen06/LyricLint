@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { WorkspaceBackupController, WorkspaceBackupState } from '$lib/persistence/backup.js';
+import type { WorkspaceBackupController, WorkspaceBackupState } from '#lib/persistence/backup.js';
 import {
 	configureStoragePersistence,
 	ensurePersistentStorage,

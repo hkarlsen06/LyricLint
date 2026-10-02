@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
-	import Keys from '$lib/ui/docs/Keys.svelte';
-	import * as Tabs from '$lib/ui/primitives/tabs/index.js';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
+	import * as Tabs from '#lib/ui/primitives/tabs/index.js';
 </script>
 
 <h2 id="sources">Choose a source</h2>
@@ -87,7 +87,7 @@
 </Tabs.Root>
 <p>
 	Whichever source you choose, the player and its keys work the same way. See <a
-		href={resolve('/docs/audio/')}>Playing the song</a
+		href={resolve('docs/audio/')}>Playing the song</a
 	>.
 </p>
 

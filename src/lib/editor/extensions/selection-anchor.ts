@@ -1,8 +1,8 @@
 import type { Extension, Transaction } from '@codemirror/state';
 import { ViewPlugin } from '@codemirror/view';
 import type { EditorView, ViewUpdate } from '@codemirror/view';
-import { canAssignVoiceGroup } from '$lib/performers/transform.js';
-import { PHONE_LAYOUT_QUERY } from '$lib/interaction/phone-layout.js';
+import { canAssignVoiceGroup } from '#lib/performers/transform.js';
+import { PHONE_LAYOUT_QUERY } from '#lib/interaction/phone-layout.js';
 import type { SelectionAnchor } from '../contracts.js';
 import { linkableHeaderAt } from '../section-links.js';
 import {

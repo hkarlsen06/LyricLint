@@ -1,4 +1,4 @@
-import type { RuleDefinition } from '$lib/core/types.js';
+import type { RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, replacementFix, visibleLineStart } from './utils.js';
 
 const englishFirstPersonAtStart =

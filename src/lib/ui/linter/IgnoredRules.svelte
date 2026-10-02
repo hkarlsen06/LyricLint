@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import type { Diagnostic, EditorSnapshot } from '$lib/core/types.js';
-	import { lineNumberLookup } from '$lib/core/line-numbers.js';
-	import { diagnosticKey } from '$lib/diagnostics/order.js';
+	import type { Diagnostic, EditorSnapshot } from '#lib/core/types.js';
+	import { lineNumberLookup } from '#lib/core/line-numbers.js';
+	import { diagnosticKey } from '#lib/diagnostics/order.js';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import {
 		ignoredDiagnosticAccepted,
 		ignoredDiagnosticRuleId,
 		ignoredDiagnosticText
-	} from '$lib/diagnostics/ignore.js';
-	import { ruleName } from '$lib/rules/names.js';
+	} from '#lib/diagnostics/ignore.js';
+	import { ruleName } from '#lib/rules/names.js';
 
 	let {
 		diagnosticKeys,

@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { DraftRecord } from '$lib/core/types.js';
+import type { DraftRecord } from '#lib/core/types.js';
 import { createTestWorkbench } from '../test-utils.js';
 import DraftMenu from './DraftMenu.svelte';
 

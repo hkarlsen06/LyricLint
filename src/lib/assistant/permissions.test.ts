@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DEFAULT_DATABASE_NAME, openDatabase } from '$lib/persistence/database.js';
+import { DEFAULT_DATABASE_NAME, openDatabase } from '#lib/persistence/database.js';
 import {
 	assistantDraftAccessKey,
 	clearDraftAccess,

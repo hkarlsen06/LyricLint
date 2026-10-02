@@ -1,8 +1,8 @@
 // Decision record: docs/subsystems/section-links.md.
 import { ChangeSet } from '@codemirror/state';
-import { alignPassages } from '$lib/core/link-passages.js';
-import { bodiesAreSimilarEnoughToLink } from '$lib/core/link-shape.js';
-import type { ParsedDocument, TextEdit } from '$lib/core/types.js';
+import { alignPassages } from '#lib/core/link-passages.js';
+import { bodiesAreSimilarEnoughToLink } from '#lib/core/link-shape.js';
+import type { ParsedDocument, TextEdit } from '#lib/core/types.js';
 import {
 	applyPassageTransfer,
 	mapPassageState,

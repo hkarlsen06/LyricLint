@@ -6,7 +6,7 @@
 	 */
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { Dialog } from 'bits-ui';
-	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
+	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
 	import AssistantChatControls from './AssistantChatControls.svelte';
 	import AssistantConversation from './AssistantConversation.svelte';
 

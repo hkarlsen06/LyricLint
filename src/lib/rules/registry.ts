@@ -1,4 +1,4 @@
-import type { RuleDefinition, SourceReference } from '$lib/core/types.js';
+import type { RuleDefinition, SourceReference } from '#lib/core/types.js';
 import { adlibParenthesesRule } from './catalog/adlib-parentheses.js';
 import { adlibSeparatorRule } from './catalog/adlib-separator.js';
 import { capitalizationLineStartRule } from './catalog/capitalization-line-start.js';

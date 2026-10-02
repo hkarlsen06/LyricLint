@@ -1,6 +1,6 @@
-import { runRules as computeDiagnostics } from '$lib/rules/engine.js';
-import { copySectionLinks } from '$lib/persistence/copy.js';
-import { parseDocument } from '$lib/core/parser.js';
+import { runRules as computeDiagnostics } from '#lib/rules/engine.js';
+import { copySectionLinks } from '#lib/persistence/copy.js';
+import { parseDocument } from '#lib/core/parser.js';
 import type {
 	AutosaveController,
 	AutosaveSnapshot,
@@ -11,21 +11,21 @@ import type {
 	EditorSnapshot,
 	LineAnchor,
 	SectionLink
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import { describe, expect, test, vi } from 'vitest';
-import { createAutosaveController } from '$lib/persistence/autosave.js';
+import { createAutosaveController } from '#lib/persistence/autosave.js';
 import {
 	createContractIgnoreStore,
 	createInMemoryDraftRepository,
 	createInMemoryMediaRepository,
 	createMemorySessionStorage
 } from './in-memory.js';
-import type { MediaRepository } from '$lib/persistence/media-repository.js';
+import type { MediaRepository } from '#lib/persistence/media-repository.js';
 import { createFeedbackState, NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 import { createMediaPlayer } from './media-player.svelte.js';
 import { StubAudio } from './media-test-audio.js';
 import { sampleDraftText } from '../sample-draft.js';
-import { unknownVoiceAcceptanceKey } from '$lib/diagnostics/ignore.js';
+import { unknownVoiceAcceptanceKey } from '#lib/diagnostics/ignore.js';
 import { createWorkbenchController } from './workbench.svelte.js';
 import { buildRuleContext } from './wiring.js';
 

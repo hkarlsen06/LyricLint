@@ -1,11 +1,11 @@
 // Decision record: docs/subsystems/rules-catalog.md. Read it before changing this file, and update it with any behavior change.
-import { sourceRegistry } from '$lib/rules/data/sources.js';
-import { findExactPerformer } from '$lib/performers/index.js';
-import { decodeLegendText } from '$lib/performers/import.js';
-import type { VoiceGroupRange } from '$lib/editor/index.js';
-import { lineNumberAt, lineNumberLookup } from '$lib/core/line-numbers.js';
-import { scanAnnotations } from '$lib/core/annotations.js';
-import { isLyricLine, scanPhysicalLines } from '$lib/core/parser.js';
+import { sourceRegistry } from '#lib/rules/data/sources.js';
+import { findExactPerformer } from '#lib/performers/index.js';
+import { decodeLegendText } from '#lib/performers/import.js';
+import type { VoiceGroupRange } from '#lib/editor/index.js';
+import { lineNumberAt, lineNumberLookup } from '#lib/core/line-numbers.js';
+import { scanAnnotations } from '#lib/core/annotations.js';
+import { isLyricLine, scanPhysicalLines } from '#lib/core/parser.js';
 import type {
 	Diagnostic,
 	EditorSnapshot,
@@ -15,7 +15,7 @@ import type {
 	RuleContext,
 	SectionLink,
 	VoiceGroup
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 
 const voiceGroupRangeCache = new WeakMap<
 	ParsedDocument,

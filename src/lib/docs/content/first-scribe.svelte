@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
-	import Keys from '$lib/ui/docs/Keys.svelte';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
 </script>
 
 <DocsFigure
@@ -11,7 +11,7 @@
 
 <h2 id="paste">Paste or type the lyrics</h2>
 <p>
-	Open the <a href={resolve('/workbench/')}>workbench</a>. A new 'scribe starts empty, with
+	Open the <a href={resolve('workbench/')}>workbench</a>. A new 'scribe starts empty, with
 	<em>Paste or type your lyrics here</em> in the editor.
 </p>
 <ol>
@@ -47,7 +47,7 @@
 </p>
 <p>
 	Some findings are judgment calls rather than errors, and they say so. You decide those. The
-	<a href={resolve('/docs/findings/')}>findings page</a> explains severities, sources, and ignoring.
+	<a href={resolve('docs/findings/')}>findings page</a> explains severities, sources, and ignoring.
 </p>
 
 <h2 id="fix">Fix what is wrong</h2>
@@ -82,13 +82,13 @@
 </ol>
 <p>
 	What you copy is exactly the text in the editor, including any literal markup such as
-	<code>&lt;i&gt;</code> for performers. See <a href={resolve('/docs/copy-paste/')}
+	<code>&lt;i&gt;</code> for performers. See <a href={resolve('docs/copy-paste/')}
 		>Copy and paste</a
 	> for the details, and for <strong>Compare</strong>, which shows what will change on the page
 	before you paste.
 </p>
 <p>
-	Your 'scribe has been saving itself the whole time. <a href={resolve('/docs/scribes/')}
+	Your 'scribe has been saving itself the whole time. <a href={resolve('docs/scribes/')}
 		>'Scribes and recovery</a
 	> covers where it went and how to get back to it.
 </p>

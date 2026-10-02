@@ -11,12 +11,12 @@
 	import { onMount } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
 	import AppWordmark from './AppWordmark.svelte';
 	import CompareDialog from './CompareDialog.svelte';
 	import DraftMenu from './DraftMenu.svelte';
 	import LanguagePicker from './LanguagePicker.svelte';
-	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
+	import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 
 	let {
 		controller,
@@ -149,7 +149,7 @@
 	     is safe on disk. The brand, the name, and the save state read as one
 	     identity strip; everything that acts on the document lives on the right. -->
 	<div class="document-toolbar__identity">
-		<a class="document-toolbar__home" href={resolve('/')} aria-label="LyricLint home">
+		<a class="document-toolbar__home" href={resolve('/(site)')} aria-label="LyricLint home">
 			<AppWordmark entrance="handoff" visible={brandRevealed} />
 		</a>
 		<!-- The name of the draft and the list of the other drafts are one control:

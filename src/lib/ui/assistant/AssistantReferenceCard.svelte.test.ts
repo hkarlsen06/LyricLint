@@ -1,8 +1,8 @@
 import { fireEvent, screen } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-import type { AssistantReferenceRecord } from '$lib/assistant/types.js';
+import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
+import type { AssistantReferenceRecord } from '#lib/assistant/types.js';
 import AssistantReferenceCard from './AssistantReferenceCard.svelte';
 
 function shown(): AssistantReferenceRecord {

@@ -88,7 +88,7 @@ search, and phone task navigation. Its Event Timing numbers are lab observations
 
 ## Build dependency patch
 
-The checked-in Bun patch for SvelteKit 2.70.3 fixes its preload traversal when a dependency is
+The checked-in Bun patch for SvelteKit 3.0.0 fixes its preload traversal when a dependency is
 first visited through a dynamic import and later through a static import. Previously the first
 visit suppressed the static preload, introducing an avoidable network dependency at startup.
 The traversal tracks both the file and whether JavaScript is being collected; dynamic-only

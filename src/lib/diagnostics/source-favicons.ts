@@ -17,20 +17,20 @@
  * arrives with its mark or fails there rather than shipping a bare link
  * among decorated ones.
  */
-import academie from '$lib/assets/favicons/academie.png?no-inline';
-import apple from '$lib/assets/favicons/apple.png?no-inline';
-import bunka from '$lib/assets/favicons/bunka.png?no-inline';
-import cambridge from '$lib/assets/favicons/cambridge.png?no-inline';
-import duden from '$lib/assets/favicons/duden.png?no-inline';
-import genius from '$lib/assets/favicons/genius.png?no-inline';
-import github from '$lib/assets/favicons/github.png?no-inline';
-import korean from '$lib/assets/favicons/korean.png?no-inline';
-import ksaa from '$lib/assets/favicons/ksaa.png?no-inline';
-import merriamWebster from '$lib/assets/favicons/merriam-webster.png?no-inline';
-import oqlf from '$lib/assets/favicons/oqlf.png?no-inline';
-import projetVoltaire from '$lib/assets/favicons/projet-voltaire.png?no-inline';
-import rae from '$lib/assets/favicons/rae.png?no-inline';
-import sprakradet from '$lib/assets/favicons/sprakradet.png?no-inline';
+import academie from '#lib/assets/favicons/academie.png?no-inline';
+import apple from '#lib/assets/favicons/apple.png?no-inline';
+import bunka from '#lib/assets/favicons/bunka.png?no-inline';
+import cambridge from '#lib/assets/favicons/cambridge.png?no-inline';
+import duden from '#lib/assets/favicons/duden.png?no-inline';
+import genius from '#lib/assets/favicons/genius.png?no-inline';
+import github from '#lib/assets/favicons/github.png?no-inline';
+import korean from '#lib/assets/favicons/korean.png?no-inline';
+import ksaa from '#lib/assets/favicons/ksaa.png?no-inline';
+import merriamWebster from '#lib/assets/favicons/merriam-webster.png?no-inline';
+import oqlf from '#lib/assets/favicons/oqlf.png?no-inline';
+import projetVoltaire from '#lib/assets/favicons/projet-voltaire.png?no-inline';
+import rae from '#lib/assets/favicons/rae.png?no-inline';
+import sprakradet from '#lib/assets/favicons/sprakradet.png?no-inline';
 
 /** Hosts are read off a citation's URL, so the table is keyed by whatever it says. */
 interface FaviconsByHost {

@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
+	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
 	import type {
 		AssistantAnchorFailureReason,
 		AssistantReferenceRecord
-	} from '$lib/assistant/types.js';
+	} from '#lib/assistant/types.js';
 
 	/**
 	 * One `show_lyrics` reference: the assistant pointing at a place in the

@@ -11,7 +11,7 @@
 	 * community writing, and a row with no ladder at all read as a different
 	 * kind of fact rather than as the lowest rung of the same one.
 	 */
-	import { authorityRank, type GuidanceAuthority } from '$lib/guidance/guidance.js';
+	import { authorityRank, type GuidanceAuthority } from '#lib/guidance/guidance.js';
 
 	let { authority }: { authority: GuidanceAuthority } = $props();
 

@@ -2,10 +2,10 @@
 	// Decision record: docs/subsystems/section-links.md.
 	import { tick, untrack } from 'svelte';
 	import LinkSimpleHorizontalIcon from 'phosphor-svelte/lib/LinkSimpleHorizontalIcon';
-	import { lineNumberAt } from '$lib/core/line-numbers.js';
-	import type { SectionLinkChoice } from '$lib/core/types.js';
-	import { linkOccurrences } from '$lib/editor/section-links.js';
-	import { getLanguagePack } from '$lib/languages/registry.js';
+	import { lineNumberAt } from '#lib/core/line-numbers.js';
+	import type { SectionLinkChoice } from '#lib/core/types.js';
+	import { linkOccurrences } from '#lib/editor/section-links.js';
+	import { getLanguagePack } from '#lib/languages/registry.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import LinkingDetail from './LinkingDetail.svelte';
 	import { linkingOverview, linkingSectionNames, type LinkingOverviewGroup } from './overview.js';

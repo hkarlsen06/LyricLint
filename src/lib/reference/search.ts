@@ -1,6 +1,6 @@
 // Decision record: docs/subsystems/reference.md
-import type { Severity, Fixability } from '$lib/core/types.js';
-import { foldForSearch } from '$lib/rules/reference-search.js';
+import type { Severity, Fixability } from '#lib/core/types.js';
+import { foldForSearch } from '#lib/rules/reference-search.js';
 import type { ReferenceTopic } from './topics.js';
 
 export type ReferenceScope = 'all' | 'guidelines' | 'rules';

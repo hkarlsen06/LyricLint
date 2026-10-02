@@ -2,7 +2,7 @@ import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { Diagnostic, ParsedDocument, TextRange } from '$lib/core/types.js';
+import type { Diagnostic, ParsedDocument, TextRange } from '#lib/core/types.js';
 import { editorCallbacksField, isCompositionChange } from './editor-state.js';
 
 interface SectionGhostContext {

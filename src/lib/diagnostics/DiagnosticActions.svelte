@@ -3,9 +3,9 @@
 	// this file, and update it with any behavior change.
 	import { untrack } from 'svelte';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
-	import { previewableFix, previewSignature } from '$lib/core/fix-preview.js';
-	import type { Diagnostic, DiagnosticFix } from '$lib/core/types.js';
-	import { describeControl } from '$lib/ui/state/control-tooltip.svelte.js';
+	import { previewableFix, previewSignature } from '#lib/core/fix-preview.js';
+	import type { Diagnostic, DiagnosticFix } from '#lib/core/types.js';
+	import { describeControl } from '#lib/ui/state/control-tooltip.svelte.js';
 	import { acceptsDiagnosticAsCorrect } from './ignore.js';
 	import { acquirePreview } from './preview-slot.js';
 

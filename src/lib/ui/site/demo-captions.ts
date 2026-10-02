@@ -1,4 +1,4 @@
-import tutorial from '$lib/assets/hero-tutorial.json' with { type: 'json' };
+import tutorial from '#lib/assets/hero-tutorial.json' with { type: 'json' };
 
 /** Filmed seconds in the shipped demos. Short spoken beats, with room for pauses.
  * Retiming a scene must retime these cues. */

@@ -1,13 +1,13 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import youtubeIcon from '$lib/assets/youtube-icon.svg';
+import youtubeIcon from '#lib/assets/youtube-icon.svg';
 import type { WorkbenchController } from '../state/workbench.svelte.js';
 import type { MediaPlayer, SongDetails } from '../state/media-player.svelte.js';
 import type { MediaStore } from '../state/media-store.svelte.js';
 import { createTestWorkbench, performer } from '../test-utils.js';
 import SongPanel from './SongPanel.svelte';
-import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
+import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 
 /*
  * The song half of the split tab. It carries only what is about the

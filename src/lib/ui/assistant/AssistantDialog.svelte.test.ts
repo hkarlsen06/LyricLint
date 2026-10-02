@@ -2,10 +2,10 @@ import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import corpus from '../../../../services/rules-assistant/generated/rules-context.json';
-import { cannedAnswer, memoryRepository } from '$lib/assistant/assistant-test-utils.js';
-import { chatLockName } from '$lib/assistant/chat-lock.js';
-import { createAssistantState, type AssistantDeps } from '$lib/assistant/assistant.svelte.js';
-import { AssistantError, type StructuredAssistantAnswer } from '$lib/assistant/types.js';
+import { cannedAnswer, memoryRepository } from '#lib/assistant/assistant-test-utils.js';
+import { chatLockName } from '#lib/assistant/chat-lock.js';
+import { createAssistantState, type AssistantDeps } from '#lib/assistant/assistant.svelte.js';
+import { AssistantError, type StructuredAssistantAnswer } from '#lib/assistant/types.js';
 import AssistantDialog from './AssistantDialog.svelte';
 
 const RULE = corpus.rules.find((rule) => rule.id === 'syntax.unbalanced-brackets')!;

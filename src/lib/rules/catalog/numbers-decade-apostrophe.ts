@@ -1,5 +1,5 @@
-import type { RuleDefinition } from '$lib/core/types.js';
-import { isEnglishLanguage } from '$lib/languages/registry.js';
+import type { RuleDefinition } from '#lib/core/types.js';
+import { isEnglishLanguage } from '#lib/languages/registry.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 /**

@@ -1,14 +1,14 @@
 <script lang="ts">
-	import '$lib/ui/styles/site.css';
+	import '#lib/ui/styles/site.css';
 	import { page } from '$app/state';
-	import { resolve } from '$app/paths';
-	import ReferenceSearchSync from '$lib/ui/site/ReferenceSearchSync.svelte';
-	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
-	import { siteUrl } from '$lib/seo.js';
-	import AppWordmark from '$lib/ui/layout/AppWordmark.svelte';
+	import { asset, resolve } from '$app/paths';
+	import ReferenceSearchSync from '#lib/ui/site/ReferenceSearchSync.svelte';
+	import { referenceHref } from '#lib/ui/site/reference-search.svelte.js';
+	import { siteUrl } from '#lib/seo.js';
+	import AppWordmark from '#lib/ui/layout/AppWordmark.svelte';
 	// Import the manifest directly. The rules barrel also exports the engine and
 	// Harper adapter; a footer version must not pull either into every site page.
-	import { currentRuleSet } from '$lib/rules/data/rule-set.js';
+	import { currentRuleSet } from '#lib/rules/data/rule-set.js';
 
 	let { children } = $props();
 	const socialImageUrl = siteUrl('/social-preview.png');
@@ -41,9 +41,9 @@
 	// title links to.
 	const section = $derived(
 		current('/guidelines')
-			? { title: 'Transcription guide', href: resolve('/guidelines/') }
+			? { title: 'Transcription guide', href: resolve('guidelines/') }
 			: current('/docs')
-				? { title: 'Docs', href: resolve('/docs/') }
+				? { title: 'Docs', href: resolve('docs/') }
 				: undefined
 	);
 </script>
@@ -56,7 +56,7 @@
 	     whose masthead and reading column share the face. -->
 	<link
 		rel="preload"
-		href="{resolve('/')}fonts/ibm-plex-sans-latin-wght-normal.woff2"
+		href={asset('fonts/ibm-plex-sans-latin-wght-normal.woff2')}
 		as="font"
 		type="font/woff2"
 		fetchpriority="high"
@@ -117,7 +117,7 @@
 			     (`role="img"`), so the sr-only text adds only the word the lockup
 			     cannot say, spelled `LyricLint home` here, the link announced as
 			     `LyricLint LyricLint home`. -->
-			<a class="site-home" href={resolve('/')}>
+			<a class="site-home" href={resolve('/(site)')}>
 				<AppWordmark animated={!current('/')} />
 				<span class="sr-only">home</span>
 			</a>
@@ -144,10 +144,10 @@
 			     is this product", carried now by the logo-is-home convention
 			     alone. -->
 			<nav class="site-nav" aria-label="Site">
-				<a href={resolve('/docs/')} aria-current={current('/docs')}>Docs</a>
+				<a href={resolve('docs/')} aria-current={current('/docs')}>Docs</a>
 				<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref decorates resolve() URLs with shared search parameters. -->
 				<a
-					href={windowShell ? referenceHref(resolve('/guidelines/')) : resolve('/guidelines/')}
+					href={windowShell ? referenceHref(resolve('guidelines/')) : resolve('guidelines/')}
 					aria-current={current('/guidelines')}>Guide</a
 				>
 
@@ -160,7 +160,7 @@
 				     this masthead draws on. `App` rather than `Workbench` for the
 				     row's width, since the product's own name for the surface stays
 				     `workbench` everywhere prose has room for it. -->
-				<a href={resolve('/workbench/')}>App</a>
+				<a href={resolve('workbench/')}>App</a>
 			</nav>
 		</div>
 	</header>
@@ -171,8 +171,8 @@
 		<footer class="site-footer">
 			<div class="site-footer__inner">
 				<span
-					>Local-first · <a href={resolve('/about/')}>About</a> ·
-					<a href={resolve('/privacy/')}>Privacy</a></span
+					>Local-first · <a href={resolve('about/')}>About</a> ·
+					<a href={resolve('privacy/')}>Privacy</a></span
 				>
 				<span class="site-code">
 					Rule set {currentRuleSet.version}

@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
-import { guidanceTopics } from '$lib/guidance/entries.js';
-import { guidanceTopicTitles } from '$lib/guidance/guidance.js';
+import { guidanceTopics } from '#lib/guidance/entries.js';
+import { guidanceTopicTitles } from '#lib/guidance/guidance.js';
 import type { EntryGenerator, PageServerLoad } from './$types.js';
 
 // adapter-static only writes the pages it is told about, so the entries come

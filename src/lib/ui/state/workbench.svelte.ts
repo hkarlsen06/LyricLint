@@ -17,33 +17,33 @@ import type {
 	Severity,
 	SourceReference,
 	TextRange
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import { SvelteDate, SvelteMap } from 'svelte/reactivity';
-import { resolveLanguageTag } from '$lib/languages/registry.js';
-import { randomId } from '$lib/core/random-id.js';
-import type { TimedLyricsFormat } from '$lib/core/timed-lyrics.js';
-import { formatTimedLyrics, timedLyricsExtensions } from '$lib/core/timed-lyrics.js';
+import { resolveLanguageTag } from '#lib/languages/registry.js';
+import { randomId } from '#lib/core/random-id.js';
+import type { TimedLyricsFormat } from '#lib/core/timed-lyrics.js';
+import { formatTimedLyrics, timedLyricsExtensions } from '#lib/core/timed-lyrics.js';
 import { copyCanonicalMarkup, downloadUtf8Text, readClipboardText } from '../clipboard.js';
 import { sampleDraftLanguage, sampleDraftText } from '../sample-draft.js';
 import { createDraftStore, safeFilename } from './draft-store.svelte.js';
 import { createEditorSession } from './editor-session.svelte.js';
 import type { FeedbackState, ToastMessage } from './feedback.svelte.js';
 import { createFeedbackState } from './feedback.svelte.js';
-import type { BulkFixPlan } from '$lib/rules/bulk-fix.js';
+import type { BulkFixPlan } from '#lib/rules/bulk-fix.js';
 import type { RightPanelTab } from './panel-view.svelte.js';
 import { createPanelView } from './panel-view.svelte.js';
 import type { RosterMergeSuggestion } from './roster-store.svelte.js';
 import { createRosterStore } from './roster-store.svelte.js';
-import type { MediaRepository } from '$lib/persistence/media-repository.js';
+import type { MediaRepository } from '#lib/persistence/media-repository.js';
 import type { MediaPlayer } from './media-player.svelte.js';
 import type { MediaStore } from './media-store.svelte.js';
 import { createMediaStore } from './media-store.svelte.js';
-import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persistence/backup.js';
-import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
-import { headerNameAtoms, isMirrorableHeaderName } from '$lib/performers/index.js';
+import { WorkspaceBackupError, type WorkspaceBackupController } from '#lib/persistence/backup.js';
+import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
+import { headerNameAtoms, isMirrorableHeaderName } from '#lib/performers/index.js';
 import { buildRuleContext } from './wiring.js';
-import { maxScribeBytes, ScribeFormatError } from '$lib/scribe/contracts.js';
-import type { ScribeProjectInput } from '$lib/scribe/format.js';
+import { maxScribeBytes, ScribeFormatError } from '#lib/scribe/contracts.js';
+import type { ScribeProjectInput } from '#lib/scribe/format.js';
 
 interface WorkbenchDependencies {
 	editor: EditorHandle;
@@ -853,7 +853,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			if (song !== undefined) project.song = song;
 
 			try {
-				const { serializeScribe } = await import('$lib/scribe/format.js');
+				const { serializeScribe } = await import('#lib/scribe/format.js');
 				exportText(
 					serializeScribe(project),
 					safeFilename(exported.title, 'lls'),
@@ -886,7 +886,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 
 			let project;
 			try {
-				const { parseScribe } = await import('$lib/scribe/format.js');
+				const { parseScribe } = await import('#lib/scribe/format.js');
 				project = parseScribe(await file.text());
 			} catch (error) {
 				const message =

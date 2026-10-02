@@ -2,7 +2,7 @@
 import { EditorState, Prec, StateEffect, StateField } from '@codemirror/state';
 import type { Extension, Line, TransactionSpec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import type { Section } from '$lib/core/types.js';
+import type { Section } from '#lib/core/types.js';
 import {
 	anchorLineEffect,
 	anchorTimeAt,

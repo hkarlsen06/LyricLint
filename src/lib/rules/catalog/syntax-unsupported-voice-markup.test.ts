@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { Diagnostic } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { Diagnostic } from '#lib/core/types.js';
 import { syntaxUnsupportedVoiceMarkupRule as rule } from './syntax-unsupported-voice-markup.js';
 import { applyEdits, checkRule, markedText, testRevision } from '../rule-test-utils.js';
 

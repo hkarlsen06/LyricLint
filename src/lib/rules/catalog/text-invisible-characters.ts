@@ -1,5 +1,5 @@
-import type { Diagnostic, RuleDefinition, TextRange } from '$lib/core/types.js';
-import { INVISIBLE_CHARACTERS } from '$lib/core/invisible-characters.js';
+import type { Diagnostic, RuleDefinition, TextRange } from '#lib/core/types.js';
+import { INVISIBLE_CHARACTERS } from '#lib/core/invisible-characters.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 /** Whitespace that is not a line terminator, sitting at the end of a line. */

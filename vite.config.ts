@@ -427,10 +427,6 @@ export default defineConfig(({ mode }) => ({
 					'manifest-src': ['self']
 				}
 			},
-			// Cloudflare Pages consumes `_headers` as platform config and 404s its
-			// URL. Left in `$service-worker` `files` it fails the precache validation,
-			// so every new worker dies at install and stale clients never update.
-			//
 			// `register: false` because SvelteKit's own registration runs in dev too,
 			// and this worker is cache-first over every same-origin GET, which on a
 			// dev server means every Vite module request. Its miss path ends in a
@@ -440,24 +436,9 @@ export default defineConfig(({ mode }) => ({
 			// against the URL, SvelteKit renders `+error.svelte`, and the tab cannot
 			// route out of it. It also serves `static/` cache-first, so an edited
 			// asset goes on being the old one. The workbench registers it itself,
-			// under `dev`, in the root layout.
-			//
-			// The `.gif` is the motion loop's sharing copy for a README, an issue, a
-			// post. `workbench.png` serves the same job for the README while the page
-			// uses its WebP. No page references either, so neither belongs in every
-			// visitor's offline snapshot. Marketing WebMs are enhancements too: keep
-			// their stills offline, without precaching every resolution of every loop
-			// for visitors who never watch them. Unlisted video URLs go to the network.
-			serviceWorker: {
-				register: false,
-				files: (file) =>
-					!file.startsWith('_') &&
-					!file.endsWith('.gif') &&
-					!file.endsWith('.webm') &&
-					file !== 'workbench.png' &&
-					// Docs pages join the offline snapshot by being read; their stills should not bloat install.
-					!file.startsWith('docs-')
-			},
+			// under `dev`, in the root layout. Which static files it precaches is
+			// decided in `src/service-worker.ts`.
+			serviceWorker: { register: false },
 			// A deploy reaches a client on their next full-page load (navigations
 			// are network-first through the worker, and a new build's chunks match
 			// no strategy in an old one), but a client-side navigation reuses the

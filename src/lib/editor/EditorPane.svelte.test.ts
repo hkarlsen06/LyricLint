@@ -3,16 +3,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { EditorView } from '@codemirror/view';
 import { selectionAnchorForView } from './extensions/selection-anchor.js';
-import { parseDocument } from '$lib/core/parser.js';
+import { parseDocument } from '#lib/core/parser.js';
 import type {
 	Diagnostic,
 	EditorHandle,
 	PerformerRecord,
 	SourceReference
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import { createLyricEditor } from './create-editor.js';
-import { insertSectionHeader } from '$lib/performers/transform.js';
+import { insertSectionHeader } from '#lib/performers/transform.js';
 import EditorPane from './EditorPane.svelte';
 import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
 import PerformerPicker from './overlays/PerformerPicker.svelte';

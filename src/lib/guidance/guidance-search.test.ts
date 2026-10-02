@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getSource } from '$lib/rules/data/sources.js';
+import { getSource } from '#lib/rules/data/sources.js';
 import { guidanceEntries, guidanceTopics } from './entries.js';
 import { authorityLabels, guidanceTopicLandmarks } from './guidance.js';
 import {

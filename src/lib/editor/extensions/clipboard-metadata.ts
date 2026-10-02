@@ -1,10 +1,10 @@
 // Decision record: docs/subsystems/editor.md. Read it before changing this file, and update it with any behavior change.
 import type { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { isSectionHeaderLine } from '$lib/core/parser.js';
+import { isSectionHeaderLine } from '#lib/core/parser.js';
 import { annotationSpansFor } from './annotation-spans.js';
-import type { LinkHole, LinkPassageOccurrence, SectionLink } from '$lib/core/types.js';
-import { validateLinkPassages } from '$lib/core/link-record.js';
+import type { LinkHole, LinkPassageOccurrence, SectionLink } from '#lib/core/types.js';
+import { validateLinkPassages } from '#lib/core/link-record.js';
 import {
 	clipboardHtml,
 	lineStartOffsets,

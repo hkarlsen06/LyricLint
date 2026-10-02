@@ -5,8 +5,8 @@
 	 * reading order the pager and the index follow.
 	 */
 	import { resolve } from '$app/paths';
-	import { docsGroups, docsPagesIn } from '$lib/docs/catalog.js';
-	import * as Kbd from '$lib/ui/primitives/kbd/index.js';
+	import { docsGroups, docsPagesIn } from '#lib/docs/catalog.js';
+	import * as Kbd from '#lib/ui/primitives/kbd/index.js';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 
 	let { current, onSearch }: { current?: string; onSearch: () => void } = $props();
@@ -35,7 +35,7 @@
 				{#each docsPagesIn(group) as page (page.slug)}
 					<li>
 						<a
-							href={resolve(`/docs/${page.slug}/`)}
+							href={resolve(`docs/${page.slug}/`)}
 							aria-current={page.slug === current ? 'page' : undefined}>{page.title}</a
 						>
 					</li>

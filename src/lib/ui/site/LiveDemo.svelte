@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { runRules as computeDiagnostics } from '$lib/rules/engine.js';
-	import { diagnosticIgnoreKey, matchIgnoredDiagnostics } from '$lib/diagnostics/ignore.js';
-	import { diagnosticKey } from '$lib/diagnostics/order.js';
+	import { runRules as computeDiagnostics } from '#lib/rules/engine.js';
+	import { diagnosticIgnoreKey, matchIgnoredDiagnostics } from '#lib/diagnostics/ignore.js';
+	import { diagnosticKey } from '#lib/diagnostics/order.js';
 	import ControlTooltip from '../primitives/ControlTooltip.svelte';
 	import {
 		showControlHint,
 		releaseControlHint,
 		shownControlHint
 	} from '../state/control-tooltip.svelte.js';
-	import { canAssignVoiceGroup } from '$lib/performers/transform.js';
-	import { PHONE_LAYOUT_QUERY } from '$lib/interaction/phone-layout.js';
-	import { prefersReducedMotion } from '$lib/interaction/motion.js';
+	import { canAssignVoiceGroup } from '#lib/performers/transform.js';
+	import { PHONE_LAYOUT_QUERY } from '#lib/interaction/phone-layout.js';
+	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	// The landing page's demo is the product, not a picture of it.
 	//
 	// This mounts the same `EditorPane` the workbench mounts, running the same
@@ -23,9 +23,9 @@
 	// toolbar, no linter panel, no drafts, and no persistence. Nothing here
 	// touches IndexedDB, so reading the landing page never creates a draft and
 	// never disturbs one the reader already has open in another tab.
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { onDestroy, untrack } from 'svelte';
-	import { parseDocument } from '$lib/core/parser.js';
+	import { parseDocument } from '#lib/core/parser.js';
 	import type {
 		Diagnostic,
 		DiagnosticFix,
@@ -33,14 +33,14 @@
 		EditorSnapshot,
 		PerformerRecord,
 		UnknownVoiceRequest
-	} from '$lib/core/types.js';
+	} from '#lib/core/types.js';
 	import {
 		EditorPane,
 		type EditorDisplayContext,
 		type LyricEditorCallbacks
-	} from '$lib/editor/index.js';
-	import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
-	import { getLanguagePack, resolveLanguageTag } from '$lib/languages/registry.js';
+	} from '#lib/editor/index.js';
+	import { loadStatisticalLanguageDetector } from '#lib/languages/detect.js';
+	import { getLanguagePack, resolveLanguageTag } from '#lib/languages/registry.js';
 	import {
 		allocatePerformerColor,
 		assignUnknownVoice,
@@ -48,7 +48,7 @@
 		assignVoiceLegend,
 		insertSectionHeader,
 		normalizePerformerKey
-	} from '$lib/performers/index.js';
+	} from '#lib/performers/index.js';
 	import {
 		collectMatchingFixes,
 		createHarperDiagnosticProvider,
@@ -57,7 +57,7 @@
 		mergeHarperDiagnostics,
 		type HarperDiagnosticProvider,
 		sourceRegistry
-	} from '$lib/rules/index.js';
+	} from '#lib/rules/index.js';
 	import {
 		buildRuleContext,
 		filterForEditorState,

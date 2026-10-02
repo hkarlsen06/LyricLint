@@ -85,7 +85,7 @@ export function withEditorPreloads(adapter: Adapter): Adapter {
 			const metadata = join(builder.getClientDirectory(), metadataFile);
 			const files: string[] = JSON.parse(readFileSync(metadata, 'utf8'));
 			rmSync(metadata);
-			const { paths } = builder.config.kit;
+			const { paths } = builder.config;
 			const page = builder.prerendered.pages.get(`${paths.base}/workbench/`);
 			if (!page) throw new Error('The workbench must be prerendered to preload its editor.');
 			await adapter.adapt({

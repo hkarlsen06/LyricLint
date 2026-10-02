@@ -1,4 +1,4 @@
-import type { Fixability, Severity } from '$lib/core/types.js';
+import type { Fixability, Severity } from '#lib/core/types.js';
 import type { RuleReference, RuleReferenceGroup } from './reference.js';
 
 /**

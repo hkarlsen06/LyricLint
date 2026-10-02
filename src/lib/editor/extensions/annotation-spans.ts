@@ -1,6 +1,6 @@
 import type { Text } from '@codemirror/state';
-import { scanAnnotations } from '$lib/core/annotations.js';
-import type { AnnotationSpan } from '$lib/core/types.js';
+import { scanAnnotations } from '#lib/core/annotations.js';
+import type { AnnotationSpan } from '#lib/core/types.js';
 
 const cache = new WeakMap<Text, readonly AnnotationSpan[]>();
 

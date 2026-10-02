@@ -1,8 +1,8 @@
 <script lang="ts">
 	// Apple's own artwork, unmodified, because their identity guidelines say to use
 	// theirs rather than draw one. See the comment on the markup below.
-	import appleMusicBadgeBlack from '$lib/assets/apple-music-listen-on-black.svg';
-	import appleMusicBadgeWhite from '$lib/assets/apple-music-listen-on-white.svg';
+	import appleMusicBadgeBlack from '#lib/assets/apple-music-listen-on-black.svg';
+	import appleMusicBadgeWhite from '#lib/assets/apple-music-listen-on-white.svg';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 
 	let { media }: { media: MediaStore } = $props();

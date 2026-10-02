@@ -8,7 +8,7 @@ import { createInMemoryMediaRepository } from '../state/in-memory.js';
 import { createMediaPlayer } from '../state/media-player.svelte.js';
 import { StubAudio } from '../state/media-test-audio.js';
 import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
-import EditorPane from '$lib/editor/EditorPane.svelte';
+import EditorPane from '#lib/editor/EditorPane.svelte';
 import Workspace from './Workspace.svelte';
 
 afterEach(async () => {

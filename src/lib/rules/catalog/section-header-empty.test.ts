@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import { insertSectionHeader } from '$lib/performers/transform.js';
+import { parseDocument } from '#lib/core/parser.js';
+import { insertSectionHeader } from '#lib/performers/transform.js';
 import { applyEdits, checkRule, markedText } from '../rule-test-utils.js';
 import { sectionHeaderEmptyRule as rule } from './section-header-empty.js';
 

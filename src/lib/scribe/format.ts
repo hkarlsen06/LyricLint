@@ -1,17 +1,17 @@
 import { ScribeFormatError } from './contracts.js';
 export { maxScribeBytes, ScribeFormatError } from './contracts.js';
-import { normalizeGeniusUrl } from '$lib/core/genius-url.js';
-import { copySectionLinks } from '$lib/persistence/copy.js';
-import { validateLinkPassages } from '$lib/core/link-record.js';
+import { normalizeGeniusUrl } from '#lib/core/genius-url.js';
+import { copySectionLinks } from '#lib/persistence/copy.js';
+import { validateLinkPassages } from '#lib/core/link-record.js';
 import type {
 	CompareBaselineRecord,
 	LineAnchor,
 	PerformerRecord,
 	SectionLink,
 	SerializedSelection
-} from '$lib/core/types.js';
-import type { ClipboardMediaSource } from '$lib/editor/contracts.js';
-import { performerColorIds } from '$lib/performers/color.js';
+} from '#lib/core/types.js';
+import type { ClipboardMediaSource } from '#lib/editor/contracts.js';
+import { performerColorIds } from '#lib/performers/color.js';
 
 const scribeFormat = 'LYRICLINT_SCRIBE';
 const scribeVersion = 1;

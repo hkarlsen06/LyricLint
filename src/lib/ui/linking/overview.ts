@@ -1,7 +1,7 @@
 // Decision record: docs/subsystems/section-links.md.
-import { lineNumberAt } from '$lib/core/line-numbers.js';
-import type { LanguagePack, ParsedDocument, SectionLink } from '$lib/core/types.js';
-import { linkOccurrences, type LinkOccurrence } from '$lib/editor/section-links.js';
+import { lineNumberAt } from '#lib/core/line-numbers.js';
+import type { LanguagePack, ParsedDocument, SectionLink } from '#lib/core/types.js';
+import { linkOccurrences, type LinkOccurrence } from '#lib/editor/section-links.js';
 
 export interface LinkingOverviewGroup {
 	headerFrom: number;
@@ -81,4 +81,4 @@ export function linkingOverview(
 	return { available, linked };
 }
 
-export { linkingSectionNames } from '$lib/editor/section-links.js';
+export { linkingSectionNames } from '#lib/editor/section-links.js';

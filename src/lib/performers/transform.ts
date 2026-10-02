@@ -18,10 +18,10 @@ import type {
 	TextEdit,
 	TextRange,
 	UnknownVoiceRequest
-} from '$lib/core/types.js';
-import { legendRemovalRange } from '$lib/core/legend.js';
-import { headerNameIsEmpty } from '$lib/core/parser.js';
-import { joinLegendGroups, serializeLegend, styleTags } from '$lib/serialization/genius-markup.js';
+} from '#lib/core/types.js';
+import { legendRemovalRange } from '#lib/core/legend.js';
+import { headerNameIsEmpty } from '#lib/core/parser.js';
+import { joinLegendGroups, serializeLegend, styleTags } from '#lib/serialization/genius-markup.js';
 import { allocateStyleSlot } from './allocation.js';
 import { makeVoiceGroupKey } from './identity.js';
 import { extractPerformers } from './import.js';

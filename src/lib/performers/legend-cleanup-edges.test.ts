@@ -1,10 +1,10 @@
 import { history, undo } from '@codemirror/commands';
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { TextEdit } from '$lib/core/types.js';
-import { editorComposingField, editorContextField } from '$lib/editor/extensions/editor-state.js';
-import { legendCleanupFilter } from '$lib/editor/extensions/legend-cleanup.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { TextEdit } from '#lib/core/types.js';
+import { editorComposingField, editorContextField } from '#lib/editor/extensions/editor-state.js';
+import { legendCleanupFilter } from '#lib/editor/extensions/legend-cleanup.js';
 import { cleanupLegendSlots, usedStyleSlots } from './legend-cleanup.js';
 
 // Edges of keeping a header legend in step with its section's styling: when the

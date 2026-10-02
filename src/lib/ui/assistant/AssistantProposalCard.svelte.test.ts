@@ -1,9 +1,9 @@
 import { fireEvent, screen, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-import type { AssistantProposalRecord } from '$lib/assistant/types.js';
-import { acquirePreview } from '$lib/diagnostics/preview-slot.js';
+import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
+import type { AssistantProposalRecord } from '#lib/assistant/types.js';
+import { acquirePreview } from '#lib/diagnostics/preview-slot.js';
 import AssistantProposalCard from './AssistantProposalCard.svelte';
 
 function proposal(

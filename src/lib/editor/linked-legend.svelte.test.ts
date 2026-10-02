@@ -1,14 +1,14 @@
 import { page } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { parseDocument } from '$lib/core/parser.js';
-import type { EditorHandle, PerformerRecord } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { EditorHandle, PerformerRecord } from '#lib/core/types.js';
 import {
 	assignUnknownVoice,
 	assignVoiceGroup,
 	normalizePerformerKey
-} from '$lib/performers/index.js';
-import { englishLanguagePack } from '$lib/languages/en.js';
+} from '#lib/performers/index.js';
+import { englishLanguagePack } from '#lib/languages/en.js';
 import type { LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
 

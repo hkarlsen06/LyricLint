@@ -14,9 +14,9 @@ import type { ChangeDesc, Extension, Range, TransactionSpec } from '@codemirror/
 import { Transaction } from '@codemirror/state';
 import { Decoration, EditorView } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import { randomId } from '$lib/core/random-id.js';
-import { parseDocument } from '$lib/core/parser.js';
-import { legendRemovalRange } from '$lib/core/legend.js';
+import { randomId } from '#lib/core/random-id.js';
+import { parseDocument } from '#lib/core/parser.js';
+import { legendRemovalRange } from '#lib/core/legend.js';
 import type {
 	AtomicDocumentEdit,
 	LinkDifference,
@@ -30,17 +30,17 @@ import type {
 	StyleSlot,
 	TextEdit,
 	TextRange
-} from '$lib/core/types.js';
-import { alignBodies, holeContaining, translateSpan } from '$lib/core/link-shape.js';
-import { narrowEdit } from '$lib/performers/transform.js';
+} from '#lib/core/types.js';
+import { alignBodies, holeContaining, translateSpan } from '#lib/core/link-shape.js';
+import { narrowEdit } from '#lib/performers/transform.js';
 import {
 	alignPassages,
 	coalescePassages,
 	type PassageMember,
 	type SharedPassage
-} from '$lib/core/link-passages.js';
-import { extendPassages } from '$lib/core/link-passage-extension.js';
-import { validateLinkPassages } from '$lib/core/link-record.js';
+} from '#lib/core/link-passages.js';
+import { extendPassages } from '#lib/core/link-passage-extension.js';
+import { validateLinkPassages } from '#lib/core/link-record.js';
 import {
 	applyPassageTransfer,
 	clearPassageExclusions,

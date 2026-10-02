@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PerformerRecord } from '$lib/core/types.js';
+	import type { PerformerRecord } from '#lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import RemoveButton from '../primitives/RemoveButton.svelte';
 	import { tick, untrack } from 'svelte';

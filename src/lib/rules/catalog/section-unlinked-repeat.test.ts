@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import * as shape from '$lib/core/link-shape.js';
+import * as shape from '#lib/core/link-shape.js';
 import { checkRule, markedText } from '../rule-test-utils.js';
 import { sectionUnlinkedRepeatRule } from './section-unlinked-repeat.js';
 

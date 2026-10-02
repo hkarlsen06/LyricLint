@@ -1,9 +1,9 @@
-import type { Diagnostic, LyricLine, RuleDefinition, Section } from '$lib/core/types.js';
+import type { Diagnostic, LyricLine, RuleDefinition, Section } from '#lib/core/types.js';
 import {
 	canLintHeaderLanguage,
 	getLanguagePack,
 	reviewedLanguagePacks
-} from '$lib/languages/registry.js';
+} from '#lib/languages/registry.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 /**

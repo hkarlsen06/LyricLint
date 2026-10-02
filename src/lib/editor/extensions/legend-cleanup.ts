@@ -1,7 +1,7 @@
 import { EditorState, MapMode, Transaction } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
-import type { StyleSlot } from '$lib/core/types.js';
-import { cleanupLegendSlots, usedStyleSlots } from '$lib/performers/legend-cleanup.js';
+import type { StyleSlot } from '#lib/core/types.js';
+import { cleanupLegendSlots, usedStyleSlots } from '#lib/performers/legend-cleanup.js';
 import { editorComposingField, parsedDocumentForState } from './editor-state.js';
 
 /**

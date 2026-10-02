@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AssistantMessageRecord } from '$lib/persistence/types.js';
+import type { AssistantMessageRecord } from '#lib/persistence/types.js';
 import { boundedHistory } from './history.js';
 import { HISTORY_WINDOW_CHARS } from './types.js';
 

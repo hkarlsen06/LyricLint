@@ -1,10 +1,10 @@
-import type { LanguagePack } from '$lib/core/types.js';
+import type { LanguagePack } from '#lib/core/types.js';
 import {
 	getLanguagePack,
 	canLintHeaderLanguage,
 	reviewedLanguagePacks
-} from '$lib/languages/registry.js';
-import type { RuleDefinition } from '$lib/core/types.js';
+} from '#lib/languages/registry.js';
+import type { RuleDefinition } from '#lib/core/types.js';
 import {
 	hasChorusAffixes,
 	localizedHeaderPreference

@@ -1,11 +1,11 @@
-import { parseDocument } from '$lib/core/parser.js';
+import { parseDocument } from '#lib/core/parser.js';
 import type {
 	Diagnostic,
 	PerformerRecord,
 	RuleContext,
 	RuleDefinition,
 	TextEdit
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import { sourceRegistry } from './data/sources.js';
 
 /**

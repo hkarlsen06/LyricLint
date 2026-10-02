@@ -2,8 +2,8 @@ import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { createRawSnippet } from 'svelte';
-import { guidanceEntries } from '$lib/guidance/entries.js';
-import { getSource } from '$lib/rules/data/sources.js';
+import { guidanceEntries } from '#lib/guidance/entries.js';
+import { getSource } from '#lib/rules/data/sources.js';
 import SiteSourceFold from './SiteSourceFold.svelte';
 
 // Real registry sources rather than invented ones, so the citation link's

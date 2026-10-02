@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
 	import type { ScreenRect } from '../contracts.js';
 	import { anchoredPosition } from './anchored-position.js';
 	import { dismissOnHoverLeave } from './dismiss-on-hover-leave.js';

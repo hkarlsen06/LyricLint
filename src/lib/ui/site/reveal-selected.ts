@@ -1,5 +1,5 @@
 import { tick } from 'svelte';
-import { prefersReducedMotion } from '$lib/interaction/motion.js';
+import { prefersReducedMotion } from '#lib/interaction/motion.js';
 
 /**
  * Bring an index column's selected row into view, for a reader who did not

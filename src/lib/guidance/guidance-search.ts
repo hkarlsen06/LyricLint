@@ -16,8 +16,8 @@
  * became reachable through an entry's "Checked by" line, and their terms
  * folded in here so the finder did not get dumber with them.
  */
-import { getSource } from '$lib/rules/data/sources.js';
-import { foldForSearch, searchTokens } from '$lib/rules/reference-search.js';
+import { getSource } from '#lib/rules/data/sources.js';
+import { foldForSearch, searchTokens } from '#lib/rules/reference-search.js';
 import {
 	authorityLabels,
 	guidanceTopicTitles,

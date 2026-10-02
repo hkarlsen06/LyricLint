@@ -1,5 +1,5 @@
-import { parseDocument } from '$lib/core/parser.js';
-import type { SerializedSelection, TextEdit, UnknownVoiceRequest } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { SerializedSelection, TextEdit, UnknownVoiceRequest } from '#lib/core/types.js';
 import { assignUnknownVoice, unknownVoiceOffers } from './transform.js';
 import { describe, expect, it } from 'vitest';
 

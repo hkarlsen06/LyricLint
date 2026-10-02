@@ -29,7 +29,7 @@
  * workbench off the screen would be a worse bug than the one it prevents.
  */
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 /**
  * One lock for the workbench, never one per 'scribe.

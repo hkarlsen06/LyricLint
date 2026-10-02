@@ -1,11 +1,11 @@
-import { linkableSemantic } from '$lib/languages/registry.js';
-import type { LanguagePack, ParsedDocument, Section, TextRange } from '$lib/core/types.js';
-import { lineNumberAt } from '$lib/core/line-numbers.js';
+import { linkableSemantic } from '#lib/languages/registry.js';
+import type { LanguagePack, ParsedDocument, Section, TextRange } from '#lib/core/types.js';
+import { lineNumberAt } from '#lib/core/line-numbers.js';
 import {
 	bodiesAreSimilarEnoughToLink,
 	comparableSectionBody,
 	MAX_LINK_DISCOVERY_TOKENS
-} from '$lib/core/link-shape.js';
+} from '#lib/core/link-shape.js';
 
 function sectionForHeader(parsed: ParsedDocument, headerFrom: number): Section | undefined {
 	return parsed.sections.find((section) => section.header?.from === headerFrom);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import type { Diagnostic } from '$lib/core/types.js';
+import type { Diagnostic } from '#lib/core/types.js';
 import { carryHarperDiagnosticsAcrossEdit } from './harper-continuity.js';
 
 function harper(from: number, to: number, revision = 4): Diagnostic {

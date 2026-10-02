@@ -1,5 +1,5 @@
-import { getLanguagePack, canLintHeaderLanguage } from '$lib/languages/registry.js';
-import type { RuleDefinition } from '$lib/core/types.js';
+import { getLanguagePack, canLintHeaderLanguage } from '#lib/languages/registry.js';
+import type { RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 import { isImmediateHeaderlessRepeat } from './section-immediate-repeat-spacing.js';
 import { sectionLeadsWithProseHeader } from './section-header-prose.js';

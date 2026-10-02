@@ -1,5 +1,5 @@
-import { parseDocument } from '$lib/core/parser.js';
-import type { Diagnostic, DiagnosticFix, RuleContext } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { Diagnostic, DiagnosticFix, RuleContext } from '#lib/core/types.js';
 import { collectSafeFixes, runRules } from './engine.js';
 import { getRule } from './registry.js';
 import { sourceRegistry } from './data/sources.js';

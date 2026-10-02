@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import type { LanguagePack } from '$lib/core/types.js';
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
+	import type { LanguagePack } from '#lib/core/types.js';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
 	import type { ScreenRect, SectionHeaderChoice } from '../contracts.js';
 	import { sectionHeaderOptions } from './section-picker.js';
 	import { anchoredPosition } from './anchored-position.js';

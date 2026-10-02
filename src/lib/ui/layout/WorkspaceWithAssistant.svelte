@@ -8,7 +8,7 @@
 	 * the assistant module.
 	 */
 	import type { ComponentProps } from 'svelte';
-	import { provideAssistantState, type AssistantState } from '$lib/assistant/assistant.svelte.js';
+	import { provideAssistantState, type AssistantState } from '#lib/assistant/assistant.svelte.js';
 	import Workspace from './Workspace.svelte';
 
 	let {

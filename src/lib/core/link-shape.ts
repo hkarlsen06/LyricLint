@@ -1,5 +1,5 @@
 // Decision record: docs/subsystems/section-links.md. Read it before changing this file, and update it with any behavior change.
-import type { Section, TextRange } from '$lib/core/types.js';
+import type { Section, TextRange } from '#lib/core/types.js';
 import { alignPassages, passageLexicon } from './link-passages.js';
 
 /**

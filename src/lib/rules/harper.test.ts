@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { Diagnostic, PerformerRecord } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { Diagnostic, PerformerRecord } from '#lib/core/types.js';
 import {
 	createHarperDiagnosticProvider,
 	disabledHarperLints,
@@ -736,7 +736,7 @@ describe('Harper diagnostic merging', () => {
 	// has to fail here rather than quietly change the introduction.
 	it('keeps exactly one Harper finding on the sample transcription', async () => {
 		const [{ sampleDraftLanguage, sampleDraftText }, { loadStatisticalLanguageDetector }] =
-			await Promise.all([import('$lib/ui/sample-draft.js'), import('$lib/languages/detect.js')]);
+			await Promise.all([import('#lib/ui/sample-draft.js'), import('#lib/languages/detect.js')]);
 		const { currentRuleSet, runRules, sourceRegistry } = await import('./index.js');
 		await loadStatisticalLanguageDetector();
 

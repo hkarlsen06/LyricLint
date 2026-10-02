@@ -1,10 +1,10 @@
-import type { RuleDefinition } from '$lib/core/types.js';
+import type { RuleDefinition } from '#lib/core/types.js';
 import {
 	canLintHeaderLanguage,
 	getLanguagePack,
 	reviewedLanguagePacks
-} from '$lib/languages/registry.js';
-import { headerNameIsEmpty } from '$lib/core/parser.js';
+} from '#lib/languages/registry.js';
+import { headerNameIsEmpty } from '#lib/core/parser.js';
 import {
 	hasChorusAffixes,
 	localizedHeaderPreference

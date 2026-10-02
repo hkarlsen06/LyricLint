@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
-	import Keys from '$lib/ui/docs/Keys.svelte';
-	import * as Alert from '$lib/ui/primitives/alert/index.js';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
+	import * as Alert from '#lib/ui/primitives/alert/index.js';
 </script>
 
 <h2 id="attach">Attach audio</h2>
@@ -16,7 +16,7 @@
 	<li>
 		The YouTube field takes a video link, or a search where the field says so. Apple Music and
 		Spotify have their own search fields when they are available. See <a
-			href={resolve('/docs/audio-sources/')}>YouTube, Apple Music, and Spotify</a
+			href={resolve('docs/audio-sources/')}>YouTube, Apple Music, and Spotify</a
 		>.
 	</li>
 </ul>
@@ -53,7 +53,7 @@
 <p>
 	Back and forward jump to the previous or next timed line when one is within 10 seconds, and move 2
 	seconds otherwise. Hover either button to see which it will do. Once lines are timed, see <a
-		href={resolve('/docs/sync/')}>Synced lyrics</a
+		href={resolve('docs/sync/')}>Synced lyrics</a
 	>.
 </p>
 <p>
@@ -66,7 +66,7 @@
 </p>
 <p>
 	Function keys, the <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> keys, and your keyboard's media keys
-	work too. They are all on <a href={resolve('/docs/shortcuts/')}>Keyboard shortcuts</a>.
+	work too. They are all on <a href={resolve('docs/shortcuts/')}>Keyboard shortcuts</a>.
 </p>
 
 <h2 id="loop">Repeat a passage</h2>
@@ -111,6 +111,6 @@
 </ul>
 <p>
 	If you moved, renamed, or deleted the file since, LyricLint says it could not be reopened. Attach
-	it again from the audio dialog. A <a href="{resolve('/docs/scribes/')}#backup">workspace backup</a> brings
+	it again from the audio dialog. A <a href="{resolve('docs/scribes/')}#backup">workspace backup</a> brings
 	back your 'scribes but not their audio files, so reconnect those after importing one.
 </p>

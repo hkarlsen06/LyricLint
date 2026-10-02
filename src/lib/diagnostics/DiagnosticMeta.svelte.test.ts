@@ -2,8 +2,8 @@ import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 // The tooltip's geometry is asserted against the real tokens, not mocked ones.
-import '$lib/ui/styles/global.css';
-import type { Diagnostic, SourceReference } from '$lib/core/types.js';
+import '#lib/ui/styles/global.css';
+import type { Diagnostic, SourceReference } from '#lib/core/types.js';
 import DiagnosticMeta from './DiagnosticMeta.svelte';
 
 function source(id: string): SourceReference {

@@ -9,7 +9,7 @@ import type {
 	TextEdit,
 	TextRange,
 	UnsupportedStyleSpan
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import { diagnostic } from './utils.js';
 
 const REMOVE_MARKUP_LABEL = 'Remove markup';

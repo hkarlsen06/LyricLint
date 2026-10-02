@@ -1,4 +1,4 @@
-import type { Severity } from '$lib/core/types.js';
+import type { Severity } from '#lib/core/types.js';
 
 /** The shared plural vocabulary used by severity filters. */
 export const severityPluralLabels = {

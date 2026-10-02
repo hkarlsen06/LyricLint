@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
+	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
 	import type {
 		AssistantLinkActionRecord,
 		AssistantLinkFailureReason,
 		AssistantLinkHeader
-	} from '$lib/assistant/types.js';
+	} from '#lib/assistant/types.js';
 
 	let {
 		action,

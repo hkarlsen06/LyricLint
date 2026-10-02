@@ -1,16 +1,16 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import { replaceState } from '$app/navigation';
+	import { browser } from '$app/env';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { parseDocument } from '$lib/core/parser.js';
+	import { parseDocument } from '#lib/core/parser.js';
 	import type {
 		AutosaveStatus,
 		DraftRecord,
 		EditorHandle,
 		EditorSnapshot
-	} from '$lib/core/types.js';
-	import EditorPane from '$lib/editor/EditorPane.svelte';
+	} from '#lib/core/types.js';
+	import EditorPane from '#lib/editor/EditorPane.svelte';
 	import {
 		closeDatabase,
 		createAutosaveController,
@@ -22,22 +22,22 @@
 		recoverStartupDraft,
 		type LyricLintDatabase,
 		type WorkspaceBackupController
-	} from '$lib/persistence/index.js';
-	import { siteUrl } from '$lib/seo.js';
-	import { currentRuleSet } from '$lib/rules/data/rule-set.js';
-	import { sourceRegistry } from '$lib/rules/data/sources.js';
-	import DocumentTitle from '$lib/ui/layout/DocumentTitle.svelte';
-	import TabBusyNotice from '$lib/ui/layout/TabBusyNotice.svelte';
-	import Workspace from '$lib/ui/layout/Workspace.svelte';
-	import { finishWorkbenchNavigation } from '$lib/ui/layout/workbench-navigation.js';
-	import { useFeedbackState } from '$lib/ui/state/feedback.svelte.js';
-	import { guardWorkbenchTab, type TabGuard } from '$lib/ui/state/tab-guard.js';
-	import { ensurePersistentStorage } from '$lib/ui/state/storage-persistence.svelte.js';
+	} from '#lib/persistence/index.js';
+	import { siteUrl } from '#lib/seo.js';
+	import { currentRuleSet } from '#lib/rules/data/rule-set.js';
+	import { sourceRegistry } from '#lib/rules/data/sources.js';
+	import DocumentTitle from '#lib/ui/layout/DocumentTitle.svelte';
+	import TabBusyNotice from '#lib/ui/layout/TabBusyNotice.svelte';
+	import Workspace from '#lib/ui/layout/Workspace.svelte';
+	import { finishWorkbenchNavigation } from '#lib/ui/layout/workbench-navigation.js';
+	import { useFeedbackState } from '#lib/ui/state/feedback.svelte.js';
+	import { guardWorkbenchTab, type TabGuard } from '#lib/ui/state/tab-guard.js';
+	import { ensurePersistentStorage } from '#lib/ui/state/storage-persistence.svelte.js';
 	import {
 		createWorkbenchController,
 		type WorkbenchController
-	} from '$lib/ui/state/workbench.svelte.js';
-	import { rightPanelTabFromUrl, urlForRightPanelTab } from '$lib/ui/state/panel-url.js';
+	} from '#lib/ui/state/workbench.svelte.js';
+	import { rightPanelTabFromUrl, urlForRightPanelTab } from '#lib/ui/state/panel-url.js';
 	import { onDestroy, onMount, untrack } from 'svelte';
 
 	let controller = $state<WorkbenchController | undefined>();
@@ -177,9 +177,9 @@
 						// SAFETY: `URL.search` is empty or opens with `?`, and `URL.hash` is
 						// empty or opens with `#`, so this is one of exactly the three route
 						// shapes named here, which a template literal type cannot express.
-						const target = `/workbench/${next.search}${next.hash}` as
-							'/workbench/' | `/workbench/?${string}` | `/workbench/#${string}`;
-						replaceState(resolve(target), page.state);
+						const target = `workbench/${next.search}${next.hash}` as
+							'workbench/' | `workbench/?${string}` | `workbench/#${string}`;
+						void goto(resolve(target), { shallow: true, replace: true, state: page.state });
 					},
 					onBackupRestored: () => location.reload(),
 					sources: [...sourceRegistry.values()],

@@ -1,5 +1,5 @@
-import { parseDocument } from '$lib/core/parser.js';
-import type { PerformerRecord } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { PerformerRecord } from '#lib/core/types.js';
 import { normalizePerformerKey } from './identity.js';
 import { extractPerformers } from './import.js';
 import { describe, expect, it } from 'vitest';

@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Current contract: docs/subsystems/reference.md.
-	import { prefersReducedMotion } from '$lib/interaction/motion.js';
+	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	import type { Snippet } from 'svelte';
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
@@ -87,7 +87,8 @@
 	}
 
 	afterNavigate((navigation) => {
-		if (!strip || !detail || (navigation.type === 'popstate' && positioned)) return;
+		if (navigation.shallow || !strip || !detail || (navigation.type === 'popstate' && positioned))
+			return;
 		positioned = true;
 		const anchor = safeDecodeHash(navigation.to?.url.hash.slice(1) ?? '');
 		const target = anchor ? document.getElementById(anchor) : null;

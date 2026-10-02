@@ -1,4 +1,4 @@
-import type { RuleContext, RuleDefinition } from '$lib/core/types.js';
+import type { RuleContext, RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 function knownLabel(label: string, context: RuleContext): boolean {

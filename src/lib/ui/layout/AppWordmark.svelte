@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { prefersReducedMotion } from '$lib/interaction/motion.js';
+	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 
 	// The brand lockup, as one pair of brackets rather than two. The mark's
 	// brackets and the wordmark's `[Lint]` brackets were always the same shape

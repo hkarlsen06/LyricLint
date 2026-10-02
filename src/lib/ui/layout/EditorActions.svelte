@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
-	import { canAssignVoiceGroup } from '$lib/performers/transform.js';
+	import { canAssignVoiceGroup } from '#lib/performers/transform.js';
 	import MusicNotesIcon from 'phosphor-svelte/lib/MusicNotesIcon';
 	import MusicNotesPlusIcon from 'phosphor-svelte/lib/MusicNotesPlusIcon';
 	import SidebarSimpleIcon from 'phosphor-svelte/lib/SidebarSimpleIcon';
