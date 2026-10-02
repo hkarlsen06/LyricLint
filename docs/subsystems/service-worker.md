@@ -1,7 +1,7 @@
 # The service worker: an offline snapshot that never stands between the user and the network
 
 Touches: `src/service-worker/` (the worker and its own `tsconfig.json`), `src/routes/+layout.svelte`,
-`src/routes/+error.svelte`, `vite.config.ts` (`serviceWorker`, `version`)
+`src/routes/+error.svelte`, `vite.config.ts` (`serviceWorker`)
 
 ## The rules
 
@@ -11,8 +11,12 @@ Touches: `src/service-worker/` (the worker and its own `tsconfig.json`), `src/ro
   a newer deploy). Navigations: network-first with preload, falling back to the cached copy
   then the `/` shell; a 5xx is an outage, a 404 is answered truthfully. Static/prerendered:
   this version's snapshot, written only at install or by a navigation landing fresh markup.
-- No `skipWaiting`/`clients.claim`: activation deletes the previous snapshot, so it waits
-  until no page from the previous version is open. The worker's version decides nothing
+- The snapshot is one copy per URL: lookups ignore `Vary`, a page is keyed by its path whatever
+  its query string, and nothing whose content type contradicts its extension (`.js`, `.css`,
+  `.wasm`) is written, at install or on sight.
+- No `skipWaiting`: activation deletes the previous snapshot, so it waits until no page from the
+  previous version is open. `clients.claim` on activate is safe for the same reason: by then no
+  page belongs to another version. The worker's version decides nothing
   about freshness; it is only how good the offline copy is.
 - The precache is `/`, `/workbench/`, static files, and non-wasm immutable assets; install copies
   immutable assets forward from the previous cache, and misses reuse the HTTP cache; rules pages
@@ -22,11 +26,12 @@ Touches: `src/service-worker/` (the worker and its own `tsconfig.json`), `src/ro
   filter itself, over `$app/manifest`'s `assets`, because SvelteKit 3 removed `serviceWorker.files`.
 - `/lint/` remains a permanent compatibility redirect but is not a second offline shell; installed
   apps and new snapshots enter through the canonical `/workbench/` page.
-- Registration is app code, not `kit.serviceWorker.register`: registered under `!dev` as
-  `type: 'module'` (SvelteKit 3 builds an ES module worker), **unregistered under `dev`** (an
-  installed worker controls `localhost` until something takes it off). The error page's links carry `data-sveltekit-reload`.
-- `kit.version.pollInterval` + `beforeNavigate` turn the first navigation after a deploy
-  into a full-page load: silent on purpose, upgrade on a gesture, never mid-session.
+- Registration is app code, not `kit.serviceWorker.register`: registered under `!dev` as a
+  **classic** worker, **unregistered under `dev`** (an installed worker controls `localhost` until
+  something takes it off). The error page's links carry `data-sveltekit-reload`.
+- SvelteKit's version check (on focus, on becoming visible, and hourly by default) + `beforeNavigate`
+  turn the first navigation after a deploy into a full-page load: silent on purpose, upgrade on a
+  gesture, never mid-session.
   Neither cache layer may pin `_app/version.json`: it must keep matching none of the
   worker's strategies.
 - `/assistant-release.json` identifies the deployed website for assistant rollouts. It always
@@ -43,6 +48,27 @@ compatibility window. `/assistant-release.json` is built with the website, so it
 prerendered URLs; letting the static strategy answer it would report an older offline snapshot
 as the deployed release. The fetch handler excludes this path before every strategy, and the
 host sends `Cache-Control: no-store`. It is not an offline page and never joins the snapshot.
+
+### SvelteKit 3: a classic registration, a looser poll, one copy per URL
+
+SvelteKit 3 builds the worker as an ES module and registers its own as `type: 'module'`, so the
+migration followed. Firefox only runs module service workers from 147, which left Firefox ESR 140
+rejecting the registration and silently without offline. The built worker contains no `import`,
+so it registers as `classic`. If an import ever appears (a dynamic `$app/env/public` read is the
+likely cause), install fails in every browser and the offline e2e test fails with it.
+
+The version poll was once a minute because a returning tab had nothing else to notice a deploy.
+SvelteKit 3 also checks when the tab regains focus or becomes visible, which is the moment a
+returning user acts, so the poll only covers a tab that stays in front, and SvelteKit's hourly
+default is enough for that.
+
+Three snapshot fixes came out of the same review. Vite's CORS middleware answers `Vary: Origin`,
+and module scripts and fonts are CORS-mode requests, so a cache lookup that honoured `Vary` missed
+every precached chunk and an offline reload drew a blank shell; every lookup now ignores `Vary`.
+A navigation used to write under its full URL, so each query string a page was loaded with added
+another copy of it; writes are now keyed by path. The on-sight immutable write skipped the
+content-type check install makes, so a host answering a missing chunk with an HTML 200 could
+still poison it; both paths now share `contentTypeMismatch`.
 
 ### Preview must own the port the proxy targets
 
@@ -120,8 +146,9 @@ over its own stale copy.
 **A hotfix reaches a long-lived tab on its own next navigation, and nothing is drawn to ask for
 it.** The strategies above make every full-page load fresh, but a client-side navigation reuses
 the running app, stale code included, so a tab that only ever routed client-side could carry a
-superseded build for as long as it stayed open. `kit.version.pollInterval` in `vite.config.ts`
-polls `_app/version.json` once a minute, and the root layout's `beforeNavigate` turns the first
+superseded build for as long as it stayed open. SvelteKit fetches `_app/version.json` whenever the
+tab regains focus or becomes visible, and on its default hourly `version.pollInterval` for a tab
+that stays in front, and the root layout's `beforeNavigate` turns the first
 navigation after a deploy into a full-page one (`location.href`), which the network-first strategy
 then answers with the new build. Three things it depends on:
 
@@ -145,7 +172,7 @@ update path needs two real builds and is verified by hand rather than in the sui
 version-poll upgrade, whose trigger is a deploy happening under an open tab.
 
 Implementation: `src/service-worker/index.ts`, the registration and the version upgrade in
-`src/routes/+layout.svelte`, the `serviceWorker` and `version` options in `vite.config.ts`, and
+`src/routes/+layout.svelte`, the `serviceWorker` option in `vite.config.ts`, and
 the reload links in `src/routes/+error.svelte`.
 
 ### Installation reuses the browser's immutable downloads
