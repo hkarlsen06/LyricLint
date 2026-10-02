@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { docsGroups, docsPagesIn } from '$lib/docs/catalog.js';
-	import { siteUrl } from '$lib/seo.js';
-	import * as Card from '$lib/ui/primitives/card/index.js';
+	import { docsGroups, docsPagesIn } from '#lib/docs/catalog.js';
+	import { siteUrl } from '#lib/seo.js';
+	import * as Card from '#lib/ui/primitives/card/index.js';
 
 	const pageTitle = 'Docs · LyricLint';
 	const pageDescription =
@@ -38,7 +38,7 @@
 					     the link's name is the title alone. -->
 					<Card.Root class="docs-index__card">
 						<Card.Title>
-							<a href={resolve(`/docs/${page.slug}/`)}>{page.title}</a>
+							<a href={resolve(`docs/${page.slug}/`)}>{page.title}</a>
 						</Card.Title>
 						<Card.Description>{page.summary}</Card.Description>
 					</Card.Root>
@@ -49,7 +49,7 @@
 
 	<p class="docs-index__guide">
 		Genius's conventions, and the check behind every finding, are in the
-		<a href={resolve('/guidelines/')}>transcription guide</a>.
+		<a href={resolve('guidelines/')}>transcription guide</a>.
 	</p>
 </main>
 

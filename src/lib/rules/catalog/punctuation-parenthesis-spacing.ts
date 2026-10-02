@@ -1,4 +1,4 @@
-import type { Diagnostic, RuleDefinition } from '$lib/core/types.js';
+import type { Diagnostic, RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, maskedMarkupText, replacementFix } from './utils.js';
 import { scanParentheses } from './syntax-unbalanced-parentheses.js';
 

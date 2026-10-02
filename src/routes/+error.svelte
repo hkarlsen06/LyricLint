@@ -35,16 +35,16 @@
 		     is offering a way out. A new document gets a new module graph, which is
 		     the only thing that actually recovers. -->
 		<p class="error-page__actions">
-			<a class="button button--contrast" data-sveltekit-reload href={resolve('/workbench/')}>
+			<a class="button button--contrast" data-sveltekit-reload href={resolve('workbench/')}>
 				Return to the workspace
 			</a>
-			<a class="button button--quiet" data-sveltekit-reload href={resolve('/')}>
+			<a class="button button--quiet" data-sveltekit-reload href={resolve('/(site)')}>
 				What is LyricLint?
 			</a>
 			<!-- The two reading sections, which is where a truncated share link was
 			     most likely pointing: a rule page or a guideline is a URL people
 			     paste, and the workbench is not. -->
-			<a class="button button--quiet" data-sveltekit-reload href={resolve('/guidelines/')}>
+			<a class="button button--quiet" data-sveltekit-reload href={resolve('guidelines/')}>
 				Transcription guide
 			</a>
 		</p>

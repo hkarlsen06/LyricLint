@@ -5,7 +5,7 @@ import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
 import LinkBreakIcon from 'phosphor-svelte/lib/LinkBreakIcon';
 import PenIcon from 'phosphor-svelte/lib/PenIcon';
 import PencilLineIcon from 'phosphor-svelte/lib/PencilLineIcon';
-import { releaseControlHint, showControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
+import { releaseControlHint, showControlHint } from '#lib/ui/state/control-tooltip.svelte.js';
 import { pressed } from './widget-press.js';
 import { editorCallbacksField } from './editor-state.js';
 import type { SectionLinkOrigin } from '../contracts.js';

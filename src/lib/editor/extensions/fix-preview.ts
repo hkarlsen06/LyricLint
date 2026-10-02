@@ -2,7 +2,7 @@ import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { AtomicDocumentEdit, TextEdit } from '$lib/core/types.js';
+import type { AtomicDocumentEdit, TextEdit } from '#lib/core/types.js';
 import { isCompositionChange } from './editor-state.js';
 
 export const setFixPreviewEffect = StateEffect.define<AtomicDocumentEdit | undefined>();

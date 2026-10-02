@@ -1,4 +1,4 @@
-import { PHONE_LAYOUT_QUERY } from '$lib/interaction/phone-layout.js';
+import { PHONE_LAYOUT_QUERY } from '#lib/interaction/phone-layout.js';
 import {
 	SearchQuery,
 	findNext,

@@ -1,6 +1,6 @@
-import type { Diagnostic, StyleSlot, TextRange } from '$lib/core/types.js';
-import { unknownVoiceName } from '$lib/performers/legend-cleanup.js';
-import { unknownVoiceMessage } from '$lib/rules/catalog/performer-inline-mismatch.js';
+import type { Diagnostic, StyleSlot, TextRange } from '#lib/core/types.js';
+import { unknownVoiceName } from '#lib/performers/legend-cleanup.js';
+import { unknownVoiceMessage } from '#lib/rules/catalog/performer-inline-mismatch.js';
 import { diagnosticKey } from './order.js';
 
 const CONTEXT_LENGTH = 32;

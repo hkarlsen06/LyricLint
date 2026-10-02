@@ -1,8 +1,8 @@
 import { fireEvent, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { VoiceGroup } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { VoiceGroup } from '#lib/core/types.js';
 import { performer } from '../test-utils.js';
 import PerformerLegend from './PerformerLegend.svelte';
 

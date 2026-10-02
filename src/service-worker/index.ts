@@ -1,7 +1,7 @@
 // Decision record: docs/subsystems/service-worker.md. Read it before changing this file, and update it with any behavior change.
-/// <reference lib="webworker" />
-
-import { base, build, files, prerendered, version } from '$service-worker';
+import { version } from '$app/env';
+import { assets, immutable, prerendered } from '$app/manifest';
+import { self as worker } from '$app/service-worker';
 
 /**
  * The worker is an offline snapshot, and it must never stand between the user
@@ -21,16 +21,16 @@ import { base, build, files, prerendered, version } from '$service-worker';
  *   by a navigation landing fresh markup over its own stale copy.
  */
 
-// The webworker lib's own `self`, shadowing the DOM `Window` one that the
-// project's shared lib set would otherwise put in scope here.
-declare const self: ServiceWorkerGlobalScope;
-const worker = self;
 const cachePrefix = 'lyriclint-';
 const cacheName = `${cachePrefix}${version}`;
 
-const toPathname = (asset: string): string => new URL(asset, worker.location.href).pathname;
+// Manifest paths are relative to the base path, where this worker is served,
+// and the front page's is empty.
+const root = new URL('./', worker.location.href);
+const toPathname = ({ path }: { path: string }): string => new URL(path, root).pathname;
 
-const immutablePaths = new Set(build.map(toPathname));
+const build = immutable.map(toPathname);
+const immutablePaths = new Set(build);
 
 // The Harper wasm is 18MB, most of the build. It is cached the first time the
 // workbench actually loads it (the immutable strategy writes on sight), so the
@@ -48,17 +48,49 @@ const precachedImmutable = build.filter((asset) => !asset.endsWith('.wasm'));
  * the pages someone uses offline without shipping the whole reference to
  * everyone.
  */
-const precachedPages = prerendered.filter((page) => {
-	const path = toPathname(page).replace(/\/$/u, '');
-	return path === base || path === `${base}/workbench`;
-});
-const pagePaths = new Set(prerendered.map(toPathname));
-const staticPaths = new Set(files.map(toPathname));
-const shellPath = toPathname(`${base}/`);
+const shellPath = root.pathname;
+
+// The snapshot holds one copy per URL, written by a plain fetch at install, so
+// a `Vary` header must not split it. Vite's CORS middleware answers `Vary:
+// Origin`, and a module script or font is requested in CORS mode: matching on
+// Vary turned every cached chunk into a miss, and offline into a blank shell.
+const oneCopy: CacheQueryOptions = { ignoreVary: true };
+const pages = prerendered.map(toPathname);
+const precachedPages = pages.filter(
+	(path) => path === shellPath || path.replace(/\/$/u, '') === `${shellPath}workbench`
+);
+const pagePaths = new Set(pages);
+
+/**
+ * The `static/` files this worker precaches.
+ *
+ * Cloudflare Pages consumes `_headers` as platform config and 404s its URL.
+ * Precached, it fails the validation below, so every new worker dies at
+ * install and stale clients never update.
+ *
+ * The `.gif` is the motion loop's sharing copy for a README, an issue, a post.
+ * `workbench.png` serves the same job for the README while the page uses its
+ * WebP. No page references either, so neither belongs in every visitor's
+ * offline snapshot. Marketing WebMs are enhancements too: keep their stills
+ * offline, without precaching every resolution of every loop for visitors who
+ * never watch them. Unlisted video URLs go to the network. Docs pages join the
+ * offline snapshot by being read, so their stills should not bloat install.
+ */
+const files = assets
+	.filter(
+		({ path }) =>
+			!path.startsWith('_') &&
+			!path.endsWith('.gif') &&
+			!path.endsWith('.webm') &&
+			path !== 'workbench.png' &&
+			!path.startsWith('docs-')
+	)
+	.map(toPathname);
+const staticPaths = new Set(files);
 
 async function copyForward(cache: Cache, olderCaches: Cache[], asset: string): Promise<boolean> {
 	for (const older of olderCaches) {
-		const cached = await older.match(asset);
+		const cached = await older.match(asset, oneCopy);
 		if (cached) {
 			await cache.put(asset, cached);
 			return true;
@@ -165,7 +197,7 @@ worker.addEventListener('activate', (event) => {
 });
 
 async function immutableAsset(event: FetchEvent): Promise<Response> {
-	const cached = await caches.match(event.request);
+	const cached = await caches.match(event.request, oneCopy);
 	if (cached) return cached;
 	const response = await fetch(event.request);
 	if (response.ok) {
@@ -204,7 +236,7 @@ async function navigation(event: FetchEvent): Promise<Response> {
 }
 
 async function staticAsset(request: Request): Promise<Response> {
-	return (await caches.match(request)) ?? fetch(request);
+	return (await caches.match(request, oneCopy)) ?? fetch(request);
 }
 
 worker.addEventListener('fetch', (event) => {
@@ -215,7 +247,7 @@ worker.addEventListener('fetch', (event) => {
 	if (url.origin !== worker.location.origin) return;
 	// This prerendered manifest proves which release the origin is serving.
 	// Even a direct navigation must bypass the offline snapshot.
-	if (url.pathname === `${base}/assistant-release.json`) return;
+	if (url.pathname === `${shellPath}assistant-release.json`) return;
 
 	if (immutablePaths.has(url.pathname)) {
 		event.respondWith(immutableAsset(event));

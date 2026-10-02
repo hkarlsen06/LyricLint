@@ -1,12 +1,12 @@
-import { legendRemovalRange } from '$lib/core/legend.js';
+import { legendRemovalRange } from '#lib/core/legend.js';
 import type {
 	ParsedDocument,
 	Section,
 	StyleSlot,
 	SupportedStyleSpan,
 	TextEdit
-} from '$lib/core/types.js';
-import { joinLegendGroups } from '$lib/serialization/genius-markup.js';
+} from '#lib/core/types.js';
+import { joinLegendGroups } from '#lib/serialization/genius-markup.js';
 
 function supportedSpans(section: Section): { line: number; spans: SupportedStyleSpan[] }[] {
 	return section.lines.map((line, index) => ({

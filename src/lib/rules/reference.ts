@@ -1,9 +1,9 @@
 import { groupTitle } from './names.js';
 export { ruleName } from './names.js';
-import { parseDocument } from '$lib/core/parser.js';
-import { guidanceForRule } from '$lib/guidance/entries.js';
-import type { RuleGuidelineLink } from '$lib/guidance/guidance.js';
-import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
+import { parseDocument } from '#lib/core/parser.js';
+import { guidanceForRule } from '#lib/guidance/entries.js';
+import type { RuleGuidelineLink } from '#lib/guidance/guidance.js';
+import { loadStatisticalLanguageDetector } from '#lib/languages/detect.js';
 import type {
 	DiagnosticFix,
 	PerformerRecord,
@@ -11,7 +11,7 @@ import type {
 	RuleDefinition,
 	Severity,
 	SourceReference
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import { policyCases, type RulePolicyCase } from './catalog/policy-cases.js';
 import { lookupSearchTerms, ruleLookupTable } from './lookup-tables.js';
 import { ruleSlug } from './reference-search.js';

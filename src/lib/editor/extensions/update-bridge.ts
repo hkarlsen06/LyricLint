@@ -1,7 +1,7 @@
 import { redoDepth, undoDepth } from '@codemirror/commands';
 import type { ChangeSet, EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import type { EditorSnapshot, TextEdit } from '$lib/core/types.js';
+import type { EditorSnapshot, TextEdit } from '#lib/core/types.js';
 import { diagnosticsForState } from './lint-decorations.js';
 import {
 	editorComposingField,

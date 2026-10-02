@@ -5,7 +5,7 @@ import { createMediaPlayer } from './media-player.svelte.js';
 import { createMediaStore } from './media-store.svelte.js';
 import { StubAudio } from './media-test-audio.js';
 import { createStubYouTubeApi } from './media-test-youtube.js';
-import type { MediaRepository } from '$lib/persistence/index.js';
+import type { MediaRepository } from '#lib/persistence/index.js';
 import type { MusicKitLoader } from './media-apple.js';
 import { resetAppleMusic } from './media-apple.js';
 import { remoteLoadTimeoutMs } from './media-remote-policy.js';

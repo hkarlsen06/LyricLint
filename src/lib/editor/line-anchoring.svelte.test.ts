@@ -1,11 +1,11 @@
 import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { isLyricLine, parseDocument } from '$lib/core/parser.js';
-import type { EditorHandle, PerformerRecord } from '$lib/core/types.js';
-import { hideControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
-import ControlTooltip from '$lib/ui/primitives/ControlTooltip.svelte';
-import { assignVoiceGroup } from '$lib/performers/transform.js';
+import { isLyricLine, parseDocument } from '#lib/core/parser.js';
+import type { EditorHandle, PerformerRecord } from '#lib/core/types.js';
+import { hideControlHint } from '#lib/ui/state/control-tooltip.svelte.js';
+import ControlTooltip from '#lib/ui/primitives/ControlTooltip.svelte';
+import { assignVoiceGroup } from '#lib/performers/transform.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import { washRestDelayMs } from './extensions/line-anchors.js';
 import { tapOffsetSeconds } from './extensions/lyric-sync.js';

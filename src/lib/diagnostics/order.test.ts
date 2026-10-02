@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Diagnostic, Severity } from '$lib/core/types.js';
+import type { Diagnostic, Severity } from '#lib/core/types.js';
 import { orderDiagnostics } from './order.js';
 
 function diagnostic(

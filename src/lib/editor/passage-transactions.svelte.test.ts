@@ -19,7 +19,7 @@ import {
 	typeOnlyHere,
 	typeOnlyHereField
 } from './extensions/section-links.js';
-import { copySectionLinks } from '$lib/persistence/copy.js';
+import { copySectionLinks } from '#lib/persistence/copy.js';
 
 const SONG =
 	'[Intro]\nHold on tight\nThrough the night\n\n[Chorus]\nHold on tight\nThrough the night\n\n[Outro]\nHold on tight\nThrough the night';

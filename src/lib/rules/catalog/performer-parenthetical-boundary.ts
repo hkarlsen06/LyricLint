@@ -4,7 +4,7 @@ import type {
 	RuleDefinition,
 	SupportedStyleSpan,
 	TextRange
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 function supportedSpans(line: LyricLine): SupportedStyleSpan[] {

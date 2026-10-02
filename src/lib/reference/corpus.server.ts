@@ -1,6 +1,6 @@
 // Decision record: docs/subsystems/reference.md
 // Derivation stays server-only: importing the rule registry in a finder would ship the engine.
-import { guidanceEntries } from '$lib/guidance/entries.js';
+import { guidanceEntries } from '#lib/guidance/entries.js';
 import {
 	authorityLabels,
 	entryAnchor,
@@ -9,10 +9,10 @@ import {
 	type GuidanceTopic,
 	type GuidanceEntry,
 	type GuidanceTopicLandmark
-} from '$lib/guidance/guidance.js';
-import { getSource } from '$lib/rules/data/sources.js';
-import { ruleLookupTable } from '$lib/rules/lookup-tables.js';
-import { ruleReferences } from '$lib/rules/reference.js';
+} from '#lib/guidance/guidance.js';
+import { getSource } from '#lib/rules/data/sources.js';
+import { ruleLookupTable } from '#lib/rules/lookup-tables.js';
+import { ruleReferences } from '#lib/rules/reference.js';
 import { referenceAliases } from './aliases.js';
 import type { ReferenceDocument } from './search.js';
 import { referenceTopicForRule, referenceTopics } from './topics.js';

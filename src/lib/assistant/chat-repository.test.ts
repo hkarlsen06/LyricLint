@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it } from 'vitest';
-import { openDatabase, type LyricLintDatabase } from '$lib/persistence/database.js';
-import { createDraftRepository } from '$lib/persistence/draft-repository.js';
+import { openDatabase, type LyricLintDatabase } from '#lib/persistence/database.js';
+import { createDraftRepository } from '#lib/persistence/draft-repository.js';
 import { createAssistantChatRepository } from './chat-repository.js';
 
 let openDatabases: LyricLintDatabase[] = [];

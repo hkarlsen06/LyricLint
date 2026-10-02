@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { PerformerRecord, RuleContext } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { PerformerRecord, RuleContext } from '#lib/core/types.js';
 import { runRules } from './engine.js';
 import { enabledRules } from './registry.js';
 import { sourceRegistry } from './data/sources.js';

@@ -3,15 +3,15 @@
  * entry point sees the same transcript and a live browser-executed tool turn.
  */
 import { getContext, setContext, untrack } from 'svelte';
-import { occurrenceAt, resolveAnchor, type AnchorOccurrence } from '$lib/core/text-anchors.js';
-import { diffWords } from '$lib/core/word-diff.js';
-import type { AtomicDocumentEdit, TextRange } from '$lib/core/types.js';
+import { occurrenceAt, resolveAnchor, type AnchorOccurrence } from '#lib/core/text-anchors.js';
+import { diffWords } from '#lib/core/word-diff.js';
+import type { AtomicDocumentEdit, TextRange } from '#lib/core/types.js';
 import type {
 	AssistantChatRecord,
 	AssistantMessageRecord,
 	AssistantToolCallRecord,
 	AssistantToolTurnRecord
-} from '$lib/persistence/types.js';
+} from '#lib/persistence/types.js';
 import { corpusMetadata } from '../../../services/rules-assistant/generated/rules-context-meta.js';
 import { askAssistant, type AskOptions } from './api.js';
 import { browserChatLocks, withChatLock, type ChatLockOutcome } from './chat-lock.js';
@@ -1155,7 +1155,7 @@ export function createDefaultAssistantState(): AssistantState {
 		locks: browserChatLocks(),
 		async repository() {
 			const [{ openDatabase }, { createAssistantChatRepository }] = await Promise.all([
-				import('$lib/persistence/database.js'),
+				import('#lib/persistence/database.js'),
 				import('./chat-repository.js')
 			]);
 			return createAssistantChatRepository(await openDatabase());

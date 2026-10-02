@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { prefersReducedMotion } from '$lib/interaction/motion.js';
+	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	import { fly } from 'svelte/transition';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import type { FeedbackState } from '../state/feedback.svelte.js';

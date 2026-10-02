@@ -1,7 +1,7 @@
 import { EditorSelection, Transaction } from '@codemirror/state';
 import type { Annotation } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import type { AtomicDocumentEdit, TextEdit } from '$lib/core/types.js';
+import type { AtomicDocumentEdit, TextEdit } from '#lib/core/types.js';
 import { editorRevisionField } from './extensions/editor-state.js';
 
 function assertIntegerOffset(value: number, label: string): void {

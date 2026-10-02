@@ -2,7 +2,7 @@ import { Compartment, EditorState } from '@codemirror/state';
 import { Decoration, EditorView } from '@codemirror/view';
 import { fireEvent, waitFor } from '@testing-library/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { shownControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
+import { shownControlHint } from '#lib/ui/state/control-tooltip.svelte.js';
 import { editorCallbacksField, setEditorCallbacksEffect } from './editor-state.js';
 import { SectionLinkMarker, sectionLinkTheme } from './section-link-marker.js';
 

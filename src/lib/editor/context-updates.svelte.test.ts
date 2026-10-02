@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { Diagnostic } from '$lib/core/types.js';
-import { performerRecords } from '$lib/rules/rule-test-utils.js';
-import { resolveVoiceGroupRanges } from '$lib/ui/state/wiring.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { Diagnostic } from '#lib/core/types.js';
+import { performerRecords } from '#lib/rules/rule-test-utils.js';
+import { resolveVoiceGroupRanges } from '#lib/ui/state/wiring.js';
 import type { EditorDisplayContext } from './contracts.js';
 import { createLyricEditor } from './create-editor.js';
 import { lintDecorationField } from './extensions/lint-decorations.js';

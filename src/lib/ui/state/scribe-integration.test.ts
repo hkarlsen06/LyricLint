@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { parseScribe, serializeScribe } from '$lib/scribe/format.js';
+import { parseScribe, serializeScribe } from '#lib/scribe/format.js';
 import { createTestWorkbench, performer } from '../test-utils.js';
 
 function file(name: string, contents: string): File {

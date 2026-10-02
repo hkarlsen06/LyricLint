@@ -3,8 +3,8 @@ import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 // Tier assertions need the real tokens: the canonical contrast recipe lives in
 // controls.css and these tests compare against it, not against literals.
-import '$lib/ui/styles/global.css';
-import type { Diagnostic } from '$lib/core/types.js';
+import '#lib/ui/styles/global.css';
+import type { Diagnostic } from '#lib/core/types.js';
 import DiagnosticPopover from './DiagnosticPopover.svelte';
 
 function fixableDiagnostic(): Diagnostic {

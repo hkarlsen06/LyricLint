@@ -1,16 +1,16 @@
 // Edge cases of the performer assignment transforms: selections that land on
 // markup boundaries, annotation syntax, or entities must still produce a
 // legend and body the linter and the user's next edit agree with.
-import { scanAnnotations } from '$lib/core/annotations.js';
-import { parseDocument } from '$lib/core/parser.js';
+import { scanAnnotations } from '#lib/core/annotations.js';
+import { parseDocument } from '#lib/core/parser.js';
 import type {
 	AssignmentRequest,
 	PerformerRecord,
 	SerializedSelection,
 	TextEdit
-} from '$lib/core/types.js';
-import { performerRedundantMarkupRule } from '$lib/rules/catalog/performer-redundant-markup.js';
-import { ruleContext } from '$lib/rules/rule-test-utils.js';
+} from '#lib/core/types.js';
+import { performerRedundantMarkupRule } from '#lib/rules/catalog/performer-redundant-markup.js';
+import { ruleContext } from '#lib/rules/rule-test-utils.js';
 import { unaccountedStyledSlots } from './legend-cleanup.js';
 import { assignUnknownVoice, assignVoiceGroup, unknownVoiceOffers } from './transform.js';
 import { describe, expect, it } from 'vitest';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { RuleContext, RuleDefinition } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { RuleContext, RuleDefinition } from '#lib/core/types.js';
 import { sourceRegistry } from '../data/sources.js';
 import {
 	replacements as arabicReplacements,

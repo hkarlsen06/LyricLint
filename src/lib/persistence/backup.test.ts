@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { assistantDraftAccessKey } from '$lib/assistant/permissions.js';
+import { assistantDraftAccessKey } from '#lib/assistant/permissions.js';
 import { createWorkspaceBackup, parseWorkspaceBackup, WorkspaceBackupError } from './backup.js';
 import { closeDatabase, openDatabase, type LyricLintDatabase } from './database.js';
 import { createDraftIgnoreStore } from './draft-ignores.js';

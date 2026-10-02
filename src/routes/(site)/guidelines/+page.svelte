@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { guidanceTopicTitles } from '$lib/guidance/guidance.js';
-	import { siteUrl } from '$lib/seo.js';
-	import StructuredData from '$lib/ui/site/StructuredData.svelte';
-	import GuideArticle, { type GuideReadingSnapshot } from '$lib/ui/site/GuideArticle.svelte';
+	import { guidanceTopicTitles } from '#lib/guidance/guidance.js';
+	import { siteUrl } from '#lib/seo.js';
+	import StructuredData from '#lib/ui/site/StructuredData.svelte';
+	import GuideArticle, { type GuideReadingSnapshot } from '#lib/ui/site/GuideArticle.svelte';
 	import type { PageProps, Snapshot } from './$types.js';
 
 	let { data }: PageProps = $props();

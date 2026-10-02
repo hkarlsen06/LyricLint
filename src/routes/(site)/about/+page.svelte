@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { maintainerStructuredData, siteMaintainer, siteUrl } from '$lib/seo.js';
-	import StructuredData from '$lib/ui/site/StructuredData.svelte';
+	import { maintainerStructuredData, siteMaintainer, siteUrl } from '#lib/seo.js';
+	import StructuredData from '#lib/ui/site/StructuredData.svelte';
 
 	const pageTitle = 'About · LyricLint';
 	const pageDescription =

@@ -1,5 +1,5 @@
-import type { LanguagePack, RuleDefinition } from '$lib/core/types.js';
-import { getLanguagePack, semanticPartKey } from '$lib/languages/registry.js';
+import type { LanguagePack, RuleDefinition } from '#lib/core/types.js';
+import { getLanguagePack, semanticPartKey } from '#lib/languages/registry.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 const replacementSemantics = new Set(['chorus', 'refrain']);

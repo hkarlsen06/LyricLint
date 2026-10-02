@@ -1,7 +1,7 @@
 <script lang="ts">
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import { SvelteMap } from 'svelte/reactivity';
-	import type { ParsedDocument, PerformerRecord, StyleSlot, VoiceGroup } from '$lib/core/types.js';
+	import type { ParsedDocument, PerformerRecord, StyleSlot, VoiceGroup } from '#lib/core/types.js';
 
 	let {
 		document,

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { replaceState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import {
@@ -23,7 +23,7 @@
 		const disconnect = connectReferenceSearchUrl((state) => {
 			const href = writeReferenceSearch(new URL(window.location.href), state);
 			// eslint-disable-next-line svelte/no-navigation-without-resolve -- current resolved browser URL, only query fields change.
-			replaceState(href, page.state);
+			void goto(href, { shallow: true, replace: true, state: page.state });
 		});
 		window.addEventListener('popstate', restoreFromLocation);
 		return () => {

@@ -1,9 +1,9 @@
 import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { EditorHandle } from '$lib/core/types.js';
-import { norwegianLanguagePack } from '$lib/languages/no.js';
-import { englishLanguagePack } from '$lib/languages/en.js';
+import type { EditorHandle } from '#lib/core/types.js';
+import { norwegianLanguagePack } from '#lib/languages/no.js';
+import { englishLanguagePack } from '#lib/languages/en.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from '../contracts.js';
 import EditorPane from '../EditorPane.svelte';
 import { placeholderGuidance } from './document-placeholder.js';

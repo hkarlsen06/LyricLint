@@ -1,12 +1,12 @@
-import { parseDocument } from '$lib/core/parser.js';
+import { parseDocument } from '#lib/core/parser.js';
 import type {
 	Diagnostic,
 	ParsedDocument,
 	RuleContext,
 	TextEdit,
 	TextRange
-} from '$lib/core/types.js';
-import { sectionVerseNumberingRule } from '$lib/rules/catalog/section-verse-numbering.js';
+} from '#lib/core/types.js';
+import { sectionVerseNumberingRule } from '#lib/rules/catalog/section-verse-numbering.js';
 
 function applyEdits(text: string, edits: readonly TextEdit[]): string {
 	let output = text;

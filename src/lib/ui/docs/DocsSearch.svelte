@@ -6,8 +6,8 @@
 	 * words, because a question about a convention belongs there.
 	 */
 	import { resolve } from '$app/paths';
-	import { emptyReferenceSearch, referenceSearchHref } from '$lib/ui/site/reference-url.js';
-	import * as Command from '$lib/ui/primitives/command/index.js';
+	import { emptyReferenceSearch, referenceSearchHref } from '#lib/ui/site/reference-url.js';
+	import * as Command from '#lib/ui/primitives/command/index.js';
 	import { searchDocs } from './docs-search.js';
 
 	let { open = $bindable(false) }: { open?: boolean } = $props();
@@ -16,7 +16,7 @@
 	const hits = $derived(searchDocs(query));
 	const trimmed = $derived(query.trim());
 	const guideHref = $derived(
-		referenceSearchHref(resolve('/guidelines/'), { ...emptyReferenceSearch(), query: trimmed })
+		referenceSearchHref(resolve('guidelines/'), { ...emptyReferenceSearch(), query: trimmed })
 	);
 
 	function typingIn(target: EventTarget | null): boolean {
@@ -60,8 +60,8 @@
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- both halves come from resolve(); the fragment is a catalog section id. -->
 					<Command.LinkItem
 						href={hit.section
-							? `${resolve(`/docs/${hit.page.slug}/`)}#${hit.section.id}`
-							: resolve(`/docs/${hit.page.slug}/`)}
+							? `${resolve(`docs/${hit.page.slug}/`)}#${hit.section.id}`
+							: resolve(`docs/${hit.page.slug}/`)}
 						value={`${hit.page.slug}#${hit.section?.id ?? ''}`}
 						onSelect={close}
 					>

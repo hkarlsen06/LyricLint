@@ -1,4 +1,4 @@
-import type { RuleDefinition } from '$lib/core/types.js';
+import type { RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup } from './utils.js';
 
 export const spellingLanguageVariantRule: RuleDefinition = {

@@ -5,9 +5,9 @@
 	import EarIcon from 'phosphor-svelte/lib/EarIcon';
 	import WaveformIcon from 'phosphor-svelte/lib/WaveformIcon';
 	import { resolve } from '$app/paths';
-	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
-	import { authorityLabels, type GuidanceAuthority } from '$lib/guidance/guidance.js';
-	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
+	import { referenceHref } from '#lib/ui/site/reference-search.svelte.js';
+	import { authorityLabels, type GuidanceAuthority } from '#lib/guidance/guidance.js';
+	import AuthorityLadder from '#lib/ui/site/AuthorityLadder.svelte';
 
 	/*
 	 * The legend for the authority ladder, ascending as the ladder fills. The

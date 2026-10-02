@@ -1,9 +1,9 @@
 import { page } from 'vitest/browser';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { createAssistantState } from '$lib/assistant/assistant.svelte.js';
-import { memoryRepository } from '$lib/assistant/assistant-test-utils.js';
-import type { ReferenceDocument } from '$lib/reference/search.js';
+import { createAssistantState } from '#lib/assistant/assistant.svelte.js';
+import { memoryRepository } from '#lib/assistant/assistant-test-utils.js';
+import type { ReferenceDocument } from '#lib/reference/search.js';
 import ReferenceIndex from './ReferenceIndex.svelte';
 import {
 	referenceSearchState,

@@ -1,7 +1,7 @@
-import { runRules as computeDiagnostics } from '$lib/rules/engine.js';
-import { parseDocument } from '$lib/core/parser.js';
-import type { AtomicDocumentEdit } from '$lib/core/types.js';
-import { currentRuleSet } from '$lib/rules/index.js';
+import { runRules as computeDiagnostics } from '#lib/rules/engine.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { AtomicDocumentEdit } from '#lib/core/types.js';
+import { currentRuleSet } from '#lib/rules/index.js';
 import { describe, expect, test } from 'vitest';
 import { createTestWorkbench, performer } from '../test-utils.js';
 import {

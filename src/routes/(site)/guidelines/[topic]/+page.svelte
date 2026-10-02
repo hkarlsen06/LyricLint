@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { guidanceTopics } from '$lib/guidance/entries.js';
-	import { guidanceTopicLandmarks, guidanceTopicTitles } from '$lib/guidance/guidance.js';
-	import { getSource } from '$lib/rules/data/sources.js';
-	import { referenceTopics } from '$lib/reference/topics.js';
-	import { siteUrl } from '$lib/seo.js';
-	import StructuredData from '$lib/ui/site/StructuredData.svelte';
-	import GuideArticle, { type GuideReadingSnapshot } from '$lib/ui/site/GuideArticle.svelte';
+	import { guidanceTopics } from '#lib/guidance/entries.js';
+	import { guidanceTopicLandmarks, guidanceTopicTitles } from '#lib/guidance/guidance.js';
+	import { getSource } from '#lib/rules/data/sources.js';
+	import { referenceTopics } from '#lib/reference/topics.js';
+	import { siteUrl } from '#lib/seo.js';
+	import StructuredData from '#lib/ui/site/StructuredData.svelte';
+	import GuideArticle, { type GuideReadingSnapshot } from '#lib/ui/site/GuideArticle.svelte';
 	import type { PageProps, Snapshot } from './$types.js';
 
 	let { data }: PageProps = $props();

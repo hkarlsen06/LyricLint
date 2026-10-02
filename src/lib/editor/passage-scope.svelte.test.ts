@@ -2,9 +2,9 @@ import { fireEvent, waitFor } from '@testing-library/dom';
 import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { EditorHandle } from '$lib/core/types.js';
-import { englishLanguagePack } from '$lib/languages/en.js';
-import { shownControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
+import type { EditorHandle } from '#lib/core/types.js';
+import { englishLanguagePack } from '#lib/languages/en.js';
+import { shownControlHint } from '#lib/ui/state/control-tooltip.svelte.js';
 import EditorPane from './EditorPane.svelte';
 
 const SONG = [

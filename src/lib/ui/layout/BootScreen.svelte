@@ -2,7 +2,7 @@
 	// Restore the spring and radial reveal removed in 456a34c8. Loading proceeds
 	// independently; readiness can only release the splash after the pull.
 	import AppWordmark from './AppWordmark.svelte';
-	import { prefersReducedMotion } from '$lib/interaction/motion.js';
+	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	import { runWave } from '../primitives/wave-loop.js';
 	import { bootBlastEvent } from './workbench-navigation.js';
 	import { untrack } from 'svelte';

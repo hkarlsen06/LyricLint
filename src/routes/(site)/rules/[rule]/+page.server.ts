@@ -1,4 +1,4 @@
-import { ruleReferences } from '$lib/rules/reference.js';
+import { ruleReferences } from '#lib/rules/reference.js';
 import type { EntryGenerator } from './$types.js';
 
 export const entries: EntryGenerator = () =>

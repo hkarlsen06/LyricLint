@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { Component } from 'svelte';
-import { docsPage, docsPages } from '$lib/docs/catalog.js';
+import { docsPage, docsPages } from '#lib/docs/catalog.js';
 import type { EntryGenerator, PageLoad } from './$types.js';
 
 // Lazy, so each page downloads its own body and nobody else's.

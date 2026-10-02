@@ -1,17 +1,16 @@
 <script lang="ts">
-	import { dev } from '$app/environment';
-	import { beforeNavigate, onNavigate } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { dev } from '$app/env';
+	import { beforeNavigate, onNavigate, type NavigationBase } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { navigating, page, updated } from '$app/state';
-	import type { NavigationBase } from '@sveltejs/kit';
 	import {
 		createDefaultAssistantState,
 		provideAssistantState
-	} from '$lib/assistant/assistant.svelte.js';
-	import { provideFeedbackState } from '$lib/ui/state/feedback.svelte.js';
-	import NavigationSplash from '$lib/ui/layout/NavigationSplash.svelte';
-	import { provideWorkbenchNavigation } from '$lib/ui/layout/workbench-navigation.js';
-	import '$lib/ui/styles/global.css';
+	} from '#lib/assistant/assistant.svelte.js';
+	import { provideFeedbackState } from '#lib/ui/state/feedback.svelte.js';
+	import NavigationSplash from '#lib/ui/layout/NavigationSplash.svelte';
+	import { provideWorkbenchNavigation } from '#lib/ui/layout/workbench-navigation.js';
+	import '#lib/ui/styles/global.css';
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
@@ -35,7 +34,8 @@
 	});
 	// A cached route can arrive before the native snapshot callback. Cover the
 	// current page before committing its replacement, without waiting for motion.
-	onNavigate(() => navigationSplash?.waitUntilCovered());
+	// Shallow URL writes (guide search, the workbench panel) are not page changes.
+	onNavigate(({ shallow }) => (shallow ? undefined : navigationSplash?.waitUntilCovered()));
 
 	// Kit publishes this before awaiting route downloads, including when it
 	// supersedes an in-flight navigation without another beforeNavigate.
@@ -77,14 +77,14 @@
 	 * survives navigation between the rules and the workbench) while the view
 	 * joins it only when that state says there is something to show.
 	 */
-	type AssistantHostComponent = typeof import('$lib/ui/assistant/AssistantHost.svelte').default;
+	type AssistantHostComponent = typeof import('#lib/ui/assistant/AssistantHost.svelte').default;
 	let AssistantHost = $state<AssistantHostComponent>();
 	let assistantHostLoading = false;
 
 	$effect(() => {
 		if (!assistant.isOpen || AssistantHost || assistantHostLoading) return;
 		assistantHostLoading = true;
-		void import('$lib/ui/assistant/AssistantHost.svelte')
+		void import('#lib/ui/assistant/AssistantHost.svelte')
 			.then(({ default: component }) => {
 				AssistantHost = component;
 			})
@@ -110,6 +110,7 @@
 	// navigation costs nothing the user can see. A `willUnload` navigation is
 	// already leaving the document, so there is nothing to upgrade.
 	beforeNavigate((navigation) => {
+		if (navigation.shallow) return;
 		finishNavigation();
 		if (updated.current && !navigation.willUnload && navigation.to?.url) {
 			location.href = navigation.to.url.href;
@@ -126,8 +127,8 @@
 	// cache first, so an edited asset stays the old one.
 	//
 	// `kit.serviceWorker.register` is off for that reason, so this is the only
-	// registration; `type: 'classic'` matches what SvelteKit builds for the
-	// non-dev branch it replaces.
+	// registration; `type: 'module'` matches what SvelteKit builds and would
+	// register itself for the non-dev branch it replaces.
 	//
 	// Unregistering under `dev` is not tidiness: a worker installed by an earlier
 	// build of this app goes on controlling `localhost` until something takes it
@@ -136,7 +137,9 @@
 		if (!('serviceWorker' in navigator)) return;
 
 		if (!dev) {
-			void navigator.serviceWorker.register(`${base}/service-worker.js`, { type: 'classic' });
+			void navigator.serviceWorker.register(`${resolve('/(site)')}service-worker.js`, {
+				type: 'module'
+			});
 			return;
 		}
 

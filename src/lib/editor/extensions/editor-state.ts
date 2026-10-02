@@ -1,7 +1,7 @@
 import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Transaction } from '@codemirror/state';
-import { parseDocument } from '$lib/core/parser.js';
-import type { ParsedDocument } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { ParsedDocument } from '#lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from '../contracts.js';
 
 export const setEditorContextEffect = StateEffect.define<EditorDisplayContext>();

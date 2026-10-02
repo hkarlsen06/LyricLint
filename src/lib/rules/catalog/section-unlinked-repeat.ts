@@ -1,10 +1,10 @@
-import { getLanguagePack, linkableSemantic } from '$lib/languages/registry.js';
+import { getLanguagePack, linkableSemantic } from '#lib/languages/registry.js';
 import {
 	bodiesAreSimilarEnoughToLink,
 	comparableSectionBody,
 	MAX_LINK_DISCOVERY_TOKENS
-} from '$lib/core/link-shape.js';
-import type { Diagnostic, ParsedDocument, RuleDefinition, Section } from '$lib/core/types.js';
+} from '#lib/core/link-shape.js';
+import type { Diagnostic, ParsedDocument, RuleDefinition, Section } from '#lib/core/types.js';
 import { isImmediateRepeat } from './section-immediate-repeat-spacing.js';
 import { diagnostic } from './utils.js';
 

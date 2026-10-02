@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
-	import Keys from '$lib/ui/docs/Keys.svelte';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
 </script>
 
 <h2 id="sync-mode">Sync the lyrics</h2>
 <p>
 	Syncing times every line in one pass: the song plays, and you tap as each line begins. First <a
-		href={resolve('/docs/audio/')}>attach the song</a
+		href={resolve('docs/audio/')}>attach the song</a
 	>.
 </p>
 <ol>
@@ -57,7 +57,7 @@
 	</li>
 </ul>
 <p>
-	Repeated sections you have <a href={resolve('/docs/section-links/')}>linked</a> time themselves. When
+	Repeated sections you have <a href={resolve('docs/section-links/')}>linked</a> time themselves. When
 	the run reaches a linked copy whose earlier copy you already tapped, one tap on its first line times
 	the rest of the copy from the earlier one's rhythm, as far as the two copies line up, and the song
 	jumps ahead to match. A message says how

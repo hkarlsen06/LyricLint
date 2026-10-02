@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Diagnostic, DiagnosticFix, Fixability } from '$lib/core/types.js';
+import type { Diagnostic, DiagnosticFix, Fixability } from '#lib/core/types.js';
 import { collectMatchingFixes, fixBatchKey, mergeFixes, planBulkFix } from './bulk-fix.js';
 
 function fix(label: string, from: number, to: number, insert: string, kind: Fixability = 'safe') {

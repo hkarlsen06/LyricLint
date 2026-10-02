@@ -1,4 +1,4 @@
-import type { Diagnostic, ParsedDocument, RuleContext, RuleDefinition } from '$lib/core/types.js';
+import type { Diagnostic, ParsedDocument, RuleContext, RuleDefinition } from '#lib/core/types.js';
 import { enabledRules } from './registry.js';
 import { sortDiagnostics } from './results.js';
 export { sortDiagnostics, collectSafeFixes } from './results.js';

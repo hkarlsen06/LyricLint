@@ -1,4 +1,4 @@
-import { isEnglishLanguage, resolveLanguageTag } from '$lib/languages/registry.js';
+import { isEnglishLanguage, resolveLanguageTag } from '#lib/languages/registry.js';
 
 export type SpellingContextGate =
 	| 'general'

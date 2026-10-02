@@ -7,9 +7,9 @@
 		LinkConnectionPreview,
 		LinkDifference,
 		SectionLinkChoice
-	} from '$lib/core/types.js';
-	import type { LinkOccurrence } from '$lib/editor/section-links.js';
-	import { describeControl } from '$lib/ui/state/control-tooltip.svelte.js';
+	} from '#lib/core/types.js';
+	import type { LinkOccurrence } from '#lib/editor/section-links.js';
+	import { describeControl } from '#lib/ui/state/control-tooltip.svelte.js';
 
 	interface Props {
 		occurrences: readonly LinkOccurrence[];

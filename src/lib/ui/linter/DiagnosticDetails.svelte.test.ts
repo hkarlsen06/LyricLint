@@ -1,7 +1,7 @@
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { describe, expect, it, vi } from 'vitest';
-import type { Diagnostic } from '$lib/core/types.js';
+import type { Diagnostic } from '#lib/core/types.js';
 import DiagnosticDetails from './DiagnosticDetails.svelte';
 
 function previewDiagnostic(): Diagnostic {

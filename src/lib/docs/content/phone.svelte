@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
 </script>
 
 <h2 id="views">One task at a time</h2>
@@ -12,7 +12,7 @@
 	<li><strong>Write</strong> shows the lyrics. LyricLint opens here.</li>
 	<li>
 		<strong>Review</strong> lists the findings, with their count on the button. See <a
-			href={resolve('/docs/findings/')}>Findings and fixes</a
+			href={resolve('docs/findings/')}>Findings and fixes</a
 		>.
 	</li>
 	<li>
@@ -67,8 +67,8 @@
 </ol>
 <p>Selecting never opens the picker by itself, so you can keep adjusting or editing the selection.</p>
 <p>
-	See <a href={resolve('/docs/performers/')}>Performers</a> for building the roster and
-	<a href={resolve('/docs/section-links/')}>Linked sections</a> for the Linking tool.
+	See <a href={resolve('docs/performers/')}>Performers</a> for building the roster and
+	<a href={resolve('docs/section-links/')}>Linked sections</a> for the Linking tool.
 </p>
 
 <h2 id="audio">Audio on a phone</h2>
@@ -80,5 +80,5 @@
 <p>
 	On narrow screens, <strong>Audio</strong> in the player opens the speed menu, <strong>Loop</strong
 	>, and <strong>Sync lyrics</strong>. While you sync, <strong>Tap</strong> takes the place of the Space
-	key, and it does not open the keyboard. See <a href={resolve('/docs/sync/')}>Synced lyrics</a>.
+	key, and it does not open the keyboard. See <a href={resolve('docs/sync/')}>Synced lyrics</a>.
 </p>

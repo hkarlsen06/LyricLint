@@ -5,8 +5,8 @@
 	 * reaches descendants, and both entry points are pages, not siblings of
 	 * this component. Draws nothing in a build with no assistant endpoint.
 	 */
-	import { assistantAvailable } from '$lib/assistant/api.js';
-	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
+	import { assistantAvailable } from '#lib/assistant/api.js';
+	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
 	import AssistantDialog from './AssistantDialog.svelte';
 
 	let { assistant }: { assistant: AssistantState } = $props();

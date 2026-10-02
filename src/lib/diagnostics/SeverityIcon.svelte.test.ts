@@ -1,6 +1,6 @@
 import { render } from 'vitest-browser-svelte';
 import { describe, expect, it } from 'vitest';
-import type { Severity } from '$lib/core/types.js';
+import type { Severity } from '#lib/core/types.js';
 import SeverityIcon from './SeverityIcon.svelte';
 
 const SEVERITIES: Severity[] = ['error', 'warning', 'suggestion', 'manual-review'];

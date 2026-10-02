@@ -1,4 +1,4 @@
-import type { ParsedDocument, RuleDefinition } from '$lib/core/types.js';
+import type { ParsedDocument, RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 interface LocalizedHeaderPreference {

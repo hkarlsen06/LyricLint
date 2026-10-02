@@ -1,4 +1,4 @@
-import type { Diagnostic, ParsedDocument, RuleDefinition, TextRange } from '$lib/core/types.js';
+import type { Diagnostic, ParsedDocument, RuleDefinition, TextRange } from '#lib/core/types.js';
 import { isImmediateRepeat } from './section-immediate-repeat-spacing.js';
 import { diagnostic, replacementFix } from './utils.js';
 

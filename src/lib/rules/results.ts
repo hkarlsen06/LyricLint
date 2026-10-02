@@ -1,5 +1,5 @@
-import type { Diagnostic, DiagnosticFix, TextEdit } from '$lib/core/types.js';
-import { severityRank } from '$lib/core/types.js';
+import type { Diagnostic, DiagnosticFix, TextEdit } from '#lib/core/types.js';
+import { severityRank } from '#lib/core/types.js';
 
 /** Sort diagnostics deterministically by severity, range, rule, and copy. */
 export function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[] {

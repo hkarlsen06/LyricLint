@@ -1,7 +1,7 @@
 import { ChangeSet, Text } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import { alignPassages, type PassageMember } from '$lib/core/link-passages.js';
-import type { TextEdit } from '$lib/core/types.js';
+import { alignPassages, type PassageMember } from '#lib/core/link-passages.js';
+import type { TextEdit } from '#lib/core/types.js';
 import {
 	applyPassageTransfer,
 	detachPassageRange,

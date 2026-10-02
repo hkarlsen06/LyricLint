@@ -2,8 +2,8 @@ import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
-import type { LinkDifference } from '$lib/core/types.js';
-import type { LinkOccurrence } from '$lib/editor/section-links.js';
+import type { LinkDifference } from '#lib/core/types.js';
+import type { LinkOccurrence } from '#lib/editor/section-links.js';
 import LinkingDetail from './LinkingDetail.svelte';
 
 const occurrences: LinkOccurrence[] = [

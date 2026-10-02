@@ -1,8 +1,8 @@
 import { defaultKeymap, historyKeymap } from '@codemirror/commands';
 import type { KeyBinding } from '@codemirror/view';
 import type { EditorView } from '@codemirror/view';
-import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js';
-import { canAssignVoiceGroup } from '$lib/performers/transform.js';
+import type { Diagnostic, EditorCallbacks, TextRange } from '#lib/core/types.js';
+import { canAssignVoiceGroup } from '#lib/performers/transform.js';
 import type { LyricEditorCallbacks } from './contracts.js';
 import { linkTargetAt } from './section-links.js';
 import { cancelTypeOnlyHere, isTypeOnlyHere, typeOnlyHere } from './extensions/section-links.js';

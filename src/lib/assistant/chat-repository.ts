@@ -5,9 +5,9 @@
  * at once through `Delete all local data`, which clears these tables in the
  * draft repository's own transaction.
  */
-import { randomId } from '$lib/core/random-id.js';
-import type { LyricLintDatabase } from '$lib/persistence/database.js';
-import type { AssistantChatRecord, AssistantMessageRecord } from '$lib/persistence/types.js';
+import { randomId } from '#lib/core/random-id.js';
+import type { LyricLintDatabase } from '#lib/persistence/database.js';
+import type { AssistantChatRecord, AssistantMessageRecord } from '#lib/persistence/types.js';
 
 export interface AssistantChatRepository {
 	listChats(): Promise<AssistantChatRecord[]>;

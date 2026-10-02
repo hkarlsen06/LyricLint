@@ -1,8 +1,8 @@
 <script lang="ts">
 	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
 	import type { Snippet } from 'svelte';
-	import type { SourceReference } from '$lib/core/types.js';
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
+	import type { SourceReference } from '#lib/core/types.js';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
 	import { sourceFavicon } from './source-favicons.js';
 	import { safeExternalUrl } from './source-url.js';
 

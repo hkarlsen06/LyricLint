@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Diagnostic, TextRange } from '$lib/core/types.js';
+import type { Diagnostic, TextRange } from '#lib/core/types.js';
 import type { ScreenRect, SelectionAnchor } from './contracts.js';
 import {
 	activateDiagnostic,

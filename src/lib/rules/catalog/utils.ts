@@ -5,7 +5,7 @@ import type {
 	RuleContext,
 	RuleDefinition,
 	TextRange
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 
 /**
  * A catalog lookup keyed by the lyric text as matched.

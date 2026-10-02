@@ -1,4 +1,4 @@
-import type { SourceAuthority, SourceReference } from '$lib/core/types.js';
+import type { SourceAuthority, SourceReference } from '#lib/core/types.js';
 
 const reviewedAt = '2026-07-24';
 const latestReviewedAt = '2026-07-27';

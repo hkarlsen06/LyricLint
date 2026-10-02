@@ -25,10 +25,10 @@
  * Server-side only, like `reference.ts` beside it: deriving the references in
  * a browser throws by design.
  */
-import type { SourceReference } from '$lib/core/types.js';
-import { guidanceEntries } from '$lib/guidance/entries.js';
-import { guidanceTopicTitles } from '$lib/guidance/guidance.js';
-import { reviewedLanguagePacks } from '$lib/languages/registry.js';
+import type { SourceReference } from '#lib/core/types.js';
+import { guidanceEntries } from '#lib/guidance/entries.js';
+import { guidanceTopicTitles } from '#lib/guidance/guidance.js';
+import { reviewedLanguagePacks } from '#lib/languages/registry.js';
 import type {
 	AssistantCorpus,
 	AssistantCorpusGuidanceEntry,

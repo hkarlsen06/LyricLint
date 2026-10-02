@@ -1,4 +1,4 @@
-import type { RuleDefinition } from '$lib/core/types.js';
+import type { RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, maskedMarkupText, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 const trailingCommaOrPeriod = /[,.](?=["'“”‘’)\]}]*\s*$)/gu;

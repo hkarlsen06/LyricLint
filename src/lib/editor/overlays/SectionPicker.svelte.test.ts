@@ -1,8 +1,8 @@
 import { userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import '$lib/ui/styles/global.css';
-import type { LanguagePack } from '$lib/core/types.js';
+import '#lib/ui/styles/global.css';
+import type { LanguagePack } from '#lib/core/types.js';
 import SectionPicker from './SectionPicker.svelte';
 
 const languagePack: LanguagePack = {

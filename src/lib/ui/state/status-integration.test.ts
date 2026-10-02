@@ -1,6 +1,6 @@
-import { parseDocument } from '$lib/core/parser.js';
-import type { DraftRecord, EditorSnapshot } from '$lib/core/types.js';
-import { createAutosaveController } from '$lib/persistence/autosave.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { DraftRecord, EditorSnapshot } from '#lib/core/types.js';
+import { createAutosaveController } from '#lib/persistence/autosave.js';
 import { describe, expect, test, vi } from 'vitest';
 import {
 	createContractIgnoreStore,

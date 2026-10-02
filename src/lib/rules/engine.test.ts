@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { Diagnostic, RuleContext, RuleDefinition, SourceReference } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { Diagnostic, RuleContext, RuleDefinition, SourceReference } from '#lib/core/types.js';
 import { collectSafeFixes, runRules, sortDiagnostics } from './engine.js';
 import { enabledRules, validateRuleRegistry } from './registry.js';
 import { sourceRegistry } from './data/sources.js';

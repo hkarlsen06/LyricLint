@@ -1,7 +1,7 @@
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
-import type { SourceReference } from '$lib/core/types.js';
+import type { SourceReference } from '#lib/core/types.js';
 import SourceLink from './SourceLink.svelte';
 
 const SOURCE: SourceReference = {

@@ -1,8 +1,8 @@
 import { fireEvent, within } from '@testing-library/dom';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { LinkConnectionPreview } from '$lib/core/types.js';
-import type { LinkOccurrence } from '$lib/editor/section-links.js';
+import type { LinkConnectionPreview } from '#lib/core/types.js';
+import type { LinkOccurrence } from '#lib/editor/section-links.js';
 import PassageConnections from './PassageConnections.svelte';
 import LinkingDetail from './LinkingDetail.svelte';
 

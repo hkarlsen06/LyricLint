@@ -11,7 +11,7 @@
  * in its table, so `woah` still lands on the spelling topic and "question
  * mark" on the unmarked-question entry.
  */
-import { ruleReferences } from '$lib/rules/reference.js';
+import { ruleReferences } from '#lib/rules/reference.js';
 
 let termsById: Map<string, string> | undefined;
 

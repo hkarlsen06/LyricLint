@@ -1,7 +1,7 @@
 # The service worker: an offline snapshot that never stands between the user and the network
 
-Touches: `src/service-worker.ts`, `src/routes/+layout.svelte`, `src/routes/+error.svelte`,
-`vite.config.ts` (`serviceWorker`, `version`)
+Touches: `src/service-worker/` (the worker and its own `tsconfig.json`), `src/routes/+layout.svelte`,
+`src/routes/+error.svelte`, `vite.config.ts` (`serviceWorker`, `version`)
 
 ## The rules
 
@@ -18,12 +18,13 @@ Touches: `src/service-worker.ts`, `src/routes/+layout.svelte`, `src/routes/+erro
   immutable assets forward from the previous cache, and misses reuse the HTTP cache; rules pages
   join the snapshot by being read. The Harper wasm and marketing `.gif`/`.webm` loops stay excluded; landing stills remain
   cached so offline home content stays visible. Docs stills (`docs-*`) are excluded from install;
-  a docs page joins the snapshot by being read (`docs.md`).
+  a docs page joins the snapshot by being read (`docs.md`). The worker owns that static-file
+  filter itself, over `$app/manifest`'s `assets`, because SvelteKit 3 removed `serviceWorker.files`.
 - `/lint/` remains a permanent compatibility redirect but is not a second offline shell; installed
   apps and new snapshots enter through the canonical `/workbench/` page.
-- Registration is app code, not `kit.serviceWorker.register`: registered under `!dev`,
-  **unregistered under `dev`** (an installed worker controls `localhost` until something
-  takes it off). The error page's links carry `data-sveltekit-reload`.
+- Registration is app code, not `kit.serviceWorker.register`: registered under `!dev` as
+  `type: 'module'` (SvelteKit 3 builds an ES module worker), **unregistered under `dev`** (an
+  installed worker controls `localhost` until something takes it off). The error page's links carry `data-sveltekit-reload`.
 - `kit.version.pollInterval` + `beforeNavigate` turn the first navigation after a deploy
   into a full-page load: silent on purpose, upgrade on a gesture, never mid-session.
   Neither cache layer may pin `_app/version.json`: it must keep matching none of the
@@ -56,9 +57,9 @@ This is a server mismatch, not a reason to clear browser storage or saved drafts
 
 Native lazy loading and visibility-gated playback only control the page's requests. Precaching
 all static WebMs defeated both: opening the workbench downloaded three marketing loops, and a
-responsive fourth would have added another 1.3MB to every installation. `serviceWorker.files`
-now excludes WebMs along with the unused sharing copies. Their URLs therefore fall through to
-the network; the existing video play rejection leaves the image overlay visible when offline.
+responsive fourth would have added another 1.3MB to every installation. The worker's static-file
+filter (`serviceWorker.files` before SvelteKit 3) now excludes WebMs along with the unused sharing
+copies. Their URLs therefore fall through to the network; the existing video play rejection leaves the image overlay visible when offline.
 All WebP stills, including responsive candidates, remain in the offline snapshot. The snapshot
 admission e2e test asserts no cached WebMs and opens all three landing stills offline; workbench
 recovery remains covered independently. The precache benchmark counts actual origin video
@@ -143,7 +144,7 @@ offline snapshot precaches the app and admits a rules page when read`). The wait
 update path needs two real builds and is verified by hand rather than in the suite, as is the
 version-poll upgrade, whose trigger is a deploy happening under an open tab.
 
-Implementation: `src/service-worker.ts`, the registration and the version upgrade in
+Implementation: `src/service-worker/index.ts`, the registration and the version upgrade in
 `src/routes/+layout.svelte`, the `serviceWorker` and `version` options in `vite.config.ts`, and
 the reload links in `src/routes/+error.svelte`.
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
 </script>
 
 <p>
@@ -16,7 +16,7 @@
 <p>
 	The switch turns optional English spelling and grammar suggestions on or off. It is on until you
 	turn it off. The suggestions come from a grammar checker that runs in your browser; see <a
-		href={resolve('/docs/findings/')}>Findings and fixes</a
+		href={resolve('docs/findings/')}>Findings and fixes</a
 	>.
 </p>
 <p>
@@ -28,7 +28,7 @@
 <p>
 	Expand <strong>Workspace backup</strong> to save every 'scribe and its settings to a file, or to
 	import one. Rules assistant conversations are not included, and neither are local audio files, so
-	reconnect those after an import. <a href="{resolve('/docs/scribes/')}#backup">Keep a backup</a> explains
+	reconnect those after an import. <a href="{resolve('docs/scribes/')}#backup">Keep a backup</a> explains
 	the buttons.
 </p>
 <p>If an automatic backup fails, the tab says so even while the section is closed.</p>
@@ -41,7 +41,7 @@
 </p>
 <p>
 	<strong>Reset LyricLint…</strong> deletes every 'scribe and conversation in this browser and resets
-	all settings, after you confirm. See <a href="{resolve('/docs/privacy-offline/')}#reset"
+	all settings, after you confirm. See <a href="{resolve('docs/privacy-offline/')}#reset"
 		>Deleting everything</a
 	>.
 </p>
@@ -50,7 +50,7 @@
 <p>
 	Expand <strong>Reviewed rules</strong> to see which version of LyricLint's rules you are running:
 	its version, when it was published, and how many rules it holds. Below that are links to every
-	reviewed Genius source the rules cite. The full list of rules is on <a href={resolve('/rules/')}
+	reviewed Genius source the rules cite. The full list of rules is on <a href={resolve('rules/')}
 		>the rules page</a
 	>.
 </p>

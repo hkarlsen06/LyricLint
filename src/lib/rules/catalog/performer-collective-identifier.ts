@@ -7,7 +7,7 @@ import type {
 	SectionHeader,
 	TextEdit,
 	TextRange
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import { type CatalogLookup, diagnostic } from './utils.js';
 
 /**

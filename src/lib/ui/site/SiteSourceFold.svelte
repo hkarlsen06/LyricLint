@@ -20,8 +20,8 @@
 	// optional, so a citation caller passes none of them and is unchanged.
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import type { Snippet } from 'svelte';
-	import type { SourceReference } from '$lib/core/types.js';
-	import SourceCitation from '$lib/diagnostics/SourceCitation.svelte';
+	import type { SourceReference } from '#lib/core/types.js';
+	import SourceCitation from '#lib/diagnostics/SourceCitation.svelte';
 
 	let {
 		sources = [],

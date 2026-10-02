@@ -4,8 +4,8 @@ import { render } from 'vitest-browser-svelte';
 import type { ComponentProps } from 'svelte';
 // Layout assertions need the real tokens: control heights, padding, and the
 // card's max width all come from the design system.
-import '$lib/ui/styles/global.css';
-import type { PerformerRecord } from '$lib/core/types.js';
+import '#lib/ui/styles/global.css';
+import type { PerformerRecord } from '#lib/core/types.js';
 import PerformerPicker from './PerformerPicker.svelte';
 
 /** Long names, as in a real roster, so the row runs out of room. */

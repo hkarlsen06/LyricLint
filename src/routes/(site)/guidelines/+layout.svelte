@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import ReferenceIndex from '$lib/ui/site/ReferenceIndex.svelte';
-	import SectionSplit from '$lib/ui/site/SectionSplit.svelte';
-	import GuideWelcome from '$lib/ui/site/GuideWelcome.svelte';
+	import ReferenceIndex from '#lib/ui/site/ReferenceIndex.svelte';
+	import SectionSplit from '#lib/ui/site/SectionSplit.svelte';
+	import GuideWelcome from '#lib/ui/site/GuideWelcome.svelte';
 	import type { LayoutProps } from './$types.js';
 	let { children, data }: LayoutProps = $props();
 	let index = $state<ReferenceIndex>();

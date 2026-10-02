@@ -10,10 +10,10 @@
 	 */
 	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
 	import { resolve } from '$app/paths';
-	import type { Severity } from '$lib/core/types.js';
-	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
-	import { safeExternalUrl } from '$lib/diagnostics/source-url.js';
-	import type { RulePreview } from '$lib/assistant/rule-previews.js';
+	import type { Severity } from '#lib/core/types.js';
+	import SeverityTag from '#lib/diagnostics/SeverityTag.svelte';
+	import { safeExternalUrl } from '#lib/diagnostics/source-url.js';
+	import type { RulePreview } from '#lib/assistant/rule-previews.js';
 
 	let { rule, number }: { rule: RulePreview; number: number } = $props();
 

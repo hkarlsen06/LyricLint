@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import type { Diagnostic, EditorSnapshot } from '$lib/core/types.js';
+import type { Diagnostic, EditorSnapshot } from '#lib/core/types.js';
 import { diagnosticRowSignature, reconcileDiagnosticRows } from './row-identity.js';
 
 function finding(from: number, message = 'Check spelling'): Diagnostic {

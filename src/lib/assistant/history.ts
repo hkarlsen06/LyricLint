@@ -8,7 +8,7 @@ import type {
 	AssistantMessageRecord,
 	AssistantToolCallRecord,
 	AssistantToolTurnRecord
-} from '$lib/persistence/types.js';
+} from '#lib/persistence/types.js';
 import {
 	HISTORY_WINDOW_CHARS,
 	MAX_LINK_SUMMARIES,

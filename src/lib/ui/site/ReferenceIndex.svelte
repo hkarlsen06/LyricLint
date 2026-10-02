@@ -4,13 +4,13 @@
 	import MagicWandIcon from 'phosphor-svelte/lib/MagicWandIcon';
 	import SlidersHorizontalIcon from 'phosphor-svelte/lib/SlidersHorizontalIcon';
 	import { afterNavigate } from '$app/navigation';
-	import { base, resolve } from '$app/paths';
-	import { assistantAvailable } from '$lib/assistant/api.js';
-	import { useAssistantState, type AssistantState } from '$lib/assistant/assistant.svelte.js';
-	import { referenceSearchTokens, type ReferenceDocument } from '$lib/reference/search.js';
-	import { referenceTopics, referenceTopicAnchors } from '$lib/reference/topics.js';
-	import { severityOrder, fixabilityOrder, fixabilityLabel } from '$lib/rules/reference-search.js';
-	import { severityPluralLabels } from '$lib/diagnostics/severity-labels.js';
+	import { resolve } from '$app/paths';
+	import { assistantAvailable } from '#lib/assistant/api.js';
+	import { useAssistantState, type AssistantState } from '#lib/assistant/assistant.svelte.js';
+	import { referenceSearchTokens, type ReferenceDocument } from '#lib/reference/search.js';
+	import { referenceTopics, referenceTopicAnchors } from '#lib/reference/topics.js';
+	import { severityOrder, fixabilityOrder, fixabilityLabel } from '#lib/rules/reference-search.js';
+	import { severityPluralLabels } from '#lib/diagnostics/severity-labels.js';
 	import SearchHighlight from './SearchHighlight.svelte';
 	import { stickyTopics } from './sticky-topics.js';
 	import { readingAnchor } from './guidance-reading.svelte.js';
@@ -34,6 +34,8 @@
 		selectedTopic?: string;
 		assistant?: AssistantState;
 	} = $props();
+	// Corpus hrefs are site-absolute; this prefixes them with the base path.
+	const root = resolve('/(site)');
 
 	const contextAssistant = useAssistantState();
 	const assistant = $derived(assistantProp ?? contextAssistant);
@@ -98,7 +100,8 @@
 	function readAnchor(): void {
 		anchor = safeDecodeHash(location.hash.slice(1));
 	}
-	afterNavigate(() => {
+	afterNavigate(({ shallow }) => {
+		if (shallow) return;
 		// Clearing filters only overrides the current article. A subsequent selection
 		// must reveal its entries even though the shared finder stays mounted.
 		browsingTopics = false;
@@ -157,7 +160,7 @@
 
 <div
 	class="site-split__index reference-index"
-	data-sveltekit-noscroll
+	data-sveltekit-reset="false"
 	bind:this={column}
 	use:stickyTopics={[directory, resultGroups]}
 	tabindex="-1"
@@ -391,7 +394,7 @@
 									<!-- eslint-disable svelte/no-navigation-without-resolve -->
 									<a
 										class="reference-result"
-										href={referenceHref(`${base}${result.href}`)}
+										href={referenceHref(`${root}${result.href.slice(1)}`)}
 										aria-current={current(result)}
 										onclick={(event) => {
 											if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
@@ -424,7 +427,7 @@
 													<!-- eslint-disable svelte/no-navigation-without-resolve -->
 													<li>
 														<a
-															href={referenceHref(`${base}${rule.href}`)}
+															href={referenceHref(`${root}${rule.href.slice(1)}`)}
 															aria-current={current({ kind: 'rule', href: rule.href })}
 															>{rule.title}{#if current({ kind: 'rule', href: rule.href })}<span
 																	class="reference-current-label"

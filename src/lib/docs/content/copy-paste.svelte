@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import Keys from '$lib/ui/docs/Keys.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
 </script>
 
 <h2 id="copy">Copy the lyrics</h2>
@@ -53,7 +53,7 @@
 <p>
 	To bring a 'scribe up to date with a newer version of the page, select everything with
 	<Keys combo="Mod-a" /> and paste over it. Where LyricLint can match the new sections to the old ones by their headers
-	and lyrics, your <a href={resolve('/docs/section-links/')}>linked sections</a> stay linked. The pasted
+	and lyrics, your <a href={resolve('docs/section-links/')}>linked sections</a> stay linked. The pasted
 	words themselves are not changed.
 </p>
 
@@ -82,7 +82,7 @@
 	carries any of this.
 </p>
 <p>
-	To copy a whole 'scribe, use <strong>Duplicate</strong> in the <a href={resolve('/docs/scribes/')}
+	To copy a whole 'scribe, use <strong>Duplicate</strong> in the <a href={resolve('docs/scribes/')}
 		>'scribes list</a
 	>. To move one to another browser, export it as a Scribe file.
 </p>

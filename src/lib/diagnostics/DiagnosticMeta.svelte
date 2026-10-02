@@ -1,6 +1,6 @@
 <script lang="ts">
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
-	import type { Diagnostic, SourceReference } from '$lib/core/types.js';
+	import type { Diagnostic, SourceReference } from '#lib/core/types.js';
 	import SeverityTag from './SeverityTag.svelte';
 	import SourceCitation from './SourceCitation.svelte';
 	// The actual mark, raw and inline rather than an `<img>`: its brackets are
@@ -8,7 +8,7 @@
 	// meta line's own text; in an image element they render black in every
 	// scheme. Raw rather than redrawn, so the geometry cannot drift from the
 	// asset the wordmark has to keep matching.
-	import lyricLintMarkRaw from '$lib/assets/lyriclint-mark.svg?raw';
+	import lyricLintMarkRaw from '#lib/assets/lyriclint-mark.svg?raw';
 
 	// Only the label comes off, never the geometry: the words beside the mark
 	// already say LyricLint, and an inline `<title>` also draws a native browser

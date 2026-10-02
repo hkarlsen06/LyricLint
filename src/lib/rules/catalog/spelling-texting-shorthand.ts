@@ -1,5 +1,5 @@
-import type { PerformerRecord, RuleDefinition } from '$lib/core/types.js';
-import { isEnglishLanguage } from '$lib/languages/registry.js';
+import type { PerformerRecord, RuleDefinition } from '#lib/core/types.js';
+import { isEnglishLanguage } from '#lib/languages/registry.js';
 import { type CatalogLookup, diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 /**

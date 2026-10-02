@@ -6,9 +6,9 @@ import type {
 	Section,
 	StyleSlot,
 	TextEdit
-} from '$lib/core/types.js';
-import { usedStyleSlots } from '$lib/performers/legend-cleanup.js';
-import { styleTags, joinLegendGroups, wrapVoiceSpan } from '$lib/serialization/genius-markup.js';
+} from '#lib/core/types.js';
+import { usedStyleSlots } from '#lib/performers/legend-cleanup.js';
+import { styleTags, joinLegendGroups, wrapVoiceSpan } from '#lib/serialization/genius-markup.js';
 import { diagnostic } from './utils.js';
 
 const SLOT_ORDER =

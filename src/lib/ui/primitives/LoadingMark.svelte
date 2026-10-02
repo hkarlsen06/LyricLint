@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { prefersReducedMotion } from '$lib/interaction/motion.js';
+	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	// The brand mark, closed, with its own waveform running through it.
 	//
 	// It scales with the text around it, from a result row to a whole region, and

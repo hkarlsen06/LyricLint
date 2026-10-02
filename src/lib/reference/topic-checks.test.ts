@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { guidanceEntries } from '$lib/guidance/entries.js';
-import { guidanceTopicLandmarks, guidanceTopicOrder } from '$lib/guidance/guidance.js';
-import { ruleReferences } from '$lib/rules/reference.js';
+import { guidanceEntries } from '#lib/guidance/entries.js';
+import { guidanceTopicLandmarks, guidanceTopicOrder } from '#lib/guidance/guidance.js';
+import { ruleReferences } from '#lib/rules/reference.js';
 import { topicChecks } from './topic-checks.server.js';
 
 describe('checks within a convention', () => {

@@ -2,8 +2,8 @@ import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import EditorPane from '$lib/editor/EditorPane.svelte';
-import type { runRules as RunRules } from '$lib/rules/engine.js';
+import EditorPane from '#lib/editor/EditorPane.svelte';
+import type { runRules as RunRules } from '#lib/rules/engine.js';
 import { createTestWorkbench } from '../test-utils.js';
 import MockEditorPane from './MockEditorPane.svelte';
 import Workspace from './Workspace.svelte';
@@ -54,7 +54,7 @@ describe('Workspace native checker startup', () => {
 	});
 
 	it('never publishes an unlinked-repeat finding while the real editor restores saved links', async () => {
-		const native = await import('$lib/rules/engine.js');
+		const native = await import('#lib/rules/engine.js');
 		const text = ['[Chorus]', 'Go', '', '[Verse]', 'Hey', '', '[Chorus 2]', 'Go'].join('\n');
 		const { controller } = createTestWorkbench({ text, sectionLinks: [{ lines: [1, 7] }] });
 		controller.setGrammarCheckEnabled(false);

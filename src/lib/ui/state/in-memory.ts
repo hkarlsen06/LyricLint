@@ -1,16 +1,16 @@
-import { summarizeDraft } from '$lib/persistence/draft-summary.js';
+import { summarizeDraft } from '#lib/persistence/draft-summary.js';
 import type {
 	AutosaveController,
 	AutosaveSnapshot,
 	DraftRecord,
 	DraftRepository,
 	DraftIgnoreStore
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import type {
 	MediaHandleRecord,
 	MediaRepository,
 	SessionStorageLike
-} from '$lib/persistence/index.js';
+} from '#lib/persistence/index.js';
 
 function cloneDraft(draft: DraftRecord): DraftRecord {
 	return {

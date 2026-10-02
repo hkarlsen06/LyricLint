@@ -2,8 +2,8 @@ import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
-import { parseDocument } from '$lib/core/parser.js';
-import type { Diagnostic } from '$lib/core/types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { Diagnostic } from '#lib/core/types.js';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
 import LinterPanel from './LinterPanel.svelte';
 

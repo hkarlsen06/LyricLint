@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
 	import type { Snippet } from 'svelte';
-	import type { SourceReference } from '$lib/core/types.js';
+	import type { SourceReference } from '#lib/core/types.js';
 	import { sourceFavicon } from './source-favicons.js';
 	import { safeExternalUrl } from './source-url.js';
 

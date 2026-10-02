@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { lineNumberLookup } from '$lib/core/line-numbers.js';
-	import type { Diagnostic, Severity } from '$lib/core/types.js';
+	import { lineNumberLookup } from '#lib/core/line-numbers.js';
+	import type { Diagnostic, Severity } from '#lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';
-	import { formatDraftDate, fullDraftDate } from '$lib/ui/drafts/draft-date.js';
+	import RemoveButton from '#lib/ui/primitives/RemoveButton.svelte';
+	import { formatDraftDate, fullDraftDate } from '#lib/ui/drafts/draft-date.js';
 	import DiagnosticList from './DiagnosticList.svelte';
-	import SeverityIcon from '$lib/diagnostics/SeverityIcon.svelte';
-	import { severityPluralLabels } from '$lib/diagnostics/severity-labels.js';
+	import SeverityIcon from '#lib/diagnostics/SeverityIcon.svelte';
+	import { severityPluralLabels } from '#lib/diagnostics/severity-labels.js';
 	import { tick } from 'svelte';
 
 	let {

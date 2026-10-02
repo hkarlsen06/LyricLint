@@ -1,9 +1,9 @@
 import { history } from '@codemirror/commands';
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { PerformerRecord } from '$lib/core/types.js';
-import { headerNameAtoms } from '$lib/performers/header-rename.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { PerformerRecord } from '#lib/core/types.js';
+import { headerNameAtoms } from '#lib/performers/header-rename.js';
 import {
 	editorComposingField,
 	editorContextField,

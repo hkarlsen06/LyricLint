@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { docsNeighbors, docsPage } from '$lib/docs/catalog.js';
-	import { siteUrl } from '$lib/seo.js';
-	import StructuredData from '$lib/ui/site/StructuredData.svelte';
+	import { docsNeighbors, docsPage } from '#lib/docs/catalog.js';
+	import { siteUrl } from '#lib/seo.js';
+	import StructuredData from '#lib/ui/site/StructuredData.svelte';
 	import type { PageProps } from './$types.js';
 
 	let { data }: PageProps = $props();
@@ -52,7 +52,7 @@
 					<a
 						class="docs-pager__link"
 						rel="prev"
-						href={resolve(`/docs/${neighbors.previous.slug}/`)}
+						href={resolve(`docs/${neighbors.previous.slug}/`)}
 					>
 						<span class="docs-pager__direction">Previous</span>
 						<span class="docs-pager__title">{neighbors.previous.title}</span>
@@ -62,7 +62,7 @@
 					<a
 						class="docs-pager__link docs-pager__link--next"
 						rel="next"
-						href={resolve(`/docs/${neighbors.next.slug}/`)}
+						href={resolve(`docs/${neighbors.next.slug}/`)}
 					>
 						<span class="docs-pager__direction">Next</span>
 						<span class="docs-pager__title">{neighbors.next.title}</span>

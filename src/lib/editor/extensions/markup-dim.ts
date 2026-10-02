@@ -2,7 +2,7 @@ import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { ParsedDocument } from '$lib/core/types.js';
+import type { ParsedDocument } from '#lib/core/types.js';
 import { isCompositionChange } from './editor-state.js';
 
 export const setMarkupDocumentEffect = StateEffect.define<ParsedDocument>();

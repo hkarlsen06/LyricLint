@@ -1,5 +1,5 @@
-import type { RuleDefinition } from '$lib/core/types.js';
-import { resolveLanguageTag } from '$lib/languages/registry.js';
+import type { RuleDefinition } from '#lib/core/types.js';
+import { resolveLanguageTag } from '#lib/languages/registry.js';
 import { type CatalogLookup, diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 export const contractions: CatalogLookup<string> = {

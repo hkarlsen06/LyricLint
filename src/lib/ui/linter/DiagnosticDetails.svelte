@@ -1,6 +1,6 @@
 <script lang="ts">
-	import DiagnosticActions from '$lib/diagnostics/DiagnosticActions.svelte';
-	import type { Diagnostic, DiagnosticFix } from '$lib/core/types.js';
+	import DiagnosticActions from '#lib/diagnostics/DiagnosticActions.svelte';
+	import type { Diagnostic, DiagnosticFix } from '#lib/core/types.js';
 
 	let {
 		diagnostic,

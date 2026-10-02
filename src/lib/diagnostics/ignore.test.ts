@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Diagnostic } from '$lib/core/types.js';
+import type { Diagnostic } from '#lib/core/types.js';
 import {
 	acceptsDiagnosticAsCorrect,
 	diagnosticIgnoreKey,
@@ -8,7 +8,7 @@ import {
 	matchIgnoredDiagnostics,
 	unknownVoiceAcceptanceKey
 } from './ignore.js';
-import { unknownVoiceMessage } from '$lib/rules/catalog/performer-inline-mismatch.js';
+import { unknownVoiceMessage } from '#lib/rules/catalog/performer-inline-mismatch.js';
 import { diagnosticKey } from './order.js';
 
 function diagnostic(from: number, overrides: Partial<Diagnostic> = {}): Diagnostic {

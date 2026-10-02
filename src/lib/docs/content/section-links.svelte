@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
-	import Keys from '$lib/ui/docs/Keys.svelte';
-	import * as Accordion from '$lib/ui/primitives/accordion/index.js';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
+	import * as Accordion from '#lib/ui/primitives/accordion/index.js';
 </script>
 
 <h2 id="link">Link repeated sections</h2>
@@ -71,7 +71,7 @@
 
 <p>
 	Assigning a performer to shared words applies to the linked copies too. See <a
-		href={resolve('/docs/performers/')}>Performers</a
+		href={resolve('docs/performers/')}>Performers</a
 	>.
 </p>
 

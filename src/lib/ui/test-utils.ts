@@ -1,4 +1,4 @@
-import { parseDocument } from '$lib/core/parser.js';
+import { parseDocument } from '#lib/core/parser.js';
 import type {
 	AtomicDocumentEdit,
 	Diagnostic,
@@ -11,9 +11,9 @@ import type {
 	SerializedSelection,
 	SourceReference,
 	TextRange
-} from '$lib/core/types.js';
-import type { MediaRepository } from '$lib/persistence/media-repository.js';
-import type { WorkspaceBackupController } from '$lib/persistence/backup.js';
+} from '#lib/core/types.js';
+import type { MediaRepository } from '#lib/persistence/media-repository.js';
+import type { WorkspaceBackupController } from '#lib/persistence/backup.js';
 import { createFeedbackState } from './state/feedback.svelte.js';
 import type { MediaPlayer } from './state/media-player.svelte.js';
 import {

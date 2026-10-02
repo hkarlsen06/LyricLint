@@ -17,7 +17,7 @@
  * `guidanceForRule`. What must still not exist is two *entries* stating one
  * claim, which is `isProseHeaderLine`'s failure arriving in the catalog.
  */
-import type { SourceAuthority } from '$lib/core/types.js';
+import type { SourceAuthority } from '#lib/core/types.js';
 
 /** Topic titles, keyed by the id segment guidance entry ids carry. */
 export const guidanceTopicTitles = {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
-	import Keys from '$lib/ui/docs/Keys.svelte';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
 </script>
 
 <h2 id="autosave">Saving happens on its own</h2>
@@ -114,6 +114,6 @@
 </p>
 <p>
 	The list deletes one 'scribe at a time. To remove everything, see <a
-		href={resolve('/docs/privacy-offline/')}>Offline and privacy</a
+		href={resolve('docs/privacy-offline/')}>Offline and privacy</a
 	>.
 </p>

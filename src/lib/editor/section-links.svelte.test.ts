@@ -1,24 +1,24 @@
 import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { parseDocument } from '$lib/core/parser.js';
+import { parseDocument } from '#lib/core/parser.js';
 import type {
 	Diagnostic,
 	EditorHandle,
 	LanguagePack,
 	LinkHole,
 	PerformerRecord
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 import {
 	assignVoiceGroup,
 	assignVoiceLegend,
 	normalizePerformerKey
-} from '$lib/performers/index.js';
-import { germanLanguagePack } from '$lib/languages/de.js';
-import { norwegianLanguagePack } from '$lib/languages/no.js';
-import { englishLanguagePack } from '$lib/languages/en.js';
-import { shownControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
-import { bindTransportShortcuts } from '$lib/ui/state/media-shortcuts.js';
+} from '#lib/performers/index.js';
+import { germanLanguagePack } from '#lib/languages/de.js';
+import { norwegianLanguagePack } from '#lib/languages/no.js';
+import { englishLanguagePack } from '#lib/languages/en.js';
+import { shownControlHint } from '#lib/ui/state/control-tooltip.svelte.js';
+import { bindTransportShortcuts } from '#lib/ui/state/media-shortcuts.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
 import {

@@ -9,16 +9,16 @@
 		PerformerId,
 		StyleSlot,
 		TextRange
-	} from '$lib/core/types.js';
+	} from '#lib/core/types.js';
 	import {
 		resolveLegendAssignment,
 		type LegendAssignmentResolution
-	} from '$lib/performers/legend-assignment.js';
+	} from '#lib/performers/legend-assignment.js';
 	import {
 		assignmentNeedsSectionVoice,
 		assignmentSelectionRange,
 		unknownVoiceOffers
-	} from '$lib/performers/transform.js';
+	} from '#lib/performers/transform.js';
 	import type { CreateLyricEditorOptions, LyricEditorInstance } from './create-editor.js';
 	import type {
 		EditorPaneProps,
@@ -51,7 +51,7 @@
 	import type DiagnosticPopoverComponent from './overlays/DiagnosticPopover.svelte';
 	import type PerformerPickerComponent from './overlays/PerformerPicker.svelte';
 	import type SectionPickerComponent from './overlays/SectionPicker.svelte';
-	import LazyContent from '$lib/interaction/LazyContent.svelte';
+	import LazyContent from '#lib/interaction/LazyContent.svelte';
 	import PendingEditorOverlay from './overlays/PendingEditorOverlay.svelte';
 
 	/** What `createPerformerEdit` takes, read off the contract rather than restated here. */

@@ -1,8 +1,8 @@
 import { fireEvent, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-import type { AssistantToolCallRecord } from '$lib/persistence/types.js';
+import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
+import type { AssistantToolCallRecord } from '#lib/persistence/types.js';
 import AssistantToolTurn from './AssistantToolTurn.svelte';
 
 type DraftReadCall = Extract<AssistantToolCallRecord, { name: 'read_scribe' }>;

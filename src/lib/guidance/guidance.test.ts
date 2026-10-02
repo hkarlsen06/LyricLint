@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { currentRuleSet } from '$lib/rules/data/rule-set.js';
-import { assertReviewedSources, getSource } from '$lib/rules/data/sources.js';
+import { currentRuleSet } from '#lib/rules/data/rule-set.js';
+import { assertReviewedSources, getSource } from '#lib/rules/data/sources.js';
 import { guidanceEntries, guidanceForRule, guidanceRegistry, guidanceTopics } from './entries.js';
 import {
 	entryAnchor,

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import InlineDiffText from '../primitives/InlineDiffText.svelte';
-	import { lineNumberAt } from '$lib/core/line-numbers.js';
+	import { lineNumberAt } from '#lib/core/line-numbers.js';
 	let {
 		before,
 		leadingEllipsis = false,

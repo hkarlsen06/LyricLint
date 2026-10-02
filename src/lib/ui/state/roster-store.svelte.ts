@@ -1,10 +1,10 @@
-import type { EditorSnapshot, ImportSuggestion, PerformerRecord } from '$lib/core/types.js';
+import type { EditorSnapshot, ImportSuggestion, PerformerRecord } from '#lib/core/types.js';
 import {
 	allocatePerformerColor,
 	extractPerformers,
 	isRetiredUnresolvedVoiceName,
 	normalizePerformerKey
-} from '$lib/performers/index.js';
+} from '#lib/performers/index.js';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { FeedbackState } from './feedback.svelte.js';
 

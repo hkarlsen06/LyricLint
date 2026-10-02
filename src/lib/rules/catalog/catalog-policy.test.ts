@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
-import type { PerformerRecord, RuleContext } from '$lib/core/types.js';
-import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
+import { parseDocument } from '#lib/core/parser.js';
+import type { PerformerRecord, RuleContext } from '#lib/core/types.js';
+import { loadStatisticalLanguageDetector } from '#lib/languages/detect.js';
 import { getRule } from '../registry.js';
 import { sourceRegistry } from '../data/sources.js';
 // The cases live in a module of their own because the public rule reference

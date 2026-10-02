@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import shotDimensions from '$lib/assets/shot-dimensions.json';
+	import shotDimensions from '#lib/assets/shot-dimensions.json';
 
 	type Stem<File> = File extends `${infer Name}.webp` ? Name : never;
 	/** A shot with a `<name>.webp` still. Any other name is a type error. */
@@ -15,12 +15,14 @@
 	 * in view and never under reduced motion (`autoplay-in-view.ts`, shared with
 	 * the landing page). The still reserves the geometry before anything loads.
 	 */
-	import { resolve } from '$app/paths';
-	import { createAutoplayInView } from '$lib/ui/site/autoplay-in-view.js';
+	import { asset } from '$app/paths';
+	import type { AssetPath } from '$app/types';
+	import { createAutoplayInView } from '#lib/ui/site/autoplay-in-view.js';
 
 	let { name, alt, caption }: { name: ShotName; alt: string; caption?: string } = $props();
 
-	const base = resolve('/');
+	// SAFETY: every file named in shot-dimensions.json is one the render wrote to `static/`.
+	const shot = (file: string): string => asset(file as AssetPath);
 	const still = $derived.by(() => {
 		const size = dimensions[`${name}.webp`];
 		// The type already refuses this; a build from a stale dimensions file
@@ -32,7 +34,7 @@
 	const srcset = $derived(
 		[`${name}-400.webp`, `${name}-640.webp`, `${name}-960.webp`, `${name}.webp`]
 			.filter((file) => dimensions[file])
-			.map((file) => `${base}${file} ${dimensions[file]!.width}w`)
+			.map((file) => `${shot(file)} ${dimensions[file]!.width}w`)
 			.join(', ')
 	);
 
@@ -45,7 +47,7 @@
 		     description, as on the landing page. -->
 		<img
 			class="docs-figure__poster"
-			src="{base}{name}.webp"
+			src={shot(`${name}.webp`)}
 			{srcset}
 			sizes="(min-width: 46rem) 40rem, calc(100vw - 3rem)"
 			width={still.width}
@@ -59,7 +61,7 @@
 		{#if loop}
 			<video
 				{@attach autoplayInView}
-				src="{base}{name}.webm"
+				src={shot(`${name}.webm`)}
 				width={loop.width}
 				height={loop.height}
 				aria-label={alt}

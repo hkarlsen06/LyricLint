@@ -6,8 +6,8 @@ import type {
 	SerializedSelection,
 	TextEdit,
 	TextRange
-} from '$lib/core/types.js';
-import { isHarperRuleId } from '$lib/rules/harper-ids.js';
+} from '#lib/core/types.js';
+import { isHarperRuleId } from '#lib/rules/harper-ids.js';
 
 interface ContiguousChange {
 	from: number;

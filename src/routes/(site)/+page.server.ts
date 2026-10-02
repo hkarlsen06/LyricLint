@@ -1,6 +1,6 @@
-import { guidanceEntries } from '$lib/guidance/entries.js';
-import { guidanceTopicLandmarks, guidanceTopicOrder } from '$lib/guidance/guidance.js';
-import { enabledRules, sourceRegistry } from '$lib/rules/index.js';
+import { guidanceEntries } from '#lib/guidance/entries.js';
+import { guidanceTopicLandmarks, guidanceTopicOrder } from '#lib/guidance/guidance.js';
+import { enabledRules, sourceRegistry } from '#lib/rules/index.js';
 import type { PageServerLoad } from './$types.js';
 
 /*

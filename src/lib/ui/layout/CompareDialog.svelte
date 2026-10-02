@@ -1,7 +1,7 @@
 <script lang="ts">
 	import GitDiffIcon from 'phosphor-svelte/lib/GitDiffIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
-	import LazyPanel from '$lib/interaction/LazyContent.svelte';
+	import LazyPanel from '#lib/interaction/LazyContent.svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
 	let { controller }: { controller: WorkbenchController } = $props();

@@ -2,14 +2,14 @@ import { defaultKeymap, historyKeymap } from '@codemirror/commands';
 import { EditorState } from '@codemirror/state';
 import { keymap, type KeyBinding } from '@codemirror/view';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
-import { lyricLintKeymap } from '$lib/editor/keymap.js';
-import type { LyricEditorCallbacks } from '$lib/editor/contracts.js';
-import { lyricSync } from '$lib/editor/extensions/lyric-sync.js';
+import { lyricLintKeymap } from '#lib/editor/keymap.js';
+import type { LyricEditorCallbacks } from '#lib/editor/contracts.js';
+import { lyricSync } from '#lib/editor/extensions/lyric-sync.js';
 import {
 	matchEscapeAction,
 	matchTransportAction,
 	type TransportKeyEvent
-} from '$lib/ui/state/media-shortcuts.js';
+} from '#lib/ui/state/media-shortcuts.js';
 import { shortcuts } from './shortcuts.js';
 
 /** `Ctrl-Alt-J` and `alt-ctrl-j` are one keystroke: modifiers sorted, case folded. */

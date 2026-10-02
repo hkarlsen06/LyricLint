@@ -1,4 +1,4 @@
-import type { AtomicDocumentEdit, Diagnostic, DiagnosticFix } from '$lib/core/types.js';
+import type { AtomicDocumentEdit, Diagnostic, DiagnosticFix } from '#lib/core/types.js';
 import { collectSafeFixes } from './results.js';
 
 /**

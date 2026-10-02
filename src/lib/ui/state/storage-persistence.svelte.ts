@@ -25,7 +25,7 @@
  * boot state.
  */
 
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 type StoragePersistenceState = 'unknown' | 'unsupported' | 'persistent' | 'prompt' | 'denied';
 

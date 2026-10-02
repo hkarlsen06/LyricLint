@@ -1,6 +1,6 @@
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '$lib/core/parser.js';
+import { parseDocument } from '#lib/core/parser.js';
 import { markupDimField, setMarkupDocumentEffect } from './markup-dim.js';
 
 function dimmedRanges(text: string): { from: number; to: number; slice: string }[] {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sourceRegistry } from '$lib/rules/data/sources.js';
+import { sourceRegistry } from '#lib/rules/data/sources.js';
 import { sourceFavicon } from './source-favicons.js';
 
 describe('source favicons', () => {

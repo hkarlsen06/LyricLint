@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import * as Alert from '$lib/ui/primitives/alert/index.js';
+	import * as Alert from '#lib/ui/primitives/alert/index.js';
 </script>
 
 <h2 id="local">What stays on your device</h2>
@@ -19,7 +19,7 @@
 </ul>
 <p>
 	Because nothing is stored elsewhere, clearing this site's data in your browser deletes your
-	'scribes. <a href="{resolve('/docs/scribes/')}#backup">Keep a backup</a> if they matter to you.
+	'scribes. <a href="{resolve('docs/scribes/')}#backup">Keep a backup</a> if they matter to you.
 </p>
 
 <h2 id="network">What reaches the network</h2>
@@ -45,8 +45,8 @@
 	</Alert.Description>
 </Alert.Root>
 <p>
-	The <a href={resolve('/privacy/')}>privacy page</a> lists exactly what the assistant's service
-	receives and keeps, and who processes it. <a href={resolve('/docs/assistant/')}
+	The <a href={resolve('privacy/')}>privacy page</a> lists exactly what the assistant's service
+	receives and keeps, and who processes it. <a href={resolve('docs/assistant/')}
 		>The rules assistant</a
 	> explains the permission.
 </p>

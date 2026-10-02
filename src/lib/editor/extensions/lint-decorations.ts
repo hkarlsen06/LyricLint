@@ -2,7 +2,7 @@ import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import { severityRank, type Diagnostic, type Severity, type TextRange } from '$lib/core/types.js';
+import { severityRank, type Diagnostic, type Severity, type TextRange } from '#lib/core/types.js';
 import { diagnosticTriggerAttribute } from '../contracts.js';
 import type { RevisionedDiagnostics } from '../contracts.js';
 import {

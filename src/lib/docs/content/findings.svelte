@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import DocsFigure from '$lib/ui/docs/DocsFigure.svelte';
-	import Keys from '$lib/ui/docs/Keys.svelte';
-	import * as Table from '$lib/ui/primitives/table/index.js';
+	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
+	import Keys from '#lib/ui/docs/Keys.svelte';
+	import * as Table from '#lib/ui/primitives/table/index.js';
 </script>
 
 <h2 id="read">Read a finding</h2>
@@ -100,7 +100,7 @@
 </ul>
 
 <p>
-	Each of LyricLint's own checks has a page in the <a href={resolve('/guidelines/')}
+	Each of LyricLint's own checks has a page in the <a href={resolve('guidelines/')}
 		>transcription guide</a
 	> with examples and the reasoning behind it.
 </p>
@@ -221,6 +221,6 @@
 
 <p>
 	To turn it off, switch off <strong>Grammar checking</strong> in <a
-		href={resolve('/docs/preferences/')}>Preferences</a
+		href={resolve('docs/preferences/')}>Preferences</a
 	>. The switch appears while the lyric language is English.
 </p>

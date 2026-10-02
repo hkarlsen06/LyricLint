@@ -1,5 +1,5 @@
 import type { Attachment } from 'svelte/attachments';
-import { prefersReducedMotion } from '$lib/interaction/motion.js';
+import { prefersReducedMotion } from '#lib/interaction/motion.js';
 import { bootBlastEvent } from './workbench-navigation.js';
 
 function millisecondsFromCssTime(value: string): number {

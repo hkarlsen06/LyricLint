@@ -1,9 +1,9 @@
 import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { EditorHandle, SectionLink } from '$lib/core/types.js';
-import { norwegianLanguagePack } from '$lib/languages/no.js';
-import { copySectionLinks } from '$lib/persistence/copy.js';
+import type { EditorHandle, SectionLink } from '#lib/core/types.js';
+import { norwegianLanguagePack } from '#lib/languages/no.js';
+import { copySectionLinks } from '#lib/persistence/copy.js';
 import EditorPane from './EditorPane.svelte';
 
 const SONG = `[Intro: Mein]

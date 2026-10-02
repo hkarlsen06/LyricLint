@@ -2,10 +2,10 @@
 	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
 	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
 	import PencilIcon from 'phosphor-svelte/lib/PencilIcon';
-	import type { DraftSummary } from '$lib/core/types.js';
+	import type { DraftSummary } from '#lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';
-	import { formatDraftDate, fullDraftDate } from '$lib/ui/drafts/draft-date.js';
+	import RemoveButton from '#lib/ui/primitives/RemoveButton.svelte';
+	import { formatDraftDate, fullDraftDate } from '#lib/ui/drafts/draft-date.js';
 	import { tick } from 'svelte';
 
 	let {

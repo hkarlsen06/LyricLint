@@ -2,8 +2,8 @@
 	import { onDestroy, onMount, untrack } from 'svelte';
 	import FileAudioIcon from 'phosphor-svelte/lib/FileAudioIcon';
 	import MusicNotesMinusIcon from 'phosphor-svelte/lib/MusicNotesMinusIcon';
-	import appleMusicIcon from '$lib/assets/apple-music-icon.svg';
-	import youtubeIcon from '$lib/assets/youtube-icon.svg';
+	import appleMusicIcon from '#lib/assets/apple-music-icon.svg';
+	import youtubeIcon from '#lib/assets/youtube-icon.svg';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import type { SpotifySearchResult } from '../state/media-spotify.js';
 	import type { AppleMusicSearchResult } from '../state/media-apple.js';
@@ -14,7 +14,7 @@
 		youtubeSearchConfigured,
 		type YouTubeSearchResult
 	} from '../state/media-youtube-search.js';
-	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
+	import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 	import LoadingMark from '../primitives/LoadingMark.svelte';
 
 	let {

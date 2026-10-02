@@ -1,5 +1,5 @@
-import { severityRank, type Diagnostic } from '$lib/core/types.js';
-import { isHarperRuleId } from '$lib/rules/harper-ids.js';
+import { severityRank, type Diagnostic } from '#lib/core/types.js';
+import { isHarperRuleId } from '#lib/rules/harper-ids.js';
 
 /**
  * The identity a diagnostic is tracked by between re-lints. Rule and range

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import LanguageDetect from 'languagedetect';
-import { parseDocument } from '$lib/core/parser.js';
+import { parseDocument } from '#lib/core/parser.js';
 import { detectSongLanguage, loadStatisticalLanguageDetector } from './detect.js';
 
 describe('song language detection', () => {

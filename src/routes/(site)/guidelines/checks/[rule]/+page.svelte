@@ -1,23 +1,23 @@
 <script lang="ts">
 	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to resolve-derived paths; the lint rule cannot inspect nested calls. */
 	import { resolve } from '$app/paths';
-	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
-	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
-	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
-	// Straight from the manifest, not through `$lib/rules/index.js`: that barrel
+	import { referenceHref } from '#lib/ui/site/reference-search.svelte.js';
+	import SeverityTag from '#lib/diagnostics/SeverityTag.svelte';
+	import SourceLink from '#lib/diagnostics/SourceLink.svelte';
+	// Straight from the manifest, not through `#lib/rules/index.js`: that barrel
 	// re-exports the engine, the registry and Harper, so one version string taken
 	// from it would put all of them back in this page's bundle.
-	import { currentRuleSet } from '$lib/rules/data/rule-set.js';
-	import { fixabilityLabel } from '$lib/rules/reference-search.js';
-	import { siteUrl } from '$lib/seo.js';
-	import StructuredData from '$lib/ui/site/StructuredData.svelte';
+	import { currentRuleSet } from '#lib/rules/data/rule-set.js';
+	import { fixabilityLabel } from '#lib/rules/reference-search.js';
+	import { siteUrl } from '#lib/seo.js';
+	import StructuredData from '#lib/ui/site/StructuredData.svelte';
 	// Shared with the guidance catalog, which quotes literal forms inside ordinary sentences.
-	import CodeProse from '$lib/ui/site/CodeProse.svelte';
+	import CodeProse from '#lib/ui/site/CodeProse.svelte';
 	// Every string on this page goes through it, so the reader who arrived by
 	// searching can see what matched instead of hunting for it down a wall of
 	// prose and a thirty-row table. Nothing is marked while the field is empty,
 	// which is the ordinary state of a page reached by a link.
-	import RuleSearchHighlight from '$lib/ui/site/RuleSearchHighlight.svelte';
+	import RuleSearchHighlight from '#lib/ui/site/RuleSearchHighlight.svelte';
 	import type { PageProps } from './$types.js';
 
 	let { data }: PageProps = $props();
@@ -277,7 +277,7 @@
 	     page is the way back, and one of them would always be the second control for
 	     a move the reader already has. -->
 	<div class="site-actions">
-		<a class="button" href={resolve('/workbench/')}>Check a transcription in the workbench</a>
+		<a class="button" href={resolve('workbench/')}>Check a transcription in the workbench</a>
 	</div>
 </main>
 

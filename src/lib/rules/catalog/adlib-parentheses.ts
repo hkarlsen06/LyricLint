@@ -1,4 +1,4 @@
-import type { Diagnostic, RuleDefinition, SupportedStyleSpan, TextRange } from '$lib/core/types.js';
+import type { Diagnostic, RuleDefinition, SupportedStyleSpan, TextRange } from '#lib/core/types.js';
 import { diagnostic, maskedMarkupText, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 const adlib = "yeah|ayy|uh|ooh|woo|hey|let's go";

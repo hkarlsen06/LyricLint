@@ -5,8 +5,8 @@
 	 * the same for everyone and nothing reflows once a script decides which
 	 * machine it is on.
 	 */
-	import { comboDiffersOnMac, formatCombo, type KeyLabel } from '$lib/docs/keys.js';
-	import * as Kbd from '$lib/ui/primitives/kbd/index.js';
+	import { comboDiffersOnMac, formatCombo, type KeyLabel } from '#lib/docs/keys.js';
+	import * as Kbd from '#lib/ui/primitives/kbd/index.js';
 
 	let { combo }: { combo: string } = $props();
 

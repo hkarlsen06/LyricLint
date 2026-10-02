@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { assistantAnswersUrl } from '$lib/assistant/api.js';
+import { assistantAnswersUrl } from '#lib/assistant/api.js';
 import { corpusMetadata } from '../../../services/rules-assistant/generated/rules-context-meta.js';
 
 export const prerender = true;

@@ -1,7 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, it } from 'vitest';
-import { docsPages } from '$lib/docs/catalog.js';
+import { docsPages } from '#lib/docs/catalog.js';
 import DocsSearch from './DocsSearch.svelte';
 
 // A real section rather than an invented one, so the test follows the catalog.

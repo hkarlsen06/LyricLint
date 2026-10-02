@@ -1,11 +1,11 @@
 // Decision record: docs/subsystems/section-links.md.
 import type { ChangeDesc } from '@codemirror/state';
-import type { TextEdit, TextRange } from '$lib/core/types.js';
+import type { TextEdit, TextRange } from '#lib/core/types.js';
 import {
 	coalescePassages,
 	type PassageMember,
 	type SharedPassage
-} from '$lib/core/link-passages.js';
+} from '#lib/core/link-passages.js';
 
 export interface PassageState {
 	passages: SharedPassage[];

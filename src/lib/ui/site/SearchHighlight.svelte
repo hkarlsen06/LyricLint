@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { highlightSegments } from '$lib/rules/reference-search.js';
+	import { highlightSegments } from '#lib/rules/reference-search.js';
 
 	/**
 	 * A string with a live query marked in it. The base both reference sections

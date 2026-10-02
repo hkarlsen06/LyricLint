@@ -9,7 +9,7 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo && tsc -p src/service-worker",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo --watch",
 		"lint": "prettier --check . && oxlint && eslint .",
 		"format": "prettier --write .",
@@ -32,8 +32,8 @@
 		"@eslint/js": "^10.0.1",
 		"@oxlint/plugins": "1.83.0",
 		"@playwright/test": "^1.63.0",
-		"@sveltejs/adapter-static": "^3.0.10",
-		"@sveltejs/kit": "^2.70.3",
+		"@sveltejs/adapter-static": "^4.0.0",
+		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
 		"@testing-library/dom": "^10.4.2",
 		"@types/node": "^26.6.2",
@@ -72,7 +72,10 @@
 		"@codemirror/state": "6.7.4",
 		"@codemirror/view": "6.43.11"
 	},
+	"imports": {
+		"#lib/*": "./src/lib/*"
+	},
 	"patchedDependencies": {
-		"@sveltejs/kit@2.70.3": "patches/@sveltejs%2Fkit@2.70.3.patch"
+		"@sveltejs/kit@3.0.0": "patches/@sveltejs%2Fkit@3.0.0.patch"
 	}
 }

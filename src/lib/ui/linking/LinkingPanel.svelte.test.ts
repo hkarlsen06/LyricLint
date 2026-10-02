@@ -2,9 +2,9 @@ import { fireEvent, waitFor, within } from '@testing-library/dom';
 import { tick } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { DraftRecord, EditorHandle } from '$lib/core/types.js';
-import EditorPane from '$lib/editor/EditorPane.svelte';
-import { englishLanguagePack } from '$lib/languages/en.js';
+import type { DraftRecord, EditorHandle } from '#lib/core/types.js';
+import EditorPane from '#lib/editor/EditorPane.svelte';
+import { englishLanguagePack } from '#lib/languages/en.js';
 import { createTestWorkbench } from '../test-utils.js';
 import LinkingPanel from './LinkingPanel.svelte';
 

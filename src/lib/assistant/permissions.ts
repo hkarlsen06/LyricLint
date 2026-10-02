@@ -1,4 +1,4 @@
-import type { LyricLintDatabase } from '$lib/persistence/database.js';
+import type { LyricLintDatabase } from '#lib/persistence/database.js';
 
 export const ASSISTANT_DRAFT_ACCESS_PREFIX = 'assistantDraftAccess:';
 
@@ -37,7 +37,7 @@ async function withDatabase<T>(operation: (database: LyricLintDatabase) => Promi
 	// draft. Keep Dexie out of every page that merely provides the closed
 	// assistant state; the operation is async already, so loading its database
 	// implementation here changes no caller contract.
-	const { closeDatabase, openDatabase } = await import('$lib/persistence/database.js');
+	const { closeDatabase, openDatabase } = await import('#lib/persistence/database.js');
 	const database = await openDatabase();
 	try {
 		return await operation(database);

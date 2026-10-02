@@ -1,4 +1,4 @@
-import type { Diagnostic, ParsedDocument, StyleSlot } from '$lib/core/types.js';
+import type { Diagnostic, ParsedDocument, StyleSlot } from '#lib/core/types.js';
 import { usedStyleSlots } from './legend-cleanup.js';
 
 /** The section and slot a `performer.inline-mismatch` assignment would write. */

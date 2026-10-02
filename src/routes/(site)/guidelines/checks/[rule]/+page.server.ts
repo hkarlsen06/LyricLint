@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
-import { ruleLookupTable } from '$lib/rules/lookup-tables.js';
-import { ruleReferences } from '$lib/rules/reference.js';
+import { ruleLookupTable } from '#lib/rules/lookup-tables.js';
+import { ruleReferences } from '#lib/rules/reference.js';
 import type { EntryGenerator, PageServerLoad } from './$types.js';
 
 export const entries: EntryGenerator = () =>

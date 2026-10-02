@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { docsPages } from '$lib/docs/catalog.js';
+import { docsPages } from '#lib/docs/catalog.js';
 import { searchDocs } from './docs-search.js';
 
 const where = (query: string) =>

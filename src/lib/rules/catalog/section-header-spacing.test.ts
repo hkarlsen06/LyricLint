@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyRuleFixes, checkRule, markedText } from '$lib/rules/rule-test-utils.js';
+import { applyRuleFixes, checkRule, markedText } from '#lib/rules/rule-test-utils.js';
 import { sectionHeaderSpacingRule } from './section-header-spacing.js';
 
 describe('section.header-spacing', () => {

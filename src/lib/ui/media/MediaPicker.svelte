@@ -1,7 +1,7 @@
 <script lang="ts">
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { tick } from 'svelte';
-	import LazyContent from '$lib/interaction/LazyContent.svelte';
+	import LazyContent from '#lib/interaction/LazyContent.svelte';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 
 	let { media, draftTitle }: { media: MediaStore; draftTitle?: string } = $props();

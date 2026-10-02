@@ -6,8 +6,8 @@ import type {
 	StyleSlot,
 	SupportedStyleSpan,
 	TextRange
-} from '$lib/core/types.js';
-import { randomId } from '$lib/core/random-id.js';
+} from '#lib/core/types.js';
+import { randomId } from '#lib/core/random-id.js';
 import {
 	findExactPerformer,
 	makeVoiceGroupKey,

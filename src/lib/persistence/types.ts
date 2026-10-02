@@ -9,7 +9,7 @@ import type {
 	PerformerRecord,
 	SerializedSelection,
 	DraftIgnoreStore
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';
 
 export type {
 	AppMetadataRecord,
@@ -113,17 +113,17 @@ export type AssistantToolCallRecord =
 	| {
 			callId: string;
 			name: 'propose_edits';
-			proposals: import('$lib/assistant/types.js').AssistantProposalRecord[];
+			proposals: import('#lib/assistant/types.js').AssistantProposalRecord[];
 	  }
 	| {
 			callId: string;
 			name: 'manage_links';
-			actions: import('$lib/assistant/types.js').AssistantLinkActionRecord[];
+			actions: import('#lib/assistant/types.js').AssistantLinkActionRecord[];
 	  }
 	| {
 			callId: string;
 			name: 'show_lyrics';
-			references: import('$lib/assistant/types.js').AssistantReferenceRecord[];
+			references: import('#lib/assistant/types.js').AssistantReferenceRecord[];
 	  };
 
 /** One live agent-loop round retained on its pending assistant message. */
@@ -133,7 +133,7 @@ export interface AssistantToolTurnRecord {
 	providerItems?: string;
 	/** What the round streamed before its tool calls. The transcript keeps it,
 	 * because text the user watched arrive must not be erased by the next round. */
-	narration?: import('$lib/assistant/types.js').StructuredAssistantAnswer;
+	narration?: import('#lib/assistant/types.js').StructuredAssistantAnswer;
 }
 
 /** One message in an assistant conversation. */
@@ -145,7 +145,7 @@ export interface AssistantMessageRecord {
 	/** `pending` survives only within a session; a reload marks it `interrupted`. */
 	status: 'pending' | 'complete' | 'failed' | 'interrupted';
 	content: string;
-	answer?: import('$lib/assistant/types.js').StructuredAssistantAnswer;
+	answer?: import('#lib/assistant/types.js').StructuredAssistantAnswer;
 	requestId?: string;
 	/** Tool traffic belongs only to this logical turn and is never compacted into later history. */
 	toolTurns?: AssistantToolTurnRecord[];

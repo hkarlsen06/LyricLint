@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupedRuleReferences } from '$lib/rules/reference.js';
+import { groupedRuleReferences } from '#lib/rules/reference.js';
 import { referenceTopicAnchors, referenceTopicForRule, referenceTopics } from './topics.js';
 
 describe('reference topic bookmarks', () => {

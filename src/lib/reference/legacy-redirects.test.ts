@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ruleReferences } from '$lib/rules/reference.js';
+import { ruleReferences } from '#lib/rules/reference.js';
 import { legacyReferenceDestination } from './legacy-redirects.js';
 
 const hostRules = readFileSync('static/_redirects', 'utf8')

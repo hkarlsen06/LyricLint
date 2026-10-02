@@ -2,7 +2,7 @@ import { fireEvent, screen } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test, vi } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
-import LazyPanel from '$lib/interaction/LazyContent.svelte';
+import LazyPanel from '#lib/interaction/LazyContent.svelte';
 
 afterEach(async () => {
 	await cleanup();

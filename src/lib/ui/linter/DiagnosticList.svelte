@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { Diagnostic, SourceReference, TextRange } from '$lib/core/types.js';
+	import type { Diagnostic, SourceReference, TextRange } from '#lib/core/types.js';
 	import { tick, type Snippet } from 'svelte';
 	import BookOpenIcon from 'phosphor-svelte/lib/BookOpenIcon';
 	import ChecksIcon from 'phosphor-svelte/lib/ChecksIcon';
-	import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
-	import { describeControl } from '$lib/ui/state/control-tooltip.svelte.js';
-	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
+	import { diagnosticKey, orderDiagnostics } from '#lib/diagnostics/order.js';
+	import { describeControl } from '#lib/ui/state/control-tooltip.svelte.js';
+	import DiagnosticMeta from '#lib/diagnostics/DiagnosticMeta.svelte';
 	import DiagnosticDetails from './DiagnosticDetails.svelte';
 
 	let {

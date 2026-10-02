@@ -4,7 +4,7 @@ import Dexie from 'dexie';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import lyricCases from '../../../fixtures/lyrics/cases.json';
-import { assistantDraftAccessKey } from '$lib/assistant/permissions.js';
+import { assistantDraftAccessKey } from '#lib/assistant/permissions.js';
 import { createAutosaveController } from './autosave.js';
 import { createWorkspaceBackup, parseWorkspaceBackup } from './backup.js';
 import { closeDatabase, openDatabase, type LyricLintDatabase } from './database.js';
@@ -13,7 +13,7 @@ import { createMediaRepository } from './media-repository.js';
 import { recoverStartupDraft } from './recovery.js';
 import { createDraftIgnoreStore } from './draft-ignores.js';
 import type { AutosaveSnapshot, DraftRecord, DraftRepository, PerformerRecord } from './types.js';
-import type { CompareBaselineRecord, LineAnchor, LinkHole, SectionLink } from '$lib/core/types.js';
+import type { CompareBaselineRecord, LineAnchor, LinkHole, SectionLink } from '#lib/core/types.js';
 
 const databaseNames = new Set<string>();
 const openDatabases = new Set<LyricLintDatabase>();

@@ -2,7 +2,7 @@ import { StateField } from '@codemirror/state';
 import type { EditorState } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet, Rect } from '@codemirror/view';
-import type { LanguagePack } from '$lib/core/types.js';
+import type { LanguagePack } from '#lib/core/types.js';
 import { editorContextField, setEditorContextEffect } from './editor-state.js';
 
 /*

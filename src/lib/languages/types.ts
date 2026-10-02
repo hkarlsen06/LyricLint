@@ -3,4 +3,4 @@ export type {
 	HeaderVocabulary,
 	LanguageInventoryEntry,
 	LanguagePack
-} from '$lib/core/types.js';
+} from '#lib/core/types.js';

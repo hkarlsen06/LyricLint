@@ -1,8 +1,8 @@
 diff --git a/src/exports/vite/build/utils.js b/src/exports/vite/build/utils.js
-index fc4079b80d90ae6941e29c3ce7794400a02d5016..94c5ee531a50e2fc8bb8cf0111a7da64358be9b8 100644
+index e3873ac28a7f604e5801fb9ae7acbc94e9c5c760..154823dcf60889f72b0b710441557fe8345840b9 100644
 --- a/src/exports/vite/build/utils.js
 +++ b/src/exports/vite/build/utils.js
-@@ -32,8 +32,11 @@ export function find_deps(manifest, entry, add_dynamic_css) {
+@@ -33,8 +33,11 @@ export function find_deps(manifest, entry, add_dynamic_css, root) {
  	 * @param {number} dynamic_import_depth
  	 */
  	function traverse(current, add_js, initial_importer, dynamic_import_depth) {
@@ -14,5 +14,5 @@ index fc4079b80d90ae6941e29c3ce7794400a02d5016..94c5ee531a50e2fc8bb8cf0111a7da64
 +		if (seen.has(key)) return;
 +		seen.add(key);
  
- 		const { chunk } = resolve_symlinks(manifest, current);
+ 		const { chunk } = resolve_symlinks(manifest, current, root);
  

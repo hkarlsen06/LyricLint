@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { fireEvent, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { EditorView } from '@codemirror/view';
-import EditorPane from '$lib/editor/EditorPane.svelte';
+import EditorPane from '#lib/editor/EditorPane.svelte';
 import Workspace from './Workspace.svelte';
 import { createTestWorkbench } from '../test-utils.js';
 import { workspaceEntrance } from './workspace-entrance.js';
@@ -307,7 +307,7 @@ describe('workspace entrance', () => {
 
 	test('reveals ready lyrics while initial diagnostics are still loading', async () => {
 		await page.viewport(1440, 900);
-		const rules = Promise.withResolvers<typeof import('$lib/rules/engine.js')>();
+		const rules = Promise.withResolvers<typeof import('#lib/rules/engine.js')>();
 		const { controller } = createTestWorkbench({ text: '[Verse]\nfirst line.' });
 		controller.setGrammarCheckEnabled(false);
 		const view = await render(Workspace, {
@@ -322,7 +322,7 @@ describe('workspace entrance', () => {
 		expect(root.dataset.diagnosticsPending).toBe('true');
 		for (const animation of running()) animation.finish();
 		await waitFor(() => expect(getComputedStyle(line).opacity).toBe('1'));
-		rules.resolve(await import('$lib/rules/engine.js'));
+		rules.resolve(await import('#lib/rules/engine.js'));
 		await waitFor(() =>
 			expect(root.querySelector('.diagnostic-list > li')?.getAnimations()).toHaveLength(1)
 		);

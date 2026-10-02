@@ -2,9 +2,9 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cdp, page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-import type { DraftAccessDecision } from '$lib/assistant/permissions.js';
-import type { AssistantMessageRecord } from '$lib/persistence/types.js';
+import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
+import type { DraftAccessDecision } from '#lib/assistant/permissions.js';
+import type { AssistantMessageRecord } from '#lib/persistence/types.js';
 import AssistantPanel from './AssistantPanel.svelte';
 
 function panelAssistant(

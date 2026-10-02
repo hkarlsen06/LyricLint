@@ -1,4 +1,4 @@
-import type { EditorHandle, EditorSnapshot } from '$lib/core/types.js';
+import type { EditorHandle, EditorSnapshot } from '#lib/core/types.js';
 import type { FeedbackState } from './feedback.svelte.js';
 import { NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 

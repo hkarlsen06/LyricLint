@@ -1,6 +1,6 @@
 // Decision record: docs/subsystems/media.md. Read it before changing this file, and update it with any behavior change.
-import type { ClipboardMediaSource } from '$lib/editor/contracts.js';
-import type { MediaRepository } from '$lib/persistence/media-repository.js';
+import type { ClipboardMediaSource } from '#lib/editor/contracts.js';
+import type { MediaRepository } from '#lib/persistence/media-repository.js';
 import type { FeedbackState } from './feedback.svelte.js';
 import { NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 import type { MediaPlayer, MediaSourceKind } from './media-player.svelte.js';

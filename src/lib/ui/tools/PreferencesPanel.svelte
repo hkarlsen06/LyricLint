@@ -4,11 +4,11 @@
 	import { resolve } from '$app/paths';
 	import { Switch } from 'bits-ui';
 	import { onMount } from 'svelte';
-	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
-	import { isEnglishLanguage } from '$lib/languages/registry.js';
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import { isEnglishLanguage } from '#lib/languages/registry.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
-	import type { WorkspaceBackupState } from '$lib/persistence/backup.js';
+	import SourceLink from '#lib/diagnostics/SourceLink.svelte';
+	import type { WorkspaceBackupState } from '#lib/persistence/backup.js';
 	import {
 		requestPersistentStorage,
 		storagePersistence
@@ -284,7 +284,7 @@
 	</section>
 
 	<footer class="panel-foot">
-		<a class="about-link" href={resolve('/')}
+		<a class="about-link" href={resolve('/(site)')}
 			><InfoIcon size={14} aria-hidden="true" weight="bold" />About LyricLint</a
 		>
 	</footer>
