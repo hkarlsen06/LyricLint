@@ -55,6 +55,8 @@ const shellPath = root.pathname;
 // Origin`, and a module script or font is requested in CORS mode: matching on
 // Vary turned every cached chunk into a miss, and offline into a blank shell.
 const oneCopy: CacheQueryOptions = { ignoreVary: true };
+// A page is one copy too, whatever query string it was opened with.
+const onePage: CacheQueryOptions = { ...oneCopy, ignoreSearch: true };
 const pages = prerendered.map(toPathname);
 const precachedPages = pages.filter(
 	(path) => path === shellPath || path.replace(/\/$/u, '') === `${shellPath}workbench`
@@ -99,10 +101,25 @@ async function copyForward(cache: Cache, olderCaches: Cache[], asset: string): P
 	return false;
 }
 
-function expectedContentType(pathname: string): string | undefined {
-	if (pathname.endsWith('.js')) return 'javascript';
-	if (pathname.endsWith('.css')) return 'text/css';
-	return undefined;
+/**
+ * Why a response must not enter the snapshot under this URL, if it must not.
+ *
+ * Some static hosts answer a missing hashed asset with the HTML app shell and a
+ * 200 status. Cached, that permanently poisons the URL in a cache-first worker,
+ * so install and the on-sight write both refuse it.
+ */
+function contentTypeMismatch(pathname: string, response: Response): string | undefined {
+	const expected = pathname.endsWith('.js')
+		? 'javascript'
+		: pathname.endsWith('.css')
+			? 'text/css'
+			: pathname.endsWith('.wasm')
+				? 'application/wasm'
+				: undefined;
+	const actual = response.headers.get('content-type')?.toLowerCase() ?? '';
+	return expected && !actual.includes(expected)
+		? `expected ${expected}, received ${actual || 'no content type'}`
+		: undefined;
 }
 
 async function precacheApplication(): Promise<void> {
@@ -136,10 +153,8 @@ async function precacheApplication(): Promise<void> {
 			...precachedPages.map((asset) => ({ asset, reload: true }))
 		];
 
-		// Fetch and validate the whole remainder before writing any of it. Some
-		// static hosts answer a missing immutable asset with the HTML app shell
-		// and a 200 status; Cache.addAll accepts that response and permanently
-		// poisons the JavaScript URL in a cache-first worker.
+		// Fetch and validate the whole remainder before writing any of it, so a
+		// refused response leaves no partial snapshot behind.
 		const assets = await Promise.all(
 			missing.map(async ({ asset, reload }) => {
 				const request = new Request(asset, reload ? { cache: 'reload' } : undefined);
@@ -148,13 +163,8 @@ async function precacheApplication(): Promise<void> {
 					throw new Error(`Could not precache ${asset}: HTTP ${response.status}`);
 				}
 
-				const expected = expectedContentType(new URL(request.url).pathname);
-				const actual = response.headers.get('content-type')?.toLowerCase() ?? '';
-				if (expected && !actual.includes(expected)) {
-					throw new Error(
-						`Could not precache ${asset}: expected ${expected}, received ${actual || 'no content type'}`
-					);
-				}
+				const mismatch = contentTypeMismatch(new URL(request.url).pathname, response);
+				if (mismatch) throw new Error(`Could not precache ${asset}: ${mismatch}`);
 				return { request, response };
 			})
 		);
@@ -200,7 +210,7 @@ async function immutableAsset(event: FetchEvent): Promise<Response> {
 	const cached = await caches.match(event.request, oneCopy);
 	if (cached) return cached;
 	const response = await fetch(event.request);
-	if (response.ok) {
+	if (response.ok && !contentTypeMismatch(new URL(event.request.url).pathname, response)) {
 		const copy = response.clone();
 		event.waitUntil(caches.open(cacheName).then((cache) => cache.put(event.request, copy)));
 	}
@@ -214,22 +224,24 @@ async function navigation(event: FetchEvent): Promise<Response> {
 		const response = preloaded ?? (await fetch(request));
 		// A page of ours that arrived whole refreshes its own offline copy. This
 		// is how a visited rules page earns a place in the snapshot, and how the
-		// precached pair stays current between worker updates.
-		if (response.ok && pagePaths.has(new URL(request.url).pathname)) {
+		// precached pair stays current between worker updates. Keyed by path, so a
+		// page opened with a hundred different searches is still one entry.
+		const { pathname } = new URL(request.url);
+		if (response.ok && pagePaths.has(pathname)) {
 			const copy = response.clone();
-			event.waitUntil(caches.open(cacheName).then((cache) => cache.put(request, copy)));
+			event.waitUntil(caches.open(cacheName).then((cache) => cache.put(pathname, copy)));
 		}
 		// An origin answering 5xx is an outage, and a snapshot of the page beats
 		// an error about it. A 404 is not: it is answered truthfully.
 		if (response.status >= 500) {
-			const cached = await caches.match(request, { ignoreSearch: true });
+			const cached = await caches.match(request, onePage);
 			if (cached) return cached;
 		}
 		return response;
 	} catch {
-		const cached = await caches.match(request, { ignoreSearch: true });
+		const cached = await caches.match(request, onePage);
 		if (cached) return cached;
-		const shell = await caches.match(shellPath);
+		const shell = await caches.match(shellPath, oneCopy);
 		if (shell) return shell;
 		throw new Error('This page is not in the offline snapshot.');
 	}

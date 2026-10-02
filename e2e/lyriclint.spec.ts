@@ -1585,8 +1585,19 @@ test('the offline snapshot precaches the app and admits the guide when read', as
 	await page.goto('/assistant-release.json');
 	expect(await cachedPages()).not.toContain('/assistant-release.json');
 
-	await page.goto('/guidelines/');
+	// Opened with a search, and still one copy of the page, keyed by its path.
+	await page.goto('/guidelines/?q=hook');
 	await expect.poll(cachedPages).toContain('/guidelines/');
+	expect(
+		await page.evaluate(async () => {
+			const searches: string[] = [];
+			for (const name of await caches.keys()) {
+				const cache = await caches.open(name);
+				searches.push(...(await cache.keys()).map((request) => new URL(request.url).search));
+			}
+			return searches.filter(Boolean);
+		})
+	).toEqual([]);
 
 	await context.setOffline(true);
 	expect(

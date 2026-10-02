@@ -103,12 +103,14 @@
 	// A deploy while a tab is open reaches it here, on the user's own next
 	// gesture. A full-page load is already fresh (navigations are network-first
 	// through the worker), but a client-side navigation reuses the running app,
-	// stale code included. The version poll (`vite.config.ts`) marks `updated`
-	// once a newer build is live, and the first navigation after that becomes a
-	// full-page one instead, so a hotfix lands without a toast asking for a
-	// reload nobody owes it. Silent on purpose: drafts autosave, so the
-	// navigation costs nothing the user can see. A `willUnload` navigation is
-	// already leaving the document, so there is nothing to upgrade.
+	// stale code included. SvelteKit marks `updated` once a newer build is live:
+	// it checks `_app/version.json` whenever the tab regains focus or becomes
+	// visible, and hourly (its default `version.pollInterval`) for a tab that
+	// stays in front. The first navigation after that becomes a full-page one,
+	// so a hotfix lands without a toast asking for a reload nobody owes it.
+	// Silent on purpose: drafts autosave, so the navigation costs nothing the
+	// user can see. A `willUnload` navigation is already leaving the document,
+	// so there is nothing to upgrade.
 	beforeNavigate((navigation) => {
 		if (navigation.shallow) return;
 		finishNavigation();
@@ -127,8 +129,11 @@
 	// cache first, so an edited asset stays the old one.
 	//
 	// `kit.serviceWorker.register` is off for that reason, so this is the only
-	// registration; `type: 'module'` matches what SvelteKit builds and would
-	// register itself for the non-dev branch it replaces.
+	// registration. It is `classic` although SvelteKit registers its own as a
+	// module: Firefox only runs module service workers from 147, so ESR 140
+	// rejected the registration and silently lost offline. The built worker has
+	// no `import` to need module mode; one appearing there fails install in every
+	// browser, which the offline e2e test catches.
 	//
 	// Unregistering under `dev` is not tidiness: a worker installed by an earlier
 	// build of this app goes on controlling `localhost` until something takes it
@@ -138,7 +143,7 @@
 
 		if (!dev) {
 			void navigator.serviceWorker.register(`${resolve('/(site)')}service-worker.js`, {
-				type: 'module'
+				type: 'classic'
 			});
 			return;
 		}
