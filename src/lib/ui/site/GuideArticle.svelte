@@ -3,7 +3,6 @@
 </script>
 
 <script lang="ts">
-	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to base-prefixed or resolve-derived paths; the lint rule cannot inspect nested calls. */
 	import { tick } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';

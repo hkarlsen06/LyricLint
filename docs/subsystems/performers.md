@@ -4,7 +4,9 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
 `src/lib/editor/extensions/performer-decorations.ts`,
 `src/lib/ui/state/roster-store.svelte.ts`, `src/lib/ui/state/workbench.svelte.ts`,
 `src/lib/ui/performers/` (each component styles itself), `src/lib/ui/styles/performers.css` (the
-disclosure chevron the roster help and the legend share)
+disclosure chevron the roster help and the legend share), `src/lib/core/legend.ts` (header legend
+parsing), `src/lib/serialization/genius-markup.ts` (the only legend serializer). The Genius
+format itself: `docs/performer-tagging.md`
 
 ## The rules
 

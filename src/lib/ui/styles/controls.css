@@ -6,7 +6,7 @@
  * the surface the action happens to sit on:
  *
  *   .button--quiet     borderless text button: reversible, secondary actions
- *   .button            bordered default: ordinary actions
+ *   .button            filled default: ordinary actions
  *   .button--contrast  theme-inverting: the one destination action per surface
  *
  * `.button--danger` is a color modifier on the contrast tier, not a fourth

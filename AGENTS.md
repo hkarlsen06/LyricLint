@@ -23,25 +23,32 @@ A spelling or formatting edit needs only guidance relevant to that edit. Preserv
 content, accessibility, and data-safety requirements. Explicit user instructions take precedence
 over project defaults. `src/lib/subsystem-docs.test.ts` checks routing and claimed paths.
 
-| Working on                                                                                                                                                                          | Read first                          |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| Toolbar, tab strip, panels, the editor actions tray, tooltips and shortcut disclosure, the empty document, transient-surface dismissal, the assistant transcript, the dev tab title | `docs/subsystems/shell.md`          |
-| Diagnostic cards and popovers, fix previews, batch fixes, the panel's reading order, the Harper merge                                                                               | `docs/subsystems/diagnostics.md`    |
-| Adding or changing a lint rule, `settlesOn`, shared cross-rule predicates, policy cases, Harper tuning                                                                              | `docs/subsystems/rules-catalog.md`  |
-| The drafts menu and switcher, autosave, recovery, any `DraftRecord` field                                                                                                           | `docs/subsystems/drafts.md`         |
-| The performer roster, renames, the performer picker, `performers/transform.ts`                                                                                                      | `docs/subsystems/performers.md`     |
-| The transport and its keys, `MediaStrip`/`MediaPicker`, attachment persistence, cover art, draft naming from a song                                                                 | `docs/subsystems/media.md`          |
-| The YouTube source                                                                                                                                                                  | `docs/subsystems/media-youtube.md`  |
-| The Spotify source and its auth                                                                                                                                                     | `docs/subsystems/media-spotify.md`  |
-| The Apple Music source and its token                                                                                                                                                | `docs/subsystems/media-apple.md`    |
-| Line anchors, the timestamp gutter, sync mode, the linked fill                                                                                                                      | `docs/subsystems/line-anchors.md`   |
-| Section links, the mirror, the Linking panel, `Type only here`                                                                                                                      | `docs/subsystems/section-links.md`  |
-| Clipboard copy/paste metadata, the audio drop, editor↔shell hooks (`createCallbackProxy`)                                                                                           | `docs/subsystems/editor.md`         |
-| The landing page, generated shots and loops, the site palette and header, the wordmark, the favicon                                                                                 | `docs/subsystems/site.md`           |
-| `/rules/`, `/guidelines/`, their search, `SectionSplit`                                                                                                                             | `docs/subsystems/reference.md`      |
-| The product docs at `/docs/`: the catalog, content pages, figures, `render-docs.mjs`                                                                                                | `docs/subsystems/docs.md`           |
-| Phone/touch behavior, `responsive.css`, mobile task views                                                                                                                           | `docs/subsystems/responsive.md`     |
-| The service worker, offline behavior, deploy freshness                                                                                                                              | `docs/subsystems/service-worker.md` |
+Subsystem docs run past 1,000 lines and overflow a whole-file read. Read the `Touches:` header
+and the rules (`sed -n '/^## The rules/,/^## Decision record/p' <doc>`), then grep the decision
+record by `###` heading. When delegating, paste the relevant rules into the subagent's prompt
+rather than sending every subagent to read the whole doc.
+
+| Working on                                                                                                                                                                          | Read first                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Toolbar, tab strip, panels, the editor actions tray, tooltips and shortcut disclosure, the empty document, transient-surface dismissal, the assistant transcript, the dev tab title | `docs/subsystems/shell.md`           |
+| Diagnostic cards and popovers, fix previews, batch fixes, the panel's reading order, the Harper merge                                                                               | `docs/subsystems/diagnostics.md`     |
+| Adding or changing a lint rule, `settlesOn`, shared cross-rule predicates, policy cases, Harper tuning                                                                              | `docs/subsystems/rules-catalog.md`   |
+| The drafts menu and switcher, autosave, recovery, any `DraftRecord` field                                                                                                           | `docs/subsystems/drafts.md`          |
+| The performer roster, renames, the performer picker, header legends (parse, serialize, cleanup), `performers/transform.ts`                                                          | `docs/subsystems/performers.md`      |
+| The transport and its keys, `MediaStrip`/`MediaPicker`, attachment persistence, cover art, draft naming from a song                                                                 | `docs/subsystems/media.md`           |
+| The YouTube source                                                                                                                                                                  | `docs/subsystems/media-youtube.md`   |
+| The Spotify source and its auth                                                                                                                                                     | `docs/subsystems/media-spotify.md`   |
+| The Apple Music source and its token                                                                                                                                                | `docs/subsystems/media-apple.md`     |
+| Line anchors, the timestamp gutter, sync mode, the linked fill                                                                                                                      | `docs/subsystems/line-anchors.md`    |
+| Section links, the mirror, the Linking panel, `Edit this section only` (formerly `Type only here`)                                                                                  | `docs/subsystems/section-links.md`   |
+| Clipboard copy/paste metadata, the audio drop, editor↔shell hooks (`createCallbackProxy`)                                                                                           | `docs/subsystems/editor.md`          |
+| The landing page, generated shots and loops, the site palette and header, the wordmark, the favicon                                                                                 | `docs/subsystems/site.md`            |
+| `/rules/`, `/guidelines/`, their search, `SectionSplit`                                                                                                                             | `docs/subsystems/reference.md`       |
+| The product docs at `/docs/`: the catalog, content pages, figures, `render-docs.mjs`                                                                                                | `docs/subsystems/docs.md`            |
+| Phone/touch behavior, `responsive.css`, mobile task views                                                                                                                           | `docs/subsystems/responsive.md`      |
+| The service worker, offline behavior, deploy freshness                                                                                                                              | `docs/subsystems/service-worker.md`  |
+| The rules assistant: `services/rules-assistant/`, `src/lib/assistant/`, provider and model, secrets, its deploy                                                                     | `services/rules-assistant/README.md` |
+| CI, required checks, the production deploy, `.github/workflows/ci.yml`, `scripts/deploy-production.mjs`                                                                             | `docs/ci.md`                         |
 
 ## Tooling
 
@@ -59,7 +66,30 @@ bun run test:e2e
 `bun run test` is the complete local CI-equivalent chain and installs Chromium and WebKit
 before the browser suites. The individual commands assume their normal
 project dependencies are already installed; `test:e2e` installs Chromium on a
-clean machine.
+clean machine. `bun run lint` is `prettier --check . && oxlint && eslint .` and prints little when
+clean, so read its exit code rather than `tail`ing it. `bun run assistant:test` is what installs
+the service's own dependencies; service scripts fail in a fresh worktree until it has run.
+
+- **One file:** `bun run test:unit -- --run <path>`. `*.svelte.test.ts` runs in the browser
+  projects (`client`, `client-phone`); every other `src/**/*.test.ts` runs in Node (`server`). Add
+  `--project server` to skip browser startup.
+- **After pulling, `bun install`.** Commits land from another checkout between sessions; a
+  startup error such as `Could not resolve 'node:module'` or "Tsconfig not found" means
+  `node_modules` or `.svelte-kit` lags the lockfile, not a broken test.
+- **No `svelte.config.js`.** Kit options (adapter, `serviceWorker`, prerender) live in the
+  `sveltekit({...})` call in `vite.config.ts`. Library imports use `#lib/...` (package.json
+  `imports`), never `$lib`.
+- **A build needs git.** Prerendering `/assistant-release.json` runs `git rev-parse HEAD`, so a
+  build outside a checkout needs `RELEASE_REVISION=<full sha>`.
+- **`PORT=<n>` makes Playwright reuse a running server** instead of building its own. Point it only
+  at `bun run preview` of a fresh build: `vite dev` hydrates late and reloads under parallel edits,
+  so dev-server runs and screenshots are not repeatable. The same goes for comparing a style-only
+  refactor: diff production previews of a HEAD `git worktree` and the working tree.
+- **Scratch files stay out of the checkout** unless they must resolve a repo dependency (a
+  Playwright probe); name those `.probe-*`. `prose-em-dash.test.ts` and `prettier --check .` scan
+  the whole tree, so a stray script fails other agents' runs.
+- **A full run that fails to import random browser-suite files** is usually memory pressure: kill
+  stray dev and preview servers and rerun the named files before calling it a regression.
 
 ### Two TypeScripts are installed on purpose
 
@@ -73,7 +103,9 @@ default), reports a smaller file count that is a reporting difference rather tha
 (the planted-error probes establish that), and inherits `--incremental`'s limitation: a Svelte file
 outside `src/` is not properly checked, and every `.svelte` file here lives under `src/`.
 Dependabot skips both halves for the root package, so bump TS 7 by hand alongside svelte-check.
-`services/rules-assistant` runs TS 7 directly (plain `tsc`, neither blocking tool in front of it).
+`services/rules-assistant` runs TS 7 directly (plain `tsc`, neither blocking tool in front of it),
+and so does the root: `node_modules/.bin/tsc` is TS 7, and `check` ends with
+`tsc -p src/service-worker` because SvelteKit 3 needs the worker outside the root tsconfig.
 When svelte-check supports TS 7, this collapses to one dependency and the flag goes away.
 
 ## Git history

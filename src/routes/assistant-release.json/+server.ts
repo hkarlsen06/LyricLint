@@ -8,9 +8,7 @@ export const trailingSlash = 'never';
 /** Built with the website artifact; the rollout checks the served release before
  * promoting the assistant. Local builds identify their checked-out revision. */
 export function GET(): Response {
-	const revision =
-		process.env.RELEASE_REVISION ??
-		execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+	const revision = process.env.RELEASE_REVISION ?? checkedOutRevision();
 	if (!/^[a-f0-9]{40}$/u.test(revision)) {
 		throw new Error('RELEASE_REVISION must be a full Git commit SHA.');
 	}
@@ -18,4 +16,17 @@ export function GET(): Response {
 		{ revision, ...corpusMetadata, clientCorpusHash: true, answersUrl: assistantAnswersUrl() },
 		{ headers: { 'cache-control': 'no-store' } }
 	);
+}
+
+function checkedOutRevision(): string {
+	try {
+		return execFileSync('git', ['rev-parse', 'HEAD'], {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'ignore']
+		}).trim();
+	} catch (cause) {
+		throw new Error('Building outside a Git checkout needs RELEASE_REVISION=<full commit SHA>.', {
+			cause
+		});
+	}
 }

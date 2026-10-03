@@ -6,7 +6,9 @@ all checks, but a new commit cancels the superseded run. Production pushes have
 unique workflow concurrency groups, so PR cancellation cannot interrupt a
 production gate. The deploy job retains its separate serialized production
 concurrency group and checks that its revision is still the tip of `main` before
-deploying, so a slower, superseded run cannot publish an older artifact afterward.
+deploying, so a slower, superseded run cannot publish an older artifact afterward. A red
+`deploy` reading "Only the latest CI run for this checked-out main revision may publish" is that
+guard stopping a duplicate or superseded run; check that the newer run for the same SHA deployed.
 
 ## Build once, test, then deploy
 

@@ -1,8 +1,8 @@
 import { fireEvent, screen } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test, vi } from 'vitest';
-import { createTestWorkbench } from '../test-utils.js';
-import LazyPanel from '#lib/interaction/LazyContent.svelte';
+import { createTestWorkbench } from '#lib/ui/test-utils.js';
+import LazyContent from '#lib/interaction/LazyContent.svelte';
 
 afterEach(async () => {
 	await cleanup();
@@ -11,14 +11,14 @@ afterEach(async () => {
 test('keeps pending text visually hidden by default and shows failures with Retry', async () => {
 	const { controller } = createTestWorkbench();
 	let rejectLoad!: (error: Error) => void;
-	const load = vi.fn(() => import('../tools/SongPanel.svelte'));
+	const load = vi.fn(() => import('#lib/ui/tools/SongPanel.svelte'));
 	load.mockImplementationOnce(
 		() =>
 			new Promise((_, reject) => {
 				rejectLoad = reject;
 			})
 	);
-	await render(LazyPanel<{ controller: typeof controller }>, {
+	await render(LazyContent<{ controller: typeof controller }>, {
 		name: 'Song',
 		load,
 		panelProps: { controller }
@@ -38,14 +38,14 @@ test('keeps pending text visually hidden by default and shows failures with Retr
 
 test('a dismissed pending load cannot mount controls when its module arrives later', async () => {
 	const { controller } = createTestWorkbench();
-	const pending = Promise.withResolvers<typeof import('../tools/SongPanel.svelte')>();
-	const view = await render(LazyPanel<{ controller: typeof controller }>, {
+	const pending = Promise.withResolvers<typeof import('#lib/ui/tools/SongPanel.svelte')>();
+	const view = await render(LazyContent<{ controller: typeof controller }>, {
 		name: 'Song',
 		load: () => pending.promise,
 		panelProps: { controller }
 	});
 	await view.unmount();
-	pending.resolve(await import('../tools/SongPanel.svelte'));
+	pending.resolve(await import('#lib/ui/tools/SongPanel.svelte'));
 	await new Promise<void>((resolve) => setTimeout(resolve, 0));
 	expect(screen.queryByText('Export .txt')).toBeNull();
 	expect(screen.queryByRole('status')).toBeNull();

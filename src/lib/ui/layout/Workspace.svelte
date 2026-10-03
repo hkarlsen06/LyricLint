@@ -48,7 +48,7 @@
 	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
 	import { carryHarperDiagnosticsAcrossEdit } from '../state/harper-continuity.js';
 	import { trackKeyboardInset } from '../state/keyboard-inset.js';
-	import LazyPanel from '#lib/interaction/LazyContent.svelte';
+	import LazyContent from '#lib/interaction/LazyContent.svelte';
 	import { NOTICE_TOAST_DURATION } from '../state/feedback.svelte.js';
 	type NativeRules = typeof import('#lib/rules/engine.js').runRules;
 	import MediaVideo from '../media/MediaVideo.svelte';
@@ -1269,7 +1269,7 @@
 	</section>
 
 	{#if panelInitialized}
-		<LazyPanel
+		<LazyContent
 			name="Document panel"
 			load={() => import('./RightPanel.svelte')}
 			panelProps={{
@@ -1299,7 +1299,7 @@
 					{@render content()}
 				</aside>
 			{/snippet}
-		</LazyPanel>
+		</LazyContent>
 	{/if}
 
 	{#if controller.media?.player.sourceKind === 'youtube'}
@@ -1310,7 +1310,7 @@
 		     state that could not have been otherwise, which is the same reason the
 		     counts in the Song tab wait for a count worth stating. -->
 		{#if controller.media && (controller.media.player.attached || controller.media.pendingName)}
-			<LazyPanel
+			<LazyContent
 				name="audio controls"
 				load={loadMediaStrip}
 				panelProps={{
@@ -1323,7 +1323,7 @@
 				{#snippet pendingSurface(content)}
 					<div class="media-strip">{@render content()}</div>
 				{/snippet}
-			</LazyPanel>
+			</LazyContent>
 		{/if}
 	</div>
 

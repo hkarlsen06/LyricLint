@@ -37,3 +37,6 @@ test-results
 
 # CI-only Worker configuration; the published domain and kill switch are retained.
 /services/rules-assistant/wrangler.release.json
+
+# Throwaway Playwright probes that must sit inside the repo to resolve it
+.probe-*

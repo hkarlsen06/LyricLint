@@ -377,6 +377,8 @@ production ships; no scene searches, and the hero pastes a link, which attaches 
 Never deploy the capture output. A normal `bun run build` retains its production configuration.
 Preview uses HTTP explicitly so local development certificates cannot break capture. Each
 child receives the owned server's `ORIGIN`; no existing dev server is reused or stopped.
+Arguments name one capture to run in place of the list (`bun run render:all render:docs
+--scene audio`), so a single figure gets the same build and preview without hand assembly.
 The fixed build prevents generated assets or concurrent source edits from causing HMR
 reloads halfway through a scene. The server closes on success, failure, or interruption;
 on POSIX, interruption also terminates the active command's process group.

@@ -1,5 +1,8 @@
 /** Decision record: docs/subsystems/site.md
  * Build once, capture against an owned preview server, and always close it.
+ *
+ *     bun run render:all                                # every capture
+ *     bun run render:all render:docs --scene audio      # one capture, same build and preview
  */
 import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -63,7 +66,11 @@ function runCommand(args, env, signal) {
 	});
 }
 
-export async function renderAll({ run = runCommand, startPreview = preview } = {}) {
+export async function renderAll({
+	run = runCommand,
+	startPreview = preview,
+	only = captures
+} = {}) {
 	const controller = new AbortController();
 	const interrupt = () => controller.abort(new Error('Rendering interrupted'));
 	process.once('SIGINT', interrupt);
@@ -105,7 +112,7 @@ export async function renderAll({ run = runCommand, startPreview = preview } = {
 		const { port } = server.httpServer.address();
 		const origin = `http://127.0.0.1:${port}`;
 		console.log(`Rendering against ${origin}`);
-		for (const args of captures) {
+		for (const args of only) {
 			controller.signal.throwIfAborted();
 			await run(args, { ...process.env, ORIGIN: origin }, controller.signal);
 		}
@@ -123,7 +130,13 @@ export async function renderAll({ run = runCommand, startPreview = preview } = {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	try {
-		await renderAll();
+		const [script, ...flags] = process.argv.slice(2);
+		if (script && !captures.some(([name]) => name === script)) {
+			throw new Error(
+				`unknown capture ${script}; one of ${[...new Set(captures.map(([name]) => name))].join(', ')}`
+			);
+		}
+		await renderAll(script ? { only: [[script, ...flags]] } : {});
 	} catch (error) {
 		console.error(error.message);
 		process.exitCode = 1;

@@ -81,7 +81,7 @@ Three things hold it up, and removing any one of them puts severity back on colo
 `SeverityTag.svelte` therefore takes `labelled`, and **the rule reference keeps the word**
 (`/guidelines/checks/[rule]`).
 
-Three button tiers, and no more: `.button--quiet` (borderless) < `.button` (bordered default) <
+Three button tiers, and no more: `.button--quiet` (borderless) < `.button` (filled default) <
 `.button--contrast` (theme-inverting, one per surface). `.button--primary` is gone: an
 accent-filled button competed with the contrast tier for the same job. Pick the tier from what
 the action _is_, not from which panel it landed in; if a command appears twice, only its home
@@ -109,7 +109,7 @@ that several templates draw (`.button*`, `.icon-button`, `.filter-chip`, `.list-
 renders, and the shared touch floors in `responsive-shared.css` and `responsive.css`. A new rule
 for one component's markup goes in that component, and its phone overrides go with it in an
 `@media` block. Svelte flags a scoped selector that matches nothing, so dead rules surface in
-`bun run check`. Two consequences of scoping to keep in mind:
+`bun run check` (as a `css_unused_selector` warning, which does not fail the run). Two consequences of scoping to keep in mind:
 
 - Scoping adds one class of specificity, so a scoped rule beats a global rule it used to lose to
   on source order. Where a global floor must still win (the `:root .button` touch height, say),

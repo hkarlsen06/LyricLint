@@ -10,6 +10,27 @@ Touches: `src/lib/ui/layout/Workspace.svelte`, `src/lib/ui/layout/DocumentToolba
 Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 `src/lib/editor/extensions/document-placeholder.ts`, `src/lib/ui/layout/workspace-entrance.ts`
 
+## Where each surface lives
+
+Find a surface by what it shows, then open its file. Rows routed elsewhere name their doc.
+
+| Surface (what a reader sees)                                                               | File                                                                                                  |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Workbench page: tab title, the second-tab notice (`TabBusyNotice.svelte`, `tab-guard.ts`)  | `src/routes/(app)/workbench/+page.svelte`, `DocumentTitle.svelte`                                     |
+| Editor, right panel, media strip, phone `Write` / `Review` / `Tools` views                 | `src/lib/ui/layout/Workspace.svelte`                                                                  |
+| Toolbar: wordmark, `New 'scribe`, Undo/Redo, autosave status, language, compare            | `DocumentToolbar.svelte`, `LanguagePicker.svelte`, `CompareDialog.svelte` + `CompareDialogBody.svelte` |
+| `'Scribes` menu (`docs/subsystems/drafts.md`)                                              | `DraftMenu.svelte` + `DraftMenuBody.svelte`                                                           |
+| Actions tray: `Find and replace`, `Section header`, `Assign voices`, `Show tools`, audio   | `EditorActions.svelte`                                                                                |
+| Tab strip and its panes (each pane loads through `LazyContent.svelte`)                     | `RightPanel.svelte`                                                                                   |
+| Review tab                                                                                 | `src/lib/ui/linter/LinterPanel.svelte` (cards: `docs/subsystems/diagnostics.md`)                      |
+| Performers, Linking tabs (`performers.md`, `section-links.md`)                             | `PerformersPanel.svelte`, `LinkingPanel.svelte`                                                       |
+| Song, Preferences tabs                                                                     | `src/lib/ui/tools/SongPanel.svelte`, `PreferencesPanel.svelte`                                        |
+| Assistant: tab, site dialog, transcript                                                    | `AssistantPanel.svelte`, `AssistantHost.svelte` + `AssistantDialog.svelte`, `AssistantConversation.svelte` |
+| Empty document guidance (`Paste or type your lyrics here`)                                 | `src/lib/editor/extensions/document-placeholder.ts`                                                   |
+| Tooltips and shortcut disclosure                                                           | `ControlTooltip.svelte`, `src/lib/ui/state/control-tooltip.svelte.ts`                                 |
+| Toasts and announcements                                                                   | `ToastRegion.svelte`, `LiveRegion.svelte` (mounted in `src/routes/(app)/+layout.svelte`), `feedback.svelte.ts` |
+| Boot screen and navigation splash (`docs/subsystems/site.md`)                              | `NavigationSplash.svelte`, `BootScreen.svelte`                                                        |
+
 ## The rules
 
 - The workspace reveals its initial viewport's lyric lines and diagnostic rows on load and
@@ -140,7 +161,7 @@ remain mounted. This also avoids eager assistant transcript and reference-data i
 Tool views other than Review also download their component code on first selection. Selection
 itself remains synchronous. The shared `LazyContent` loader always keeps pending text screen-reader-only, across
 panels, dialogs, menus and editor overlays, without per-surface visibility options; a failed load visibly reports the refusal with Retry. Once loaded, the same component instance remains mounted
-across tab changes. `LazyPanel.svelte.test.ts` covers failed downloads and retry; the panel tests
+across tab changes. `LazyContent.svelte.test.ts` covers failed downloads and retry; the panel tests
 continue to cover retained inputs. The eager Review view remains ready with the document.
 
 ### Startup ends when the editor is ready
@@ -700,7 +721,7 @@ the row. `describeControl` adds nothing to any control's box.
 focus are separate: a pointer crossing one control while the keyboard sits on another would leave
 two up. `ControlTooltip` is mounted in `Workspace.svelte` rather than the app layout, so a workspace
 rendered on its own, which is how every component test renders it, still has somewhere to draw.
-The section-link picker's `Type only here` action later joined these controls rather than growing a
+The section-link picker's `Type only here` action (now `Edit this section only`) later joined these controls rather than growing a
 popover-specific tooltip.
 
 **The placement is read off the control, never passed in.** The surfaces occupy different edges and

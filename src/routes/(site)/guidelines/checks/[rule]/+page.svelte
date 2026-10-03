@@ -1,5 +1,4 @@
 <script lang="ts">
-	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to resolve-derived paths; the lint rule cannot inspect nested calls. */
 	import { resolve } from '$app/paths';
 	import { referenceHref } from '#lib/ui/site/reference-search.svelte.js';
 	import SeverityTag from '#lib/diagnostics/SeverityTag.svelte';

@@ -116,8 +116,9 @@ of controls and neighboring content before and after real interactions on deskto
 
 - There are exactly three button tiers, keyed to the _action_ and never to the surface it happens to sit on:
   - `.button--quiet` is a borderless text button, for reversible and secondary actions.
-  - `.button` is the bordered default, for ordinary actions. Icon-only actions use `.icon-button`.
+  - `.button` is the filled default, for ordinary actions: borderless, with `--shadow-control` carrying the edge. Icon-only actions use `.icon-button`.
   - `.button--contrast` is theme-inverting, for the one destination action per surface.
+  - The tiers live in `src/lib/ui/styles/controls.css`.
 - `.button--danger` is a color modifier on the contrast tier and `.danger-text` on the quiet tier; neither is a fourth tier. There is no `.button--primary`: an accent-filled button duplicated the contrast tier's role, which is how one command ended up rendered two different ways on screen at once.
 - One command gets one emphasis. If the same action appears on two surfaces, the surface that owns it takes the contrast tier and the other steps down to the default.
 - There is no pill-shaped button variant; compact categorical elements are chips and badges, not buttons.

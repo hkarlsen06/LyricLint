@@ -11,7 +11,7 @@
 	import type { Diagnostic } from '#lib/core/types.js';
 	import { assistantAvailable } from '#lib/assistant/api.js';
 	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
-	import LazyPanel from '#lib/interaction/LazyContent.svelte';
+	import LazyContent from '#lib/interaction/LazyContent.svelte';
 	import LinterPanel from '../linter/LinterPanel.svelte';
 	import IgnoredRules from '../linter/IgnoredRules.svelte';
 	import MediaVideo from '../media/MediaVideo.svelte';
@@ -186,7 +186,7 @@
 				</Tabs.Content>
 				<Tabs.Content value="performers" class="right-panel__pane">
 					{#if activatedPanels.has('performers')}
-						<LazyPanel
+						<LazyContent
 							name="Performers"
 							load={() => import('../performers/PerformersPanel.svelte')}
 							panelProps={{
@@ -198,7 +198,7 @@
 				</Tabs.Content>
 				<Tabs.Content value="linking" class="right-panel__pane">
 					{#if activatedPanels.has('linking')}
-						<LazyPanel
+						<LazyContent
 							name="Linking"
 							load={() => import('../linking/LinkingPanel.svelte')}
 							panelProps={{
@@ -211,7 +211,7 @@
 				</Tabs.Content>
 				<Tabs.Content value="song" class="right-panel__pane">
 					{#if activatedPanels.has('song')}
-						<LazyPanel
+						<LazyContent
 							name="Song"
 							load={() => import('../tools/SongPanel.svelte')}
 							panelProps={{ controller, active: !collapsed && controller.activeTab === 'song' }}
@@ -220,7 +220,7 @@
 				</Tabs.Content>
 				<Tabs.Content value="preferences" class="right-panel__pane">
 					{#if activatedPanels.has('preferences')}
-						<LazyPanel
+						<LazyContent
 							name="Preferences"
 							load={() => import('../tools/PreferencesPanel.svelte')}
 							panelProps={{ controller }}
@@ -234,7 +234,7 @@
 				{#if assistantEnabled && assistant}
 					<Tabs.Content value="assistant" class="right-panel__pane right-panel__pane--fit">
 						{#if activatedPanels.has('assistant')}
-							<LazyPanel
+							<LazyContent
 								name="Assistant"
 								load={() => import('../assistant/AssistantPanel.svelte')}
 								panelProps={{ assistant }}

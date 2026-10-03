@@ -1,7 +1,7 @@
 <script lang="ts">
 	import GitDiffIcon from 'phosphor-svelte/lib/GitDiffIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
-	import LazyPanel from '#lib/interaction/LazyContent.svelte';
+	import LazyContent from '#lib/interaction/LazyContent.svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
 	let { controller }: { controller: WorkbenchController } = $props();
@@ -54,7 +54,7 @@
 			</button>
 		</div>
 		{#if isOpen}
-			<LazyPanel
+			<LazyContent
 				name="comparison"
 				load={() => import('./CompareDialogBody.svelte')}
 				panelProps={{ controller, close }}
@@ -62,7 +62,7 @@
 				{#snippet pendingSurface(content)}
 					<div class="compare-dialog__pending">{@render content()}</div>
 				{/snippet}
-			</LazyPanel>
+			</LazyContent>
 		{/if}
 	</div>
 </dialog>

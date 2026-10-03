@@ -47,6 +47,10 @@ event follows it.
   Parity tests in `src/lib/rules/assistant-corpus.test.ts` (root suite) fail
   when the copy or corpus is stale.
 - `eval/`: the versioned release-gate evaluation set and its runner.
+- Browser side (outside this package): `src/lib/assistant/` (API client, permissions,
+  the draft bridge) and `src/lib/ui/assistant/` (`AssistantConversation.svelte` is shared by the
+  `/rules/` modal and the workbench panel). Provider disclosure copy also lives in
+  `src/routes/(site)/privacy/+page.svelte` and `src/lib/docs/content/assistant.svelte`.
 
 ## What the corpus is, and what it is deliberately not
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to resolve-derived paths; the lint rule cannot inspect nested calls. */
 	import PlaylistIcon from 'phosphor-svelte/lib/PlaylistIcon';
 	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 	import EarIcon from 'phosphor-svelte/lib/EarIcon';

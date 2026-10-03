@@ -22,7 +22,6 @@
 	onMount(() => {
 		const disconnect = connectReferenceSearchUrl((state) => {
 			const href = writeReferenceSearch(new URL(window.location.href), state);
-			// eslint-disable-next-line svelte/no-navigation-without-resolve -- current resolved browser URL, only query fields change.
 			void goto(href, { shallow: true, replace: true, state: page.state });
 		});
 		window.addEventListener('popstate', restoreFromLocation);

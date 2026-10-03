@@ -2,11 +2,12 @@
  * The product docs' pictures: the real workbench, driven by a real browser.
  * Decision record: docs/subsystems/site.md.
  *
- *     bun run vite dev --host 127.0.0.1 --port 5173
- *     node scripts/render-docs.mjs                  # every scene
- *     node scripts/render-docs.mjs --scene audio    # one scene
+ *     bun run render:all                                # capture build, owned preview, every figure
+ *     bun run render:all render:docs --scene audio      # one scene, same build and preview
  *
- * `ORIGIN` overrides the server it drives. Each scene writes
+ * `ORIGIN` names the server it drives: a `--mode capture` preview, never
+ * `vite dev`, which reloads mid-scene and lacks the capture keys
+ * (`render-all.mjs` shows the build environment). Each scene writes
  * `static/docs-<scene>.webp` with 400/640/960 widths, and loop scenes also
  * `static/docs-<scene>.webm`. A loop's still is taken from the same run and
  * the same frame region, so the figure's poster and its video cannot drift.
