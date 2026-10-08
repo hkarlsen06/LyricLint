@@ -30,7 +30,6 @@ import {
 } from './identity';
 import {
 	createAnthropicProvider,
-	modelId,
 	estimateSpendUsd,
 	type AnswerProvider,
 	type ProviderResult,
@@ -221,7 +220,7 @@ interface TurnMetric {
 
 function writeMetric(env: Env, point: TurnMetric): void {
 	env.METRICS?.writeDataPoint({
-		blobs: [point.outcome, point.code ?? '', modelId(), point.requestId ?? ''],
+		blobs: [point.outcome, point.code ?? '', MODEL.id, point.requestId ?? ''],
 		doubles: [
 			point.latencyMs,
 			point.inputTokens ?? 0,

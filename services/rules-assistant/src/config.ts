@@ -71,14 +71,13 @@ export const SESSION_RULES = {
 } as const;
 
 export const MODEL = {
-	// No `id`: the provider resolves the newest Claude Sonnet from the Models API
-	// (see `latestSonnet` in provider.ts), so a new Sonnet ships without a deploy.
-	// ponytail: the settings and prices below were chosen for Claude Sonnet 5.5; a
-	// future Sonnet that changes its request surface or price needs them revisited.
-	/** Adaptive thinking effort. Anthropic's starting point for multistep tool use;
-	 * higher efforts spend more tokens and put longer silences before the first
-	 * streamed token. */
-	effort: 'medium',
+	/** Pinned rather than followed: a model change moves the effort, prices and
+	 * timeout below with it, so it is a deliberate deploy. */
+	id: 'claude-opus-5-5',
+	/** Adaptive thinking effort; Opus 5.5 cannot turn thinking off, so this is the
+	 * whole control. Higher efforts spend more tokens and put longer silences
+	 * before the first streamed token. */
+	effort: 'xhigh',
 	/** Thinking counts toward this as well as the answer. */
 	maxOutputTokens: 16_384,
 	/** The cached prefix (tools, instructions, corpus) outlives sparse traffic. */
@@ -87,11 +86,11 @@ export const MODEL = {
 	providerTimeoutMs: 120_000,
 	/** Standard prices per 1M tokens. Gateway spend limits remain the
 	 * authoritative global ceiling; these enforce the per-session approximation. */
-	estInputUsdPerMTok: 2,
+	estInputUsdPerMTok: 4,
 	estCachedInputUsdPerMTok: 0.2,
 	/** One-hour cache writes are billed at 2x uncached input. */
-	estCacheWriteUsdPerMTok: 4,
-	estOutputUsdPerMTok: 10
+	estCacheWriteUsdPerMTok: 8,
+	estOutputUsdPerMTok: 20
 } as const;
 
 /** Worst-case output spend held while a global request is in flight. The

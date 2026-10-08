@@ -21,7 +21,6 @@ import {
 	DRAFT_TOOLS,
 	estimateSpendUsd,
 	gatewayHeaders,
-	newestSonnet,
 	numberDraftLines,
 	parseProviderResponse,
 	providerRequest
@@ -544,7 +543,7 @@ describe('provider spend accounting', () => {
 				cacheWriteTokens: 100,
 				outputTokens: 100
 			})
-		).toBeCloseTo(0.00212, 8);
+		).toBeCloseTo(0.00412, 8);
 	});
 });
 
@@ -609,7 +608,7 @@ describe('prompt assembly', () => {
 		]);
 		// The MODEL values are read from config rather than repeated: this test is
 		// about the breakpoint, and effort/budget are tuning that moves. The model id
-		// is not here at all: the provider resolves it per isolate.
+		// is not here at all: the provider adds it to the request.
 		expect(request).toMatchObject({
 			thinking: { type: 'adaptive' },
 			output_config: { effort: MODEL.effort, format: { type: 'json_schema' } },
@@ -852,7 +851,7 @@ describe('provider response extraction', () => {
 	// response-only fields, and arguments the zod schemas refuse.
 	function response(content: unknown[], stopReason = 'tool_use'): Anthropic.Message {
 		return {
-			model: 'claude-sonnet-5-5',
+			model: 'claude-opus-5-5',
 			stop_reason: stopReason,
 			stop_details: null,
 			usage: {
@@ -1030,34 +1029,6 @@ describe('provider response extraction', () => {
 		};
 		expect(() => parseProviderResponse(response([oversized]))).toThrowError(
 			expect.objectContaining({ code: 'invalid_answer' })
-		);
-	});
-});
-
-describe('model resolution', () => {
-	async function* listed(...models: [id: string, createdAt: string][]) {
-		for (const [id, createdAt] of models) {
-			yield { id, created_at: createdAt } as Anthropic.ModelInfo;
-		}
-	}
-
-	it('follows the newest Sonnet by release date, whatever order the listing uses', async () => {
-		await expect(
-			newestSonnet(
-				listed(
-					['claude-opus-5-5', '2026-09-22T00:00:00Z'],
-					['claude-sonnet-5', '2026-05-01T00:00:00Z'],
-					['claude-sonnet-5-5', '2026-09-28T00:00:00Z'],
-					['claude-haiku-4-5-20251001', '2025-10-01T00:00:00Z'],
-					['claude-sonnet-4-6', '2026-02-17T00:00:00Z']
-				)
-			)
-		).resolves.toBe('claude-sonnet-5-5');
-	});
-
-	it('fails rather than guessing when no Sonnet is listed', async () => {
-		await expect(newestSonnet(listed(['claude-opus-5-5', '2026-09-22T00:00:00Z']))).rejects.toThrow(
-			/no Claude Sonnet/
 		);
 	});
 });

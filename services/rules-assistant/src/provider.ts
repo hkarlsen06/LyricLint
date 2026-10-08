@@ -1,6 +1,6 @@
 /**
  * The one call that leaves Cloudflare: Anthropic's Messages API through the AI
- * Gateway, with the official SDK, on the newest Claude Sonnet. Text deltas are
+ * Gateway, with the official SDK, on Claude Opus 5.5. Text deltas are
  * exposed while the SDK still accumulates the final message used by the parser.
  * Draft tools execute in the browser and return through a later stateless request.
  */
@@ -477,49 +477,6 @@ export function parseProviderResponse(message: Anthropic.Message): ProviderResul
 	return { kind: 'answer', raw, usage: messageUsage(message) };
 }
 
-/**
- * The newest Claude Sonnet by release date. There is no "latest Sonnet" alias
- * to send instead: every Claude model id names a pinned snapshot, so following
- * the line means asking the Models API.
- */
-export async function newestSonnet(models: AsyncIterable<Anthropic.ModelInfo>): Promise<string> {
-	let newest: Anthropic.ModelInfo | undefined;
-	for await (const model of models) {
-		if (!model.id.startsWith('claude-sonnet-')) continue;
-		if (!newest || Date.parse(model.created_at) > Date.parse(newest.created_at)) newest = model;
-	}
-	if (!newest) throw new Error('The Models API listed no Claude Sonnet.');
-	return newest.id;
-}
-
-let sonnetLookup: Promise<string> | undefined;
-let resolvedModel = '';
-
-/**
- * Resolved once per isolate, so a new Sonnet is picked up as isolates recycle,
- * with no deploy; a failed lookup is forgotten and the next request retries it.
- * The listing carries no visitor data, so it goes to Anthropic directly rather
- * than through the Gateway.
- */
-function latestSonnet(apiKey: string): Promise<string> {
-	sonnetLookup ??= newestSonnet(new Anthropic({ apiKey, timeout: 10_000 }).models.list()).then(
-		(id) => {
-			resolvedModel = id;
-			return id;
-		},
-		(error: unknown) => {
-			sonnetLookup = undefined;
-			throw error;
-		}
-	);
-	return sonnetLookup;
-}
-
-/** The model this isolate resolved, for metrics; empty until the first lookup lands. */
-export function modelId(): string {
-	return resolvedModel;
-}
-
 export function createAnthropicProvider(
 	baseUrl: string,
 	anthropicApiKey: string,
@@ -536,7 +493,7 @@ export function createAnthropicProvider(
 		try {
 			const stream = client.messages.stream(
 				{
-					model: await latestSonnet(anthropicApiKey),
+					model: MODEL.id,
 					...providerRequest(messages, safetyIdentifier, tools, selectedCorpus)
 				},
 				{ signal }

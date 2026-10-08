@@ -100,29 +100,14 @@ describe('release corpus compatibility', () => {
 			const attempts = new Map<string, number>();
 			// Exercise the real SDK over its HTTP boundary. Both concurrent calls
 			// must serialize the correct prompt and keep that corpus through repair.
-			const modelCalls: string[] = [];
 			const messageCalls: string[] = [];
 			const fetchProvider = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
 				const href = String(url instanceof Request ? url.url : url);
-				if (new URL(href).pathname === '/v1/models') {
-					// The listing goes to Anthropic directly: it carries no visitor data.
-					modelCalls.push(href);
-					return Response.json({
-						data: [
-							{ type: 'model', id: 'claude-opus-5-5', created_at: '2026-09-22T00:00:00Z' },
-							{ type: 'model', id: 'claude-sonnet-5-5', created_at: '2026-09-28T00:00:00Z' },
-							{ type: 'model', id: 'claude-sonnet-5', created_at: '2026-05-01T00:00:00Z' }
-						],
-						has_more: false,
-						first_id: 'claude-opus-5-5',
-						last_id: 'claude-sonnet-5'
-					});
-				}
 				messageCalls.push(href);
 				const request: { model: string; system: { text: string }[] } = JSON.parse(
 					String(init?.body)
 				);
-				expect(request.model).toBe('claude-sonnet-5-5');
+				expect(request.model).toBe('claude-opus-5-5');
 				const selected = [previous, candidate].find((entry) =>
 					request.system[0]!.text.includes(entry.contentHash)
 				);
@@ -213,11 +198,10 @@ describe('release corpus compatibility', () => {
 					expect(events.at(-1)).toMatchObject({ type: 'done' });
 				}
 			}
-			// The Gateway carries every model call; the lookup, at most once per isolate, does not.
+			// The Gateway carries every model call.
 			expect(
 				messageCalls.every((href) => href.startsWith('https://gateway.invalid/anthropic/'))
 			).toBe(true);
-			expect(modelCalls.every((href) => href.startsWith('https://api.anthropic.com/'))).toBe(true);
 			expect(attempts).toEqual(
 				new Map([
 					[previous.contentHash, 2],

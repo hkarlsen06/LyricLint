@@ -34,9 +34,8 @@ event follows it.
   concurrency slots, and spend accounting per hashed identifier.
 - `src/identity.ts`: Turnstile verification, the signed anonymous session
   cookie, and the HMAC hashing that keeps raw IPs out of storage and metrics.
-- `src/provider.ts`: the Anthropic Messages call through the Gateway (the
-  newest Claude Sonnet, resolved from Anthropic's Models API once per isolate;
-  thinking and output settings from `src/config.ts`; strict JSON schema output
+- `src/provider.ts`: the Anthropic Messages call through the Gateway (Claude
+  Opus 5.5, pinned in `src/config.ts` with its thinking and output settings; strict JSON schema output
   and strict tool schemas; a one-hour prompt cache on the tools and system
   prompt).
 - `generated/rules-context.json` and `generated/rules-context-data.ts`: the
@@ -117,9 +116,15 @@ Claude Sonnet 5.5, `claude-sonnet-5-5`) with adaptive thinking at `medium`
 effort, and spend accounting moved with it: $2 input, $10 output, $0.20 cache
 read, and $4 one-hour cache write per million tokens. The Sol and Luna findings
 describe the OpenAI period. The tool-note language requirement and the replay
-of the turn's reasoning (now its thinking blocks) carry over, and because a new
-Sonnet arrives without a deploy, the opt-in tool-language eval is how to
-re-check them.
+of the turn's reasoning (now its thinking blocks) carry over.
+
+It then moved from following the newest Sonnet to a pinned Claude Opus 5.5
+(`claude-opus-5-5`) at `xhigh` effort. Opus 5.5 cannot turn thinking off, so
+effort is its only control. Spend accounting moved with it: $4 input, $20
+output, $0.20 cache read, and $8 one-hour cache write per million tokens. The
+id is pinned because effort, prices and the provider timeout are tuned to one
+model, so a model change is a deploy, and the opt-in tool-language eval is how
+to re-check language and replay after one.
 
 ## The tool budget is spent by forbidding tool calls
 
@@ -137,7 +142,7 @@ provider is called with the tools still declared, `tool_choice: {type: "none"}`,
 and `FINAL_ROUND_INSTRUCTION` appended after the cache breakpoint, so the only
 thing the model can do is answer with what it has and say what is still
 outstanding. The tools used to be withheld on that call instead. They must stay
-declared now: Claude Sonnet 5.5 binds thinking blocks to an unchanged system
+declared now: Claude Opus 5.5 binds thinking blocks to an unchanged system
 prompt and tools list, so removing the tools mid-turn would invalidate the
 thinking from the earlier rounds. `toolsAvailable` on the request keeps its
 own separate meaning throughout: it is what a `draft-work` answer is validated
@@ -229,9 +234,7 @@ Gateway settings that are policy, not code: raw request/response payload
 logging **off**; response caching **off**; Gateway authentication **on**; and a
 $15/day spend limit as the outermost spend stop. The Worker supplies
 LyricLint's own Anthropic API key to the provider-native `/anthropic` Gateway
-endpoint. The one Anthropic call that bypasses the Gateway is the Models API
-lookup that picks the newest Sonnet; it goes to `api.anthropic.com` directly
-and carries no visitor data. The Worker also sends per-request headers that
+endpoint, and every Anthropic call goes through the Gateway. The Worker also sends per-request headers that
 authenticate to the Gateway, disable payload collection, and skip response
 caching because Gateway caching buffers the provider stream. Request, daily,
 concurrency, and spend allowances live in

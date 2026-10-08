@@ -1,7 +1,7 @@
 # Norwegian tool annotations switching to German
 
 > This is a historical record. The production provider has since moved from
-> OpenAI to the newest Claude Sonnet; the Sol and Luna findings below describe
+> OpenAI to Claude (now Claude Opus 5.5); the Sol and Luna findings below describe
 > the OpenAI period, and the prices and model ids are those of that period.
 
 On September 9, 2026, the visitor sent `Korrekturles`. The assistant displayed
