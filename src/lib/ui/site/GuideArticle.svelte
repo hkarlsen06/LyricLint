@@ -338,12 +338,14 @@
 								text={check.valid}
 							/></pre>
 					</figure>
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref decorates a resolve() URL with shared search parameters. -->
 					<p>
 						<a
 							href={referenceHref(`${root}${check.href.slice(1)}`)}
 							aria-label={`See trigger and fix: ${check.title}`}>See trigger and fix</a
 						>
 					</p>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				</details>
 			</li>
 		{/each}

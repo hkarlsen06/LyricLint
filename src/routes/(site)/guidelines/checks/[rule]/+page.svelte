@@ -131,6 +131,7 @@
 	<p><RuleSearchHighlight text={reference.explanation} /></p>
 
 	{#if reference.guidelines?.length}
+		<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref decorates resolve() URLs with shared search parameters. -->
 		<p>
 			{reference.guidelines.length === 1
 				? 'Convention: '
@@ -140,6 +141,7 @@
 					)}><RuleSearchHighlight text={guideline.title} /></a
 				>{/each}.
 		</p>
+		<!-- eslint-enable svelte/no-navigation-without-resolve -->
 	{/if}
 
 	<!-- The table, above the example rather than below it, because for these

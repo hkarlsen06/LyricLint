@@ -51,6 +51,7 @@
 		little decisions that go into writing lyrics for Genius.
 	</p>
 	<h2>Start with the bit you’re stuck on</h2>
+	<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref decorates resolve() URLs with shared search parameters. -->
 	<ul class="reference-questions">
 		<li>
 			<a
@@ -93,6 +94,7 @@
 			>
 		</li>
 	</ul>
+	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 
 	<details class="reference-disclosure">
 		<summary>Where does the advice come from?</summary>
