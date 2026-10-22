@@ -66,7 +66,7 @@ const textExt = /\.(md|ts|svelte|css|mjs|js|json|jsonc|yml|yaml|html|example)$/;
 
 function* walk(dir: string): Generator<string> {
 	for (const name of readdirSync(dir)) {
-		if (skipDirs.has(name)) continue;
+		if (skipDirs.has(name) || name.startsWith('.probe-')) continue;
 		const path = join(dir, name);
 		if (statSync(path).isDirectory()) yield* walk(path);
 		else if (

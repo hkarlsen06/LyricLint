@@ -87,8 +87,9 @@ the service's own dependencies; service scripts fail in a fresh worktree until i
   refactor: diff production previews of a HEAD `git worktree` and the working tree.
 - **Agent scratch output goes in `.audit/`** (pstack decision trails, todo lists, arena and swarm
   output). A scratch script that must resolve a repo dependency (a Playwright probe) is named
-  `.probe-*`. Git, `prettier --check .`, and `prose-em-dash.test.ts` skip both, but a stray file
-  anywhere else fails other agents' runs.
+  `.probe-*` and sits beside the files it imports, never inside `.audit/`. Git,
+  `prettier --check .`, and `prose-em-dash.test.ts` skip both, but a stray file anywhere else
+  fails other agents' runs.
 - **A full run that fails to import random browser-suite files** is usually memory pressure: kill
   stray dev and preview servers and rerun the named files before calling it a regression.
 
