@@ -40,3 +40,6 @@ test-results
 
 # Throwaway Playwright probes that must sit inside the repo to resolve it
 .probe-*
+
+# Agent scratch output (pstack decision trails, todo lists, arena and swarm output)
+/.audit/

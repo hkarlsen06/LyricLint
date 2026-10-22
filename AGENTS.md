@@ -85,9 +85,10 @@ the service's own dependencies; service scripts fail in a fresh worktree until i
   at `bun run preview` of a fresh build: `vite dev` hydrates late and reloads under parallel edits,
   so dev-server runs and screenshots are not repeatable. The same goes for comparing a style-only
   refactor: diff production previews of a HEAD `git worktree` and the working tree.
-- **Scratch files stay out of the checkout** unless they must resolve a repo dependency (a
-  Playwright probe); name those `.probe-*`. `prose-em-dash.test.ts` and `prettier --check .` scan
-  the whole tree, so a stray script fails other agents' runs.
+- **Agent scratch output goes in `.audit/`** (pstack decision trails, todo lists, arena and swarm
+  output). A scratch script that must resolve a repo dependency (a Playwright probe) is named
+  `.probe-*`. Git, `prettier --check .`, and `prose-em-dash.test.ts` skip both, but a stray file
+  anywhere else fails other agents' runs.
 - **A full run that fails to import random browser-suite files** is usually memory pressure: kill
   stray dev and preview servers and rerun the named files before calling it a regression.
 
@@ -135,6 +136,9 @@ tell them to check that before you offer to rebuild anything from memory.
 Parallelize independent work with subagents where it saves time or improves quality:
 independent subsystems, rule families, doc plus code plus test triples. Keep messages to other
 agents legible, with proper spacing between words, since a human may read them.
+Run one browser suite at a time across all agents (`bun run test`, `bun run test:e2e`, or a
+`*.svelte.test.ts` file), because concurrent Playwright and vitest runs ran `one-m` (8 GB) out
+of memory.
 
 ## UI rules
 
@@ -220,12 +224,3 @@ explain how it was solved. Include enough context that someone returning to the 
 many parallel projects can understand what is going on from the final response alone. Keep it
 brief: short paragraphs, only the detail the return-reader needs, no stock phrases or summary
 headers.
-
-# Bro keep going
-
-Before you stop, ask yourself "is there a next step that the user would want me to do?" if so, keep going jobs not finished.
-
-## Keep going without input
-
-When a step doesn't need my input, keep going. Put status notes in the same message as your next action.
-Stop and ask only when you can't continue without me, or before anything destructive: deleting data, force-pushing, or changing anything outside this repository.

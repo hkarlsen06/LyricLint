@@ -59,6 +59,7 @@ const skipDirs = new Set([
 	'playwright-report',
 	'coverage',
 	'.agents',
+	'.audit',
 	'tools'
 ]);
 const textExt = /\.(md|ts|svelte|css|mjs|js|json|jsonc|yml|yaml|html|example)$/;
