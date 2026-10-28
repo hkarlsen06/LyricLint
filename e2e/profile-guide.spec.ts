@@ -24,6 +24,10 @@ test.describe('Musixmatch guide', () => {
 		const conflict = page.locator('#mx-ja05');
 		await expect(conflict).toContainText('Unresolved source scope');
 		await expect(conflict.getByRole('link', { name: 'Japanese FAQ' })).toBeVisible();
+		await conflict
+			.locator('summary')
+			.filter({ hasText: 'An instrumental interval needing review' })
+			.click();
 		await conflict.getByRole('link', { name: 'An instrumental interval needing review' }).click();
 		await expect(page).toHaveURL(/\/guidelines\/checks\/mxm-structure-instrumental\//u);
 		await expect(
@@ -48,6 +52,11 @@ test.describe('Musixmatch guide', () => {
 		expect(
 			await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
 		).toBe(true);
-		await expect(page.getByRole('button', { name: 'Back to guide', exact: true })).toBeVisible();
+		const topics = page
+			.getByRole('navigation', { name: 'Guide navigation' })
+			.getByRole('button', { name: 'Topics', exact: true });
+		await expect(topics).toBeVisible();
+		await topics.click();
+		await expect(page.getByRole('searchbox')).toBeInViewport();
 	});
 });

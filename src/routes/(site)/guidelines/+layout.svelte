@@ -27,7 +27,18 @@
 	checkOpen={page.params.rule !== undefined}
 	reveal={() => index?.revealSelected()}
 >
-	{#snippet intro()}<GuideWelcome />{/snippet}
+	{#snippet intro()}
+		{#if musixmatch}
+			<section class="site-prose site-split__page">
+				<h1>Write lyrics for Musixmatch</h1>
+				<p>Keep sung words in the lyrics. Section and performer tags belong outside the text.</p>
+				<p>
+					Browse the conventions and language exceptions beside their sources. Official Musixmatch
+					guidance is authoritative for this format; unresolved source conflicts remain visible.
+				</p>
+			</section>
+		{:else}<GuideWelcome />{/if}
+	{/snippet}
 	{#snippet list()}
 		<ReferenceIndex
 			bind:this={index}
