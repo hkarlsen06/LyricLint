@@ -113,6 +113,11 @@ Navigation-target headings/detail rows use `tabindex="-1"` for programmatic focu
 returns phone users to Write and focuses its task control; the user's tap decides whether to
 open the editor keyboard.
 
+Retained-section requests carry their Review origin and reopen the requested section on each
+activation, even if another section was expanded in between. A missing-boundaries request opens
+and focuses Add a section. Back to Review focuses the surviving retained decision's action,
+falling back to the Review tab after the last decision is resolved.
+
 | Control | Behavior |
 | --- | --- |
 | Type | Choose an explicit supported profile type; keep original labels as retained details |

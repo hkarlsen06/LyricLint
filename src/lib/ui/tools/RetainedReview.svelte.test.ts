@@ -29,7 +29,7 @@ test('reviews one retained detail at a time without moving navigation for long m
 	expect(next).toBeDisabled();
 	expect(screen.getAllByRole('button', { name: 'Review in Song' })).toHaveLength(1);
 	await fireEvent.click(screen.getByRole('button', { name: 'Review in Song' }));
-	expect(controller.requestedSectionId).toBe('two');
+	expect(controller.requestedSection).toEqual({ id: 'two', origin: 'review' });
 	await view.rerender({ controller, findings: findings.slice(0, 1) });
 	expect(message()).toBe(findings[0].message);
 	expect(screen.queryByRole('button', { name: 'Next detail' })).toBeNull();

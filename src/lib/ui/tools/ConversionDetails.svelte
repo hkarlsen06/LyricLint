@@ -21,6 +21,8 @@
 		'Outro'
 	];
 	let sectionsOpen = $state(true);
+	let addingSection = $state(false);
+	let addSectionSummary = $state<HTMLElement>();
 	let activeSection = $state<string>();
 	let removeId = $state<string>();
 	let passageLanguage = $state('');
@@ -79,23 +81,34 @@
 			to: projectOffset(projection.value, to, -1)
 		});
 	}
+	async function backToReview() {
+		const panel = container.closest('.right-panel');
+		controller.setActiveTab('linter');
+		await tick();
+		const destination =
+			panel?.querySelector<HTMLElement>('.retained-review button') ??
+			panel?.querySelector<HTMLElement>('#linter-panel-tab');
+		destination?.focus();
+	}
 	$effect(() => {
-		const sectionId = controller.requestedSectionId;
-		if (!sectionId) return;
+		const request = controller.requestedSection;
+		if (!request) return;
 		sectionsOpen = true;
-		activeSection = sectionId;
-		void tick().then(() =>
-			container?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(sectionId)}"]`)?.focus()
-		);
+		activeSection = request.id;
+		if (request.id === 'new') addingSection = true;
+		void tick().then(() => {
+			if (request.id === 'new') addSectionSummary?.focus();
+			else
+				container
+					?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(request.id)}"]`)
+					?.focus();
+		});
 	});
 </script>
 
 <div class="conversion-details" bind:this={container}>
-	{#if controller.requestedConversionReview}
-		<button
-			type="button"
-			class="button button--quiet"
-			onclick={() => controller.setActiveTab('linter')}>Back to Review</button
+	{#if controller.requestedConversionReview || controller.requestedSection?.origin === 'review'}
+		<button type="button" class="button button--quiet" onclick={backToReview}>Back to Review</button
 		>
 	{/if}
 	<details>
@@ -289,8 +302,8 @@
 					{/if}
 				</section>
 			{/each}
-			<details>
-				<summary>Add a section</summary>
+			<details bind:open={addingSection}>
+				<summary bind:this={addSectionSummary}>Add a section</summary>
 				<button
 					type="button"
 					class="button"

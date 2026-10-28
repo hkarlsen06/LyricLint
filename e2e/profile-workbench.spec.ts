@@ -15,6 +15,52 @@ async function choose(page: Page, profile: 'Genius' | 'Musixmatch') {
 	await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toBeVisible();
 }
 
+for (const phone of [false, true]) {
+	test.describe(`retained review on ${phone ? 'phone' : 'desktop'}`, () => {
+		test.use({ hasTouch: phone, isMobile: phone });
+		test('returns to Review and reopens the requested section', async ({ page }) => {
+			await page.setViewportSize({ width: phone ? 390 : 1440, height: 900 });
+			await page.goto('/workbench/');
+			await page
+				.getByRole('textbox', { name: 'Lyrics editor' })
+				.fill('[Verse]\nUnder the moon\n\n[Chorus]\nStay beside me');
+			await choose(page, 'Musixmatch');
+			if (phone)
+				await page
+					.getByRole('navigation', { name: 'Workbench views' })
+					.getByRole('button', { name: /Review/ })
+					.click();
+			const review = page.getByRole('button', { name: 'Review in Song' });
+			await review.click();
+			await expect(page.getByRole('heading', { name: /Section 1/ })).toBeFocused();
+			await page.getByRole('button', { name: /Section 2/ }).click();
+			await page.getByRole('button', { name: 'Back to Review', exact: true }).click();
+			await expect(review).toBeFocused();
+			await review.click();
+			await expect(page.getByRole('heading', { name: /Section 1/ })).toBeFocused();
+			await expect(page.getByRole('button', { name: /Section 1/ })).toHaveAttribute(
+				'aria-expanded',
+				'true'
+			);
+			await expect(page.getByRole('button', { name: /Section 2/ })).toHaveAttribute(
+				'aria-expanded',
+				'false'
+			);
+			await page.getByRole('combobox', { name: 'Section type', exact: true }).selectOption('Verse');
+			await page.getByRole('button', { name: 'Back to Review', exact: true }).click();
+			await expect(review).toBeFocused();
+			await expect(
+				page
+					.getByText(
+						'Choose the Musixmatch tag for section 2. Its original Genius label is retained.',
+						{ exact: true }
+					)
+					.filter({ visible: true })
+			).toBeVisible();
+		});
+	});
+}
+
 test('preserves exact source, edited annotations, history and saved mode through real UI switches', async ({
 	page
 }) => {

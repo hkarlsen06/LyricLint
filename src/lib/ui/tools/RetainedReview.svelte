@@ -28,7 +28,7 @@
 					<button
 						type="button"
 						class="button button--quiet"
-						onclick={() => controller.openSectionDetails(finding.sectionId ?? 'new')}
+						onclick={() => controller.openSectionDetails(finding.sectionId ?? 'new', 'review')}
 						>Review in Song</button
 					>
 				</li>

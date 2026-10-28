@@ -88,11 +88,11 @@ interface WorkbenchDependencies {
 export interface WorkbenchController {
 	applyClipboardReview(): boolean;
 	dismissClipboardReview(): void;
-	readonly requestedSectionId: string | undefined;
+	readonly requestedSection: { id: string; origin: 'editor' | 'review' } | undefined;
 	readonly requestedConversionReview: { kind: ConversionReviewKind; sequence: number } | undefined;
 	openConversionReview(diagnostic: Diagnostic): void;
 	readonly conversionPassageRequest: number;
-	openSectionDetails(sectionId: string): void;
+	openSectionDetails(sectionId: string, origin?: 'editor' | 'review'): void;
 	showConversionPassage(range: TextRange): void;
 	applyConversionAction(
 		action: import('#lib/conversion/decisions.js').ConversionAction,
@@ -327,7 +327,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	let pendingProfile = $state<ProfileId | undefined>();
 	let profileSession = $state(0);
 	let conversionScopeRevision = $state(0);
-	let requestedSectionId = $state<string | undefined>();
+	let requestedSection = $state<WorkbenchController['requestedSection']>();
 	let requestedConversionReview = $state<{ kind: ConversionReviewKind; sequence: number }>();
 	let conversionPassageRequest = $state(0);
 	let linkingHeaderFrom = $state<number | undefined>();
@@ -651,20 +651,22 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			if (!action || !editorSession.snapshot.conversion || controller.profile !== 'musixmatch')
 				return;
 			editorSession.editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
+			requestedSection = undefined;
 			requestedConversionReview = {
 				kind: action.kind,
 				sequence: (requestedConversionReview?.sequence ?? 0) + 1
 			};
 			panel.setActiveTab('song');
 		},
-		get requestedSectionId() {
-			return requestedSectionId;
+		get requestedSection() {
+			return requestedSection;
 		},
 		get conversionPassageRequest() {
 			return conversionPassageRequest;
 		},
-		openSectionDetails(sectionId) {
-			requestedSectionId = sectionId;
+		openSectionDetails(sectionId, origin = 'editor') {
+			requestedSection = { id: sectionId, origin };
+			requestedConversionReview = undefined;
 			panel.setActiveTab('song');
 		},
 		showConversionPassage(range) {
@@ -874,7 +876,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			if (handle !== editorSession.editor) {
 				profileSession += 1;
 				requestedConversionReview = undefined;
-				requestedSectionId = undefined;
+				requestedSection = undefined;
 			}
 			editorSession.setEditorHandle(handle);
 			// Re-seat the draft's anchors on any editor that can hold them and has

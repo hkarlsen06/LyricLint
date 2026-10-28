@@ -530,6 +530,17 @@ describe('SongPanel conversion restraint', () => {
 		}
 	);
 
+	test('opens and focuses section creation when Review requests missing boundaries', async () => {
+		const { controller } = withConversion('Under the moon');
+		await render(SongPanel, { controller });
+		expect(screen.getByRole('button', { name: 'Insert boundary at cursor' })).not.toBeVisible();
+		controller.openSectionDetails('new', 'review');
+		await waitFor(() => expect(screen.getByText('Add a section', { exact: true })).toHaveFocus());
+		expect(screen.getByRole('button', { name: 'Insert boundary at cursor' })).toBeVisible();
+		await fireEvent.click(screen.getByRole('button', { name: 'Back to Review' }));
+		expect(controller.activeTab).toBe('linter');
+	});
+
 	test('opens the requested decision when Review asks for it, and nothing else', async () => {
 		const { controller } = withConversion('[Verse]\nI saw 2 stars');
 		controller.openConversionReview(
