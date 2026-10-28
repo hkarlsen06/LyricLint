@@ -16,6 +16,7 @@ interface EvalCase {
 	category: string;
 	language: string;
 	question: string;
+	manualReview?: string[];
 	expect?: {
 		scopes?: string[];
 		citesAny?: string[];
@@ -38,6 +39,14 @@ describe('the evaluation set', () => {
 		expect(evalSet.version).toBeGreaterThanOrEqual(1);
 		const ids = evalSet.cases.map((testCase) => testCase.id);
 		expect(new Set(ids).size).toBe(ids.length);
+	});
+
+	it('retains semantic review cases that automatic citation checks cannot establish', () => {
+		for (const category of ['audio-uncertainty', 'transcription-fidelity', 'source-authority']) {
+			const cases = evalSet.cases.filter((testCase) => testCase.category === category);
+			expect(cases.length, category).toBeGreaterThan(0);
+			expect(cases.every((testCase) => (testCase.manualReview?.length ?? 0) > 0)).toBe(true);
+		}
 	});
 
 	it('covers every rule family in the corpus', () => {

@@ -34,10 +34,10 @@ event follows it.
   concurrency slots, and spend accounting per hashed identifier.
 - `src/identity.ts`: Turnstile verification, the signed anonymous session
   cookie, and the HMAC hashing that keeps raw IPs out of storage and metrics.
-- `src/provider.ts`: the Anthropic Messages call through the Gateway (Claude
-  Opus 5.5, pinned in `src/config.ts` with its thinking and output settings; strict JSON schema output
-  and strict tool schemas; a one-hour prompt cache on the tools and system
-  prompt).
+- `src/provider.ts`: OpenAI Responses through the Gateway using the official SDK.
+  Exact `gpt-6.1-terra`, medium reasoning, low verbosity, strict answer and tool
+  schemas, and explicit 30-minute minimum caching of stable instructions and corpus.
+  The output budget remains 16,384 tokens and the timeout remains 120 seconds.
 - `generated/rules-context.json` and `generated/rules-context-data.ts`: the
   knowledge corpus and its cast-free TypeScript loading form. The producer owns
   their dependency-free contract in `src/lib/rules/assistant-corpus-types.ts`;
@@ -119,20 +119,60 @@ therefore moved to `gpt-5.6-sol` at medium reasoning, with matching
 spend-accounting rates. The [incident record](eval/language-incident.md) contains
 the controls, results, limits, and reason for retaining reasoning replay.
 
-The provider has since moved from OpenAI to the newest Claude Sonnet (today
+Historically, the provider moved from OpenAI to Claude Sonnet (then
 Claude Sonnet 5.5, `claude-sonnet-5-5`) with adaptive thinking at `medium`
 effort, and spend accounting moved with it: $2 input, $10 output, $0.20 cache
 read, and $4 one-hour cache write per million tokens. The Sol and Luna findings
 describe the OpenAI period. The tool-note language requirement and the replay
-of the turn's reasoning (now its thinking blocks) carry over.
+of the turn's reasoning carried over as thinking blocks.
 
-It then moved from following the newest Sonnet to a pinned Claude Opus 5.5
+It later moved from following Sonnet to a pinned Claude Opus 5.5
 (`claude-opus-5-5`) at `xhigh` effort. Opus 5.5 cannot turn thinking off, so
 effort is its only control. Spend accounting moved with it: $4 input, $20
 output, $0.20 cache read, and $8 one-hour cache write per million tokens. The
 id is pinned because effort, prices and the provider timeout are tuned to one
 model, so a model change is a deploy, and the opt-in tool-language eval is how
 to re-check language and replay after one.
+
+## Current Terra migration
+
+The adapter now pins `gpt-6.1-terra` on Responses with `store: false`, a hashed
+`safety_identifier`, encrypted reasoning replay, medium reasoning, and low
+verbosity. Medium is an initial configuration, not a measured optimum. Standard
+per-million-token rates are $1 input, $0.05 cache reads, $1.25 30-minute cache
+writes, and $5 output. Responses input totals already include cache reads and
+writes, so spend accounting subtracts both before charging ordinary input.
+Terminal completed, incomplete, and failed usage is recorded before rejecting
+malformed answers or calls. The SDK decodes streaming events; our existing
+validators still own argument, answer, citation, and replay acceptance.
+
+Settled assistant history uses `output_text`; visitor and developer content uses
+`input_text`. Untrusted replay accepts only allowlisted encrypted reasoning,
+assistant messages, and function calls matching the declared ids, names, and
+arguments. Response-only SDK decorations are stripped. The browser protocol,
+consent boundary, quotas, and chronological final-round behavior stay intact.
+The prompt preserves sung words, reviewed authority tiers, lookup conditions,
+exact edit anchors, linked corrections, language choice, and truthful tool outcomes.
+It now explicitly says it cannot hear a recording or verify sung words from text.
+
+The [Terra prompt research](eval/terra-prompt-research.md) contains the official
+sources, market comparison, case-study limits, tuning decisions, and release
+prerequisites. Offline validation does not establish model quality, account
+access, latency, or improvement. Run the versioned question eval and opt-in
+annotation eval against staging before publication.
+
+Before release, provision or verify `OPENAI_API_KEY` and the `/openai` Gateway
+route. Active Claude tool turns cannot replay across providers: finish them
+before the switch or restart the turn after it. Saved settled conversation text
+remains usable. Publish Worker and frontend through the existing coordinated
+release only after the owner's deployment approval.
+
+`store: false` disables stored Responses state, not all retention. OpenAI's default
+abuse-monitoring logs may include content for up to 30 days, and prompt-cache
+state may last up to 24 hours despite the requested 30-minute minimum TTL.
+Gateway payload logging and response caching stay disabled. See
+[OpenAI data controls](https://developers.openai.com/api/docs/guides/your-data)
+and [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching).
 
 ## The tool budget is spent by forbidding tool calls
 
@@ -146,13 +186,12 @@ answer that failed validation_. A turn that had read the 'scribe, applied two
 headers and gone back for fresh line numbers ended with nothing shown.
 
 So the budget is spent one call earlier, and quietly: with the rounds gone, the
-provider is called with the tools still declared, `tool_choice: {type: "none"}`,
+provider is called with the tools still declared, `tool_choice: "none"`,
 and `FINAL_ROUND_INSTRUCTION` appended after the cache breakpoint, so the only
 thing the model can do is answer with what it has and say what is still
-outstanding. The tools used to be withheld on that call instead. They must stay
-declared now: Claude Opus 5.5 binds thinking blocks to an unchanged system
-prompt and tools list, so removing the tools mid-turn would invalidate the
-thinking from the earlier rounds. `toolsAvailable` on the request keeps its
+outstanding. The tools used to be withheld on that call instead. The Responses adapter
+keeps them declared, forbids invocation, and retains encrypted reasoning replay.
+`toolsAvailable` on the request keeps its
 own separate meaning throughout: it is what a `draft-work` answer is validated
 against, and a turn that used tools is still a turn that used them.
 The prompt states the ceiling as well, because a model that knows what a round
@@ -232,7 +271,7 @@ Secrets (`wrangler secret put …`, never committed):
 
 | Secret                   | Purpose                                             |
 | ------------------------ | --------------------------------------------------- |
-| `ANTHROPIC_API_KEY`      | Anthropic API key used for model calls              |
+| `OPENAI_API_KEY`         | OpenAI API key used for model calls                 |
 | `AI_GATEWAY_TOKEN`       | Token created in AI Gateway Authentication settings |
 | `TURNSTILE_SECRET`       | Turnstile server-side verification                  |
 | `ABUSE_HMAC_SECRET`      | Hashing session/IP abuse identifiers                |
@@ -241,8 +280,8 @@ Secrets (`wrangler secret put …`, never committed):
 Gateway settings that are policy, not code: raw request/response payload
 logging **off**; response caching **off**; Gateway authentication **on**; and a
 $15/day spend limit as the outermost spend stop. The Worker supplies
-LyricLint's own Anthropic API key to the provider-native `/anthropic` Gateway
-endpoint, and every Anthropic call goes through the Gateway. The Worker also sends per-request headers that
+LyricLint's own OpenAI API key to the provider-native `/openai` Gateway
+endpoint, and every OpenAI call goes through the Gateway. The Worker also sends per-request headers that
 authenticate to the Gateway, disable payload collection, and skip response
 caching because Gateway caching buffers the provider stream. Request, daily,
 concurrency, and spend allowances live in
@@ -258,8 +297,8 @@ a replayed cookie cannot move. `src/identity.ts` states the trade in full.
 ## Local development
 
 1. Copy `services/rules-assistant/.dev.vars.example` to `.dev.vars` and replace
-   `YOUR_ACCOUNT_ID`, `AI_GATEWAY_TOKEN`, and `ANTHROPIC_API_KEY` with a
-   non-production Gateway, its authentication token, and an Anthropic API key.
+   `YOUR_ACCOUNT_ID`, `AI_GATEWAY_TOKEN`, and `OPENAI_API_KEY` with a
+   non-production Gateway, its authentication token, and an OpenAI API key.
    The provided Turnstile secret is Cloudflare's always-passing test secret.
 2. Copy `.env.example` to `.env.development.local`. Its assistant URL and
    Turnstile site key already point at Wrangler and Cloudflare's matching test
@@ -271,8 +310,8 @@ a replayed cookie cannot move. `src/identity.ts` states the trade in full.
 ## Cloudflare setup and deployment
 
 1. Create production and staging AI Gateways and enable Gateway authentication.
-   Use the provider-native `/anthropic` endpoint; do not configure Unified
-   Billing or store the Anthropic key in Cloudflare. Disable Gateway payload
+   Use the provider-native `/openai` endpoint; do not configure Unified
+   Billing or save the OpenAI key in the Gateway. Disable Gateway payload
    logging, disable response caching, and add a $15 UTC-daily spend rule to
    production.
    Configure 50%, 80%, and 100% budget notifications.
@@ -280,8 +319,8 @@ a replayed cookie cannot move. `src/identity.ts` states the trade in full.
    frontend hostnames. Put each public site key in the corresponding Pages build
    as `PUBLIC_TURNSTILE_SITE_KEY`; keep the secret in its Worker.
 3. Replace `ACCOUNT_ID` in `wrangler.jsonc`, then set all five secrets with
-   `bunx wrangler secret put NAME`. Use LyricLint's own Anthropic key for
-   `ANTHROPIC_API_KEY`; never commit it or paste it into an issue or chat.
+   `bunx wrangler secret put NAME`. Use LyricLint's own OpenAI key for
+   `OPENAI_API_KEY`; never commit it or paste it into an issue or chat.
 4. Create the WAF rules for outer flood protection on
    `api.lyriclint.com/v1/answers`. The rate-limit bindings and Durable Object
    handle the finer browser/IP, daily, concurrency, and session/IP/global spend
@@ -315,12 +354,13 @@ secret) or against staging:
 ```bash
 ASSISTANT_EVAL_URL=http://127.0.0.1:8787 \
 ASSISTANT_EVAL_ORIGIN=http://127.0.0.1:5173 \
-node eval/run.mjs
+bun eval/run.mjs
 ```
 
 Gates: 100% structurally valid, 100% known rule ids, no invented source ids,
-≥95% expected scope classification. The runner exits non-zero when a gate
-fails.
+≥95% expected scope classification. The runner exits non-zero when an automatic
+gate fails. Versioned `manualReview` rubrics still require human review for audio
+uncertainty, performed wording, and source attribution, even when automatic gates pass.
 
 ## Rollout
 

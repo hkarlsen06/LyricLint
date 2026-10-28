@@ -1,8 +1,9 @@
 # Norwegian tool annotations switching to German
 
-> This is a historical record. The production provider has since moved from
-> OpenAI to Claude (now Claude Opus 5.5); the Sol and Luna findings below describe
-> the OpenAI period, and the prices and model ids are those of that period.
+> This is a historical record of the earlier OpenAI Sol/Luna period, followed
+> by Claude Sonnet and Opus migrations. The adapter now targets GPT-6.1 Terra.
+> The findings, prices, and model ids below describe those earlier experiments,
+> not Terra results. See [the current research](terra-prompt-research.md).
 
 On September 9, 2026, the visitor sent `Korrekturles`. The assistant displayed
 German `show_lyrics` and `propose_edits` notes, followed by a Norwegian final

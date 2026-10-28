@@ -73,24 +73,23 @@ export const SESSION_RULES = {
 export const MODEL = {
 	/** Pinned rather than followed: a model change moves the effort, prices and
 	 * timeout below with it, so it is a deliberate deploy. */
-	id: 'claude-opus-5-5',
-	/** Adaptive thinking effort; Opus 5.5 cannot turn thinking off, so this is the
-	 * whole control. Higher efforts spend more tokens and put longer silences
-	 * before the first streamed token. */
-	effort: 'xhigh',
-	/** Thinking counts toward this as well as the answer. */
+	id: 'gpt-6.1-terra',
+	/** Initial configuration, pending task-specific live evaluation. */
+	reasoning: { effort: 'medium' },
+	verbosity: 'low',
+	/** Reasoning counts toward this as well as the answer. */
 	maxOutputTokens: 16_384,
-	/** The cached prefix (tools, instructions, corpus) outlives sparse traffic. */
-	cacheTtl: '1h',
+	/** Minimum lifetime, not a deletion deadline. Only stable context is cached. */
+	cacheTtl: '30m',
 	/** A hung provider call must release concurrency slots; abort after this. */
 	providerTimeoutMs: 120_000,
 	/** Standard prices per 1M tokens. Gateway spend limits remain the
 	 * authoritative global ceiling; these enforce the per-session approximation. */
-	estInputUsdPerMTok: 4,
-	estCachedInputUsdPerMTok: 0.2,
-	/** One-hour cache writes are billed at 2x uncached input. */
-	estCacheWriteUsdPerMTok: 8,
-	estOutputUsdPerMTok: 20
+	estInputUsdPerMTok: 1,
+	estCachedInputUsdPerMTok: 0.05,
+	/** Thirty-minute cache writes are billed at 1.25x uncached input. */
+	estCacheWriteUsdPerMTok: 1.25,
+	estOutputUsdPerMTok: 5
 } as const;
 
 /** Worst-case output spend held while a global request is in flight. The
@@ -109,7 +108,7 @@ export interface Env {
 	ALLOWED_ORIGIN: string;
 	AI_GATEWAY_BASE_URL: string;
 	AI_GATEWAY_TOKEN: string;
-	ANTHROPIC_API_KEY: string;
+	OPENAI_API_KEY: string;
 	TURNSTILE_SECRET: string;
 	TURNSTILE_ALLOW_LOCALHOST?: string;
 	ABUSE_HMAC_SECRET: string;

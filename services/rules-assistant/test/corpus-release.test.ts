@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { eventStream, outputMessage, providerResponse, responseEvents } from './response-fixtures';
 import worker, { createHandler } from '../src/index';
 import { corpus, corpusCatalog, createCorpusCatalog, type RulesCorpus } from '../src/corpus';
 import { goodTurnstile, makeEnv, makeRequest, providerReturning, requestBody } from './harness';
@@ -104,12 +105,12 @@ describe('release corpus compatibility', () => {
 			const fetchProvider = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
 				const href = String(url instanceof Request ? url.url : url);
 				messageCalls.push(href);
-				const request: { model: string; system: { text: string }[] } = JSON.parse(
+				const request: { model: string; input: { content: { text: string }[] }[] } = JSON.parse(
 					String(init?.body)
 				);
-				expect(request.model).toBe('claude-opus-5-5');
+				expect(request.model).toBe('gpt-6.1-terra');
 				const selected = [previous, candidate].find((entry) =>
-					request.system[0]!.text.includes(entry.contentHash)
+					request.input[0]!.content[0]!.text.includes(entry.contentHash)
 				);
 				expect(selected).toBeDefined();
 				const held = selected!;
@@ -120,37 +121,7 @@ describe('release corpus compatibility', () => {
 				// A foreign citation must require repair even when both releases use
 				// the same ruleset version.
 				const text = JSON.stringify(answerFor(attempt === 1 ? other : held));
-				return new Response(
-					[
-						{
-							type: 'message_start',
-							message: {
-								id: `msg-${held.contentHash}-${attempt}`,
-								type: 'message',
-								role: 'assistant',
-								model: request.model,
-								content: [],
-								stop_reason: null,
-								stop_sequence: null,
-								usage: { input_tokens: 10, output_tokens: 1 }
-							}
-						},
-						{ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
-						{ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } },
-						{ type: 'content_block_stop', index: 0 },
-						{
-							type: 'message_delta',
-							delta: { stop_reason: 'end_turn', stop_sequence: null },
-							usage: { output_tokens: 20 }
-						},
-						{ type: 'message_stop' }
-					]
-						.map((event) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`)
-						.join(''),
-					{
-						headers: { 'content-type': 'text/event-stream' }
-					}
-				);
+				return eventStream(responseEvents(providerResponse([outputMessage(text)])));
 			});
 			vi.stubGlobal('fetch', fetchProvider);
 			const env = makeEnv();
@@ -199,9 +170,9 @@ describe('release corpus compatibility', () => {
 				}
 			}
 			// The Gateway carries every model call.
-			expect(
-				messageCalls.every((href) => href.startsWith('https://gateway.invalid/anthropic/'))
-			).toBe(true);
+			expect(messageCalls.every((href) => href.startsWith('https://gateway.invalid/openai/'))).toBe(
+				true
+			);
 			expect(attempts).toEqual(
 				new Map([
 					[previous.contentHash, 2],

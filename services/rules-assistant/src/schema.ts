@@ -136,6 +136,24 @@ export const manageLinksArgumentsSchema = z
 		}
 	});
 
+const toolArgumentSchemas = {
+	read_scribe: readScribeArgumentsSchema,
+	propose_edits: proposeEditsArgumentsSchema,
+	manage_links: manageLinksArgumentsSchema,
+	show_lyrics: showLyricsArgumentsSchema
+};
+
+function canonicalToolArguments(name: ToolName, value: string): string | undefined {
+	let raw: unknown;
+	try {
+		raw = JSON.parse(value);
+	} catch {
+		return undefined;
+	}
+	const parsed = toolArgumentSchemas[name].safeParse(raw);
+	return parsed.success ? JSON.stringify(parsed.data) : undefined;
+}
+
 export const wireToolCallSchema = z
 	.object({
 		callId: z.string().min(1),
@@ -212,24 +230,76 @@ export const wireToolResultSchema = z.discriminatedUnion('name', [
 		.strict()
 ]);
 
-/**
- * A replay item is handed straight back to the provider as assistant content,
- * so what a client may send is exactly what `replayableBlock` in provider.ts
- * writes: these four block types, these fields, and nothing else. Under a
- * passthrough a client could smuggle a block type the worker never produced
- * into the model's own turn. A thinking block's signature is verified by the
- * API, so a forged or edited one fails there rather than reaching the model.
- */
-const providerItemSchema = z.discriminatedUnion('type', [
-	z.object({ type: z.literal('thinking'), thinking: z.string(), signature: z.string() }).strict(),
-	z.object({ type: z.literal('redacted_thinking'), data: z.string() }).strict(),
-	z.object({ type: z.literal('text'), text: z.string() }).strict(),
+/** The two part types an assistant message can be replayed with. */
+const providerMessageContentSchema = z.discriminatedUnion('type', [
 	z
 		.object({
-			type: z.literal('tool_use'),
-			id: z.string().min(1),
-			name: z.enum(toolNames),
-			input: z.record(z.string(), z.unknown())
+			type: z.literal('output_text'),
+			text: z.string(),
+			// This worker enables only function tools, so its intermediate output
+			// cannot carry file or web annotations. Keeping the field exact makes
+			// the replay value assignable to the provider SDK without a cast.
+			annotations: z.array(z.never()).max(0)
+		})
+		.strict(),
+	z.object({ type: z.literal('refusal'), refusal: z.string() }).strict()
+]);
+
+const providerStatusSchema = z.enum(['in_progress', 'completed', 'incomplete']);
+
+const providerReasoningSummarySchema = z
+	.object({ type: z.literal('summary_text'), text: z.string() })
+	.strict();
+
+const providerReasoningContentSchema = z
+	.object({ type: z.literal('reasoning_text'), text: z.string() })
+	.strict();
+
+/** Replay accepts only the fields we emit, with assistant-only messages.
+ * Required SDK input fields are checked here so malformed continuations fail
+ * before reaching the provider. */
+const providerItemSchema = z.discriminatedUnion('type', [
+	z
+		.object({
+			type: z.literal('function_call'),
+			id: z.string().optional(),
+			status: providerStatusSchema.optional(),
+			arguments: z.string().max(MAX_TOOL_ARGUMENT_CHARS),
+			call_id: z.string().min(1),
+			name: z.enum(toolNames)
+		})
+		.strict()
+		.superRefine((call, context) => {
+			if (canonicalToolArguments(call.name, call.arguments) === undefined) {
+				context.addIssue({
+					code: 'custom',
+					path: ['arguments'],
+					message: 'Replayed tool arguments must match their tool schema.'
+				});
+			}
+		}),
+	z
+		.object({
+			type: z.literal('reasoning'),
+			id: z.string(),
+			status: providerStatusSchema.optional(),
+			summary: z.array(providerReasoningSummarySchema),
+			content: z.array(providerReasoningContentSchema).optional(),
+			// The worker only ever asks for encrypted reasoning, so an item
+			// without it is not one it produced.
+			encrypted_content: z.string()
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal('message'),
+			id: z.string(),
+			status: providerStatusSchema,
+			// Never 'developer' or 'system': the item is replayed into the model's
+			// input, so any other role is a prompt the client wrote.
+			role: z.literal('assistant'),
+			phase: z.enum(['commentary', 'final_answer']).nullable().optional(),
+			content: z.array(providerMessageContentSchema)
 		})
 		.strict()
 ]);
@@ -265,30 +335,36 @@ const wireToolCallMessageSchema = z
 	})
 	.strict()
 	.superRefine((value, context) => {
-		// The items are replayed verbatim, so every tool call in them must be one
-		// this message declares: an unmatched call is a tool round the browser
-		// never ran, carrying whatever arguments the client chose.
-		let items: Json;
+		let decoded: unknown;
 		try {
-			items = JSON.parse(value.providerItems);
+			decoded = JSON.parse(value.providerItems);
 		} catch {
 			return;
 		}
-		if (!Array.isArray(items)) return;
-		const declared = new Set(value.toolCalls.map((call) => `${call.name}\0${call.callId}`));
-		for (const item of items) {
-			if (!isJsonObject(item)) continue;
-			const name = item['name'];
-			const callId = item['id'];
-			if (item['type'] !== 'tool_use' || name === undefined || callId === undefined) continue;
-			if (!declared.has(`${String(name)}\0${String(callId)}`)) {
-				context.addIssue({
-					code: 'custom',
-					path: ['providerItems'],
-					message: 'A replayed function call must match a declared tool call.'
-				});
-				return;
-			}
+		const parsed = decodedProviderItemsSchema.safeParse(decoded);
+		if (!parsed.success) return;
+		const calls = parsed.data.filter((item) => item.type === 'function_call');
+		const declared = new Map(value.toolCalls.map((call) => [call.callId, call]));
+		const replayed = new Set(calls.map((call) => call.call_id));
+		if (
+			declared.size !== value.toolCalls.length ||
+			replayed.size !== calls.length ||
+			calls.length !== declared.size ||
+			calls.some((call) => {
+				const wire = declared.get(call.call_id);
+				return (
+					!wire ||
+					wire.name !== call.name ||
+					canonicalToolArguments(wire.name, wire.arguments) !==
+						canonicalToolArguments(call.name, call.arguments)
+				);
+			})
+		) {
+			context.addIssue({
+				code: 'custom',
+				path: ['providerItems'],
+				message: 'Replayed function calls must match declared tool calls exactly.'
+			});
 		}
 	});
 
@@ -432,7 +508,7 @@ export const structuredAnswerSchema = z
 export type AnswerBlock = z.infer<typeof answerBlockSchema>;
 export type StructuredAnswer = z.infer<typeof structuredAnswerSchema>;
 
-/** JSON Schema handed to the Messages API as the structured output format. */
+/** JSON Schema handed to the Responses API as the structured output format. */
 export const answerJsonSchema = {
 	type: 'object',
 	additionalProperties: false,

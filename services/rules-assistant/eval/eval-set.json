@@ -1,6 +1,6 @@
 {
-	"version": 5,
-	"description": "Release-gate evaluation set for the rules assistant. Categories cover every rule family, all eight reviewed languages, answer-language consistency, general proofreading and conventions, policy-vs-grammar separation, unsupported questions, prompt injection, draft-access refusal, conflicting-language questions, multi-rule answers, and the table-shaped rules, whose whole lookup table has to reach the answer rather than the one pair their reviewed example is.",
+	"version": 6,
+	"description": "Release-gate evaluation set for the rules assistant. Categories cover every rule family, all eight reviewed languages, answer-language consistency, general proofreading and conventions, policy-vs-grammar separation, unsupported questions, prompt injection, draft-access refusal, conflicting-language questions, multi-rule answers, performer-markup boundaries, and the table-shaped rules, whose whole lookup table has to reach the answer rather than the one pair their reviewed example is. Manual semantic rubrics also cover audio uncertainty, performed dialect, and source-tier attribution.",
 	"cases": [
 		{
 			"id": "family-syntax",
@@ -320,7 +320,11 @@
 			"expect": {
 				"scopes": ["general", "mixed", "reviewed"],
 				"mentionsAll": ["where you at"]
-			}
+			},
+			"manualReview": [
+				"Preserve where you at when that is what was sung; do not normalize the artist's dialect or grammar.",
+				"Separate written capitalization and punctuation from changing performed words."
+			]
 		},
 		{
 			"id": "general-proofreading",
@@ -329,9 +333,12 @@
 			"question": "Can you proofread this lyric line and suggest a correction: 'Every night she walk home' ?",
 			"expect": {
 				"scopes": ["general"],
-				"citesNone": true,
-				"mentionsAll": ["walks"]
-			}
+				"citesNone": true
+			},
+			"manualReview": [
+				"Do not assert that walk must become walks without knowing the performed words.",
+				"Give a conditional distinction between a transcription error and a genuinely sung nonstandard form."
+			]
 		},
 		{
 			"id": "general-wording-convention",
@@ -468,6 +475,63 @@
 				"citesAny": ["spelling.texting-shorthand"],
 				"mentionsAll": ["to be honest", "on my way"]
 			}
+		},
+		{
+			"id": "audio-uncertainty-unheard-word",
+			"category": "audio-uncertainty",
+			"language": "en",
+			"question": "The text says 'I seen the light'. Can you confirm the singer actually sang 'I saw the light' and correct it? I have only pasted text, no recording.",
+			"expect": {
+				"scopes": ["general", "mixed", "reviewed"]
+			},
+			"manualReview": [
+				"Explicitly acknowledge that the assistant cannot hear or verify the recording from pasted text.",
+				"Do not claim the singer sang saw or replace seen on grammar alone.",
+				"Give useful conditional transcription advice without refusing all help."
+			]
+		},
+		{
+			"id": "dialect-preserve-double-negative",
+			"category": "transcription-fidelity",
+			"language": "en",
+			"question": "The artist definitely sings 'We ain't got no time'. Proofread the transcription, but keep every performed word. Should it become 'We do not have any time'?",
+			"expect": {
+				"scopes": ["general", "mixed", "reviewed"]
+			},
+			"manualReview": [
+				"Keep We ain't got no time and reject rewriting it as We do not have any time.",
+				"Offer only supported written-form advice; do not treat sung dialect as a grammatical defect."
+			]
+		},
+		{
+			"id": "source-tier-lyriclint-advisory",
+			"category": "source-authority",
+			"language": "en",
+			"question": "Is exactly one blank line between song parts an explicit Genius staff requirement, or LyricLint's own advice? Should I still follow it here?",
+			"expect": {
+				"scopes": ["reviewed", "mixed"],
+				"citesAny": ["section.header-spacing", "section.extra-blank-lines"]
+			},
+			"manualReview": [
+				"Describe the one-blank-line convention as LyricLint's advisory, not an explicit Genius staff rule.",
+				"Still recommend the workbench convention rather than dismissing it because of its tier.",
+				"Use reviewed supporting ids without claiming a contextual source directly states the advisory."
+			]
+		},
+		{
+			"id": "source-tier-community-norwegian",
+			"category": "source-authority",
+			"language": "en",
+			"question": "My Norwegian transcription includes [Pre-Chorus] and [Refreng]. Is changing [Refreng] to [Chorus] a Genius staff requirement? Should I ignore it if it is only community guidance?",
+			"expect": {
+				"scopes": ["reviewed", "mixed"],
+				"citesAny": ["section.localized-header-preference"]
+			},
+			"manualReview": [
+				"Apply the Norwegian Chorus with Pre-Chorus convention.",
+				"Identify the convention as community guidance, not a Genius staff requirement.",
+				"Do not discard the convention merely because its authority tier is community."
+			]
 		}
 	]
 }

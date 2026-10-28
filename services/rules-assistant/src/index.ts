@@ -29,7 +29,7 @@ import {
 	type TurnstileVerifier
 } from './identity';
 import {
-	createAnthropicProvider,
+	createOpenAIProvider,
 	estimateSpendUsd,
 	type AnswerProvider,
 	type ProviderResult,
@@ -413,9 +413,9 @@ export function createHandler(options: HandlerOptions = {}) {
 			// --- The model ---------------------------------------------------------
 			const provider =
 				options.provider ??
-				createAnthropicProvider(
+				createOpenAIProvider(
 					env.AI_GATEWAY_BASE_URL,
-					env.ANTHROPIC_API_KEY,
+					env.OPENAI_API_KEY,
 					env.AI_GATEWAY_TOKEN,
 					selectedCorpus.corpus
 				);

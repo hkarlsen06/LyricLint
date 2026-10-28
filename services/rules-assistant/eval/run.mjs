@@ -4,7 +4,7 @@
  *
  *   ASSISTANT_EVAL_URL=http://127.0.0.1:8787 \
  *   ASSISTANT_EVAL_ORIGIN=http://127.0.0.1:5173 \
- *   node eval/run.mjs
+ *   bun eval/run.mjs
  *
  * Release gates, from the spec:
  *   - 100% structurally valid responses
@@ -58,6 +58,7 @@ let answerLanguageTotal = 0;
 let exampleCorrect = 0;
 let exampleTotal = 0;
 const failures = [];
+let manualReviews = 0;
 
 for (const [index, testCase] of evalSet.cases.entries()) {
 	if (index > 0 && delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -107,6 +108,11 @@ for (const [index, testCase] of evalSet.cases.entries()) {
 	// cases assert on the prose, against forms that appear nowhere in the rule's
 	// own reviewed example.
 	const said = blocks.map((block) => block.text ?? '').join('\n');
+	if (testCase.manualReview?.length) {
+		manualReviews += 1;
+		console.log(`\nManual review ${testCase.id}\n${said}`);
+		for (const criterion of testCase.manualReview) console.log(`  - ${criterion}`);
+	}
 	const missing = (expect.mentionsAll ?? []).filter((form) => !said.includes(form));
 	if (missing.length > 0) ok = false;
 	const behaviorMisses = [];
@@ -172,5 +178,7 @@ const passed =
 	scopeCorrect / total >= 0.95 &&
 	answerLanguageCorrect === answerLanguageTotal &&
 	exampleCorrect === exampleTotal;
-console.log(passed ? '\nRelease gates: PASS' : '\nRelease gates: FAIL');
+console.log(passed ? '\nAutomatic release gates: PASS' : '\nAutomatic release gates: FAIL');
+if (manualReviews > 0)
+	console.log(`Manual semantic review still required for ${manualReviews} answers.`);
 process.exit(passed ? 0 : 1);
