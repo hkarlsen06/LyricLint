@@ -106,3 +106,9 @@ Final offline checks passed:
 - `bun run test:unit -- --run --project client src/lib/ui/assistant/AssistantDialog.svelte.test.ts`:
   14 tests passed. No full browser or E2E run was performed.
 - `git diff --check`: passed before commit.
+
+Independent review removed an undocumented cast for settled assistant messages.
+Settled assistant text now uses the string-content form in OpenAI's
+[manual conversation-history example](https://developers.openai.com/api/docs/guides/conversation-state).
+Live tool replay still preserves the full validated assistant and reasoning items.
+The transport regression includes a settled exchange before the new question.

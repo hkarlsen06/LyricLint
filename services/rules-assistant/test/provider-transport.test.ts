@@ -46,7 +46,11 @@ describe('Responses streaming transport', () => {
 		const deltas: string[] = [];
 		const usage = vi.fn();
 		const result = await provider()(
-			question,
+			[
+				{ role: 'user', content: 'Earlier question' },
+				{ role: 'assistant', content: 'Earlier answer' },
+				...question
+			],
 			'hashed-session',
 			new AbortController().signal,
 			'none',
@@ -75,6 +79,10 @@ describe('Responses streaming transport', () => {
 			store: false,
 			safety_identifier: 'hashed-session',
 			reasoning: { effort: 'medium' }
+		});
+		expect(JSON.parse(String(init?.body)).input).toContainEqual({
+			role: 'assistant',
+			content: 'Earlier answer'
 		});
 		if (result.kind === 'answer')
 			expect(estimateSpendUsd(result.usage)).toBeCloseTo(0.00006575, 10);

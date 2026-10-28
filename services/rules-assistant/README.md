@@ -146,8 +146,8 @@ Terminal completed, incomplete, and failed usage is recorded before rejecting
 malformed answers or calls. The SDK decodes streaming events; our existing
 validators still own argument, answer, citation, and replay acceptance.
 
-Settled assistant history uses `output_text`; visitor and developer content uses
-`input_text`. Untrusted replay accepts only allowlisted encrypted reasoning,
+Settled assistant history uses the documented string-content message form;
+visitor and developer content uses `input_text`. Untrusted replay accepts only allowlisted encrypted reasoning,
 assistant messages, and function calls matching the declared ids, names, and
 arguments. Response-only SDK decorations are stripped. The browser protocol,
 consent boundary, quotas, and chronological final-round behavior stay intact.

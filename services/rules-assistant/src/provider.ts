@@ -1,9 +1,3 @@
-/**
- * The one call that leaves Cloudflare: OpenAI Responses through the AI Gateway,
- * with the official SDK, on GPT-6.1 Terra. Text deltas are exposed while the SDK
- * decodes the stream and returns terminal usage before answer validation.
- * Draft tools execute in the browser and return through a later stateless request.
- */
 import OpenAI from 'openai';
 import {
 	MAX_LINK_ACTIONS,
@@ -296,18 +290,10 @@ function settledInputItem(
 	text: string,
 	breakpoint = false
 ): OpenAI.Responses.ResponseInputItem {
-	let content: (OpenAI.Responses.ResponseOutputText | OpenAI.Responses.ResponseInputText)[];
-	if (role === 'assistant') {
-		content = [{ type: 'output_text', text, annotations: [] }];
-	} else {
-		const part: OpenAI.Responses.ResponseInputText = { type: 'input_text', text };
-		if (breakpoint) part.prompt_cache_breakpoint = { mode: 'explicit' };
-		content = [part];
-	}
-	// SAFETY: the role/content pairing is constructed above. The API accepts
-	// settled assistant output_text without response IDs, which the SDK only
-	// types on full response messages. Untrusted replay uses its strict schema.
-	return { role, content } as OpenAI.Responses.ResponseInputItem;
+	if (role === 'assistant') return { role, content: text };
+	const part: OpenAI.Responses.ResponseInputText = { type: 'input_text', text };
+	if (breakpoint) part.prompt_cache_breakpoint = { mode: 'explicit' };
+	return { role, content: [part] };
 }
 
 export function providerRequest(
@@ -316,8 +302,6 @@ export function providerRequest(
 	tools: ToolAccess = 'none',
 	selectedCorpus: RulesCorpus = corpus
 ): Omit<OpenAI.Responses.ResponseCreateParamsNonStreaming, 'stream'> {
-	// Walk chronologically so repairs and the final-round instruction follow
-	// the tool results they describe.
 	const input: OpenAI.Responses.ResponseInputItem[] = [
 		settledInputItem('developer', developerPrompt(selectedCorpus), true)
 	];
@@ -376,10 +360,7 @@ export function gatewayHeaders(gatewayToken: string): GatewayHeaders {
 		// The cache is skipped, not tuned. Measured against production: with a
 		// cache TTL set, the Gateway buffered the whole provider stream and
 		// released every token in one final burst (211 deltas inside 0.9s at the
-		// end of a 22s call), which defeats streaming entirely. The cache also
-		// cannot pay for that cost any more: its key includes the full request
-		// body, and agent turns carry a per-session user id plus encrypted reasoning
-		// items, so a hit was already impossible.
+		// end of a 22s call), which defeats streaming entirely.
 		'cf-aig-skip-cache': 'true',
 		'cf-aig-collect-log': 'false'
 	};

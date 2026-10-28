@@ -691,7 +691,7 @@ describe('prompt assembly', () => {
 			{ role: 'user', content: [{ type: 'input_text', text: 'Earlier' }] },
 			{
 				role: 'assistant',
-				content: [{ type: 'output_text', text: 'Earlier answer', annotations: [] }]
+				content: 'Earlier answer'
 			},
 			{ role: 'user', content: [{ type: 'input_text', text: 'Now' }] }
 		]);
