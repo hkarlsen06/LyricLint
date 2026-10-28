@@ -99,6 +99,9 @@ the media query cannot repair the retained state.
 touch emulation from the shared desktop instance. Phone-only files explicitly enable
 touch before every test and share a phone instance. Each mixed-input file gets its
 own instance, so it begins with a fine pointer and no other file reuses its page.
+The native video-focus tests use this isolation too: keyboard and pointer events
+must not race with other files sharing the runner page. Their Tab-entry regression
+passed alone but lost focus in the full CI suite before it had its own instance.
 Add new files using that CDP command to the appropriate list. Mixed desktop-to-touch
 tests retain their real input transitions. Desktop assertions keep
 requiring a fine pointer; they must not accept `none` to hide this leak. Cleanup still

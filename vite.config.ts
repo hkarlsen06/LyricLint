@@ -53,7 +53,8 @@ const mixedInputTestFiles = [
 	'src/lib/editor/keyboard-commands.svelte.test.ts',
 	'src/lib/ui/assistant/AssistantPanel.svelte.test.ts',
 	'src/lib/ui/layout/DesktopMedia.svelte.test.ts',
-	'src/lib/ui/media/MediaStrip.svelte.test.ts'
+	'src/lib/ui/media/MediaStrip.svelte.test.ts',
+	'src/lib/ui/state/media-video-focus.svelte.test.ts'
 ];
 
 /**
