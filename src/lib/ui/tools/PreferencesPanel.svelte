@@ -97,65 +97,57 @@
 
 	{#if controller.backup}
 		<section aria-labelledby="backup-heading">
-			<details class="preferences-panel__disclosure">
-				<summary>
-					<div>
-						<h2 id="backup-heading">Workspace backup</h2>
-						<span>Save or import your workspace</span>
-					</div>
-					<CaretRightIcon class="preferences-panel__chevron" aria-hidden="true" weight="bold" />
-				</summary>
-				<div class="preferences-panel__detail">
-					<p>Save every 'scribe and its settings to a file. Assistant chats are excluded.</p>
-					<div class="preferences-panel__backup">
-						{#if backupState?.linkedFileName}
-							<p class="backup-status">
-								{#if backupState.permission === 'granted'}
-									Backup file: {backupState.linkedFileName}
-								{:else}
-									Access to {backupState.linkedFileName} is needed. In Chrome, choose “Allow on every
-									visit” to keep backups running after you reopen LyricLint.
-								{/if}
-							</p>
-						{:else if backupState?.supported}
-							<p class="backup-status">Choose a file to back up changes automatically.</p>
-						{/if}
-						<div class="tool-actions">
-							<button
-								type="button"
-								class="button"
-								disabled={importingBackup}
-								onclick={runBackupAction}
-							>
-								{backupActionLabel}
-							</button>
-							<button
-								type="button"
-								class="button button--quiet"
-								disabled={importingBackup}
-								aria-describedby="backup-import-description"
-								onclick={() => backupInput?.click()}
-							>
-								{importingBackup ? 'Importing…' : 'Import backup…'}
-							</button>
-							<input
-								bind:this={backupInput}
-								hidden
-								type="file"
-								accept="application/json,.json"
-								onchange={(event) => {
-									const input = event.currentTarget;
-									void importBackup(input.files?.[0]);
-									input.value = '';
-								}}
-							/>
-						</div>
-						<p id="backup-import-description">
-							Imports add to your workspace. Reconnect local audio afterward.
+			<h2 id="backup-heading">Workspace backup</h2>
+			<div class="preferences-panel__detail">
+				<p>Back up all 'scribes and settings. Chats are excluded.</p>
+				<div class="preferences-panel__backup">
+					{#if backupState?.linkedFileName}
+						<p class="backup-status">
+							{#if backupState.permission === 'granted'}
+								Backup file: {backupState.linkedFileName}
+							{:else}
+								Access to {backupState.linkedFileName} is needed. In Chrome, choose “Allow on every visit”
+								to keep backups running after you reopen LyricLint.
+							{/if}
 						</p>
+					{:else if backupState?.supported}
+						<p class="backup-status">Choose a file to back up changes automatically.</p>
+					{/if}
+					<div class="tool-actions">
+						<button
+							type="button"
+							class="button"
+							disabled={importingBackup}
+							onclick={runBackupAction}
+						>
+							{backupActionLabel}
+						</button>
+						<button
+							type="button"
+							class="button button--quiet"
+							disabled={importingBackup}
+							aria-describedby="backup-import-description"
+							onclick={() => backupInput?.click()}
+						>
+							{importingBackup ? 'Importing…' : 'Import backup…'}
+						</button>
+						<input
+							bind:this={backupInput}
+							hidden
+							type="file"
+							accept="application/json,.json"
+							onchange={(event) => {
+								const input = event.currentTarget;
+								void importBackup(input.files?.[0]);
+								input.value = '';
+							}}
+						/>
 					</div>
+					<p id="backup-import-description">
+						Imports add to your workspace. Reconnect local audio afterward.
+					</p>
 				</div>
-			</details>
+			</div>
 			<p class:sr-only={backupState?.status !== 'failed'} class="backup-status" aria-live="polite">
 				{#if backupState?.status === 'failed'}The last automatic backup failed.{/if}
 			</p>
@@ -291,6 +283,28 @@
 </div>
 
 <style>
+	.preferences-panel {
+		min-width: 0;
+		grid-template-columns: minmax(0, 1fr);
+		align-content: start;
+	}
+
+	.preferences-panel {
+		display: grid;
+		gap: var(--space-5);
+	}
+	.preferences-panel > section {
+		margin: 0;
+		min-width: 0;
+	}
+	.preferences-panel > section:has(#backup-heading) {
+		padding-block: var(--space-3);
+	}
+	.preferences-panel > section:has(#backup-heading) h2 {
+		margin-bottom: var(--space-3);
+		font-weight: var(--font-weight-semibold);
+	}
+
 	.source-list {
 		margin-top: var(--space-3);
 	}

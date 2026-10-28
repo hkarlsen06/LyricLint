@@ -29,7 +29,7 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   section types and recording-bound listening facts. Repeat expansion requires independently
   selected lyric and notation ranges, count and separator. Additional occurrences receive fresh
   untimed identities without copied annotations or voices. None of these decisions is inferred
-  merely by changing format. Their UI lives in Song and invalidates stale previews.
+  merely by changing format. Diagnostic decisions open focused tasks in Review and invalidate stale previews. Standalone repeat placeholders use an explicitly chosen earlier section and fresh-copy count; the safe adjacent same-line expansion remains separate.
 
 - Rich selection copies use clipboard metadata version 2 with a validated conversion fragment
   and only its referenced performer identities. The exact `text/plain` flavor must match the

@@ -131,16 +131,15 @@ describe('PreferencesPanel skimmability', () => {
 			backup: backupController({ supported: false, status: 'idle' })
 		});
 		const { container } = await render(PreferencesPanel, { controller });
-		expect(screen.getByRole('button', { name: 'Download backup' })).not.toBeVisible();
+		expect(screen.getByRole('button', { name: 'Download backup' })).toBeVisible();
 		expect(screen.getByRole('button', { name: 'Reset LyricLint…' })).not.toBeVisible();
 		const rows = container.querySelectorAll('details');
-		expect(rows).toHaveLength(3);
-		await userEvent.click(rows[0]!.querySelector('summary')!);
+		expect(rows).toHaveLength(2);
 		expect(screen.getByRole('button', { name: 'Download backup' })).toBeTruthy();
-		await userEvent.click(rows[1]!.querySelector('summary')!);
+		await userEvent.click(rows[0]!.querySelector('summary')!);
 		await userEvent.click(screen.getByRole('button', { name: 'Reset LyricLint…' }));
-		await userEvent.click(rows[1]!.querySelector('summary')!);
-		await userEvent.click(rows[1]!.querySelector('summary')!);
+		await userEvent.click(rows[0]!.querySelector('summary')!);
+		await userEvent.click(rows[0]!.querySelector('summary')!);
 		expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
 		expect(screen.getByRole('button', { name: 'Reset LyricLint…' })).toBeTruthy();
 	});

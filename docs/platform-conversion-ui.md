@@ -98,9 +98,9 @@ same command through `createCallbackProxy`.
 
 ### One section editing surface
 
-Add a **Sections** disclosure in the existing Song panel, with ordered unboxed rows. Each names
-its section, known type, assigned performers, and any unresolved placement. Activating an editor
-section control opens Song, expands that section, and focuses its heading. On phones this goes
+Song provides one **Sections** chooser with ordered section names and lyric previews. Choosing a
+section opens one editor for its type, performers and advanced operations. Activating an editor
+section control opens Song, chooses that section, and focuses its heading. On phones this goes
 to Tools → Song without opening the keyboard. A return action restores the mapped editor
 passage or the originating Review finding, whichever opened the surface.
 If that finding has been resolved, return focus to the next surviving finding or Review heading.
@@ -396,3 +396,7 @@ RTL and Japanese/Korean IME. Required acceptance:
 Update the relevant current subsystem contracts only with the implementation that changes them,
 especially anonymous voices, line/section identity, metadata-only snapshots, empty-draft handling,
 profile-specific reference behavior, and exact active-format output.
+
+## Focused conversion tasks
+
+Conversion diagnostic actions stay within Review, showing only the requested task. Song remains the metadata tool. Repeat tasks capture the target before choosing an earlier source, preview explicit fresh copies and replace only the placeholder. Draft or format changes retire the task; lyric edits require reopening the current finding.

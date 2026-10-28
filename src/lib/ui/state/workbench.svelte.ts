@@ -85,11 +85,21 @@ interface WorkbenchDependencies {
 	onBackupRestored?: () => void;
 }
 
+export interface ConversionReviewRequest {
+	kind: ConversionReviewKind;
+	sequence: number;
+	range: { from: number; to: number };
+	revision: number;
+	draftId: string | undefined;
+	profile: string;
+}
+
 export interface WorkbenchController {
 	applyClipboardReview(): boolean;
 	dismissClipboardReview(): void;
 	readonly requestedSection: { id: string; origin: 'editor' | 'review' } | undefined;
-	readonly requestedConversionReview: { kind: ConversionReviewKind; sequence: number } | undefined;
+	readonly requestedConversionReview: ConversionReviewRequest | undefined;
+	dismissConversionReview(): void;
 	openConversionReview(diagnostic: Diagnostic): void;
 	readonly conversionPassageRequest: number;
 	openSectionDetails(sectionId: string, origin?: 'editor' | 'review'): void;
@@ -328,7 +338,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	let profileSession = $state(0);
 	let conversionScopeRevision = $state(0);
 	let requestedSection = $state<WorkbenchController['requestedSection']>();
-	let requestedConversionReview = $state<{ kind: ConversionReviewKind; sequence: number }>();
+	let requestedConversionReview = $state<ConversionReviewRequest>();
 	let conversionPassageRequest = $state(0);
 	let linkingHeaderFrom = $state<number | undefined>();
 	let linkingFromOverview = $state(false);
@@ -644,7 +654,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			return profileSession;
 		},
 		get requestedConversionReview() {
-			return requestedConversionReview;
+			return requestedConversionReview?.draftId === controller.draftId &&
+				requestedConversionReview.profile === controller.profile
+				? requestedConversionReview
+				: undefined;
 		},
 		openConversionReview(diagnostic) {
 			const action = conversionReviewAction(diagnostic);
@@ -654,9 +667,16 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			requestedSection = undefined;
 			requestedConversionReview = {
 				kind: action.kind,
+				range: { from: diagnostic.from, to: diagnostic.to },
+				revision: editorSession.snapshot.revision,
+				draftId: controller.draftId,
+				profile: controller.profile,
 				sequence: (requestedConversionReview?.sequence ?? 0) + 1
 			};
-			panel.setActiveTab('song');
+			panel.setActiveTab('linter');
+		},
+		dismissConversionReview() {
+			requestedConversionReview = undefined;
 		},
 		get requestedSection() {
 			return requestedSection;

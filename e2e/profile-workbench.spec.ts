@@ -32,30 +32,18 @@ for (const phone of [false, true]) {
 			const review = page.getByRole('button', { name: 'Review in Song' });
 			await review.click();
 			await expect(page.getByRole('heading', { name: /Section 1/ })).toBeFocused();
-			await page.getByRole('button', { name: /Section 2/ }).click();
+			await page.getByRole('combobox', { name: 'Choose a section' }).selectOption({
+				label: await page
+					.getByRole('combobox', { name: 'Choose a section' })
+					.locator('option')
+					.nth(2)
+					.innerText()
+			});
 			await page.getByRole('button', { name: 'Back to Review', exact: true }).click();
 			await expect(review).toBeFocused();
 			await review.click();
 			await expect(page.getByRole('heading', { name: /Section 1/ })).toBeFocused();
-			await expect(page.getByRole('button', { name: /Section 1/ })).toHaveAttribute(
-				'aria-expanded',
-				'true'
-			);
-			await expect(page.getByRole('button', { name: /Section 2/ })).toHaveAttribute(
-				'aria-expanded',
-				'false'
-			);
-			await page.getByRole('combobox', { name: 'Section type', exact: true }).selectOption('Verse');
-			await page.getByRole('button', { name: 'Back to Review', exact: true }).click();
-			await expect(review).toBeFocused();
-			await expect(
-				page
-					.getByText(
-						'Choose the Musixmatch tag for section 2. Its original Genius label is retained.',
-						{ exact: true }
-					)
-					.filter({ visible: true })
-			).toBeVisible();
+			await expect(page.getByRole('heading', { name: /Section 2/ })).toHaveCount(0);
 		});
 	});
 }
@@ -159,6 +147,7 @@ test.describe('touch controls', () => {
 			})
 			.tap();
 		await page.getByRole('tab', { name: 'Song', exact: true }).tap();
+		await page.getByText('Clear this transcription', { exact: true }).click();
 		const clear = page.getByRole('button', {
 			name: 'Clear lyrics and retained details…',
 			exact: true
@@ -187,9 +176,7 @@ test('opens the exact listening decision from a diagnostic, previews it, and ret
 	await page.getByRole('textbox', { name: 'Lyrics editor' }).fill(source);
 	await choose(page, 'Musixmatch');
 	await page.getByRole('button', { name: 'Review quantity', exact: true }).click();
-	await expect(
-		page.getByRole('heading', { name: 'Quantity in the selected passage' })
-	).toBeFocused();
+	await expect(page.getByRole('heading', { name: 'Review quantity' })).toBeFocused();
 	await page.getByLabel('Exact whole-number value', { exact: true }).fill('2');
 	await page
 		.getByRole('combobox', { name: 'Meaning', exact: true })
@@ -232,3 +219,92 @@ test('reopens a rich draft and switches both formats entirely offline', async ({
 	await expect(page.getByRole('heading', { name: /Section 1/u })).toBeVisible();
 	await context.setOffline(false);
 });
+
+for (const phone of [false, true]) {
+	test.describe(`focused task ${phone ? 'phone' : 'desktop'}`, () => {
+		test.use({ hasTouch: phone, isMobile: phone });
+		test(`replaces the chosen chorus entirely within Review on ${phone ? 'phone' : 'desktop'}`, async ({
+			page
+		}) => {
+			await page.setViewportSize({ width: phone ? 390 : 1440, height: 900 });
+			await page.goto('/workbench/');
+			const source =
+				'[Verse: Mira]\nI found your [silver compass](123456)\nWith 2 old tickets and a folded map\n\n[Chorus: Mira & Noor]\nWe are the neon after rain\nTake my hand and say my name\n\n[Bridge: Noor]\nI said **** and never once looked back\n\n[Chorus: Mira & Noor]\nWe are the neon after rain\nTake my hand and call my name\n\n[Outro: Noor]\nStay with me\nRepeat chorus';
+			await page.getByRole('textbox', { name: 'Lyrics editor' }).fill(source);
+			await choose(page, 'Musixmatch');
+			if (phone)
+				await page
+					.getByRole('navigation', { name: 'Workbench views' })
+					.getByRole('button', { name: /Review/ })
+					.click();
+			if (phone)
+				await page
+					.getByRole('button', {
+						name: 'Go to Write the repeated lyrics instead of this placeholder.'
+					})
+					.click();
+			await page.getByRole('button', { name: 'Review repeated passage', exact: true }).click();
+			const task = page.getByRole('region', { name: 'Conversion task' });
+			await expect(task.getByRole('heading', { name: 'Replace repeat placeholder' })).toBeFocused();
+			await expect(task.getByRole('button', { name: 'Back to Review' })).toBeInViewport();
+			for (const name of [
+				'Document settings',
+				'Retained details',
+				'Wording and retained annotations',
+				'Selected passage',
+				'Decisions that need listening'
+			])
+				await expect(task.getByText(name, { exact: true })).toHaveCount(0);
+			await expect(task.getByLabel('Earlier source section')).toBeInViewport();
+			const before = await lyrics(page);
+			const options = task.getByLabel('Earlier source section').locator('option');
+			const option = options.filter({ hasText: 'Take my hand and say my name' });
+			const id = await option.getAttribute('value');
+			expect(id).toBeTruthy();
+			await task.getByLabel('Earlier source section').selectOption(id!);
+			await task.getByLabel('Copies to insert here').fill('1');
+			await task.getByRole('button', { name: 'Preview replacement' }).click();
+			await expect(task.getByLabel('Replacement preview')).toHaveText(
+				'We are the neon after rain\nTake my hand and say my name'
+			);
+			expect(await lyrics(page)).toBe(before);
+			for (const scheme of ['dark', 'light'] as const) {
+				await page.emulateMedia({ colorScheme: scheme });
+				await page.screenshot({
+					path: `.audit/focused-review/repeat-${phone ? 'phone' : 'desktop'}-${scheme}.png`
+				});
+			}
+			await task.getByRole('button', { name: 'Apply replacement' }).click();
+			const expected = before!.replace(
+				'Repeat chorus',
+				'We are the neon after rain\nTake my hand and say my name'
+			);
+			await expect.poll(() => lyrics(page)).toBe(expected);
+			await expect(
+				page.locator(
+					'.diagnostic-list__navigate:focus, #mobile-review-control:focus, #linter-panel-tab:focus'
+				)
+			).toHaveCount(1);
+			if (phone)
+				await page
+					.getByRole('navigation', { name: 'Workbench views' })
+					.getByRole('button', { name: /Write/ })
+					.click();
+			if (phone) await page.getByRole('button', { name: 'Document', exact: true }).click();
+			await page
+				.locator('.document-toolbar')
+				.getByRole('button', { name: 'Undo', exact: true })
+				.click();
+			await expect.poll(() => lyrics(page)).toBe(before);
+			await choose(page, 'Genius');
+			await expect.poll(() => lyrics(page)).toBe(source);
+			await choose(page, 'Musixmatch');
+			await expect.poll(() => lyrics(page)).toBe(before);
+			await expect(
+				page.getByRole('img', { name: /^Autosave status: Saved locally/u })
+			).toBeAttached();
+			await page.reload();
+			await expect.poll(() => lyrics(page)).toBe(before);
+		});
+	});
+}

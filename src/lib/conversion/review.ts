@@ -3,7 +3,7 @@ import { renderProfile } from './projection.js';
 
 export type ConversionReviewKind = 'quantity' | 'instrumental' | 'censor' | 'repeat';
 
-/** The shared card and popover offer only decisions with an implemented Song control. */
+/** The shared card and popover offer only decisions with an implemented Review task. */
 export function conversionReviewAction(
 	diagnostic: Diagnostic
 ): { kind: ConversionReviewKind; label: string } | undefined {

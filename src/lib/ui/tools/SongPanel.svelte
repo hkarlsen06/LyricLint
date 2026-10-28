@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
 	import { normalizeGeniusUrl } from '#lib/core/genius-url.js';
 	import youtubeIcon from '#lib/assets/youtube-icon.svg';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
@@ -16,6 +17,7 @@
 		$props();
 	let confirmClearAnchors = $state(false);
 	let confirmClearDocument = $state(false);
+	let clearButton = $state<HTMLButtonElement>();
 	let timedLyricsFormat = $state<TimedLyricsFormat>('lrc');
 	let lastTiming: WorkbenchController['currentLineTiming'];
 	const timing = $derived.by(() => {
@@ -116,6 +118,15 @@
 	The two rules the old panel earned still hold: a section is a heading over at
 	most two things, and a section's actions fit on one row.
 -->
+<svelte:window
+	onkeydown={(event) => {
+		if (event.key === 'Escape' && confirmClearDocument) {
+			event.preventDefault();
+			confirmClearDocument = false;
+			clearButton?.focus();
+		}
+	}}
+/>
 <div class="panel-content panel-sections song-panel">
 	<ClipboardReview {controller} />
 	{#if controller.snapshot.conversionRecovery || controller.snapshot.originalRecovery}
@@ -200,33 +211,38 @@
 
 	<section>
 		<h2>Genius page</h2>
-		{#key controller.draftId}
-			<label class="sr-only" for="genius-page-url">Genius page link</label>
-			<input
-				id="genius-page-url"
-				class="genius-page-input"
-				type="url"
-				placeholder="https://genius.com/Artist-song-lyrics"
-				bind:value={geniusUrl}
-				oninput={(event) => event.currentTarget.setCustomValidity('')}
-				onchange={(event) => {
-					const accepted = controller.setGeniusUrl(geniusUrl);
-					event.currentTarget.setCustomValidity(accepted ? '' : 'Enter a valid Genius page link.');
-					if (!accepted) event.currentTarget.reportValidity();
-				}}
-			/>
-		{/key}
-		<div class="tool-actions genius-page-actions">
-			{#if geniusPage}
-				<!-- eslint-disable svelte/no-navigation-without-resolve -- normalizeGeniusUrl validates this external page link. -->
-				<a
-					class="button button--quiet button--flush"
-					href={geniusPage}
-					target="_blank"
-					rel="noopener noreferrer">Open Genius page</a
-				>
-				<!-- eslint-enable svelte/no-navigation-without-resolve -->
-			{/if}
+		<div class="genius-page-row">
+			{#key controller.draftId}
+				<label class="sr-only" for="genius-page-url">Genius page link</label>
+				<input
+					id="genius-page-url"
+					class="genius-page-input"
+					type="url"
+					placeholder="https://genius.com/Artist-song-lyrics"
+					bind:value={geniusUrl}
+					oninput={(event) => event.currentTarget.setCustomValidity('')}
+					onchange={(event) => {
+						const accepted = controller.setGeniusUrl(geniusUrl);
+						event.currentTarget.setCustomValidity(
+							accepted ? '' : 'Enter a valid Genius page link.'
+						);
+						if (!accepted) event.currentTarget.reportValidity();
+					}}
+				/>
+			{/key}
+			<div class="tool-actions genius-page-actions">
+				{#if geniusPage}
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- normalizeGeniusUrl validates this external page link. -->
+					<a
+						class="button button--quiet button--flush"
+						href={geniusPage}
+						target="_blank"
+						rel="noopener noreferrer"
+						aria-label="Open Genius page"><span aria-hidden="true">↗</span></a
+					>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
+				{/if}
+			</div>
 		</div>
 	</section>
 
@@ -254,8 +270,8 @@
 			</button>
 		</div>
 		<p>
-			Text contains the active {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics.
-			A Scribe (.lls) keeps both formats, retained details, and the editable project.
+			.txt: {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics. Scribe: both formats
+			and all editable details.
 		</p>
 		<!--
 			The document-scoped delete lives in the section about the document it
@@ -264,42 +280,48 @@
 			place, in the same shape as the line-timings delete below.
 		-->
 		{#if clearable}
-			<div aria-live="polite">
-				{#if confirmClearDocument}
-					<p class="danger-text">
-						Delete the lyrics and every retained detail on this transcription? Exports already made
-						are untouched.
-					</p>
-					<div class="tool-actions">
-						<button
-							type="button"
-							class="button button--danger"
-							onclick={() => {
-								if (controller.applyConversionAction({ kind: 'clearDocument' }))
-									confirmClearDocument = false;
-							}}>Delete lyrics and details</button
-						>
-						<button
-							type="button"
-							class="button button--quiet"
-							onclick={() => (confirmClearDocument = false)}>Cancel</button
-						>
-					</div>
-				{:else}
-					<div class="tool-actions tool-actions--flush">
-						<button
-							type="button"
-							class="button button--quiet danger-text"
-							onclick={() => {
+			<details
+				class="song-panel__delete"
+				{@attach dismissOnOutside(() => (confirmClearDocument = false))}
+				ontoggle={(event) => {
+					if (!event.currentTarget.open) confirmClearDocument = false;
+				}}
+			>
+				<summary>Clear this transcription</summary>
+				<div class="clear-decision">
+					<button
+						bind:this={clearButton}
+						type="button"
+						class="button {confirmClearDocument ? 'button--danger' : 'button--quiet'}"
+						onclick={() => {
+							if (!confirmClearDocument) {
 								confirmClearDocument = true;
 								controller.feedback.announce(
 									'Confirm clearing the lyrics and every retained detail.'
 								);
-							}}>Clear lyrics and retained details…</button
-						>
-					</div>
-				{/if}
-			</div>
+								return;
+							}
+							if (controller.applyConversionAction({ kind: 'clearDocument' }))
+								confirmClearDocument = false;
+						}}
+						>{confirmClearDocument
+							? 'Delete lyrics and details'
+							: 'Clear lyrics and retained details…'}</button
+					>
+					{#if confirmClearDocument}<button
+							type="button"
+							class="button button--quiet"
+							onclick={() => {
+								confirmClearDocument = false;
+								clearButton?.focus();
+							}}>Cancel</button
+						>{/if}
+					<p class:sr-only={!confirmClearDocument} aria-live="polite">
+						{#if confirmClearDocument}Delete the lyrics and every retained detail on this
+							transcription? Exports already made are untouched.{/if}
+					</p>
+				</div>
+			</details>
 		{/if}
 	</section>
 
@@ -432,6 +454,48 @@
 </div>
 
 <style>
+	.song-panel {
+		min-width: 0;
+		grid-template-columns: minmax(0, 1fr);
+		align-content: start;
+	}
+
+	.clear-decision {
+		display: grid;
+		gap: var(--space-2);
+		padding-top: var(--space-2);
+	}
+
+	.song-panel {
+		display: grid;
+		gap: var(--space-6);
+	}
+	.song-panel > section {
+		margin: 0;
+		min-width: 0;
+	}
+	.song-panel > section + section {
+		margin-top: 0;
+	}
+	.song-panel__delete {
+		margin-top: var(--space-4);
+	}
+	.song-panel__delete summary {
+		min-height: var(--control-height-touch);
+		align-content: center;
+		cursor: pointer;
+		color: var(--color-text-muted);
+	}
+	.song-panel :global(input:not([type='checkbox'])),
+	.song-panel :global(select),
+	.song-panel :global(textarea) {
+		border-radius: var(--radius-control);
+		min-height: var(--control-height-md);
+		font-size: var(--font-size-editor);
+		box-sizing: border-box;
+		max-width: 100%;
+	}
+
 	.song-metadata-actions--after-facts {
 		/* The list's final value and the first bordered action are different kinds of
 		 * content. A full stack gap keeps the button from reading as part of that last
@@ -451,9 +515,20 @@
 		font-size: var(--font-size-editor);
 	}
 
+	.genius-page-row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) var(--control-height-touch);
+		gap: var(--space-2);
+		align-items: center;
+	}
 	.genius-page-actions {
 		min-height: var(--control-height-touch);
-		margin-top: var(--space-2);
+		margin: 0;
+	}
+	.genius-page-actions a {
+		width: var(--control-height-touch);
+		min-height: var(--control-height-touch);
+		padding: 0;
 	}
 
 	.line-timing-form + .tool-actions {

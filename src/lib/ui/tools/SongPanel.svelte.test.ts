@@ -493,6 +493,7 @@ describe('SongPanel conversion restraint', () => {
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Song metadata',
 			'Genius page',
+			'Sections',
 			'Document'
 		]);
 		expect(screen.queryByText('Decisions that need listening')).toBeNull();
@@ -505,15 +506,18 @@ describe('SongPanel conversion restraint', () => {
 		'shows one section editor with structural actions disclosed at %ipx',
 		async (width) => {
 			const { controller } = withConversion(
-				'[Verse: A very long performer name that wraps across the section]\nOne\n\n[Chorus]\nTwo'
+				'[Verse: A very long performer name that wraps across the section]\nOne very long lyric preview that must never stretch the panel beyond the visible viewport or clip a field at its right edge\n\n[Chorus]\nTwo'
 			);
 			const { container } = await render(SongPanel, { controller });
 			container.style.width = `${width}px`;
 			expect(screen.queryByRole('combobox', { name: 'Section type' })).toBeNull();
-			const first = screen.getByRole('button', { name: /Section 1/ });
+			const first = screen.getByRole('combobox', { name: 'Choose a section' });
+			const options = [...first.querySelectorAll('option')];
 			const top = first.getBoundingClientRect().top;
-			await fireEvent.click(first);
-			expect(first.getAttribute('aria-expanded')).toBe('true');
+			expect(first.getBoundingClientRect().right).toBeLessThanOrEqual(
+				container.getBoundingClientRect().right
+			);
+			await fireEvent.change(first, { target: { value: options[1]!.value } });
 			expect(first.getBoundingClientRect().top).toBe(top);
 			expect(screen.getAllByRole('combobox', { name: 'Section type' })).toHaveLength(1);
 			expect(screen.getByRole('button', { name: 'Move to cursor' })).not.toBeVisible();
@@ -524,8 +528,8 @@ describe('SongPanel conversion restraint', () => {
 			);
 			await fireEvent.click(screen.getByText('More section options'));
 			expect(screen.getByRole('button', { name: 'Move to cursor' })).toBeVisible();
-			await fireEvent.click(screen.getByRole('button', { name: /Section 2/ }));
-			expect(first.getAttribute('aria-expanded')).toBe('false');
+			await fireEvent.change(first, { target: { value: options[2]!.value } });
+			expect(screen.queryByRole('heading', { name: /Section 1/ })).toBeNull();
 			expect(screen.getAllByRole('combobox', { name: 'Section type' })).toHaveLength(1);
 		}
 	);
@@ -541,7 +545,7 @@ describe('SongPanel conversion restraint', () => {
 		expect(controller.activeTab).toBe('linter');
 	});
 
-	test('opens the requested decision when Review asks for it, and nothing else', async () => {
+	test('keeps diagnostic tasks out of Song', async () => {
 		const { controller } = withConversion('[Verse]\nI saw 2 stars');
 		controller.openConversionReview(
 			diagnostic({
@@ -555,9 +559,8 @@ describe('SongPanel conversion restraint', () => {
 		controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 5 } });
 		await render(SongPanel, { controller });
 
-		await waitFor(() =>
-			expect(screen.getByRole('heading', { name: 'Quantity in the selected passage' })).toBeTruthy()
-		);
+		expect(screen.queryByRole('heading', { name: 'Quantity in the selected passage' })).toBeNull();
+		expect(controller.activeTab).toBe('linter');
 		expect(screen.queryByText('Expand a repeated passage')).toBeNull();
 	});
 
@@ -574,9 +577,12 @@ describe('SongPanel conversion restraint', () => {
 		editor.dispatchConversionAction = dispatch;
 		await render(SongPanel, { controller });
 
-		await fireEvent.click(
-			screen.getByRole('button', { name: 'Clear lyrics and retained details…' })
-		);
+		await fireEvent.click(screen.getByText('Clear this transcription', { exact: true }));
+		const trigger = screen.getByRole('button', { name: 'Clear lyrics and retained details…' });
+		const top = trigger.getBoundingClientRect().top;
+		await fireEvent.click(trigger);
+		expect(screen.getByRole('button', { name: 'Delete lyrics and details' })).toBe(trigger);
+		expect(trigger.getBoundingClientRect().top).toBe(top);
 		expect(screen.getByRole('button', { name: 'Delete lyrics and details' })).toBeTruthy();
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete lyrics and details' }));
 		expect(dispatch).toHaveBeenCalledOnce();
@@ -589,6 +595,7 @@ describe('SongPanel conversion restraint', () => {
 		editor.dispatchConversionAction = dispatch;
 		await render(SongPanel, { controller });
 
+		await fireEvent.click(screen.getByText('Clear this transcription', { exact: true }));
 		await fireEvent.click(
 			screen.getByRole('button', { name: 'Clear lyrics and retained details…' })
 		);

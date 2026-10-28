@@ -10,6 +10,7 @@
 	import { retainedFindings } from '#lib/conversion/review.js';
 	import RetainedReview from '../tools/RetainedReview.svelte';
 	import { tick } from 'svelte';
+	import ConversionReview from '../tools/ConversionReview.svelte';
 
 	let {
 		controller,
@@ -198,18 +199,24 @@
 	const lineFor = $derived(lineNumberLookup(controller.snapshot.text));
 </script>
 
-<div class="panel-content linter-panel" class:linter-panel--focused={mobile && reviewFocused}>
-	{#if mobile && reviewFocused}
-		<button type="button" class="button button--quiet mobile-review-back" onclick={onReviewList}
-			>All findings</button
-		>
-	{/if}
-	{#if controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0}
-		<h2 class="linter-panel__heading">
-			Review {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics
-		</h2>
-	{/if}
-	<!-- The chips are on screen whenever there is something to filter. They used
+{#if controller.requestedConversionReview}
+	{#key controller.requestedConversionReview.sequence}<ConversionReview
+			{controller}
+			request={controller.requestedConversionReview}
+		/>{/key}
+{:else}
+	<div class="panel-content linter-panel" class:linter-panel--focused={mobile && reviewFocused}>
+		{#if mobile && reviewFocused}
+			<button type="button" class="button button--quiet mobile-review-back" onclick={onReviewList}
+				>All findings</button
+			>
+		{/if}
+		{#if controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0}
+			<h2 class="linter-panel__heading">
+				Review {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics
+			</h2>
+		{/if}
+		<!-- The chips are on screen whenever there is something to filter. They used
 	     to be revealed by pressing the Linter tab a second time from inside the
 	     linter, which is a gesture nobody performs and nothing advertises. It is the
 	     same failure the timestamp gutter had when its control only appeared
@@ -222,27 +229,27 @@
 	     dropped the severity *word* in favour of a glyph, so this row is now the
 	     one surface in the workbench that pairs the four marks with their names,
 	     and it hangs directly above the column it is the legend for. -->
-	{#if chips.length > 0}
-		<div class="linter-panel__filters" role="group" aria-label="Filter diagnostics by severity">
-			{#each chips as filter (filter.value)}
-				<button
-					type="button"
-					class="filter-chip filter-chip--{filter.value}"
-					aria-pressed={controller.severityFilter.includes(filter.value)}
-					onclick={() => controller.toggleSeverity(filter.value)}
-				>
-					<!-- The chip wears the mark its rows wear. The row's word is gone, so
+		{#if chips.length > 0}
+			<div class="linter-panel__filters" role="group" aria-label="Filter diagnostics by severity">
+				{#each chips as filter (filter.value)}
+					<button
+						type="button"
+						class="filter-chip filter-chip--{filter.value}"
+						aria-pressed={controller.severityFilter.includes(filter.value)}
+						onclick={() => controller.toggleSeverity(filter.value)}
+					>
+						<!-- The chip wears the mark its rows wear. The row's word is gone, so
 					     without this the only thing tying "Suggestions" to the eight rows
 					     it hides would be their shared color. -->
-					<SeverityIcon severity={filter.value} />
-					{filter.label}
-					<span class="filter-chip__count">{counts[filter.value]}</span>
-				</button>
-			{/each}
-		</div>
-	{/if}
+						<SeverityIcon severity={filter.value} />
+						{filter.label}
+						<span class="filter-chip__count">{counts[filter.value]}</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
 
-	<!-- The whole-document command is a strip of chrome under the tab strip, the
+		<!-- The whole-document command is a strip of chrome under the tab strip, the
 	     same material as the severity chips that hang above it. The material is
 	     the point, and it took three tries to see why: the panel already spends
 	     `--color-canvas` on the *selected* diagnostic, so a row of bare canvas
@@ -255,138 +262,139 @@
 	     what keeps the row from reading as a lone button in half a row of dead
 	     gutter, which is how the first version of this failed. It is absent, not
 	     disabled, when there is nothing it could do. -->
-	{#if bulk.automatic > 0}
-		<div class="linter-panel__bulk">
-			<button
-				type="button"
-				class="button linter-panel__bulk-action"
-				onclick={(event) => void applyBulkFix(event.currentTarget)}
-			>
-				Fix {bulk.automatic}
-				{bulk.automatic === 1 ? 'issue' : 'issues'} automatically
-			</button>
-			<!-- Why the count on the button is smaller than the count on the tab, so
+		{#if bulk.automatic > 0}
+			<div class="linter-panel__bulk">
+				<button
+					type="button"
+					class="button linter-panel__bulk-action"
+					onclick={(event) => void applyBulkFix(event.currentTarget)}
+				>
+					Fix {bulk.automatic}
+					{bulk.automatic === 1 ? 'issue' : 'issues'} automatically
+				</button>
+				<!-- Why the count on the button is smaller than the count on the tab, so
 			     the issues still standing afterwards read as the ones that were
 			     always going to need the user, not as a fix that half worked. -->
-			{#if bulk.manual > 0}
-				<span class="linter-panel__bulk-note">{bulk.manual} need a decision</span>
-			{/if}
-		</div>
-	{/if}
+				{#if bulk.manual > 0}
+					<span class="linter-panel__bulk-note">{bulk.manual} need a decision</span>
+				{/if}
+			</div>
+		{/if}
 
-	<!-- Only the untouched-document state gets a control, and only the sample:
+		<!-- Only the untouched-document state gets a control, and only the sample:
 	     it is the one thing that answers "nothing to lint yet" in place, so it
 	     stays with the sentence it answers. "Hidden by filters" and "All issues
 	     ignored" already name the chip or the footer that undid them, and "No
 	     issues found" is not a problem to solve. The drafts are not an answer to
 	     this state at all, they are somewhere else to be, so they wait at the
 	     far end of the column instead of between the message and its offer. -->
-	{#snippet emptyActions()}
-		{#if controller.snapshot.text.length > 0 && nativeRulesStatus === 'failed'}
-			<button
-				type="button"
-				class="button"
-				onclick={(event) => void retryChecking(event.currentTarget)}>Retry checking</button
-			>
-		{/if}
-		{#if controller.isEmpty && controller.snapshot.conversion?.model.sections.length}<button
-				type="button"
-				class="button"
-				onclick={() => controller.openSectionDetails('new')}>View retained details</button
-			>{/if}
-		{#if controller.isEmpty && controller.canLoadSample}
-			<div class="linter-panel__empty-action">
-				<button type="button" class="button" onclick={() => controller.loadSample()}>
-					Load a sample 'scribe
-				</button>
-			</div>
-		{/if}
-	{/snippet}
+		{#snippet emptyActions()}
+			{#if controller.snapshot.text.length > 0 && nativeRulesStatus === 'failed'}
+				<button
+					type="button"
+					class="button"
+					onclick={(event) => void retryChecking(event.currentTarget)}>Retry checking</button
+				>
+			{/if}
+			{#if controller.isEmpty && controller.snapshot.conversion?.model.sections.length}<button
+					type="button"
+					class="button"
+					onclick={() => controller.openSectionDetails('new')}>View retained details</button
+				>{/if}
+			{#if controller.isEmpty && controller.canLoadSample}
+				<div class="linter-panel__empty-action">
+					<button type="button" class="button" onclick={() => controller.loadSample()}>
+						Load a sample 'scribe
+					</button>
+				</div>
+			{/if}
+		{/snippet}
 
-	<RetainedReview {controller} findings={detailFindings} />
-	{#if !detailFindings.length || controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0 || nativeRulesStatus !== 'ready'}
-		<DiagnosticList
-			overview={mobile && !reviewFocused}
-			focusedOnly={mobile && reviewFocused}
-			active={active && controller.activeTab === 'linter'}
-			diagnostics={controller.visibleDiagnostics}
-			rowKey={controller.diagnosticRowKey}
-			sources={controller.sources}
-			activeDiagnosticKey={controller.activeDiagnosticKey}
-			activeDiagnosticRange={controller.activeDiagnosticRange}
-			{emptyState}
-			{emptyActions}
-			{lineFor}
-			onNavigate={(diagnostic) => {
-				if (mobile) onOpenFinding?.(diagnostic);
-				else controller.navigateToDiagnostic(diagnostic, { focus: false });
-			}}
-			onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
-			canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
-			onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
-			onLinkSections={(diagnostic) => controller.linkDiagnosticSections(diagnostic)}
-			onReviewConversion={(diagnostic) => controller.openConversionReview(diagnostic)}
-			onSetLanguage={(language) => controller.setLanguage(language)}
-			onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
-			onCancelPreview={() => controller.clearFixPreview()}
-			onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
-			fixBatchSize={(diagnostic, fix) => controller.fixBatchSize(diagnostic, fix)}
-			onApplyFixBatch={(diagnostic, fix) => controller.applyFixBatch(diagnostic, fix)}
-			onIgnore={(diagnostic) => controller.ignoreDiagnostic(diagnostic)}
-		/>
-	{/if}
-	{#if controller.visibleDiagnostics.length > 0}
-		<p class="linter-panel__afterword">{afterword}</p>
-	{/if}
+		<RetainedReview {controller} findings={detailFindings} />
+		{#if !detailFindings.length || controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0 || nativeRulesStatus !== 'ready'}
+			<DiagnosticList
+				overview={mobile && !reviewFocused}
+				focusedOnly={mobile && reviewFocused}
+				active={active && controller.activeTab === 'linter'}
+				diagnostics={controller.visibleDiagnostics}
+				rowKey={controller.diagnosticRowKey}
+				sources={controller.sources}
+				activeDiagnosticKey={controller.activeDiagnosticKey}
+				activeDiagnosticRange={controller.activeDiagnosticRange}
+				{emptyState}
+				{emptyActions}
+				{lineFor}
+				onNavigate={(diagnostic) => {
+					if (mobile) onOpenFinding?.(diagnostic);
+					else controller.navigateToDiagnostic(diagnostic, { focus: false });
+				}}
+				onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
+				canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
+				onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
+				onLinkSections={(diagnostic) => controller.linkDiagnosticSections(diagnostic)}
+				onReviewConversion={(diagnostic) => controller.openConversionReview(diagnostic)}
+				onSetLanguage={(language) => controller.setLanguage(language)}
+				onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
+				onCancelPreview={() => controller.clearFixPreview()}
+				onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
+				fixBatchSize={(diagnostic, fix) => controller.fixBatchSize(diagnostic, fix)}
+				onApplyFixBatch={(diagnostic, fix) => controller.applyFixBatch(diagnostic, fix)}
+				onIgnore={(diagnostic) => controller.ignoreDiagnostic(diagnostic)}
+			/>
+		{/if}
+		{#if controller.visibleDiagnostics.length > 0}
+			<p class="linter-panel__afterword">{afterword}</p>
+		{/if}
 
-	<!-- The drafts the user already has sit at the foot of the column, under
+		<!-- The drafts the user already has sit at the foot of the column, under
 	     whatever the panel is currently saying about this document. They are a
 	     way out of it rather than a thing to do about it, and reading order is
 	     the difference: the message, the sample that resolves it, then, after
 	     the panel has finished with this draft, the others. Prose on the canvas,
 	     no border: the gap above it is already the separation. -->
-	{#if controller.isEmpty && recentDrafts.length > 0}
-		<div class="linter-panel__drafts">
-			<p class="linter-panel__empty-label" id="linter-panel-recent-label">Recent 'scribes</p>
-			<ul class="linter-panel__recent" aria-labelledby="linter-panel-recent-label">
-				{#each recentDrafts as draft (draft.id)}
-					<li>
-						<!-- Somewhere to go back to is also somewhere to be done with, and
+		{#if controller.isEmpty && recentDrafts.length > 0}
+			<div class="linter-panel__drafts">
+				<p class="linter-panel__empty-label" id="linter-panel-recent-label">Recent 'scribes</p>
+				<ul class="linter-panel__recent" aria-labelledby="linter-panel-recent-label">
+					{#each recentDrafts as draft (draft.id)}
+						<li>
+							<!-- Somewhere to go back to is also somewhere to be done with, and
 						     the drafts a returning user wants rid of are exactly the ones
 						     listed here. Same two-press control as the drafts menu, in the
 						     row it acts on. -->
-						{#if pendingDeleteId === draft.id}
-							<span class="linter-panel__recent-draft linter-panel__recent-draft--static">
-								<span class="linter-panel__recent-title">{draft.title}</span>
-								<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
-									{formatDraftDate(draft.updatedAt)}
-								</time>
-							</span>
-						{:else}
-							<button
-								type="button"
-								class="linter-panel__recent-draft"
-								onclick={() => controller.openDraft(draft.id)}
-							>
-								<span class="linter-panel__recent-title">{draft.title}</span>
-								<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
-									{formatDraftDate(draft.updatedAt)}
-								</time>
-							</button>
-						{/if}
-						<RemoveButton
-							subject={draft.title}
-							pending={pendingDeleteId === draft.id}
-							onRequest={() => (pendingDeleteId = draft.id)}
-							onCancel={() => (pendingDeleteId = undefined)}
-							onConfirm={(trigger) => deleteRecentDraft(draft.id, trigger)}
-						/>
-					</li>
-				{/each}
-			</ul>
-		</div>
-	{/if}
-</div>
+							{#if pendingDeleteId === draft.id}
+								<span class="linter-panel__recent-draft linter-panel__recent-draft--static">
+									<span class="linter-panel__recent-title">{draft.title}</span>
+									<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
+										{formatDraftDate(draft.updatedAt)}
+									</time>
+								</span>
+							{:else}
+								<button
+									type="button"
+									class="linter-panel__recent-draft"
+									onclick={() => controller.openDraft(draft.id)}
+								>
+									<span class="linter-panel__recent-title">{draft.title}</span>
+									<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
+										{formatDraftDate(draft.updatedAt)}
+									</time>
+								</button>
+							{/if}
+							<RemoveButton
+								subject={draft.title}
+								pending={pendingDeleteId === draft.id}
+								onRequest={() => (pendingDeleteId = draft.id)}
+								onCancel={() => (pendingDeleteId = undefined)}
+								onConfirm={(trigger) => deleteRecentDraft(draft.id, trigger)}
+							/>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+	</div>
+{/if}
 
 <style>
 	/* A full-height column keeps recent drafts at the foot. Findings are inset

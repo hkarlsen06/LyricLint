@@ -33,7 +33,9 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 ## The rules
 
-- Song section summaries open one editor at a time. Type and Show passage precede a More section options disclosure; Add a section follows the list. Document settings and retained details stay collapsed. Clear remains in Song.
+- Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
+
+- Song uses one section chooser and one editor. Type and Show passage precede More section options; Add a section follows the editor. Selected passage tools, Document settings and retained details open deliberately. Clear this transcription is separate from export actions. Preferences exposes workspace backup actions directly; Local data and Reviewed rules remain secondary disclosures.
 
 - The document toolbar exposes a per-draft Genius/Musixmatch format button that switches directly in one click
   or Enter/Space, names the committed format and reserves stable width. A pending switch can
