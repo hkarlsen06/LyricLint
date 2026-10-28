@@ -12,7 +12,7 @@ import type {
 } from '#lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import { createLyricEditor } from './create-editor.js';
-import { insertSectionHeader } from '#lib/performers/transform.js';
+import { assignVoiceGroup, insertSectionHeader } from '#lib/performers/transform.js';
 import EditorPane from './EditorPane.svelte';
 import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
 import PerformerPicker from './overlays/PerformerPicker.svelte';
@@ -617,6 +617,59 @@ describe('EditorPane', () => {
 		);
 
 		// The mirrored headers are part of the same history event.
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(text);
+	});
+
+	it('applies a different performer to a whole section without renaming the previous voice', async () => {
+		const text = '[Verse 1: Avery]\nFirst line\n\n[Verse 2: Avery]\nSecond line';
+		const from = text.indexOf('Second line');
+		const roster = performers();
+		const editorCallbacks: LyricEditorCallbacks = {
+			...callbacks(),
+			createPerformerEdit(choice) {
+				const result = assignVoiceGroup({
+					revision: 0,
+					text,
+					document: parseDocument(text),
+					roster,
+					selection: { anchor: choice.range.from, head: choice.range.to },
+					performerIds: choice.performerIds
+				});
+				if (result.status !== 'applied') throw new Error(result.reason);
+				return result.edit;
+			}
+		};
+		const { handle } = await mountEditor({
+			text,
+			displayContext: context({
+				performers: roster,
+				parsed: parseDocument(text),
+				voiceGroups: [
+					{
+						from,
+						to: text.length,
+						group: { id: 'voice-avery', performerIds: ['avery'], styleSlot: 1 }
+					}
+				]
+			}),
+			editorCallbacks
+		});
+
+		handle.setSelection({ anchor: from, head: text.length });
+		handle.focus();
+		await userEvent.keyboard('{Alt>}p{/Alt}');
+		const avery = page.getByRole('button', { name: /Avery/u });
+		await expect.element(avery).toHaveAttribute('aria-pressed', 'true');
+		await userEvent.click(avery);
+		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
+		await userEvent.click(page.getByRole('button', { name: /^Apply/u }));
+
+		expect(handle.getSnapshot().text).toBe(text.replace('[Verse 2: Avery]', '[Verse 2: Blair]'));
+		expect(editorCallbacks.onPerformerRenamed).not.toHaveBeenCalled();
+		expect(editorCallbacks.onAnnouncement).not.toHaveBeenCalledWith(
+			expect.stringContaining('Renaming')
+		);
 		handle.undo();
 		expect(handle.getSnapshot().text).toBe(text);
 	});

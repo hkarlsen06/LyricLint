@@ -21,17 +21,16 @@ export function makeVoiceGroupKey(performerIds: readonly PerformerId[]): VoiceGr
 }
 
 /**
- * Resolve only byte-exact display names and explicit aliases. Case-folding is
- * deliberately excluded: it belongs to suggestions, not identity resolution.
+ * Resolve byte-exact display names before falling back to explicit aliases.
+ * Case-folding belongs to suggestions, not identity resolution.
  */
 export function findExactPerformer(
 	displayNameOrAlias: string,
 	roster: readonly PerformerRecord[]
 ): PerformerRecord | undefined {
-	return roster.find(
-		(record) =>
-			record.displayName === displayNameOrAlias ||
-			record.aliases.some((alias) => alias === displayNameOrAlias)
+	return (
+		roster.find((record) => record.displayName === displayNameOrAlias) ??
+		roster.find((record) => record.aliases.some((alias) => alias === displayNameOrAlias))
 	);
 }
 

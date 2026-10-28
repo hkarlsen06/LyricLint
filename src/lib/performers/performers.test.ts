@@ -100,6 +100,26 @@ describe('performer identity', () => {
 	it('creates an order-independent group key from the performer-ID set', () => {
 		expect(makeVoiceGroupKey(['b', 'a', 'a'])).toBe(makeVoiceGroupKey(['a', 'b']));
 	});
+
+	it("resolves current names before another performer's old alias in either roster order", () => {
+		const records = roster(['Frikk', 'Halli']);
+		records[0]?.aliases.push('Halli');
+		records[1]?.aliases.push('Frikk');
+
+		for (const ordered of [records, [...records].reverse()]) {
+			expect(findExactPerformer('Frikk', ordered)?.id).toBe('performer-1');
+			expect(findExactPerformer('Halli', ordered)?.id).toBe('performer-2');
+			const extraction = extractPerformers(
+				parseDocument('[Vers 1: Frikk]\nFirst line\n\n[Vers 2: Halli]\nSecond line'),
+				ordered
+			);
+			expect(extraction.rosterAdditions).toEqual([]);
+			expect(extraction.voiceGroups.map((group) => group.performerIds)).toEqual([
+				['performer-1'],
+				['performer-2']
+			]);
+		}
+	});
 });
 
 describe('performer import extraction', () => {

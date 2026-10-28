@@ -15,6 +15,12 @@ format itself: `docs/performer-tagging.md`
   one atomic edit over `headerNameAtoms`, roster adopted *before* the dispatch, Undo as the
   same rename in reverse, `isMirrorableHeaderName` refused out loud. Regressions:
   `workbench performer renames` in `workbench.test.ts`.
+- Atomic domain edits (`input.atomic`), including performer assignments and lint fixes, never
+  start or continue a header rename. They carry their complete scope; assigning a different
+  voice in one section must not rename the previous performer across the document. Pins:
+  `header-rename.test.ts` and `EditorPane.svelte.test.ts`.
+- Exact current display names resolve before aliases, regardless of roster order. An old alias
+  may identify a performer only when no current name matches. Pin: `performers.test.ts`.
 - Only a settled rename re-derives the color (`recolorPerformer`), never `adoptHeaderRename`,
   which fires per keystroke. Re-deriving there strobes every bar through the palette.
 - A live IME/dead-key preedit follows the editor-wide `isCompositionChange` policy: map the settled
@@ -233,6 +239,24 @@ Implementation: `renamePerformer` in `src/lib/ui/state/workbench.svelte.ts`, ove
 `headerNameAtoms` / `isMirrorableHeaderName` in `src/lib/performers/header-rename.ts`, with the
 recolor in `renamePerformer` and `recolorPerformer` in `roster-store.svelte.ts`; the regressions
 are the `workbench performer renames` block in `workbench.test.ts`.
+
+### Assigning a voice does not rename a performer
+
+Reassigning a whole section can change only its header's legend, leaving every lyric untouched.
+`headerRenameFilter` previously treated this single-range assignment like a name typed into the
+header. It mirrored the replacement into every header naming the old performer and reported a
+rename to the roster, leaving two records with the same display name.
+
+`dispatchAtomicEdit` already marks complete domain edits as `input.atomic`. The rename filter now
+leaves those edits alone, including when a header rename session was active. Assignments keep
+their planned section-link scope, and ordinary typed header renames still mirror. Regression tests
+exercise selection and legend assignments, the picker's Apply action, and a single editor Undo.
+
+The supplied draft also contained reciprocal aliases: Frikk retained Halli and Halli retained
+Frikk. `findExactPerformer` previously returned the first display-name or alias match in roster
+order, so Frikk's alias could take Halli's current name. It now checks every current display name
+before consulting aliases. Existing aliases remain available for undo and old headers without
+overriding another performer's current name.
 
 ### A surface that opens itself has to have been asked, twice over
 

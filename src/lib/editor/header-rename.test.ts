@@ -2,7 +2,9 @@ import { history, undo } from '@codemirror/commands';
 import { EditorState } from '@codemirror/state';
 import type { TransactionSpec } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
+import { parseDocument } from '#lib/core/parser.js';
 import type { PerformerRecord } from '#lib/core/types.js';
+import { assignVoiceGroup, assignVoiceLegend } from '#lib/performers/transform.js';
 import {
 	editorComposingField,
 	editorContextField,
@@ -75,6 +77,41 @@ function type(state: EditorState, at: number, insert: string, spec: TransactionS
 }
 
 describe('headerRenameFilter', () => {
+	it.each(['selection', 'legend'])(
+		'keeps a %s assignment local without renaming either performer',
+		(flow) => {
+			const text = '[Vers 1: Halli]\nFirst line\n\n[Vers 2: Halli]\nSecond line';
+			const performers = roster('Frikk', 'Halli');
+			const state = createState(text, performers);
+			const from = text.indexOf('Second line');
+			const request = { revision: 0, text, document: parseDocument(text), roster: performers };
+			const result =
+				flow === 'selection'
+					? assignVoiceGroup({
+							...request,
+							selection: { anchor: from, head: text.length },
+							performerIds: ['performer-0']
+						})
+					: assignVoiceLegend({
+							...request,
+							sectionFrom: text.indexOf('[Vers 2'),
+							assignments: [{ styleSlot: 1, performerIds: ['performer-0'] }]
+						});
+			if (result.status !== 'applied') throw new Error(result.reason);
+			const transaction = state.update({
+				changes: result.edit.edits,
+				selection: result.edit.selectionAfter,
+				userEvent: 'input.atomic'
+			});
+
+			expect(transaction.state.doc.toString()).toBe(
+				text.replace('[Vers 2: Halli]', '[Vers 2: Frikk]')
+			);
+			expect(transaction.effects.some((effect) => effect.is(headerRenameEffect))).toBe(false);
+			expect(transaction.state.field(headerRenameSessionField)).toBeUndefined();
+		}
+	);
+
 	it('mirrors a header name edit into every other header in one transaction', () => {
 		const state = createState();
 		const transaction = type(state, endOfHeaderName(document, '[Verse 1: Mara]', 'Mara'), 'h');

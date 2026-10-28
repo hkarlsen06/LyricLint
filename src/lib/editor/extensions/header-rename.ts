@@ -119,8 +119,9 @@ function beginSession(state: EditorState, change: TextRange): HeaderRenameSessio
  * The mirrored edits are appended to the transaction that caused them, so the
  * document is never briefly inconsistent, one snapshot is emitted, and one undo
  * restores every header at once, the same contract `legendCleanupFilter` uses.
- * Undo, redo, and IME composition are exempt so history replays byte for byte
- * and composition is never interrupted.
+ * Atomic domain edits already describe their complete scope and must not become
+ * global renames. Undo, redo, and IME composition are exempt so history replays
+ * byte for byte and composition is never interrupted.
  */
 export function headerRenameFilter(): Extension {
 	return EditorState.transactionFilter.of((transaction) => {
@@ -131,7 +132,7 @@ export function headerRenameFilter(): Extension {
 			return transaction;
 		}
 		const userEvent = transaction.annotation(Transaction.userEvent);
-		if (userEvent === 'undo' || userEvent === 'redo') {
+		if (userEvent === 'undo' || userEvent === 'redo' || transaction.isUserEvent('input.atomic')) {
 			return transaction;
 		}
 
