@@ -122,33 +122,38 @@
 							{#each group.sectionIds as id (id)}
 								<li>
 									<strong>{names.get(id)}</strong>
-									<div class="rich-linking__actions">
+									<details>
+										<summary>Section options</summary>
+										<div class="rich-linking__actions">
+											<button
+												type="button"
+												class="button button--quiet"
+												onclick={() => show(ranges.get(id))}>Show line {line(id)}</button
+											>
+											<button
+												type="button"
+												class="button button--quiet"
+												aria-label={`Unlink ${names.get(id)}`}
+												onclick={() =>
+													controller.applyConversionAction({
+														kind: 'unlinkSection',
+														sectionId: id
+													})}>Unlink section</button
+											>
+										</div>
 										<button
 											type="button"
 											class="button button--quiet"
-											onclick={() => show(ranges.get(id))}>Show line {line(id)}</button
+											role="switch"
+											aria-checked={controller.isConversionSectionLocal(id)}
+											onclick={() => controller.toggleConversionSectionLocal(id)}
+											aria-label={`Edit ${names.get(id)} only`}
 										>
-										<button
-											type="button"
-											class="button button--quiet"
-											aria-label={`Unlink ${names.get(id)}`}
-											onclick={() =>
-												controller.applyConversionAction({ kind: 'unlinkSection', sectionId: id })}
-											>Unlink section</button
-										>
-									</div>
-									<button
-										type="button"
-										class="button button--quiet"
-										role="switch"
-										aria-checked={controller.isConversionSectionLocal(id)}
-										onclick={() => controller.toggleConversionSectionLocal(id)}
-										aria-label={`Edit ${names.get(id)} only`}
-									>
-										{controller.isConversionSectionLocal(id)
-											? 'Editing this section only'
-											: 'Edit this section only'}
-									</button>
+											{controller.isConversionSectionLocal(id)
+												? 'Editing this section only'
+												: 'Edit this section only'}
+										</button>
+									</details>
 								</li>
 							{/each}
 						</ul>
@@ -283,7 +288,7 @@
 		min-width: 0;
 		overflow-wrap: anywhere;
 	}
-	li > button {
+	li button {
 		justify-self: start;
 		white-space: normal;
 	}

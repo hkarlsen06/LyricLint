@@ -6,10 +6,10 @@ import type { WorkbenchController } from '../state/workbench.svelte.js';
 import type { MediaPlayer, SongDetails } from '../state/media-player.svelte.js';
 import type { MediaStore } from '../state/media-store.svelte.js';
 import { createTestWorkbench, diagnostic, performer } from '../test-utils.js';
-import { importDocument } from '$lib/conversion/import.js';
-import { renderProfile } from '$lib/conversion/index.js';
-import { createConversionEnvelope } from '$lib/persistence/conversion.js';
-import { profilePolicyVersions } from '$lib/profiles/versions.js';
+import { importDocument } from '#lib/conversion/import.js';
+import { renderProfile } from '#lib/conversion/index.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import SongPanel from './SongPanel.svelte';
 import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 
@@ -30,7 +30,6 @@ describe('SongPanel skimmability', () => {
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Song metadata',
 			'Genius page',
-			'Document details',
 			'Document'
 		]);
 		expect((screen.getByRole('link', { name: 'Search YouTube' }) as HTMLAnchorElement).href).toBe(
@@ -494,7 +493,6 @@ describe('SongPanel conversion restraint', () => {
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Song metadata',
 			'Genius page',
-			'Document details',
 			'Document'
 		]);
 		expect(screen.queryByText('Decisions that need listening')).toBeNull();
@@ -502,6 +500,35 @@ describe('SongPanel conversion restraint', () => {
 		// Clearing is here, quiet, because the draft has lyrics.
 		expect(screen.getByRole('button', { name: 'Clear lyrics and retained details…' })).toBeTruthy();
 	});
+
+	test.each([300, 600])(
+		'shows one section editor with structural actions disclosed at %ipx',
+		async (width) => {
+			const { controller } = withConversion(
+				'[Verse: A very long performer name that wraps across the section]\nOne\n\n[Chorus]\nTwo'
+			);
+			const { container } = await render(SongPanel, { controller });
+			container.style.width = `${width}px`;
+			expect(screen.queryByRole('combobox', { name: 'Section type' })).toBeNull();
+			const first = screen.getByRole('button', { name: /Section 1/ });
+			const top = first.getBoundingClientRect().top;
+			await fireEvent.click(first);
+			expect(first.getAttribute('aria-expanded')).toBe('true');
+			expect(first.getBoundingClientRect().top).toBe(top);
+			expect(screen.getAllByRole('combobox', { name: 'Section type' })).toHaveLength(1);
+			expect(screen.getByRole('button', { name: 'Move to cursor' })).not.toBeVisible();
+			const field = screen.getByRole('combobox', { name: 'Section type' });
+			expect(parseFloat(getComputedStyle(field).fontSize)).toBeGreaterThanOrEqual(16);
+			expect(field.getBoundingClientRect().right).toBeLessThanOrEqual(
+				container.getBoundingClientRect().right
+			);
+			await fireEvent.click(screen.getByText('More section options'));
+			expect(screen.getByRole('button', { name: 'Move to cursor' })).toBeVisible();
+			await fireEvent.click(screen.getByRole('button', { name: /Section 2/ }));
+			expect(first.getAttribute('aria-expanded')).toBe('false');
+			expect(screen.getAllByRole('combobox', { name: 'Section type' })).toHaveLength(1);
+		}
+	);
 
 	test('opens the requested decision when Review asks for it, and nothing else', async () => {
 		const { controller } = withConversion('[Verse]\nI saw 2 stars');

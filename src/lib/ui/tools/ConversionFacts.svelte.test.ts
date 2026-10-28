@@ -129,6 +129,7 @@ test.each([false, true])(
 				? '[Verse]\nOne\n\n#INSTRUMENTAL\n\n[Chorus]\nTwo'
 				: '[Verse]\nOne\n\n[Chorus]\nTwo'
 		);
+		await fireEvent.click(panel.getByRole('button', { name: 'Instrumental interval' }));
 		if (existingMarker) {
 			const from = controller.snapshot.text.indexOf('#INSTRUMENTAL');
 			handle.setSelection({ anchor: from, head: from + '#INSTRUMENTAL'.length });

@@ -6,12 +6,14 @@
 	let { controller }: { controller: WorkbenchController } = $props();
 	const id = $props.id();
 	let open = $state(false);
+	let decisionKind = $state<'quantity' | 'instrumental'>('quantity');
 	let quantityHeading = $state<HTMLHeadingElement>();
 	let intervalHeading = $state<HTMLHeadingElement>();
 	$effect(() => {
 		const request = controller.requestedConversionReview;
 		if (request?.kind !== 'quantity' && request?.kind !== 'instrumental') return;
 		open = true;
+		decisionKind = request.kind;
 		void tick().then(() =>
 			(request.kind === 'quantity' ? quantityHeading : intervalHeading)?.focus()
 		);
@@ -147,105 +149,124 @@
 {#if model && !controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery}
 	<details class="conversion-facts" bind:open>
 		<summary>Decisions that need listening</summary>
-		{#if selection.from < selection.to}
+		<div class="tool-actions" aria-label="Listening decision">
+			<button
+				type="button"
+				class="button button--quiet"
+				aria-pressed={decisionKind === 'quantity'}
+				onclick={() => (decisionKind = 'quantity')}>Quantity</button
+			>
+			<button
+				type="button"
+				class="button button--quiet"
+				aria-pressed={decisionKind === 'instrumental'}
+				onclick={() => (decisionKind = 'instrumental')}>Instrumental interval</button
+			>
+		</div>
+		{#if decisionKind === 'quantity'}
+			{#if selection.from < selection.to}
+				<section>
+					<h3 tabindex="-1" bind:this={quantityHeading}>Quantity in the selected passage</h3>
+					<p class="conversion-facts__lyrics">{selectedText}</p>
+					<label>Exact whole-number value<input inputmode="numeric" bind:value /></label>
+					<label
+						>Meaning<select bind:value={usage}
+							><option value="unknown">Not confirmed</option><option value="ordinary-cardinal"
+								>An ordinary quantity</option
+							><option value="name-or-identifier">A name or identifier</option><option
+								value="fixed-expression">A fixed expression</option
+							><option value="date-or-time">A date or time</option><option value="phone-or-decade"
+								>A phone number or decade</option
+							></select
+						></label
+					>
+					<label
+						>Reading on the recording<select bind:value={pronunciation}
+							><option value="unknown">Not confirmed</option><option value="whole-quantity"
+								>Sung as the whole quantity</option
+							><option value="individual-digits">Sung as individual digits</option></select
+						></label
+					>
+					<label>Exact words as sung<input bind:value={spokenForm} /></label>
+					<label>Digit form, if applicable<input bind:value={digitForm} /></label>
+					<label
+						>Format for this decision<select bind:value={target}
+							><option value="genius">Genius</option><option value="musixmatch">Musixmatch</option
+							></select
+						></label
+					>
+					<button
+						type="button"
+						class="button"
+						aria-expanded={!!currentQuantity}
+						aria-controls={`${id}-quantity`}
+						onclick={() =>
+							(quantityPreview = preview(
+								{ kind: 'confirmQuantity', range: selection, facts: quantityFacts },
+								quantityBasis
+							))}>Preview quantity</button
+					>
+					<div id={`${id}-quantity`} aria-live="polite">
+						{#if currentQuantity}<p>{currentQuantity.message}</p>
+							{#if currentQuantity.canApply}<button
+									type="button"
+									class="button button--contrast"
+									onclick={() => controller.applyConversionAction(currentQuantity!.action)}
+									>Save quantity decision</button
+								>{/if}{/if}
+					</div>
+				</section>
+			{:else}<p>Select the complete quantity in the lyrics to review its representation.</p>{/if}
+		{:else}
 			<section>
-				<h3 tabindex="-1" bind:this={quantityHeading}>Quantity in the selected passage</h3>
-				<p class="conversion-facts__lyrics">{selectedText}</p>
-				<label>Exact whole-number value<input inputmode="numeric" bind:value /></label>
+				<h3 tabindex="-1" bind:this={intervalHeading}>Instrumental interval</h3>
+				{#if selectedMarker}<p>
+						The selected #INSTRUMENTAL will become a confirmed Musixmatch marker. Genius will omit
+						it.
+					</p>{/if}
+				{#if !recordingId}<p>Attach the recording before confirming an interval.</p>{/if}
+				{#if !pairs.length}<p>
+						Confirm the types of two adjacent sections before placing an interval between them.
+					</p>{/if}
 				<label
-					>Meaning<select bind:value={usage}
-						><option value="unknown">Not confirmed</option><option value="ordinary-cardinal"
-							>An ordinary quantity</option
-						><option value="name-or-identifier">A name or identifier</option><option
-							value="fixed-expression">A fixed expression</option
-						><option value="date-or-time">A date or time</option><option value="phone-or-decade"
-							>A phone number or decade</option
-						></select
+					>Between sections<select bind:value={beforeId}
+						><option value="">Choose adjacent sections</option
+						>{#each pairs as entry (entry.before.id)}<option value={entry.before.id}
+								>{entry.before.type} → {entry.after.type}</option
+							>{/each}</select
 					></label
 				>
 				<label
-					>Reading on the recording<select bind:value={pronunciation}
-						><option value="unknown">Not confirmed</option><option value="whole-quantity"
-							>Sung as the whole quantity</option
-						><option value="individual-digits">Sung as individual digits</option></select
-					></label
+					>Starts at (seconds)<input type="number" min="0" step="0.001" bind:value={start} /></label
 				>
-				<label>Exact words as sung<input bind:value={spokenForm} /></label>
-				<label>Digit form, if applicable<input bind:value={digitForm} /></label>
-				<label
-					>Format for this decision<select bind:value={target}
-						><option value="genius">Genius</option><option value="musixmatch">Musixmatch</option
-						></select
-					></label
+				<label>Ends at (seconds)<input type="number" min="0" step="0.001" bind:value={end} /></label
+				>
+				<label class="conversion-facts__check"
+					><input type="checkbox" bind:checked={lyricFree} />I listened to this recording: the
+					entire interval has no qualifying lyrical content, including vocables or joik</label
 				>
 				<button
 					type="button"
 					class="button"
-					aria-expanded={!!currentQuantity}
-					aria-controls={`${id}-quantity`}
-					onclick={() =>
-						(quantityPreview = preview(
-							{ kind: 'confirmQuantity', range: selection, facts: quantityFacts },
-							quantityBasis
-						))}>Preview quantity</button
+					aria-expanded={!!currentInterval}
+					aria-controls={`${id}-interval`}
+					onclick={() => (intervalPreview = preview(intervalAction, intervalBasis))}
+					>Preview instrumental interval</button
 				>
-				<div id={`${id}-quantity`} aria-live="polite">
-					{#if currentQuantity}<p>{currentQuantity.message}</p>
-						{#if currentQuantity.canApply}<button
+				<div id={`${id}-interval`} aria-live="polite">
+					{#if currentInterval}<p>{currentInterval.message}</p>
+						{#if currentInterval.canApply}<button
 								type="button"
 								class="button button--contrast"
-								onclick={() => controller.applyConversionAction(currentQuantity!.action)}
-								>Save quantity decision</button
+								onclick={() => controller.applyConversionAction(currentInterval!.action)}
+								>Save instrumental interval</button
 							>{/if}{/if}
 				</div>
 			</section>
-		{:else}<p>Select the complete quantity in the lyrics to review its representation.</p>{/if}
-		<section>
-			<h3 tabindex="-1" bind:this={intervalHeading}>Instrumental interval</h3>
-			{#if selectedMarker}<p>
-					The selected #INSTRUMENTAL will become a confirmed Musixmatch marker. Genius will omit it.
-				</p>{/if}
-			{#if !recordingId}<p>Attach the recording before confirming an interval.</p>{/if}
-			{#if !pairs.length}<p>
-					Confirm the types of two adjacent sections before placing an interval between them.
-				</p>{/if}
-			<label
-				>Between sections<select bind:value={beforeId}
-					><option value="">Choose adjacent sections</option
-					>{#each pairs as entry (entry.before.id)}<option value={entry.before.id}
-							>{entry.before.type} → {entry.after.type}</option
-						>{/each}</select
-				></label
-			>
-			<label
-				>Starts at (seconds)<input type="number" min="0" step="0.001" bind:value={start} /></label
-			>
-			<label>Ends at (seconds)<input type="number" min="0" step="0.001" bind:value={end} /></label>
-			<label class="conversion-facts__check"
-				><input type="checkbox" bind:checked={lyricFree} />I listened to this recording: the entire
-				interval has no qualifying lyrical content, including vocables or joik</label
-			>
-			<button
-				type="button"
-				class="button"
-				aria-expanded={!!currentInterval}
-				aria-controls={`${id}-interval`}
-				onclick={() => (intervalPreview = preview(intervalAction, intervalBasis))}
-				>Preview instrumental interval</button
-			>
-			<div id={`${id}-interval`} aria-live="polite">
-				{#if currentInterval}<p>{currentInterval.message}</p>
-					{#if currentInterval.canApply}<button
-							type="button"
-							class="button button--contrast"
-							onclick={() => controller.applyConversionAction(currentInterval!.action)}
-							>Save instrumental interval</button
-						>{/if}{/if}
-			</div>
-		</section>
+		{/if}
 		{#if model.decisions.length}
-			<section>
-				<h3>Saved decisions</h3>
+			<details>
+				<summary>Saved decisions</summary>
 				<ul>
 					{#each model.decisions as decision (decision.id)}<li>
 							{decisionNames[decision.kind]}<button
@@ -257,12 +278,23 @@
 							>
 						</li>{/each}
 				</ul>
-			</section>
+			</details>
 		{/if}
 	</details>
 {/if}
 
 <style>
+	.tool-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		margin-block: var(--space-3);
+	}
+	[aria-pressed='true'] {
+		background: var(--color-fill);
+		text-decoration: underline;
+	}
+
 	.conversion-facts summary {
 		cursor: pointer;
 		font-weight: var(--font-weight-semibold);

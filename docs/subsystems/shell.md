@@ -33,6 +33,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 ## The rules
 
+- Song section summaries open one editor at a time. Type and Show passage precede a More section options disclosure; Add a section follows the list. Document settings and retained details stay collapsed. Clear remains in Song.
+
 - The document toolbar exposes a per-draft Genius/Musixmatch format menu with keyboard navigation,
   a checked state and stable width. Song owns retained section types, voices, annotations,
   language spans, authored forms and explicit conversion decisions. Hidden information is reviewed

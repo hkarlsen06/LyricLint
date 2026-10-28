@@ -7,6 +7,8 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 ## The rules
 
+- Retained-detail Review presents one finding with Previous detail and Next detail. Listening requests select the relevant quantity or instrumental form; its alternative and saved decisions remain explicitly accessible.
+
 - Genius and Musixmatch diagnostics use separate registries, sources and ignore namespaces.
   A profile change recomputes findings against that projection without applying fixes. Native
   Musixmatch checks honor explicit language spans; Harper is withheld in Musixmatch until its

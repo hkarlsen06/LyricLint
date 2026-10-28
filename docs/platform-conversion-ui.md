@@ -1,6 +1,6 @@
 # Platform conversion: UI and edge cases
 
-Status: working-tree implementation, September 16, 2026; release validation in progress. Companion to the
+Status: revived on current main, October 28, 2026; local release validation recorded in the audit artifacts. Companion to the
 [implementation specification](platform-conversion-implementation.md) and
 [product guarantees](platform-conversion-plan.md). The controls below describe the implemented
 workflow and its acceptance requirements. All eight reviewed languages share the same workflow.
@@ -139,6 +139,20 @@ Ordered explicit empty sections remain valid and inspectable even when their bou
 a position. Sections collapsed by an ambiguous edit show a placement decision. A widget may
 summarize multiple boundaries at one location and open their ordered Song rows; it must not
 silently combine their identities or invent blank lyric lines.
+
+### Compact section editing
+
+Sections opens as ordered, unboxed summaries. Only one section has editing controls at a time.
+Its summary keeps its position when opened. Type and Show passage are the immediate controls.
+More section options discloses original labels, voice passages, boundary moves, merges and
+confirmed deletion below them. Add a section is a separate disclosure after the ordered list.
+Document settings, including content type, stays collapsed above Sections. Retained details
+stays collapsed; these are preserved records, not warnings about ordinary conversion.
+
+Listening decisions show either the quantity form or the instrumental form, selected by the
+request from Review. The other form remains accessible through the named choice controls.
+Saved decisions stay collapsed. Retained-detail Review shows one finding at a time with
+Previous detail and Next detail. Linking keeps per-section operations in Section options.
 
 ### Retained details
 
