@@ -1,3 +1,6 @@
+import { importDocument, renderProfile } from '#lib/conversion/index.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -510,5 +513,29 @@ describe('review continuity', () => {
 				screen.getByRole('button', { name: 'Go to This line reads as prose.' })
 			)
 		);
+	});
+});
+
+describe('retained-only review', () => {
+	afterEach(cleanup);
+	test('shows the actionable detail without a duplicate empty state and preserves checker errors', async () => {
+		const imported = importDocument({ text: '[Verse]\nOne', profile: 'genius', language: 'en' });
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const rendered = renderProfile(imported.value, 'musixmatch');
+		if (!rendered.ok) throw new Error(rendered.refusal.message);
+		const { controller } = createTestWorkbench({ text: rendered.value.text, diagnostics: [] });
+		controller.onSnapshot({
+			...controller.snapshot,
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+		});
+		const view = await render(LinterPanel, { controller });
+		expect(screen.getByRole('region', { name: 'Retained details needing review' })).toBeVisible();
+		expect(screen.getByRole('button', { name: 'Review in Song' })).toBeVisible();
+		expect(view.container.querySelector('.diagnostic-list__empty')).toBeNull();
+		await view.rerender({ controller, nativeRulesStatus: 'failed' });
+		expect(screen.getByText('Checking unavailable')).toBeVisible();
+		expect(screen.getByRole('button', { name: 'Retry checking' })).toBeVisible();
+		await view.rerender({ controller, nativeRulesStatus: 'ready' });
+		expect(view.container.querySelector('.diagnostic-list__empty')).toBeNull();
 	});
 });

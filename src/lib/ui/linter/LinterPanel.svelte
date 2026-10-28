@@ -128,11 +128,6 @@
 				title: 'No lyrics in this format',
 				detail: 'Retained section details are available in Song.'
 			};
-		if (detailFindings.length)
-			return {
-				title: 'Retained details need review',
-				detail: 'Review the retained section or format details below.'
-			};
 		if (controller.isEmpty) {
 			return {
 				title: 'Ready for your lyrics',
@@ -309,35 +304,37 @@
 	{/snippet}
 
 	<RetainedReview {controller} findings={detailFindings} />
-	<DiagnosticList
-		overview={mobile && !reviewFocused}
-		focusedOnly={mobile && reviewFocused}
-		active={active && controller.activeTab === 'linter'}
-		diagnostics={controller.visibleDiagnostics}
-		rowKey={controller.diagnosticRowKey}
-		sources={controller.sources}
-		activeDiagnosticKey={controller.activeDiagnosticKey}
-		activeDiagnosticRange={controller.activeDiagnosticRange}
-		{emptyState}
-		{emptyActions}
-		{lineFor}
-		onNavigate={(diagnostic) => {
-			if (mobile) onOpenFinding?.(diagnostic);
-			else controller.navigateToDiagnostic(diagnostic, { focus: false });
-		}}
-		onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
-		canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
-		onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
-		onLinkSections={(diagnostic) => controller.linkDiagnosticSections(diagnostic)}
-		onReviewConversion={(diagnostic) => controller.openConversionReview(diagnostic)}
-		onSetLanguage={(language) => controller.setLanguage(language)}
-		onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
-		onCancelPreview={() => controller.clearFixPreview()}
-		onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
-		fixBatchSize={(diagnostic, fix) => controller.fixBatchSize(diagnostic, fix)}
-		onApplyFixBatch={(diagnostic, fix) => controller.applyFixBatch(diagnostic, fix)}
-		onIgnore={(diagnostic) => controller.ignoreDiagnostic(diagnostic)}
-	/>
+	{#if !detailFindings.length || controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0 || nativeRulesStatus !== 'ready'}
+		<DiagnosticList
+			overview={mobile && !reviewFocused}
+			focusedOnly={mobile && reviewFocused}
+			active={active && controller.activeTab === 'linter'}
+			diagnostics={controller.visibleDiagnostics}
+			rowKey={controller.diagnosticRowKey}
+			sources={controller.sources}
+			activeDiagnosticKey={controller.activeDiagnosticKey}
+			activeDiagnosticRange={controller.activeDiagnosticRange}
+			{emptyState}
+			{emptyActions}
+			{lineFor}
+			onNavigate={(diagnostic) => {
+				if (mobile) onOpenFinding?.(diagnostic);
+				else controller.navigateToDiagnostic(diagnostic, { focus: false });
+			}}
+			onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
+			canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
+			onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
+			onLinkSections={(diagnostic) => controller.linkDiagnosticSections(diagnostic)}
+			onReviewConversion={(diagnostic) => controller.openConversionReview(diagnostic)}
+			onSetLanguage={(language) => controller.setLanguage(language)}
+			onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
+			onCancelPreview={() => controller.clearFixPreview()}
+			onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
+			fixBatchSize={(diagnostic, fix) => controller.fixBatchSize(diagnostic, fix)}
+			onApplyFixBatch={(diagnostic, fix) => controller.applyFixBatch(diagnostic, fix)}
+			onIgnore={(diagnostic) => controller.ignoreDiagnostic(diagnostic)}
+		/>
+	{/if}
 	{#if controller.visibleDiagnostics.length > 0}
 		<p class="linter-panel__afterword">{afterword}</p>
 	{/if}
