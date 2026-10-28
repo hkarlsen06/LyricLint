@@ -202,6 +202,18 @@ jobs:
         if: steps.revision.outputs.current == 'true'
         working-directory: services/rules-assistant
         run: bun install --frozen-lockfile
+      - name: Prepare a supplied assistant provider key
+        if: steps.revision.outputs.current == 'true'
+        working-directory: services/rules-assistant
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          ASSISTANT_OPENAI_API_KEY: ${{ secrets.ASSISTANT_OPENAI_API_KEY }}
+        run: |
+          if [ -n "$ASSISTANT_OPENAI_API_KEY" ]; then
+            printf '%s' "$ASSISTANT_OPENAI_API_KEY" |
+              bun x --no-install wrangler versions secret put OPENAI_API_KEY --name lyriclint-rules-assistant
+          fi
       - name: Publish the compatible assistant and tested site
         if: steps.revision.outputs.current == 'true'
         env:
