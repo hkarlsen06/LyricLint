@@ -138,7 +138,6 @@ export function describeControl(hint: () => ControlHint | undefined): Attachment
 			// `ElementEventMap` names no keyboard events, so `Element`'s
 			// `addEventListener` falls back to its untyped overload.
 			if ((event as KeyboardEvent).key === 'Escape' && owner === node) {
-				event.stopPropagation();
 				hideControlHint();
 			}
 		};

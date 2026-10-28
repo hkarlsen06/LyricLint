@@ -101,6 +101,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 - `describeControl`/`ControlTooltip` is the one tooltip: an attachment, never a wrapper; one
   box per application, mounted in `Workspace.svelte`; placement read off the control by
   `placeControlHint`; `aria-hidden` because both facts are already the control's own.
+  Escape hides the hint without consuming the key, so a focused control's hint cannot
+  block transport shortcuts or an enclosing surface's dismissal.
 - A control with a keyboard twin names it in that box; only the leading fix names `Mod-.`,
   which answers from the whole window. A control whose label is already visible
   gets no box (it would only repeat it), but a glyph shows no label, so the

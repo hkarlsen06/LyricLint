@@ -27,6 +27,9 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
   `Shift+Esc` back, `Alt+Esc` forward): bubble phase, standing down on `defaultPrevented`
   and on presses targeted inside an open dialog. `Edit this section only` stays active while
   attached audio takes Escape; without audio, that mode can claim Escape to exit.
+  A control tooltip hides without consuming Escape, including when its owner has focus.
+  Pointer interaction with YouTube returns focus to its video group; Tab entry and fullscreen
+  keep provider keyboard access (`media-youtube.md`).
   A bare `Escape` with nothing attached loads
   the pending source. Only the one-modifier fallback is named on screen, in the shared
   tooltip.
@@ -328,8 +331,8 @@ keeps. These three are the keys named on the transport tooltips (`Esc`, `Shift+E
 triad and the function row stay in `aria-keyshortcuts` only, the same split the one-modifier fallback
 follows.
 
-**They are the bottom of the Escape stack, never the top.** Every other `Escape` in the workbench
-means "close the surface on top" (dismiss a popover, cancel a find, end a sync run, reset the
+**They are the bottom of the Escape stack, never the top.** In other interactive surfaces,
+Escape means "close the surface on top" (dismiss a popover, cancel a find, end a sync run, reset the
 draft's name), and each claims the event by preventing its default or stopping its propagation. So
 the transport's `Escape` listener is the one place the triad's rule reverses: it is in the **bubble
 phase**, not capture, so every surface-level handler in the window has already run, and it stands
@@ -343,6 +346,11 @@ reason the triad already gives (it is the browser's address bar), and two of the
 collide with the desktop rather than the page: `Shift+Escape` is Chromium's task manager, and
 `Alt+Escape` cycles windows on Windows and some Linux desktops. Both reach the page cleanly on macOS,
 where `Option+Escape` was the ask; the collisions are the platform note worth verifying by hand.
+
+Control tooltips are passive descriptions. They hide on Escape without stopping its propagation,
+so a focused Play, Back, or Forward button answers the first shortcut press. Dialogs and other
+interactive surfaces still claim their dismissal press. `MediaStrip.svelte.test.ts` checks the
+Escape family while each control owns a visible hint.
 
 **And when there is no tape yet, a bare `Escape` loads the one the draft remembers.** A restored or
 pasted source sits pending until a gesture pays for its permission, sign-in, or script (the state

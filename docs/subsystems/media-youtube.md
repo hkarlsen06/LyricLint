@@ -1,7 +1,7 @@
 # YouTube: the second source, asked for every session
 
 Touches: `src/lib/ui/state/media-youtube.ts`, `src/lib/ui/media/MediaVideo.svelte`,
-`src/lib/ui/state/media-test-youtube.ts`
+`src/lib/ui/state/media-test-youtube.ts`, `src/lib/ui/state/media-video-focus.ts`
 
 ## The rules
 
@@ -29,8 +29,27 @@ Touches: `src/lib/ui/state/media-youtube.ts`, `src/lib/ui/media/MediaVideo.svelt
   its own video mount (`RightPanel.svelte.test.ts`).
 - `media-test-youtube.ts`'s load count is what makes "nothing has contacted Google" an
   assertion rather than a hope.
+- After a pointer focuses the video iframe, `keepVideoShortcuts` returns focus to the
+  labelled video group without scrolling, so Escape and the other workbench shortcuts
+  remain available. Tab entry and fullscreen retain YouTube's keyboard controls.
+  Events inside that cross-origin frame cannot reach the workbench; Escape there belongs
+  to the provider or browser. Unrelated frames and focus outside the document stay untouched.
+  `media-video-focus.svelte.test.ts` exercises real clicks inside an opaque-origin iframe.
 
 ## Decision record
+
+### Pointer interaction must not strand transport shortcuts inside YouTube
+
+Keyboard events inside YouTube's cross-origin iframe do not bubble to the parent window,
+and the supported IFrame API does not forward them. Moving the transport listener to capture
+cannot fix that boundary. `MediaVideo` therefore gives its existing video group a focus target
+and uses `keepVideoShortcuts` to return pointer focus there after the iframe gains it.
+The deferred check lets the browser finish changing its active element. The group receives
+subsequent shortcuts through the existing window handler, with no second transport implementation.
+
+The handoff does not move the playhead, rebuild the frame, cover it, or intercept its clicks.
+Tab entry preserves native keyboard access to captions, settings, and the provider's other controls.
+Fullscreen keeps its native focus and Escape behavior. A pending handoff is cancelled on unmount.
 
 ### A mobile task view cannot own the video
 

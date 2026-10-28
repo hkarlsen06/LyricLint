@@ -1,10 +1,11 @@
-import { cdp, page } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { createInMemoryMediaRepository } from '../state/in-memory.js';
 import { createFeedbackState } from '../state/feedback.svelte.js';
 import { createMediaPlayer } from '../state/media-player.svelte.js';
 import { createMediaStore } from '../state/media-store.svelte.js';
+import { bindTransportShortcuts } from '../state/media-shortcuts.js';
 import { StubAudio } from '../state/media-test-audio.js';
 import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
 import { appleStore, spotifyStore } from '../state/media-test-stores.js';
@@ -67,6 +68,47 @@ async function fontsSettled(): Promise<void> {
 }
 
 describe('MediaStrip', () => {
+	it('runs the Escape family immediately from a focused control while dismissing its hint', async () => {
+		const { audio, media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		audio.setDuration(125);
+		player.seek(30);
+		await render(MediaStrip, { props: { media } });
+		await render(ControlTooltip, { props: {} });
+		const stop = bindTransportShortcuts({
+			mediaSession: null,
+			transport: (action) => {
+				player.transport(action);
+				return true;
+			}
+		});
+		try {
+			const play = page.getByRole('button', { name: 'Play', exact: true }).element();
+			play.focus();
+			await expect
+				.poll(() => document.querySelector('.control-tooltip')?.textContent)
+				.toContain('Play');
+			await userEvent.keyboard('{Escape}');
+			expect(player.playing).toBe(true);
+			await expect.poll(() => document.querySelector('.control-tooltip')).toBeNull();
+			for (const [name, chord, position] of [
+				['Back 2 seconds', '{Shift>}{Escape}{/Shift}', 28],
+				['Forward 2 seconds', '{Alt>}{Escape}{/Alt}', 30]
+			] as const) {
+				page.getByRole('button', { name, exact: true }).element().focus();
+				await expect
+					.poll(() => document.querySelector('.control-tooltip')?.textContent)
+					.toContain(name);
+				await userEvent.keyboard(chord);
+				expect(player.currentTime).toBe(position);
+				await expect.poll(() => document.querySelector('.control-tooltip')).toBeNull();
+			}
+		} finally {
+			stop();
+			media.destroy();
+		}
+	});
+
 	it('keeps a remembered source and its load control without an edit action', async () => {
 		const { media } = store({
 			records: [{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }]

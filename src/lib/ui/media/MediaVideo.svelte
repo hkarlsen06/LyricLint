@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { MediaStore } from '../state/media-store.svelte.js';
+	import { keepVideoShortcuts } from '../state/media-video-focus.js';
 
 	let { media }: { media: MediaStore } = $props();
 
@@ -23,7 +24,13 @@
 	and gives this band back entirely, the same way the strip itself costs nothing
 	while no audio is attached.
 -->
-<div class="media-video">
+<div
+	class="media-video"
+	role="group"
+	aria-label="YouTube video"
+	tabindex="-1"
+	{@attach keepVideoShortcuts}
+>
 	<div class="media-video__frame" {@attach mount}></div>
 </div>
 

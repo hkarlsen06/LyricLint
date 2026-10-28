@@ -1,4 +1,4 @@
-import { cdp, page } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { tick } from 'svelte';
 import { afterEach, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -79,6 +79,22 @@ it('keeps visible lyrics beside one 16:9 floating player across desktop sizes an
 		expect(view.container.querySelector('.media-video__frame')).toBe(frame);
 	}
 	await expectVideoInsideEditor();
+	// The provider's own browsing context must not strand the shell's shortcuts.
+	const iframe = document.createElement('iframe');
+	iframe.title = 'YouTube test player';
+	iframe.sandbox.add('allow-scripts');
+	iframe.srcdoc = '<button style="width:100vw;height:100vh">Video</button>';
+	const loaded = new Promise<void>((resolve) => iframe.addEventListener('load', () => resolve()));
+	frame.append(iframe);
+	await loaded;
+	source.playVideo();
+	content.focus();
+	await page.elementLocator(iframe).click();
+	await expect.poll(() => document.activeElement).toBe(frame.closest('.media-video'));
+	await userEvent.keyboard('{Escape}');
+	expect(player.playing).toBe(false);
+	await userEvent.keyboard('{Escape}');
+	expect(player.playing).toBe(true);
 	expect(dock.getBoundingClientRect().height).toBe(originalDockHeight);
 	await page.getByRole('button', { name: 'Expand editor' }).click();
 	await expectVideoInsideEditor();
