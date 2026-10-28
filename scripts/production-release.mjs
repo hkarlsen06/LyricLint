@@ -86,12 +86,12 @@ export function productionWorkerConfig(source) {
 	delete config.routes;
 	config.workers_dev = false;
 	config.preview_urls = false;
-	// Explicit source vars override --keep-vars. Inherit the operational switch
-	// by name instead; Wrangler uses strict binding inheritance on upload.
+	// Strict inheritance rejects a missing provider key before changing the Worker.
+	const inheritedBindings = ['ASSISTANT_DISABLED', 'OPENAI_API_KEY'];
 	delete config.vars.ASSISTANT_DISABLED;
 	config.unsafe.bindings = [
-		...config.unsafe.bindings.filter((binding) => binding.name !== 'ASSISTANT_DISABLED'),
-		{ name: 'ASSISTANT_DISABLED', type: 'inherit' }
+		...config.unsafe.bindings.filter((binding) => !inheritedBindings.includes(binding.name)),
+		...inheritedBindings.map((name) => ({ name, type: 'inherit' }))
 	];
 	return config;
 }

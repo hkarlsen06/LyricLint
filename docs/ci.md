@@ -69,6 +69,8 @@ vars and inherits that binding by name. Wrangler's strict inheritance rejects
 an absent binding. This preserves the live operational kill switch: `--keep-vars`
 alone would still overwrite it with the source value. The other source vars and
 all quota, rate-limit, and analytics bindings remain configured as reviewed.
+The release also inherits `OPENAI_API_KEY` explicitly. A missing provider key
+therefore fails the Worker upload before the current service is replaced.
 
 ## Publish the assistant and site together
 

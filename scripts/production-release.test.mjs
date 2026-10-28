@@ -218,7 +218,7 @@ test('deployment verification retries propagation delays but fails on a persiste
 	assert.equal(waits, 3);
 });
 
-test('code releases retain the existing domain and inherit the kill switch without losing other bindings', () => {
+test('code releases retain the domain and require the kill switch and provider key without losing other bindings', () => {
 	const source = Bun.JSONC.parse(
 		readFileSync(new URL('../services/rules-assistant/wrangler.jsonc', import.meta.url), 'utf8')
 	);
@@ -232,7 +232,8 @@ test('code releases retain the existing domain and inherit the kill switch witho
 	assert.equal('ASSISTANT_DISABLED' in config.vars, false);
 	assert.deepEqual(config.unsafe.bindings, [
 		...source.unsafe.bindings,
-		{ name: 'ASSISTANT_DISABLED', type: 'inherit' }
+		{ name: 'ASSISTANT_DISABLED', type: 'inherit' },
+		{ name: 'OPENAI_API_KEY', type: 'inherit' }
 	]);
 	assert.deepEqual(config.durable_objects, source.durable_objects);
 	assert.deepEqual(config.migrations, source.migrations);
