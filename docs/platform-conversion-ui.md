@@ -22,20 +22,15 @@ researched clause and its remaining scope.
 
 ## 1. Format selection
 
-Add one format picker in `DocumentToolbar.svelte`, beside Language on desktop. The trigger
-shows the committed value, **Genius ▾** or **Musixmatch ▾**, with accessible name
-`Lyric format: Genius` / `Lyric format: Musixmatch`. It is a format choice within one document,
-not another draft tab or a Compare view.
+The format button in `DocumentToolbar.svelte` sits beside Language on desktop and shows the
+committed value, **Genius ⇄** or **Musixmatch ⇄**, with accessible name `Lyric format: Genius`
+or `Lyric format: Musixmatch`. One click or Enter/Space switches directly to the other format.
+Its accessible description names the destination. There is no intermediate menu.
 
-Use a two-option menu with a visible selected marker and `menuitemradio`/`aria-checked`
-semantics. Arrow keys move option focus without converting. Enter/Space or a pointer activation
-selects. Selecting the current profile cancels any pending switch and closes without a transaction. Opening/closing
-alone does not change the editor. Use `dismissOnOutside`, Escape, and the trigger to dismiss.
-
-Reserve the trigger's geometry for its widest label and progress indicator. During loading,
-the old profile stays selected; a pending indicator and live announcement describe the request.
-Do not momentarily show Musixmatch as active while Genius text is still committed.
-While a request is pending, the menu offers `Cancel switch` in a reserved action slot.
+Reserve its geometry for both profile labels and `Cancel switch`. During a pending switch,
+the old profile stays committed, the button exposes `aria-busy`, and its action cancels the
+request through the existing controller. Unsupported languages retain the accessible
+language-independent conversion explanation. Switching retains focus on the same button.
 
 ### Layout sketches
 
@@ -43,13 +38,13 @@ These show placement and ownership; production styling uses existing tokens and 
 
 ```text
 Desktop
-Song title ▾    [Genius ▾] [English ▾]    Undo  Redo  Compare with Genius  Copy lyrics
+Song title ▾    [Genius ⇄] [English ▾]    Undo  Redo  Compare with Genius  Copy lyrics
 Editor actions…                         Review Genius lyrics
 Lyrics…                                 Current-profile findings…
 
 Phone
 LyricLint                         Song title ▾
-[Musixmatch ▾]         [Document] [Copy lyrics]
+[Musixmatch ⇄]         [Document] [Copy lyrics]
 Active task…
 [Write]                    [Review]    [Tools]    ← existing bottom navigation
 ```

@@ -35,8 +35,9 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 - Song section summaries open one editor at a time. Type and Show passage precede a More section options disclosure; Add a section follows the list. Document settings and retained details stay collapsed. Clear remains in Song.
 
-- The document toolbar exposes a per-draft Genius/Musixmatch format menu with keyboard navigation,
-  a checked state and stable width. Song owns retained section types, voices, annotations,
+- The document toolbar exposes a per-draft Genius/Musixmatch format button that switches directly in one click
+  or Enter/Space, names the committed format and reserves stable width. A pending switch can
+  be cancelled through the same button. Song owns retained section types, voices, annotations,
   language spans, authored forms and explicit conversion decisions. Hidden information is reviewed
   through its metadata location, never through invented lyric underlines. Copy and text export
   always use the active projection; Scribe export preserves the complete document.

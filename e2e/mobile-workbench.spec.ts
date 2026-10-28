@@ -42,7 +42,7 @@ test('phone format switching preserves multilingual lyrics and retained annotati
 	await replaceLyrics(page, source);
 	async function choose(profile: 'Genius' | 'Musixmatch') {
 		await page.getByRole('button', { name: /^Lyric format:/u }).click();
-		await page.getByRole('menuitemradio', { name: profile, exact: true }).click();
+		await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toBeVisible();
 	}
 	for (let index = 0; index < 3; index++) {
 		await choose('Musixmatch');

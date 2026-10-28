@@ -11,7 +11,6 @@ async function lyrics(page: Page): Promise<string | undefined> {
 }
 async function choose(page: Page, profile: 'Genius' | 'Musixmatch') {
 	await page.getByRole('button', { name: /^Lyric format:/ }).click();
-	await page.getByRole('menuitemradio', { name: profile, exact: true }).click();
 	await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toBeVisible();
 }
 
@@ -121,21 +120,22 @@ test.describe('touch controls', () => {
 		const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 		await editor.fill('[Verse]\nمرحبا بالعالم\n\n[Chorus]\n同じ言葉');
 		const control = page.getByRole('button', { name: /^Lyric format:/ });
+		await expect(control).toHaveAccessibleDescription(/Switch to Musixmatch/);
 		const before = await control.boundingBox();
 		const copyBefore = await page
 			.getByRole('button', { name: 'Copy lyrics', exact: true })
 			.boundingBox();
 		await control.focus();
 		await page.keyboard.press('Enter');
-		await expect(page.getByRole('menuitemradio', { name: 'Genius', exact: true })).toBeFocused();
-		await page.keyboard.press('ArrowDown');
-		await page.keyboard.press('Enter');
+		await expect(page.getByRole('menu')).toHaveCount(0);
 		await expect(control).toHaveAttribute('aria-label', 'Lyric format: Musixmatch');
 		await expect(control).toBeFocused();
 		const after = await control.boundingBox();
 		const copyAfter = await page
 			.getByRole('button', { name: 'Copy lyrics', exact: true })
 			.boundingBox();
+		await expect(control).toHaveAccessibleDescription(/Switch to Genius/);
+		expect(after?.width).toBe(before?.width);
 		expect(after?.x).toBe(before?.x);
 		expect(after?.y).toBe(before?.y);
 		expect(copyAfter?.x).toBe(copyBefore?.x);
