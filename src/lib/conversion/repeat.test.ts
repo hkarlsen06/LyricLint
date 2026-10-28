@@ -109,3 +109,33 @@ it('expands explicit same-line repeats without discovering notation elsewhere', 
 	expect(result.projection.text).toBe('Hey Hey Hey Hey\nLeave x3 alone');
 	expect(value(renderProfile(result.document, 'genius')).text).toBe(result.projection.text);
 });
+
+it('replaces only a standalone placeholder with explicitly chosen fresh copies', () => {
+	const model = value(
+		importDocument({
+			text: '[Chorus]\n[First version](123)\n\n[Chorus]\nSecond version\n\n[Outro]\nRepeat chorus',
+			profile: 'genius'
+		})
+	);
+	const projection = value(renderProfile(model, 'musixmatch'));
+	const notation = { from: projection.text.indexOf('Repeat chorus'), to: projection.text.length };
+	const passage = { from: 0, to: 'First version'.length };
+	const action = { kind: 'replaceRepeatPlaceholder', passage, notation, copies: 1 } as const;
+	const result = value(resolveDecision(model, projection, action));
+	expect(result.projection.text).toBe(projection.text.replace('Repeat chorus', 'First version'));
+	expect(result.document.wrappers).toEqual(model.wrappers);
+	expect(result.document.voices).toEqual(model.voices);
+	expect(value(renderProfile(result.document, 'genius')).text).toContain('[First version](123)');
+	expect(value(renderProfile(result.document, 'genius')).text).toMatch(
+		/\[Outro\]\nFirst version$/u
+	);
+	for (const bad of [
+		{ ...action, copies: 101 },
+		{ ...action, copies: 0 },
+		{ ...action, passage: notation },
+		{ ...action, passage: { from: 0, to: notation.from } },
+		{ ...action, notation: { from: notation.from + 1, to: notation.to } }
+	])
+		expect(resolveDecision(model, projection, bad).ok).toBe(false);
+	expect(projection.text).toContain('Repeat chorus');
+});

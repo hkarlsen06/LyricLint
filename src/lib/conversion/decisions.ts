@@ -19,11 +19,17 @@ import {
 import { contentOffset, projectOffset, renderProfile } from './projection.js';
 import { applyTextEdits, reconcileEdit } from './reconcile.js';
 import { resolveFactDecision, type FactAction } from './facts.js';
-import { expandRepeat, type RepeatAction } from './repeat.js';
+import {
+	expandRepeat,
+	replaceRepeatPlaceholder,
+	type RepeatAction,
+	type RepeatPlaceholderAction
+} from './repeat.js';
 import { resolveLinkDecision, type LinkDecision } from './links.js';
 
 export type ConversionAction =
 	| RepeatAction
+	| RepeatPlaceholderAction
 	| FactAction
 	| LinkDecision
 	| { kind: 'clearDocument' }
@@ -225,6 +231,8 @@ export function resolveDecision(
 	const invalid = (message: string) => refuse<ReconciledDocument>('invalid-input', message);
 	if (!action || typeof action !== 'object') return invalid('Choose an available document action.');
 	switch (action.kind) {
+		case 'replaceRepeatPlaceholder':
+			return replaceRepeatPlaceholder(document, projection, action);
 		case 'expandRepeat':
 			return expandRepeat(document, projection, action);
 		case 'linkSections':

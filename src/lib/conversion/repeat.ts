@@ -134,3 +134,113 @@ export function expandRepeat(
 		mirror: false
 	});
 }
+
+export interface RepeatPlaceholderAction {
+	kind: 'replaceRepeatPlaceholder';
+	passage: TextRange;
+	notation: TextRange;
+	/** Fresh copies inserted at the placeholder, excluding the earlier source. */
+	copies: number;
+}
+
+/** Replace one literal standalone placeholder without copying source metadata. */
+export function replaceRepeatPlaceholder(
+	document: ConversionDocument,
+	projection: Projection,
+	action: RepeatPlaceholderAction
+): EngineResult<ReconciledDocument> {
+	const invalid = (message: string) => refuse<ReconciledDocument>('invalid-input', message);
+	const valid = (range: TextRange) =>
+		Number.isSafeInteger(range.from) &&
+		Number.isSafeInteger(range.to) &&
+		range.from >= 0 &&
+		range.from < range.to &&
+		range.to <= projection.text.length;
+	if (!valid(action.passage) || !valid(action.notation) || action.passage.to > action.notation.from)
+		return invalid('Choose an earlier source passage that does not overlap the placeholder.');
+	if (!Number.isSafeInteger(action.copies) || action.copies < 1 || action.copies > 100)
+		return invalid('Confirm between one and one hundred copies to insert here.');
+	const notationText = projection.text.slice(action.notation.from, action.notation.to);
+	if (
+		!/^[\t ]*(?:[[(]\s*)?(?:repeat\s+(?:verse|chorus|refrain|hook|bridge)|(?:verse|chorus|refrain|hook|bridge)(?:\s*:\s*repeat)?\s*(?:\(\s*)?(?:(?:x|×)\s*\d+|\d+\s*(?:x|×))(?:\s*\))?)(?:\s*[\])])?[\t ]*$/iu.test(
+			notationText
+		) ||
+		projection.text.slice(0, action.notation.from).split('\n').at(-1)?.trim() ||
+		projection.text.slice(action.notation.to).split('\n')[0]?.trim()
+	)
+		return invalid(
+			'This notation needs manual editing. Replace only a complete standalone repeat placeholder here.'
+		);
+	const passage = {
+		from: contentOffset(projection, action.passage.from, -1),
+		to: contentOffset(projection, action.passage.to, 1)
+	};
+	const notation = {
+		from: contentOffset(projection, action.notation.from, -1),
+		to: contentOffset(projection, action.notation.to, 1)
+	};
+	const overlaps = (a: TextRange, b: TextRange) => a.from < b.to && b.from < a.to;
+	if (
+		document.sections.some(
+			(section) =>
+				(passage.from < section.at && section.at < passage.to) ||
+				(notation.from < section.at && section.at < notation.to)
+		)
+	)
+		return invalid('Choose lyrics within one source section.');
+	const details = [
+		...document.wrappers,
+		...document.forms,
+		...document.decisions.filter((detail) => 'from' in detail)
+	];
+	if (
+		details.some(
+			(detail) =>
+				'from' in detail &&
+				(overlaps(detail, notation) ||
+					(overlaps(detail, passage) && !(passage.from <= detail.from && detail.to <= passage.to)))
+		)
+	)
+		return invalid(
+			'The selection clips retained details, or the placeholder contains retained details. Resolve them before replacing it.'
+		);
+	const pieces: string[] = [];
+	for (const segment of projection.segments) {
+		if (overlaps(segment, action.notation) && segment.kind !== 'copied')
+			return invalid('The placeholder must be literal text without retained syntax.');
+		if (!overlaps(segment, action.passage)) continue;
+		if (segment.kind === 'generated') {
+			if (
+				segment.part === 'header' ||
+				segment.part === 'marker' ||
+				segment.from < action.passage.from ||
+				action.passage.to < segment.to
+			)
+				return invalid('Choose complete lyrics without section headers or clipped syntax.');
+			continue;
+		}
+		if (
+			segment.kind === 'transformed' &&
+			(segment.from < action.passage.from || action.passage.to < segment.to)
+		)
+			return invalid('Choose the complete displayed wording.');
+		pieces.push(
+			projection.text.slice(
+				Math.max(segment.from, action.passage.from),
+				Math.min(segment.to, action.passage.to)
+			)
+		);
+	}
+	const lyrics = pieces.join('');
+	if (!lyrics.trim()) return invalid('Choose nonempty source lyrics.');
+	if (
+		projection.text.length - notationText.length + (lyrics.length + 1) * action.copies - 1 >
+		CONVERSION_LIMITS.text
+	)
+		return refuse('operation-limit', 'The inserted copies exceed the document size limit.');
+	const insert = Array.from({ length: action.copies }, () => lyrics).join('\n');
+	return reconcileEdit(document, projection, {
+		changes: [{ ...action.notation, insert }],
+		mirror: false
+	});
+}
