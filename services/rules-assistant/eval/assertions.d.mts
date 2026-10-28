@@ -17,6 +17,11 @@ export function explainsNoDraftAccess(answerText: string): BehavioralAssertion &
 	namesDraft: boolean;
 };
 
+export function hasOnlyExpectedExample(
+	blocks: { kind: string; text: string }[],
+	expected: string
+): boolean;
+
 export function answersInNorwegian(answerText: string): BehavioralAssertion & {
 	norwegianHits: number;
 	germanHits: number;

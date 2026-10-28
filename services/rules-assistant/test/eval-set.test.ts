@@ -2,7 +2,11 @@
  * so a corpus change cannot silently orphan a case or a family. */
 import { describe, expect, it } from 'vitest';
 import evalSetJson from '../eval/eval-set.json';
-import { answersInNorwegian, toolNotesInNorwegian } from '../eval/assertions.mjs';
+import {
+	answersInNorwegian,
+	hasOnlyExpectedExample,
+	toolNotesInNorwegian
+} from '../eval/assertions.mjs';
 import { corpus } from '../src/corpus';
 import type { AnswerProvider, ProviderResult } from '../src/provider';
 import { evaluateToolLanguage, toolNotes } from '../eval/tool-language';
@@ -18,6 +22,7 @@ interface EvalCase {
 		citesNone?: boolean;
 		mentionsAll?: string[];
 		answerLanguage?: string;
+		exampleEquals?: string;
 	};
 }
 
@@ -58,6 +63,35 @@ describe('the evaluation set', () => {
 			.map((testCase) => testCase.language)
 			.sort();
 		expect(covered).toEqual(corpusTags);
+	});
+
+	it('checks recommended markup separately from quoted input and explanatory prose', () => {
+		const expected = '<i>More words (Ayy)</i>';
+		const bad = '<i>More words (</i>Ayy<i>)</i>';
+		expect(hasOnlyExpectedExample([{ kind: 'example', text: expected }], expected)).toBe(true);
+		expect(hasOnlyExpectedExample([{ kind: 'prose', text: expected }], expected)).toBe(false);
+		expect(hasOnlyExpectedExample([{ kind: 'example', text: bad }], expected)).toBe(false);
+		expect(
+			hasOnlyExpectedExample(
+				[
+					{ kind: 'example', text: expected },
+					{ kind: 'example', text: bad }
+				],
+				expected
+			)
+		).toBe(false);
+	});
+
+	it('covers longer performer passages and the isolated-parenthetical control', () => {
+		const cases = evalSet.cases.filter((testCase) => testCase.category === 'rule-boundary');
+		expect(cases.map((testCase) => testCase.id)).toEqual([
+			'performer-parentheses-inside-passage',
+			'performer-parentheses-across-lines',
+			'performer-parentheses-isolated-wrapper'
+		]);
+		for (const testCase of cases) {
+			expect(testCase.expect?.exampleEquals?.length).toBeGreaterThan(0);
+		}
 	});
 
 	it('pins Norwegian answer language against the observed German switch', () => {

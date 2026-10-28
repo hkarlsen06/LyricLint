@@ -34,6 +34,7 @@ import type {
 	AssistantCorpusGuidanceEntry,
 	AssistantCorpusSource
 } from './assistant-corpus-types.js';
+import { policyCases } from './catalog/policy-cases.js';
 import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
 import { harperRuleIds } from './harper.js';
@@ -44,8 +45,8 @@ export type { AssistantCorpus } from './assistant-corpus-types.js';
 
 /** 2 added `lookups`; 3 added `guidance` and source `authority`; 4 made
  * guidance examples labeled correct/incorrect pairs; 5 added the `lyriclint`
- * advisory tier to guidance authorities. */
-export const CORPUS_FORMAT_VERSION = 5;
+ * advisory tier to guidance authorities; 6 added the reviewed unflagged cases. */
+export const CORPUS_FORMAT_VERSION = 6;
 
 const HARPER_BEHAVIOR =
 	'Alongside the reviewed Genius rules, LyricLint runs Harper, a local English proofreader, ' +
@@ -96,6 +97,7 @@ function corpusSource(source: SourceReference): AssistantCorpusSource {
 export function buildAssistantCorpusContent(
 	rulesMd: string
 ): Omit<AssistantCorpus, 'generatedAt' | 'contentHash'> {
+	const policyCaseById = new Map(policyCases.map((policy) => [policy.id, policy]));
 	// `corpusContentHash` hashes `JSON.stringify`, which writes keys in insertion
 	// order, so where an optional key sits is part of the artifact, and an
 	// absent one has to be absent rather than `undefined`. That is why the two
@@ -116,6 +118,7 @@ export function buildAssistantCorpusContent(
 			language: reference.language,
 			flaggedExample: reference.invalid,
 			acceptedExample: reference.valid,
+			ambiguousExample: policyCaseById.get(reference.id)?.ambiguous,
 			sourceIds: reference.sources.map((source) => source.id)
 		};
 		return reference.fix

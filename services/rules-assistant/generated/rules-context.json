@@ -1,8 +1,8 @@
 {
-	"formatVersion": 5,
+	"formatVersion": 6,
 	"ruleSetVersion": "2026.09.21.2",
-	"generatedAt": "2026-09-28T18:24:30.835Z",
-	"contentHash": "bb077a1c4e92c0fd8a104dd3b2242902e727541a3cad493f6b3bbf0e96f78bbf",
+	"generatedAt": "2026-10-28T00:07:58.333Z",
+	"contentHash": "d109910e0bde9dbec5fab4ffc3a5d1175f38e2f63c5ce372a5d105eaee52e1b7",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -18,6 +18,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse\nLine",
 			"acceptedExample": "[Verse]\nLine",
+			"ambiguousExample": "[Verse]\nA bracket [ in a lyric",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -33,6 +34,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nHold me close (Yeah",
 			"acceptedExample": "[Verse]\nHold me close (Yeah)",
+			"ambiguousExample": "[Verse]\nHold me (so (very) close)",
 			"sourceIds": ["G-ADLIBS"]
 		},
 		{
@@ -49,6 +51,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\n<u>Voice</u>",
 			"acceptedExample": "[Verse: A & <i>B</i>]\n<i>Voice</i>",
+			"ambiguousExample": "[Verse]\nAT&T",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -64,6 +67,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nJe regarde la lumière du matin\nEt je sais que tu resteras avec moi ce soir",
 			"acceptedExample": "[Verse]\nI see the morning light through every shadow\nAnd I know that you will stay with me tonight",
+			"ambiguousExample": "[Verse]\nOh yeah",
 			"sourceIds": ["T-LANGUAGE-DETECT"]
 		},
 		{
@@ -79,6 +83,7 @@
 			"language": "en",
 			"flaggedExample": "A lyric",
 			"acceptedExample": "[Verse]\nA lyric",
+			"ambiguousExample": "   ",
 			"sourceIds": ["G-SECTIONS", "G-LANG-EN"]
 		},
 		{
@@ -94,6 +99,7 @@
 			"language": "en",
 			"flaggedExample": "[]\nA lyric",
 			"acceptedExample": "[Verse]\nA lyric",
+			"ambiguousExample": "[\nA lyric",
 			"sourceIds": ["G-SECTIONS", "G-LANG-EN"]
 		},
 		{
@@ -110,6 +116,7 @@
 			"language": "en",
 			"flaggedExample": "Verse 1:\nA lyric",
 			"acceptedExample": "[Verse 1]\nA lyric",
+			"ambiguousExample": "[Verse]\nChorus",
 			"sourceIds": ["G-SECTIONS", "G-LANG-EN"]
 		},
 		{
@@ -126,6 +133,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nFirst\n[Chorus]\nSecond",
 			"acceptedExample": "[Verse]\nFirst\n\n[Chorus]\nSecond",
+			"ambiguousExample": "[Chorus]\nAgain\n[Chorus]\nAgain",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -142,6 +150,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nFirst\n\n\n[Chorus]\nSecond",
 			"acceptedExample": "[Verse]\nFirst\n\n[Chorus]\nSecond",
+			"ambiguousExample": "[Chorus]\nAgain\n\n\n[Chorus]\nAgain",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -158,6 +167,7 @@
 			"language": "no",
 			"flaggedExample": "[Verse]\nEn natt",
 			"acceptedExample": "[Vers]\nEn natt",
+			"ambiguousExample": "[Eget parti]\nEn natt",
 			"sourceIds": ["G-SECTIONS", "G-LANG-NO"]
 		},
 		{
@@ -174,6 +184,7 @@
 			"language": "no",
 			"flaggedExample": "[Bridge]\nEn natt",
 			"acceptedExample": "[Bro]\nEn natt",
+			"ambiguousExample": "[Eget parti]\nEn natt",
 			"sourceIds": ["G-LANG-PURPOSE", "G-LANG-NO"]
 		},
 		{
@@ -189,6 +200,7 @@
 			"language": "no",
 			"flaggedExample": "[Chor]\nEn natt",
 			"acceptedExample": "[Refreng]\nEn natt",
+			"ambiguousExample": "En natt",
 			"sourceIds": [
 				"G-SECTIONS",
 				"G-LANG-NO",
@@ -215,6 +227,7 @@
 			"language": "en",
 			"flaggedExample": "[Hook]\nSing it",
 			"acceptedExample": "[Chorus]\nSing it",
+			"ambiguousExample": "[Verse]\nHook me with the melody",
 			"sourceIds": ["G-SECTION-HOOK", "G-LANG-EN"]
 		},
 		{
@@ -231,6 +244,7 @@
 			"language": "en",
 			"flaggedExample": "[Chorus]\nAgain\nTonight\n\n[Chorus]\nAgain\nTonight",
 			"acceptedExample": "[Chorus]\nAgain\nTonight\nAgain\nTonight",
+			"ambiguousExample": "[Chorus]\nAgain\nTonight\n\n[Chorus]\nAgain\nTomorrow",
 			"sourceIds": ["G-SECTIONS", "G-REPEATS"]
 		},
 		{
@@ -246,6 +260,7 @@
 			"language": "en",
 			"flaggedExample": "[Chorus]\nHold the line\n\n[Verse 1]\nA lyric\n\n[Chorus]\nHold the line",
 			"acceptedExample": "[Chorus]\nHold the line\n\n[Verse 1]\nA lyric",
+			"ambiguousExample": "[Chorus]\nHold the line\n\n[Chorus]\nHold the line",
 			"sourceIds": ["G-SECTIONS", "G-REPEATS"]
 		},
 		{
@@ -262,6 +277,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nFirst\n\n[Verse]\nSecond",
 			"acceptedExample": "[Verse 1]\nFirst\n\n[Verse 2]\nSecond",
+			"ambiguousExample": "[Verse]\nFirst\n\n[Chorus]\nHold\n\n[Verse]\nFirst",
 			"sourceIds": ["G-SECTION-NUMBERING", "G-LANG-EN"]
 		},
 		{
@@ -278,6 +294,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\n<i>Second voice</i>",
 			"acceptedExample": "[Verse: A & <i>B</i>]\n<i>Second voice</i>",
+			"ambiguousExample": "[Verse]\n<i>Only voice</i>",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -294,6 +311,7 @@
 			"language": "en",
 			"flaggedExample": "[Chorus: A, <b>B</b> & <i>C</i>]\nLine",
 			"acceptedExample": "[Chorus: A, <i>B</i> & <b>C</b>]\nLine",
+			"ambiguousExample": "[Chorus: A, <i>B</i>, <b>C</b>, <i><b>D</b></i> & E]\nLine",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -309,6 +327,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse: A]\n<i>Voice</i>",
 			"acceptedExample": "[Verse: A & <i>B</i>]\n<i>Voice</i>",
+			"ambiguousExample": "[Verse: A]\n<u>Unknown markup</u>",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -319,12 +338,13 @@
 			"groupTitle": "Performer attribution",
 			"severity": "warning",
 			"message": "Keep the parentheses outside this performer formatting.",
-			"explanation": "The reviewed guide styles only the words of a parenthetical and leaves both parentheses plain, and the performer’s italics or bold sit just inside them. This wrapper carries the parentheses along with the words.",
+			"explanation": "This performer wrapper contains only one complete parenthetical. For a separately formatted ad-lib or backing line, the tags wrap the words and leave both parentheses plain. A parenthetical inside a longer styled passage is outside this check; do not split that passage just to move its parentheses outside the formatting.",
 			"fix": "safe",
 			"fixLabel": "Move formatting inside the parentheses",
 			"language": "en",
 			"flaggedExample": "[Verse: A & <i>B</i>]\nA <i>(Second voice)</i>",
 			"acceptedExample": "[Verse: A & <i>B</i>]\nA (<i>Second voice</i>)",
+			"ambiguousExample": "[Verse: A & <i>B</i>]\n<i>Sung words (echo) in one passage</i>",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -341,6 +361,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse: A & <i>B</i>]\n<i>First</i>\n<i>Second</i>",
 			"acceptedExample": "[Verse: A & <i>B</i>]\n<i>First\nSecond</i>",
+			"ambiguousExample": "[Verse: A & <i>B</i>]\n<i>First</i>\nPlain\n<i>Second</i>",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -357,6 +378,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse: A & <i>B</i>]\nOnly A sings",
 			"acceptedExample": "[Verse: A & <i>B</i>]\nA sings\n<i>B sings</i>",
+			"ambiguousExample": "[Verse: A & <i>B</i>]\n<u>Unknown markup</u>",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -372,6 +394,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse: A, <i>B</i>, <b>C</b>, <i><b>D</b></i> & E]\nLine",
 			"acceptedExample": "[Verse: A, <i>B</i>, <b>C</b> & <i><b>D</b></i>]\nLine",
+			"ambiguousExample": "[Verse: A & B, <i>C</i>]\nLine",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -388,6 +411,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse: Avery]\n[Avery] A line",
 			"acceptedExample": "[Verse: Avery]\nA line",
+			"ambiguousExample": "[Verse: Avery]\n[Maybe] A line",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -404,6 +428,7 @@
 			"language": "en",
 			"flaggedExample": "[Chorus: A, <i>B</i> & <b>Both</b>]\nLine",
 			"acceptedExample": "[Chorus: A, <i>B</i>, <b>A & B</b>]\nLine",
+			"ambiguousExample": "[Chorus: All Time Low]\nLine",
 			"sourceIds": ["G-HEADER-COLLECTIVE", "G-SECTIONS"]
 		},
 		{
@@ -420,6 +445,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nImma go",
 			"acceptedExample": "[Verse]\nI'ma go",
+			"ambiguousExample": "[Verse]\nMy cuz came",
 			"sourceIds": ["G-SPELLING"]
 		},
 		{
@@ -435,6 +461,7 @@
 			"language": "en-GB",
 			"flaggedExample": "[Verse]\nStay 'til dawn",
 			"acceptedExample": "[Verse]\nStay till dawn",
+			"ambiguousExample": "[Verse]\nCoins fill the till",
 			"sourceIds": ["G-SPELLING"]
 		},
 		{
@@ -451,6 +478,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nIdk what to tell you",
 			"acceptedExample": "[Verse]\nI don't know what to tell you",
+			"ambiguousExample": "[Verse]\nCall me ASAP",
 			"sourceIds": ["G-SPELLING", "G-AS-SPOKEN"]
 		},
 		{
@@ -467,6 +495,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\n“Hello”",
 			"acceptedExample": "[Verse]\n\"Hello\"",
+			"ambiguousExample": "[Verse]\n<u>“Hello”</u>",
 			"sourceIds": ["G-TYPEWRITER"]
 		},
 		{
@@ -483,6 +512,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nDont go",
 			"acceptedExample": "[Verse]\nDon't go",
+			"ambiguousExample": "[Verse]\nIll will fades",
 			"sourceIds": ["G-CONTRACTIONS"]
 		},
 		{
@@ -499,6 +529,7 @@
 			"language": "en-US",
 			"flaggedExample": "[Verse]\nyou and i",
 			"acceptedExample": "[Verse]\nyou and I",
+			"ambiguousExample": "[Verse]\niPhone lights glow",
 			"sourceIds": ["G-CAPS"]
 		},
 		{
@@ -515,6 +546,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nI will definately stay",
 			"acceptedExample": "[Verse]\nI will definitely stay",
+			"ambiguousExample": "[Verse]\nA weird separate friend",
 			"sourceIds": ["L-EN-COMMON", "L-EN-MORE", "L-EN-TOP50"]
 		},
 		{
@@ -531,6 +563,7 @@
 			"language": "no",
 			"flaggedExample": "[Vers]\nDet er desverre sant",
 			"acceptedExample": "[Vers]\nDet er dessverre sant",
+			"ambiguousExample": "[Vers]\nVæret er verre",
 			"sourceIds": ["L-NO-COMMON"]
 		},
 		{
@@ -547,6 +580,7 @@
 			"language": "de",
 			"flaggedExample": "[Strophe]\nDas ist garnicht wahr",
 			"acceptedExample": "[Strophe]\nDas ist gar nicht wahr",
+			"ambiguousExample": "[Strophe]\nGar nichts bleibt",
 			"sourceIds": ["L-DE-COMMON"]
 		},
 		{
@@ -563,6 +597,7 @@
 			"language": "es",
 			"flaggedExample": "[Verso]\nVoy a el mar",
 			"acceptedExample": "[Verso]\nVoy al mar",
+			"ambiguousExample": "[Verso]\nVoy a El Salvador",
 			"sourceIds": ["L-ES-CONTRACTIONS"]
 		},
 		{
@@ -579,6 +614,7 @@
 			"language": "es",
 			"flaggedExample": "[Verso]\nPorfavor ven",
 			"acceptedExample": "[Verso]\nPor favor ven",
+			"ambiguousExample": "[Verso]\nUn favor más",
 			"sourceIds": ["L-ES-COMMON"]
 		},
 		{
@@ -595,6 +631,7 @@
 			"language": "fr",
 			"flaggedExample": "[Couplet]\nJe sais, sa va",
 			"acceptedExample": "[Couplet]\nJe sais, ça va",
+			"ambiguousExample": "[Couplet]\nSa chanson va loin",
 			"sourceIds": ["L-FR-COMMON", "L-FR-LEXICAL", "L-FR-DOUBLES"]
 		},
 		{
@@ -611,6 +648,7 @@
 			"language": "ar",
 			"flaggedExample": "[المقطع]\nلاكن أحبك",
 			"acceptedExample": "[المقطع]\nلكن أحبك",
+			"ambiguousExample": "[المقطع]\nمكان هذا",
 			"sourceIds": ["L-AR-COMMON"]
 		},
 		{
@@ -627,6 +665,7 @@
 			"language": "ja",
 			"flaggedExample": "[Verse]\nこんにちわ",
 			"acceptedExample": "[Verse]\nこんにちは",
+			"ambiguousExample": "[Verse]\nわたしはここ",
 			"sourceIds": ["L-JA-COMMON"]
 		},
 		{
@@ -643,6 +682,7 @@
 			"language": "ko",
 			"flaggedExample": "[벌스]\n됬어",
 			"acceptedExample": "[벌스]\n됐어",
+			"ambiguousExample": "[벌스]\n되어 간다",
 			"sourceIds": ["L-KO-COMMON", "L-KO-WAENJI", "L-KO-ORAENMAN", "L-KO-SEOLLEM", "L-KO-IRIRI"]
 		},
 		{
@@ -659,6 +699,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nYou & me",
 			"acceptedExample": "[Verse]\nYou and me",
+			"ambiguousExample": "[Verse]\nH&M on my shirt",
 			"sourceIds": ["G-SYMBOLS"]
 		},
 		{
@@ -675,6 +716,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nA lyric ",
 			"acceptedExample": "[Verse]\nA lyric",
+			"ambiguousExample": "[Verse]\nA lyric‏",
 			"sourceIds": ["G-ADD-SONGS"]
 		},
 		{
@@ -691,6 +733,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nTwo  words",
 			"acceptedExample": "[Verse]\nTwo words",
+			"ambiguousExample": "[Verse]\n  An indented line",
 			"sourceIds": ["G-ADD-SONGS"]
 		},
 		{
@@ -707,6 +750,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nI heard (?)",
 			"acceptedExample": "[Verse]\nI heard [?]",
+			"ambiguousExample": "[Verse]\nI heard ???",
 			"sourceIds": ["G-UNKNOWN"]
 		},
 		{
@@ -723,6 +767,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nI heard ??? tonight",
 			"acceptedExample": "[Verse]\nI heard [?] tonight",
+			"ambiguousExample": "[Verse]\nAre you serious???",
 			"sourceIds": ["G-UNKNOWN"]
 		},
 		{
@@ -738,6 +783,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nI heard [?]",
 			"acceptedExample": "[Verse]\nI heard every word",
+			"ambiguousExample": "[Verse]\nWas that a question?",
 			"sourceIds": ["G-UNKNOWN"]
 		},
 		{
@@ -753,6 +799,7 @@
 			"language": "en",
 			"flaggedExample": "[Chorus x2]\nWords",
 			"acceptedExample": "[Chorus]\nWords again",
+			"ambiguousExample": "[Verse]\nI repeat chorus melodies",
 			"sourceIds": ["G-REPEATS"]
 		},
 		{
@@ -769,6 +816,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\n{laughs}",
 			"acceptedExample": "[Verse]\n*laughs*",
+			"ambiguousExample": "[Verse]\n{roses}",
 			"sourceIds": ["G-SFX"]
 		},
 		{
@@ -785,6 +833,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nf*** this",
 			"acceptedExample": "[Verse]\n**** this",
+			"ambiguousExample": "[Verse]\n***",
 			"sourceIds": ["G-CENSORED"]
 		},
 		{
@@ -801,6 +850,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\n(yeah)",
 			"acceptedExample": "[Verse]\n(Yeah)",
+			"ambiguousExample": "[Verse]\nWe run, yeah",
 			"sourceIds": ["G-ADLIBS"]
 		},
 		{
@@ -817,6 +867,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\n(Yeah yeah yeah)",
 			"acceptedExample": "[Verse]\n(Yeah, yeah, yeah)",
+			"ambiguousExample": "[Verse]\nOh baby oh baby",
 			"sourceIds": ["G-ADLIBS"]
 		},
 		{
@@ -833,6 +884,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nthe night is young",
 			"acceptedExample": "[Verse]\nThe night is young",
+			"ambiguousExample": "[Verse]\niPhone lights glow",
 			"sourceIds": ["G-CAPS"]
 		},
 		{
@@ -848,6 +900,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nThis Is The Way We Live\nEvery Single Word Starts Uppercase",
 			"acceptedExample": "[Verse]\nThis is the way we live\nEvery single word starts normally",
+			"ambiguousExample": "[Verse]\nThis Is One Deliberate Title",
 			"sourceIds": ["G-CAPS"]
 		},
 		{
@@ -864,6 +917,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nA lyric line.",
 			"acceptedExample": "[Verse]\nA lyric line!",
+			"ambiguousExample": "[Verse]\nA lyric trails off...",
 			"sourceIds": ["APPLE-LINE-PUNCTUATION", "G-QE-MARKS"]
 		},
 		{
@@ -880,6 +934,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nWhere are you",
 			"acceptedExample": "[Verse]\n<i>Where are you?</i>",
+			"ambiguousExample": "[Verse]\nI wonder why",
 			"sourceIds": ["G-QE-MARKS"]
 		},
 		{
@@ -896,6 +951,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nA word—, then silence",
 			"acceptedExample": "[Verse]\nA word—then silence",
+			"ambiguousExample": "[Verse]\nA well--being note",
 			"sourceIds": ["G-DASHES"]
 		},
 		{
@@ -912,6 +968,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nHold me close(Yeah)",
 			"acceptedExample": "[Verse]\nHold me close (Yeah)",
+			"ambiguousExample": "[Verse]\nHold me close(Yeah",
 			"sourceIds": ["G-ADLIBS"]
 		},
 		{
@@ -927,6 +984,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nI walked into the room, and everyone was talking; the lights were fading, while another story started and nobody stopped to breathe before the ending arrived.",
 			"acceptedExample": "[Verse]\nA short lyric line",
+			"ambiguousExample": "[Verse]\nOne two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour",
 			"sourceIds": ["G-LINES"]
 		},
 		{
@@ -943,6 +1001,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nI need 5 reasons",
 			"acceptedExample": "[Verse]\nI need five reasons",
+			"ambiguousExample": "[Verse]\nMeet at 5:30 with $5",
 			"sourceIds": ["G-NUMBERS"]
 		},
 		{
@@ -959,6 +1018,7 @@
 			"language": "en",
 			"flaggedExample": "[Verse]\nBack in the 90's we had it all",
 			"acceptedExample": "[Verse]\nParty like it's the '90s",
+			"ambiguousExample": "[Verse]\nSpinning 45's all night",
 			"sourceIds": ["G-NUMBERS", "G-SPELLING"]
 		}
 	],
@@ -1487,7 +1547,7 @@
 			"authority": "editorial",
 			"sourceIds": ["G-PERF-PARENS"],
 			"relatedRuleIds": ["performer.parenthetical-boundary"],
-			"note": "The reviewed headers guide's own worked examples keep the same boundary, so the linter's fix moves the formatting inside the parentheses."
+			"note": "The reviewed headers guide's own worked examples keep the same boundary. The linter moves tags only when their entire content is one complete parenthetical. It leaves a parenthetical inside a longer styled passage alone, including a passage spanning several lines; do not split or nest that passage's tags merely to unformat its parentheses."
 		},
 		{
 			"id": "guidance.section-headers.crowded-headers",

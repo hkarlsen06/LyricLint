@@ -53,6 +53,14 @@ event follows it.
 
 ## What the corpus is, and what it is deliberately not
 
+A rule also carries its reviewed `ambiguousExample`, the case its check deliberately
+leaves unflagged. The assistant must preserve that boundary when advising edits.
+For example, a wrapper holding only `<i>(Ayy)</i>` can become `(<i>Ayy</i>)`, but
+parentheses within a longer italic passage do not justify splitting or nesting
+its tags. Earlier corpora omitted these cases while their explanations could
+read as unconditional instructions. The generated corpus and the guidance note
+now retain the same scope as the linter.
+
 A rule enters the corpus as its reference page does: derived by running the
 rule against its reviewed `invalid` policy example. That is right for a rule
 that is a judgment and wrong for one that is a **table**, because a page is

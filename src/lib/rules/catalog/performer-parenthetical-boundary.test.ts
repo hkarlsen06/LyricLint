@@ -31,6 +31,9 @@ describe('performer.parenthetical-boundary', () => {
 	it('leaves a parenthetical inside a longer styled passage alone', () => {
 		expect(checkRule(rule, '[Verse]\n<i>Before (voice) after</i>')).toEqual([]);
 		expect(checkRule(rule, '[Verse]\n<i>Before (voice)</i>')).toEqual([]);
+		expect(checkRule(rule, '[Verse: A & <i>B</i>]\n<i>First line\nMore words (Ayy)</i>')).toEqual(
+			[]
+		);
 	});
 
 	it('only claims a wrapper holding exactly one parenthetical', () => {

@@ -1,5 +1,5 @@
 {
-	"version": 4,
+	"version": 5,
 	"description": "Release-gate evaluation set for the rules assistant. Categories cover every rule family, all eight reviewed languages, answer-language consistency, general proofreading and conventions, policy-vs-grammar separation, unsupported questions, prompt injection, draft-access refusal, conflicting-language questions, multi-rule answers, and the table-shaped rules, whose whole lookup table has to reach the answer rather than the one pair their reviewed example is.",
 	"cases": [
 		{
@@ -49,6 +49,36 @@
 			"question": "How do I show which artist sings which lines in a duet?",
 			"expect": {
 				"scopes": ["reviewed", "mixed"]
+			}
+		},
+		{
+			"id": "performer-parentheses-inside-passage",
+			"category": "rule-boundary",
+			"language": "en",
+			"question": "Proofread only the performer markup in this fictional line: <i>We follow the lights (Ayy) all night</i>. Blair sings the entire italic passage, including the ad-lib, and is the italic performer in the header. Return the complete recommended line as your only example block, unchanged if no correction is warranted, and briefly explain why.",
+			"expect": {
+				"scopes": ["reviewed", "mixed"],
+				"exampleEquals": "<i>We follow the lights (Ayy) all night</i>"
+			}
+		},
+		{
+			"id": "performer-parentheses-across-lines",
+			"category": "rule-boundary",
+			"language": "en",
+			"question": "Proofread only the performer markup in these fictional lines: <i>We follow the lights\nAll the way home (Ayy)</i>. Blair sings this entire continuous italic passage, including the ad-lib, and is the italic performer in the header. Return both recommended lines as your only example block, unchanged if no correction is warranted, and briefly explain why.",
+			"expect": {
+				"scopes": ["reviewed", "mixed"],
+				"exampleEquals": "<i>We follow the lights\nAll the way home (Ayy)</i>"
+			}
+		},
+		{
+			"id": "performer-parentheses-isolated-wrapper",
+			"category": "rule-boundary",
+			"language": "en",
+			"question": "Proofread only the performer markup in this fictional line: We follow the lights <i>(Ayy)</i>. Avery sings the plain words and Blair sings only the italic ad-lib, matching their header slots. Return the complete recommended line as your only example block and briefly explain why.",
+			"expect": {
+				"scopes": ["reviewed", "mixed"],
+				"exampleEquals": "We follow the lights (<i>Ayy</i>)"
 			}
 		},
 		{

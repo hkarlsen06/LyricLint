@@ -90,7 +90,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		authority: 'editorial',
 		sourceIds: ['G-PERF-PARENS'],
 		relatedRuleIds: ['performer.parenthetical-boundary'],
-		note: "The reviewed headers guide's own worked examples keep the same boundary, so the linter's fix moves the formatting inside the parentheses."
+		note: "The reviewed headers guide's own worked examples keep the same boundary. The linter moves tags only when their entire content is one complete parenthetical. It leaves a parenthetical inside a longer styled passage alone, including a passage spanning several lines; do not split or nest that passage's tags merely to unformat its parentheses."
 	},
 	{
 		id: 'guidance.section-headers.crowded-headers',

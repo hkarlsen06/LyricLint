@@ -17,7 +17,12 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { answersInNorwegian, explainsNoDraftAccess, refusesInjection } from './assertions.mjs';
+import {
+	answersInNorwegian,
+	explainsNoDraftAccess,
+	hasOnlyExpectedExample,
+	refusesInjection
+} from './assertions.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const evalSet = JSON.parse(await readFile(join(here, 'eval-set.json'), 'utf8'));
@@ -50,6 +55,8 @@ let validSources = 0;
 let scopeCorrect = 0;
 let answerLanguageCorrect = 0;
 let answerLanguageTotal = 0;
+let exampleCorrect = 0;
+let exampleTotal = 0;
 const failures = [];
 
 for (const [index, testCase] of evalSet.cases.entries()) {
@@ -103,6 +110,11 @@ for (const [index, testCase] of evalSet.cases.entries()) {
 	const missing = (expect.mentionsAll ?? []).filter((form) => !said.includes(form));
 	if (missing.length > 0) ok = false;
 	const behaviorMisses = [];
+	if (expect.exampleEquals !== undefined) {
+		exampleTotal += 1;
+		if (hasOnlyExpectedExample(blocks, expect.exampleEquals)) exampleCorrect += 1;
+		else behaviorMisses.push('the sole recommended example did not match the expected markup');
+	}
 	if (expect.answerLanguage) {
 		answerLanguageTotal += 1;
 		const language =
@@ -145,6 +157,9 @@ if (answerLanguageTotal > 0) {
 			`(${((answerLanguageCorrect / answerLanguageTotal) * 100).toFixed(1)}%)  gate: 100%`
 	);
 }
+if (exampleTotal > 0) {
+	console.log(`examples     ${exampleCorrect}/${exampleTotal}  gate: 100%`);
+}
 if (failures.length > 0) {
 	console.log('\nMisses:');
 	for (const failure of failures) console.log(`  - ${failure}`);
@@ -155,6 +170,7 @@ const passed =
 	validCitations === total &&
 	validSources === total &&
 	scopeCorrect / total >= 0.95 &&
-	answerLanguageCorrect === answerLanguageTotal;
+	answerLanguageCorrect === answerLanguageTotal &&
+	exampleCorrect === exampleTotal;
 console.log(passed ? '\nRelease gates: PASS' : '\nRelease gates: FAIL');
 process.exit(passed ? 0 : 1);

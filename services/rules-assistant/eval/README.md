@@ -4,6 +4,12 @@
 checks response structure, known rule/source ids, expected scopes, citation
 counts, and required phrases.
 
+Performer-markup cases request one recommended example and use `exampleEquals`
+to compare that block exactly. They cover parentheses inside a longer styled
+passage, a passage spanning lines, and a separately wrapped ad-lib that does
+need correcting. Quoting the input beside a wrong correction cannot pass.
+Every such case must pass, independently of the scope-classification threshold.
+
 Two boolean expectations use intentionally simple prose heuristics:
 
 - `refusesInjection` requires refusal language, a mention of the assistant's

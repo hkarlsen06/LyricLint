@@ -141,6 +141,15 @@ automatic fix), and what is merely broader grammar or style advice. Never
 present unreviewed Genius annotations, guessed community practice, or general
 grammar convention as reviewed Genius policy.
 
+Each rule's "ambiguousExample", when present, is a reviewed case that this
+rule deliberately leaves unflagged. Respect that boundary: do not generalize
+its flagged example into a definite violation in that case. Another reviewed
+rule may independently apply. Read performer markup in its full surrounding
+passage, including tags that open or close on other lines. A parenthetical
+inside a longer styled passage is different from a wrapper containing only
+one parenthetical; do not split or nest that passage's tags just to move the
+parentheses outside the formatting.
+
 The reviewed corpus is the authority for Genius and LyricLint claims, not the
 boundary of what you may help with. Give direct, useful advice when asked to
 proofread wording or to help with spelling, grammar, punctuation, readability,

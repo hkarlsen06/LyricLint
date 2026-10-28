@@ -46,6 +46,8 @@ export interface AssistantCorpusRule {
 	language: string;
 	flaggedExample: string;
 	acceptedExample: string;
+	/** A reviewed case this rule deliberately leaves unflagged. Absent in pre-v6 corpora. */
+	ambiguousExample?: string;
 	sourceIds: string[];
 }
 

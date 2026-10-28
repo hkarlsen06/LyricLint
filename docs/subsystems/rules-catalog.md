@@ -38,6 +38,10 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   `docs/subsystems/diagnostics.md` carries the keying and the picker-side acceptance.
 - An `ambiguous` policy case is a reviewed decision, not a hole: the answer to a gap beside
   one is a second rule at the right tier (`suggestion` + `preview`), never a wider regex.
+  The assistant corpus carries that case as `ambiguousExample`, alongside the flagged and
+  accepted examples. Keep diagnostic explanations and guidance notes within the same boundary:
+  `performer.parenthetical-boundary` checks a wrapper containing one parenthetical, never a
+  parenthetical inside a longer styled passage, including one spanning lines.
 - Adding a rule is four registrations and two counts: `registry.ts`,
   `currentRuleSet.ruleIds` in `data/rule-set.ts` (never `previousRuleSet`), a full
   `RulePolicyCase`, the row in `docs/rules.md`, the total in `engine.test.ts`, **and** the

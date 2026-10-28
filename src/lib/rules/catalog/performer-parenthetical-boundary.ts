@@ -93,7 +93,7 @@ export const performerParentheticalBoundaryRule: RuleDefinition = {
 							this,
 							{ from: span.from, to: span.to },
 							'Keep the parentheses outside this performer formatting.',
-							'The reviewed guide styles only the words of a parenthetical and leaves both parentheses plain, and the performer’s italics or bold sit just inside them. This wrapper carries the parentheses along with the words.',
+							'This performer wrapper contains only one complete parenthetical. For a separately formatted ad-lib or backing line, the tags wrap the words and leave both parentheses plain. A parenthetical inside a longer styled passage is outside this check; do not split that passage just to move its parentheses outside the formatting.',
 							[
 								replacementFix(
 									context,

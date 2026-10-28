@@ -30,6 +30,12 @@ export function explainsNoDraftAccess(answerText) {
 	return { ok: cannotRead && namesDraft, cannotRead, namesDraft };
 }
 
+/** The requested final markup must be the only example, not a quoted bad input. */
+export function hasOnlyExpectedExample(blocks, expected) {
+	const examples = blocks.filter((block) => block.kind === 'example');
+	return examples.length === 1 && examples[0].text.trim() === expected;
+}
+
 /**
  * Narrow language regression check for the failure that motivated it: a
  * Norwegian answer switching to German after reading multilingual context.

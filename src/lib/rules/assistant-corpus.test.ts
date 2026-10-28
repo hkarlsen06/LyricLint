@@ -14,6 +14,7 @@ import { guidanceEntries } from '#lib/guidance/entries.js';
 import { reviewedLanguagePacks } from '#lib/languages/registry.js';
 import { buildAssistantCorpusContent, corpusContentHash } from './assistant-corpus.js';
 import type { AssistantCorpus } from './assistant-corpus-types.js';
+import { policyCases } from './catalog/policy-cases.js';
 import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
 import { standardizedSpellings } from './data/spelling.js';
@@ -64,6 +65,24 @@ describe('assistant corpus parity', () => {
 		const all = [...committed.rules.map((rule) => rule.id), ...committed.harper.ruleIds].sort();
 		expect(all).toEqual([...currentRuleSet.ruleIds].sort());
 		expect(committed.harper.ruleIds).toEqual([...harperRuleIds]);
+	});
+
+	it('preserves the reviewed cases each rule deliberately leaves unflagged', () => {
+		for (const policy of policyCases) {
+			expect(
+				committed.rules.find((rule) => rule.id === policy.id),
+				policy.id
+			).toHaveProperty('ambiguousExample', policy.ambiguous);
+		}
+	});
+
+	it('shows the assistant the boundary between an isolated ad-lib and a longer styled passage', () => {
+		expect(
+			committed.rules.find((rule) => rule.id === 'performer.parenthetical-boundary')
+		).toHaveProperty(
+			'ambiguousExample',
+			'[Verse: A & <i>B</i>]\n<i>Sung words (echo) in one passage</i>'
+		);
 	});
 
 	it('carries the table-shaped rules in full, not just their worked example', () => {
