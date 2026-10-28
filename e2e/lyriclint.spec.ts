@@ -1022,9 +1022,12 @@ test('sitemap lists every public page including the workbench', async ({ request
 	const musixmatchTopics =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/musixmatch\/[^/]+\/<\/loc>/gu) ?? [];
 	expect(musixmatchTopics).toHaveLength(10);
-	// Plus the home, about, workbench, unified guide, and privacy pages.
+	const docsPages = sitemap.match(/<loc>https:\/\/lyriclint\.com\/docs\/[^/]+\/<\/loc>/gu) ?? [];
+	expect(docsPages).toHaveLength(docsCatalog.length);
+	expect(sitemap).toContain('<loc>https://lyriclint.com/docs/</loc>');
+	// Plus home, about, workbench, unified guide, privacy and docs index.
 	expect(sitemap.match(/<url>/gu)).toHaveLength(
-		rulePages.length + guidelinePages.length + musixmatchTopics.length + 5
+		rulePages.length + guidelinePages.length + musixmatchTopics.length + docsPages.length + 6
 	);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/about/</loc>');

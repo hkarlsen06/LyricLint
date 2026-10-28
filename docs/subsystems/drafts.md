@@ -36,7 +36,6 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   latest visible text and the last valid checkpoint; unreadable originals carry a source-draft
   reference, and inputs beyond the engine limit retain exact text without inventing a checkpoint.
 
-- At five saved drafts the menu offers case-insensitive title/opening-lyric search. Filtering never
 - At five saved drafts the menu offers case-insensitive title/full-lyric search. Filtering never
   changes the saved records; a no-match result retains the search field, and closing the
   menu clears search and pending row actions. `DraftMenu.svelte.test.ts` pins recovery.

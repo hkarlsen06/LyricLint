@@ -100,7 +100,7 @@ export interface ClipboardMetadata {
 	/** Version 2 binds rich details to the exact plain-text flavor. */
 	conversion?: ConversionEnvelope;
 	performers?: PerformerRecord[];
-	/** How many lines the copied text splits into — the guard against a foreign `text/plain`. */
+	/** How many lines the copied text splits into, the guard against a foreign `text/plain`. */
 	lines: number;
 	anchors: ClipboardAnchor[];
 	links: ClipboardLink[];

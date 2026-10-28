@@ -1,6 +1,6 @@
-import { profileGuidelines } from '$lib/profiles/coverage.js';
-import { profileGuidelineTopic } from '$lib/profiles/reference-topics.js';
-import { referenceTopics } from '$lib/reference/topics.js';
+import { profileGuidelines } from '#lib/profiles/coverage.js';
+import { profileGuidelineTopic } from '#lib/profiles/reference-topics.js';
+import { referenceTopics } from '#lib/reference/topics.js';
 import type { PageServerLoad } from './$types.js';
 
 export const load: PageServerLoad = () => {

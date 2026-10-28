@@ -308,10 +308,6 @@ function corpusText(corpus: RulesCorpus): string {
 	].join('\n');
 }
 
-export function promptCacheKey(corpus: RulesCorpus): string {
-	return `lyriclint-rules-${corpus.profile === 'musixmatch' ? 'musixmatch-' : ''}${corpus.ruleSetVersion}-${corpus.contentHash.slice(0, 16)}`;
-}
-
 function isSettledMessage(
 	message: AnswerRequest['messages'][number]
 ): message is Extract<AnswerRequest['messages'][number], { content: string }> {

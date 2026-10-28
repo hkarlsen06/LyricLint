@@ -42,14 +42,19 @@
 	const root = resolve('/(site)');
 
 	const contextAssistant = useAssistantState();
-	const topicBase = $derived(profile === 'musixmatch' ? '/guidelines/musixmatch' : '/guidelines');
 	const assistant = $derived(assistantProp ?? contextAssistant);
 	const reading = $derived(readingAnchor());
 	const filters = $derived(referenceSearchState());
 	const searching = $derived(filters.query.trim().length > 0);
 	const tokens = $derived(referenceSearchTokens(filters.query));
 	const scope = $derived(filters.scope);
-	const hasFilters = $derived(searching || scope !== 'all' || !!filters.topic || filters.severities.length > 0 || filters.fixabilities.length > 0);
+	const hasFilters = $derived(
+		searching ||
+			scope !== 'all' ||
+			!!filters.topic ||
+			filters.severities.length > 0 ||
+			filters.fixabilities.length > 0
+	);
 	let browsingTopics = $state(false);
 	let filtersOpen = $state(false);
 	const effectiveTopic = $derived(filters.topic);
@@ -131,11 +136,7 @@
 		const path = doc.href.split('#')[0];
 		if (doc.kind === 'rule')
 			return selectedSlug && path === `/guidelines/checks/${selectedSlug}/` ? 'page' : undefined;
-		return selectedTopic &&
-			path === `${topicBase}/${selectedTopic}/` &&
-			doc.href.split('#')[1] === (reading || anchor)
-			? 'page'
-			: undefined;
+		return !selectedSlug && doc.href.split('#')[1] === (reading || anchor) ? 'page' : undefined;
 	}
 
 	/** Reveal the current result without discarding the reader's search or filters. */
@@ -161,7 +162,14 @@
 	<CaretRightIcon size={16} aria-hidden="true" weight="bold" />
 {/snippet}
 
-<div class="site-split__index reference-index" data-sveltekit-noscroll bind:this={column}>
+<div
+	class="site-split__index reference-index"
+	data-sveltekit-reset="false"
+	bind:this={column}
+	use:stickyTopics={[directory, resultGroups]}
+	tabindex="-1"
+>
+	<div class="guide-glass" aria-hidden="true"></div>
 	{#if showProfileNavigation}
 		<nav aria-label="Guideline profile" class="guide-profiles">
 			<a

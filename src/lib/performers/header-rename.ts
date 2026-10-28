@@ -7,7 +7,7 @@ import type {
 } from '#lib/core/types.js';
 import { findExactPerformer } from './identity.js';
 import { decodeLegendText } from '#lib/core/legend.js';
-import { logicalHeaderGroups } from './import.js';
+import { logicalHeaderGroups } from './legend-groups.js';
 
 /** Characters that would change how another header parses if mirrored into it. */
 const STRUCTURAL_NAME_PATTERN = /[[\]<>,\n\r]/u;

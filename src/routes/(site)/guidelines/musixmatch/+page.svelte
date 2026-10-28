@@ -1,10 +1,10 @@
 <script lang="ts">
 	/* eslint-disable svelte/no-navigation-without-resolve -- Topic links only append a trailing slash to a resolved route. */
-	import ListMusic from 'lucide-svelte/icons/list-music';
-	import AudioLines from 'lucide-svelte/icons/audio-lines';
-	import Ear from 'lucide-svelte/icons/ear';
-	import Hash from 'lucide-svelte/icons/hash';
-	import ArrowUpRight from 'lucide-svelte/icons/arrow-up-right';
+	import ListMusic from 'phosphor-svelte/lib/PlaylistIcon';
+	import AudioLines from 'phosphor-svelte/lib/WaveformIcon';
+	import Ear from 'phosphor-svelte/lib/EarIcon';
+	import Hash from 'phosphor-svelte/lib/HashIcon';
+	import ArrowUpRight from 'phosphor-svelte/lib/ArrowUpRightIcon';
 	import { resolve } from '$app/paths';
 	import { siteUrl } from '#lib/seo.js';
 	import type { PageProps } from './$types.js';
@@ -86,7 +86,7 @@
 	</p>
 	<div class="guide-practice">
 		<p>Already have some lyrics written down?</p>
-		<a class="button button--contrast" href={resolve('/workbench/')}
+		<a class="button button--contrast" href={resolve('/(app)/workbench')}
 			>Check your lyrics <ArrowUpRight size={16} aria-hidden="true" /></a
 		>
 	</div>

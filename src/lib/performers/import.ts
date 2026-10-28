@@ -52,8 +52,6 @@ function supportedSpansForSlot(
 	);
 }
 
-
-
 /**
  * Correlate lossless header candidates with section-local inline style spans.
  *

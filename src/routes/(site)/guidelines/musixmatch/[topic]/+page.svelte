@@ -129,7 +129,7 @@
 		</section>
 	{/each}
 	<div class="site-actions">
-		<a class="button" href={resolve('/workbench/')}>Check a transcription in the workbench</a>
+		<a class="button" href={resolve('/(app)/workbench')}>Check a transcription in the workbench</a>
 	</div>
 </main>
 
@@ -146,7 +146,7 @@
 		border-radius: var(--radius-round);
 		background: var(--color-fill-subtle);
 		font-size: var(--font-size-sm);
-		line-height: var(--line-height-compact);
+		line-height: var(--line-height-ui);
 		white-space: nowrap;
 	}
 	.mxm-pill--source-conflict {

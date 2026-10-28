@@ -3,7 +3,7 @@ import { corpus as genius } from '../generated/rules-context-data';
 import { corpus as musixmatch } from '../generated/musixmatch-context-data';
 import { createCorpusCatalog } from '../src/corpus';
 import { createHandler } from '../src/index';
-import { developerPrompt, promptCacheKey } from '../src/prompt';
+import { developerPrompt } from '../src/prompt';
 import { providerRequest } from '../src/provider';
 import { validateAnswer } from '../src/schema';
 import { goodTurnstile, makeEnv, makeRequest, providerReturning, requestBody } from './harness';
@@ -59,12 +59,15 @@ describe('profile corpus allowlist', () => {
 		expect(prompt).toContain('Ground every Musixmatch-specific claim');
 		expect(prompt).toContain('Missing Arabic/Korean evidence');
 		expect(prompt).not.toContain('Ground every Genius-specific claim');
-		expect(promptCacheKey(musixmatch)).not.toBe(promptCacheKey(genius));
 		const request = providerRequest(
 			[{ role: 'user', content: 'Review this' }],
 			'browser',
-			true,
+			'offered',
 			musixmatch
+		);
+		expect(request.prompt_cache_key).not.toBe(
+			providerRequest([{ role: 'user', content: 'Review this' }], 'browser', 'offered', genius)
+				.prompt_cache_key
 		);
 		expect(request.tools?.some((tool) => 'name' in tool && tool.name === 'manage_links')).toBe(
 			false

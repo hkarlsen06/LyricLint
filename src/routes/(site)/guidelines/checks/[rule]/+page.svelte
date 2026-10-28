@@ -117,7 +117,7 @@
 	<h1><RuleSearchHighlight text={reference.title} /></h1>
 	{#if reference.profile === 'musixmatch'}
 		<p>
-			<a href={`${resolve('/(site)/guidelines/musixmatch')}/`}>Musixmatch transcription guide</a>
+			<a href={resolve('/(site)/guidelines/musixmatch')}>Musixmatch transcription guide</a>
 		</p>
 	{/if}
 

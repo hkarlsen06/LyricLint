@@ -13,6 +13,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 // Reviewed data occurrences, not blanket file exemptions: new occurrences fail too.
 const allowed = {
+	'e2e/mobile-workbench.spec.ts': 2,
+	'services/rules-assistant/generated/musixmatch-context-data.ts': 1,
+	'services/rules-assistant/generated/musixmatch-context.json': 1,
+	'src/lib/profiles/policy-cases.ts': 1,
+	'src/lib/rules/musixmatch.test.ts': 1,
+	'src/lib/rules/musixmatch.ts': 1,
 	'docs/subsystems/media-apple.md': 1,
 	'services/rules-assistant/generated/rules-context-data.ts': 2,
 	'services/rules-assistant/generated/rules-context.json': 2,
