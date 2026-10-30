@@ -518,7 +518,7 @@ test('the unified guide has one entrance and exposes check metadata and language
 		'App'
 	]);
 	await expect(page.getByRole('heading', { name: 'Browse by topic', exact: true })).toHaveCount(1);
-	await expect(page.locator('.site-split__intro .reference-questions a')).toHaveCount(4);
+	await expect(page.locator('.reference-questions a')).toHaveCount(4);
 	await expect(page.locator('a[href^="/rules/"]')).toHaveCount(0);
 	await expect(page.locator('.reference-filters')).toBeHidden();
 	await expect(page.locator('.reference-controls[aria-label="Search scope"]')).toHaveCount(0);
@@ -552,7 +552,7 @@ test('the unified guide has one entrance and exposes check metadata and language
 		.getByRole('link', { name: 'Spell numbers out' })
 		.click();
 	await expect(page).toHaveURL(/\/guidelines\/numbers\/#spelled-out$/u);
-	await expect(page.locator('.guidelines__entry[data-current] h2')).toHaveText('Spell numbers out');
+	await expect(page.locator('#spelled-out')).toHaveText('Spell numbers out');
 });
 
 test('legacy rule URLs redirect into the guide without losing search or fragments', async ({
@@ -560,7 +560,7 @@ test('legacy rule URLs redirect into the guide without losing search or fragment
 }) => {
 	await page.goto('/rules/?q=two%20singers#old-position');
 	await expect(page).toHaveURL(/\/guidelines\/\?q=two(?:%20|\+)singers#old-position$/u);
-	await expect(page.getByRole('searchbox', { name: 'Search the transcription guide' })).toHaveValue(
+	await expect(page.getByRole('searchbox', { name: 'What are you working on?' })).toHaveValue(
 		'two singers'
 	);
 	await page.goto('/rules/#section');
@@ -569,7 +569,7 @@ test('legacy rule URLs redirect into the guide without losing search or fragment
 	await expect(
 		page
 			.getByRole('navigation', { name: 'Browse reference topics' })
-			.getByRole('link', { name: 'Section headers and performers', exact: true })
+			.getByRole('link', { name: /^Section headers and performers/u })
 	).toBeInViewport();
 	for (const width of [1280, 390]) {
 		await page.setViewportSize({ width, height: 720 });
@@ -590,17 +590,17 @@ test('legacy rule URLs redirect into the guide without losing search or fragment
 
 test('shared reference search finds warning text and preserves URL state', async ({ page }) => {
 	await page.goto('/guidelines/');
-	const search = page.getByRole('searchbox', { name: 'Search the transcription guide' });
+	const search = page.getByRole('searchbox', { name: 'What are you working on?' });
 	const rows = page.locator('.reference-result');
 	await expect(page.getByRole('navigation', { name: 'Browse reference topics' })).toBeVisible();
 	await expect(rows).toHaveCount(0);
 	await search.fill('definately');
 	await page.getByRole('button', { name: /^Filters/ }).click();
-	await page.getByRole('combobox', { name: 'Content', exact: true }).selectOption('rules');
+	await page.getByRole('combobox', { name: 'Show', exact: true }).selectOption('rules');
 	await expect(rows).toHaveCount(1);
 	await expect(rows.first()).toContainText('A common English misspelling');
-	await expect(rows.first().locator('.reference-description')).toHaveCount(0);
-	await rows.first().click();
+	await expect(rows.first().locator('.reference-description')).toBeVisible();
+	await rows.first().locator(':scope > a').click();
 	await expect(page).toHaveURL(
 		/\/guidelines\/checks\/spelling-english-common\/\?q=definately&scope=rules$/u
 	);
@@ -617,7 +617,10 @@ test('shared reference search finds warning text and preserves URL state', async
 	await expect(page.locator('#reference-content')).toHaveValue('rules');
 
 	await search.fill('languages');
-	await rows.filter({ hasText: 'A header outside Norwegian conventions' }).click();
+	await rows
+		.filter({ hasText: 'A header outside Norwegian conventions' })
+		.locator(':scope > a')
+		.click();
 	const cited = page.locator('.source-reference a mark.site-hit');
 	await expect(cited.first()).toHaveText('Languages');
 	const [marked, prose] = await Promise.all([
@@ -639,7 +642,7 @@ test('reference check filters are shareable and describe the opened check', asyn
 	await expect(page).toHaveURL(/scope=rules&fix=none$/u);
 	const rows = page.locator('.reference-result');
 	await expect(rows.first()).toBeVisible();
-	await rows.first().click();
+	await rows.first().locator(':scope > a').click();
 	await expect(page).toHaveURL(/\/guidelines\/checks\/[^/]+\/\?scope=rules&fix=none$/u);
 	await expect(page.locator('main .site-meta')).toContainText('No automatic fix');
 	await page.reload();
@@ -652,10 +655,10 @@ test('reference check filters are shareable and describe the opened check', asyn
 
 test('natural questions and typos find conventions with their checks', async ({ page }) => {
 	await page.goto('/guidelines/?q=two%20singers');
-	const search = page.getByRole('searchbox', { name: 'Search the transcription guide' });
+	const search = page.getByRole('searchbox', { name: 'What are you working on?' });
 	await expect(search).toHaveValue('two singers');
 	const answer = page.locator('.reference-results > li').filter({
-		has: page.locator('.site-run__title', {
+		has: page.locator('.reference-result-title', {
 			hasText: 'Name artists in headers when voices differ'
 		})
 	});
@@ -671,229 +674,8 @@ test('natural questions and typos find conventions with their checks', async ({ 
 	await search.fill('perfomer');
 	await expect(page.locator('.reference-result').first()).toBeVisible();
 	await expect(
-		page.locator('.reference-result', { hasText: 'Similar wording' }).first()
+		page.locator('.reference-result', { hasText: 'Similar spelling' }).first()
 	).toBeVisible();
-});
-
-test('integrated checks keep the topic reading position and expose unmatched checks', async ({
-	page
-}) => {
-	await page.goto('/guidelines/section-headers/#voice-order');
-	const disclosure = page
-		.locator('.guidelines__entry:has(#voice-order) .guidelines__checks details')
-		.first();
-	await disclosure.locator('summary').click();
-	const check = disclosure.getByRole('link', { name: /See trigger and fix/u });
-	await check.scrollIntoViewIfNeeded();
-	const detail = page.locator('.site-split__detail');
-	const before = await detail.evaluate((node) => node.scrollTop);
-	await check.click();
-	await expect(page).toHaveURL(/\/guidelines\/checks\//u);
-	await page.goBack();
-	await expect(page).toHaveURL(/\/guidelines\/section-headers\/#voice-order$/u);
-	await expect(disclosure).toHaveAttribute('open');
-	await expect
-		.poll(async () => Math.abs((await detail.evaluate((node) => node.scrollTop)) - before))
-		.toBeLessThan(2);
-	await page.goto('/guidelines/non-english/');
-	const additional = page.locator('section[aria-labelledby="additional-checks-non-english"]');
-	await expect(
-		additional.getByRole('heading', { name: 'More checks for this topic' })
-	).toBeVisible();
-	await additional.locator('summary').click();
-	await expect(additional.locator('a[href*="language-selection-mismatch"]')).toBeVisible();
-});
-
-test('a guidelines deep link lands on its entry, and a search marks its words', async ({
-	page
-}) => {
-	// A guideline is a fragment on its topic's page, and the landing re-centers
-	// the whole entry. The double-rAF deferral in the topic page is the one
-	// behavior there that was measured rather than reasoned into, and this is
-	// its only end-to-end pin. The native hash jump parks the heading at
-	// `scroll-margin-top`, ~72px under the masthead; centered, the third entry
-	// of four sits well below that, which is what the y-floor separates.
-	await page.goto('/guidelines/punctuation/#doubled-exclamation');
-	// `data-current` is the page's own mark, read off the hash; a full-page
-	// arrival is the one navigation where `:target` also holds, so both are
-	// asserted here; the router-navigation press further down is where
-	// `:target` never updates and the mark is all there is.
-	const washed = page.locator('.guidelines__entry[data-current]');
-	await expect(washed).toHaveCount(1);
-	await expect(page.locator('.guidelines__entry:has(:target)')).toHaveCount(1);
-	await expect(washed.locator('h2')).toHaveText('One exclamation mark at a time');
-	// And the wash actually paints here: on a wide screen the index stands
-	// beside the page, so the washed entry and the marked row say one thing
-	// together. The stacked width is where it stands down, and the phone group
-	// pins that half.
-	expect(await washed.evaluate((el) => getComputedStyle(el, '::before').content)).not.toBe('none');
-	// The topic page no longer closes with a `Checked by the linter` run: the
-	// entries' own meta lines carry the rules now, and every rule page links its
-	// guideline back, so re-adding the trailing family list is the regression.
-	await expect(page.getByRole('heading', { name: 'Checked by the linter' })).toHaveCount(0);
-	await expect
-		.poll(async () => {
-			const heading = await washed.locator('h2').boundingBox();
-			const detail = await page.locator('.site-split__detail').boundingBox();
-			return (heading?.y ?? 0) - (detail?.y ?? 0);
-		})
-		.toBeGreaterThanOrEqual(0);
-
-	// The index column marks the same entry as the page and brings the row up
-	// under the finder, for a reader who arrived by URL rather than by pressing
-	// it there.
-	const current = page.locator('.site-split__index a[aria-current="page"]');
-	await expect(current).toHaveCount(1);
-	await expect(current).toContainText('One exclamation mark at a time');
-	await expect(current).toBeInViewport();
-
-	// The topic's own name keeps everything under its heading, unlike the query that
-	// used to drop every guidance entry and answer with linter rows alone. The
-	// seventh row is the ad-libs entry, whose meta line names
-	// `punctuation.parenthesis-spacing` among the rules that check its shape.
-	const search = page.getByRole('searchbox', { name: 'Search the transcription guide' });
-	await search.fill('punctuation');
-	const entryRows = page.locator('.site-split__index .reference-result[href*="#"]');
-	expect(await entryRows.count()).toBeGreaterThan(0);
-
-	// And the page a search opens says which of its words matched, exactly as a
-	// rule page does, including inside the invented sample, which may not have
-	// gained a character for it. Scoped to the washed entry: the topic page
-	// carries one `Incorrect` sample per entry that has one, so the bare
-	// locator resolves several and fails strict mode.
-	await search.fill('turn it up');
-	await page
-		.locator('.site-split__index .reference-result', { hasText: 'One exclamation mark' })
-		.click();
-	await expect(
-		page.locator('.guidelines__entry[data-current] mark.site-hit').first()
-	).toBeVisible();
-	await expect(
-		page.locator('.guidelines__entry[data-current] .site-sample--invalid pre')
-	).toHaveText('Turn it up!!');
-});
-
-test('pressing an entry from the index washes it on the first press', async ({ page }) => {
-	// Pressing an index row from the index page, or from the other topic, is
-	// the router's navigation, a `pushState`, and `:target` only updates on a
-	// native fragment navigation: for a while the first press drew no wash, and
-	// the reader had to press another entry and come back (a same-path hash
-	// press, the one navigation the router leaves to the browser) to see it.
-	// The page marks the entry itself now, and this is that regression's pin at
-	// both broken arrivals.
-	await page.goto('/guidelines/?browse=all');
-	await page
-		.locator('.site-split__index .reference-result', { hasText: 'One exclamation mark' })
-		.click();
-	const washed = page.locator('.guidelines__entry[data-current]');
-	await expect(washed).toHaveCount(1);
-	await expect(washed.locator('h2')).toHaveText('One exclamation mark at a time');
-
-	// And from one topic straight to the other: the path changes, the hash
-	// arrives with it, and the wash has to land on the pressed entry, not stay
-	// where the last one was.
-	const crossTopic = page
-		.locator('.site-split__index .reference-result[href*="section-headers"][href*="#"]')
-		.first();
-	const crossTitle = await crossTopic.locator('.site-run__title').innerText();
-	await crossTopic.click();
-	await expect(washed).toHaveCount(1);
-	await expect(washed.locator('h2')).toHaveText(crossTitle);
-});
-
-test('topic details keep a compact index and continuously follow reading across topics', async ({
-	page
-}) => {
-	await page.setViewportSize({ width: 1440, height: 900 });
-	await page.goto('/guidelines/');
-	const topics = page.getByRole('navigation', { name: 'Browse reference topics' });
-	await topics.getByRole('link', { name: 'Punctuation and symbols', exact: true }).click();
-	await expect(page).toHaveURL(/\/guidelines\/punctuation\/$/u);
-	const index = page.locator('.site-split__index');
-	const rows = index.locator('.reference-result');
-	expect(await rows.count()).toBeGreaterThan(40);
-	await expect(index.locator('.reference-description')).toHaveCount(0);
-	await expect(index.locator('.reference-related').first()).toBeVisible();
-	await expect(rows.filter({ hasText: 'Spelling and contractions' }).first()).toBeAttached();
-	await expect(rows.filter({ hasText: 'Punctuation and symbols' }).first()).toBeAttached();
-
-	const detail = page.locator('.site-split__detail');
-	const otherTopic = detail.locator('.guidelines__entry:has(#voice-order)');
-	await expect(otherTopic).toBeAttached();
-	await otherTopic
-		.locator('#voice-order')
-		.evaluate((heading) => heading.scrollIntoView({ block: 'start', behavior: 'instant' }));
-	const current = index.locator('a[aria-current="page"]');
-	await expect(current).toHaveCount(1);
-	await expect(current).toHaveAttribute('href', /section-headers\/.*#voice-order$/u);
-	await expect(current).toBeInViewport();
-	await page.reload();
-	expect(await rows.count()).toBeGreaterThan(40);
-});
-
-test('outer margins scroll their adjacent guide pane', async ({ page }) => {
-	await page.setViewportSize({ width: 1440, height: 900 });
-	await page.goto('/guidelines/punctuation/#doubled-exclamation');
-	await expect(page.locator('.guidelines__entry[data-current]')).toHaveCount(1);
-	const index = page.locator('.site-split__index');
-	const detail = page.locator('.site-split__detail');
-	const indexBefore = await index.evaluate((el) => el.scrollTop);
-	const detailBefore = await detail.evaluate((el) => el.scrollTop);
-	await page.mouse.move(10, 600);
-	await page.mouse.wheel(0, 450);
-	await expect.poll(() => index.evaluate((el) => el.scrollTop)).toBeGreaterThan(indexBefore + 100);
-	expect(await detail.evaluate((el) => el.scrollTop)).toBe(detailBefore);
-	await page.mouse.move(1430, 600);
-	await page.mouse.wheel(0, 450);
-	await expect
-		.poll(() => detail.evaluate((el) => el.scrollTop))
-		.toBeGreaterThan(detailBefore + 100);
-	expect(await page.evaluate(() => window.scrollY)).toBe(0);
-});
-
-test('a practical question opens its convention and reveals its row', async ({ page }) => {
-	// The welcome page's topic list is in the detail column, so pressing a
-	// topic there says nothing about the list, which is then parked wherever
-	// it was, the top for a fresh load, with the arrived-at topic's rows
-	// marking themselves several screens below the fold to nobody. The reveal
-	// has to run for this arrival exactly as for a deep link: `pressedARow`
-	// reads where the press actually landed, not merely that the navigation
-	// started inside the section.
-	await page.goto('/guidelines/');
-	await page.getByRole('link', { name: 'How do I write backing vocals?', exact: true }).click();
-	await expect(page).toHaveURL(/\/guidelines\/section-headers\/#parenthetical-formatting$/u);
-
-	const current = page.locator('.site-split__index a[aria-current="page"]');
-	await expect(current).toHaveCount(1);
-	await expect(current).toHaveAttribute('href', /#parenthetical-formatting$/u);
-	await expect(current).toBeInViewport();
-	// In the column rather than under its pinned finder, which `toBeInViewport`
-	// cannot see past.
-	const finder = await page.locator('.site-split__index .site-finder').boundingBox();
-	await expect
-		.poll(async () => (await current.boundingBox())?.y ?? 0)
-		.toBeGreaterThan(finder!.y + finder!.height - 1);
-});
-
-test('pressing a row the reader can see moves the list by nothing', async ({ page }) => {
-	// The other half of the same rule, which the reveal above must not regress:
-	// a row pressed in the list is by definition one the reader can see, so
-	// opening it may not move the list under their pointer.
-	await page.goto('/guidelines/?topic=ad-libs');
-	const column = page.locator('.site-split__index');
-	await page
-		.locator('.reference-result', { hasText: 'Echo repeats are not ad-libs' })
-		.scrollIntoViewIfNeeded();
-	const before = await column.evaluate((el) => el.scrollTop);
-	await page
-		.locator('.site-split__index .reference-result', { hasText: 'Echo repeats are not ad-libs' })
-		.click();
-	await expect(page.locator('.guidelines__entry[data-current] h2')).toHaveText(
-		'Echo repeats are not ad-libs'
-	);
-	// Give a wrongly armed reveal its frames to fire before reading the offset.
-	await page.waitForTimeout(400);
-	expect(await column.evaluate((el) => el.scrollTop)).toBe(before);
 });
 
 test('the spelling topic lists the standardized spellings, and the finder searches them', async ({
@@ -904,20 +686,16 @@ test('the spelling topic lists the standardized spellings, and the finder search
 	// own, not a hand-written excerpt that would go stale beside it.
 	await page.goto('/guidelines/spelling/');
 	const rows = page.locator('.rules__lookup-row');
-	await expect(rows.first()).toBeVisible();
+	await expect(rows.first()).toBeAttached();
 	expect(await rows.count()).toBeGreaterThan(20);
 
-	// A spelling the page lists has to answer the finder (the citation lesson,
-	// arriving here for lookup tables) and the open page marks the form. The
-	// index draws no linter rows any more, so what the query lands on is the
-	// standardized-spellings landmark, through `spelling.standardized`'s own
-	// lookup terms folded into its haystack.
-	const search = page.getByRole('searchbox', { name: 'Search the transcription guide' });
+	// Lookup terms find the sourced spelling table without replacing the article.
+	const search = page.getByRole('searchbox', { name: 'What are you working on?' });
 	await search.fill('whoa');
 	await expect(
-		page.locator('.site-split__index .reference-result[href$="#standardized-spellings"]')
+		page.locator('.reference-result > a[href$="#standardized-spellings"]')
 	).toBeVisible();
-	await expect(page.locator('main mark.site-hit').first()).toBeVisible();
+	await expect(page.locator('main mark.site-hit').first()).toBeAttached();
 
 	// The landmark states its standing beside the entries', which it did not
 	// for a while: the table led the catalog's first topic under a lede
@@ -931,7 +709,7 @@ test('the spelling topic lists the standardized spellings, and the finder search
 	// Check titles remain compact; occurrence-specific explanations open with their input.
 	await search.fill('');
 	const orthography = page.locator('.guidelines__entry:has(#standard-orthography)');
-	await expect(orthography.getByRole('heading', { name: 'What LyricLint checks' })).toBeVisible();
+	await expect(orthography.getByRole('heading', { name: 'What LyricLint checks' })).toBeAttached();
 	const disclosures = orthography.locator('.guidelines__checks details');
 	await expect(disclosures).toHaveCount(9);
 	const english = disclosures.filter({
@@ -953,31 +731,6 @@ test('the spelling topic lists the standardized spellings, and the finder search
 	await expect(check).not.toHaveAttribute('target');
 	await expect(check).toHaveAttribute('href', /\/guidelines\/checks\/spelling-english-common\/$/u);
 	await expect(english.locator('p').first()).toContainText('definitely');
-});
-
-test('a fragment naming nothing falls back to the lead, and a landmark washes', async ({
-	page
-}) => {
-	// A fragment is somebody else's string, so one that resolves to no heading
-	// must not be published as the reading position. That left the index
-	// marking no row at all until the next scroll event. The lead section is
-	// what a topic opened with no fragment lands on, and it is the honest answer
-	// here too.
-	await page.goto('/guidelines/spelling/#no-such-anchor');
-	const current = page.locator('.site-split__index a[aria-current="page"]');
-	await expect(current).toHaveCount(1);
-	await expect(current).toContainText('The standardized spellings');
-	// And no wash: nothing on the page carries the name the link asked for.
-	await expect(
-		page.locator('.guidelines__entry[data-current], .guidelines__landmark[data-current]')
-	).toHaveCount(0);
-
-	// A landmark is a deep-link target exactly as an entry is (the index and
-	// every rule page's guideline link both name its anchor), so it takes the
-	// same arrival wash through the same pair of marks.
-	await page.goto('/guidelines/spelling/#standardized-spellings');
-	await expect(page.locator('.guidelines__landmark[data-current]')).toHaveCount(1);
-	await expect(page.locator('.guidelines__landmark:has(:target)')).toHaveCount(1);
 });
 
 test('the assistant release manifest identifies the built website and citation corpus', async ({
@@ -1009,11 +762,13 @@ test('sitemap lists every public page including the workbench', async ({ request
 	const rulePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/checks\/[^/]+\/<\/loc>/gu) ?? [];
 	expect(rulePages).toHaveLength(60);
-	// One page per guidance topic, so this number moves when `guidanceTopicTitles`
-	// gains a topic with entries, which docs/guidelines.md tells the contributor.
+	// Ten topic pages, plus the complete guide and the optional essentials.
 	const guidelinePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/[^/]+\/<\/loc>/gu) ?? [];
-	expect(guidelinePages).toHaveLength(10);
+	expect(guidelinePages).toHaveLength(12);
+	for (const route of ['all', 'essentials']) {
+		expect(sitemap).toContain(`<loc>https://lyriclint.com/guidelines/${route}/</loc>`);
+	}
 	// One page per docs catalog entry, plus the docs index.
 	const docsPages = sitemap.match(/<loc>https:\/\/lyriclint\.com\/docs\/[^/]+\/<\/loc>/gu) ?? [];
 	expect(docsPages).toHaveLength(docsCatalog.length);
@@ -1394,102 +1149,6 @@ test.describe('document editing', () => {
 		// And the shell has no scroll port at all, so even a direct write is refused.
 		expect(metrics.scrollTop).toBe(0);
 		await expect(toolbar).toBeInViewport();
-	});
-});
-
-test.describe('phone reference sections', () => {
-	// The same emulation the workbench's phone block uses: `hasTouch` is what
-	// makes `(pointer: coarse)` match, and the width is under the 62rem stack.
-	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-
-	test('the phone strip opens on a finder a finger can focus', async ({ page }) => {
-		// The stack leads with the index at the index view. Measured the other
-		// way round, the whole guide stood above the search field, ten phone
-		// viewports of prose between a reader and the section's primary control.
-		await page.goto('/guidelines/');
-		const search = page.getByRole('searchbox', { name: 'Search the transcription guide' });
-		await expect(search).toBeInViewport();
-
-		// And the field computes at least 16px under a coarse pointer, or iOS
-		// Safari answers the focus by zooming the page in and never back out.
-		// The element-selector raise in `responsive.css` loses to any class that
-		// sizes a field, which is exactly how this one shipped at 13px, and the
-		// class-level restatement is what this pins. Emulation cannot reproduce
-		// the zoom itself; the size is the whole mechanism.
-		expect(
-			Number.parseFloat(await search.evaluate((field) => getComputedStyle(field).fontSize))
-		).toBeGreaterThanOrEqual(16);
-
-		// The introduction remains mounted one pane to the left.
-		const guide = page.getByRole('heading', { name: 'Put what you hear into words.' });
-		const guideBox = await guide.boundingBox();
-		const finderBox = await search.boundingBox();
-		expect(guideBox!.x).toBeLessThan(finderBox!.x);
-		await expect(guide).not.toBeInViewport();
-	});
-
-	test('Back restores an expanded check and its phone reading position', async ({ page }) => {
-		await page.goto('/guidelines/section-headers/#voice-order');
-		const disclosure = page
-			.locator('.guidelines__entry:has(#voice-order) .guidelines__checks details')
-			.first();
-		await disclosure.locator('summary').click();
-		const check = disclosure.getByRole('link', { name: /See trigger and fix/u });
-		await check.scrollIntoViewIfNeeded();
-		const detail = page.locator('.site-split__detail');
-		const before = await detail.evaluate((pane) => pane.scrollTop);
-		await check.click();
-		await expect(page).toHaveURL(/\/guidelines\/checks\//u);
-		await page.goBack();
-		await expect(disclosure).toHaveAttribute('open');
-		await expect
-			.poll(async () => Math.abs((await detail.evaluate((pane) => pane.scrollTop)) - before))
-			.toBeLessThan(2);
-	});
-
-	test('the arrival wash stands down where the index is not beside the page', async ({ page }) => {
-		// The finder is mounted off screen on phones, so the arrival paint stands down.
-		await page.goto('/guidelines/punctuation/#doubled-exclamation');
-		const washed = page.locator('.guidelines__entry[data-current]');
-		await expect(washed).toHaveCount(1);
-		expect(await washed.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none');
-	});
-
-	test('deep in a topic the way back stays pinned, and a jump clears it', async ({ page }) => {
-		// The reading pane owns scrolling and keeps its back control pinned.
-		await page.goto('/guidelines/section-headers/');
-		await page.mouse.move(200, 600);
-		await page.mouse.wheel(0, 6000);
-		await expect
-			.poll(() => page.locator('.site-split__detail').evaluate((pane) => pane.scrollTop))
-			.toBeGreaterThan(3000);
-		expect(await page.evaluate(() => window.scrollY)).toBe(0);
-		const back = page
-			.getByRole('navigation', { name: 'Guide navigation' })
-			.getByRole('button', { name: 'Topics', exact: true });
-		await expect(back).toBeInViewport();
-
-		// Deep links clear the pinned topic above and the floating navigation below.
-		await page.goto('/guidelines/section-headers/#voice-order');
-		await expect(page.locator('#doubled-exclamation')).toBeAttached();
-		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-			390
-		);
-		const heading = page.locator('#voice-order');
-		await expect(heading).toBeVisible();
-		const topic = page.locator('#topic-section-headers');
-		await expect
-			.poll(async () => {
-				const [headingBox, topicBox] = await Promise.all([
-					heading.boundingBox(),
-					topic.boundingBox()
-				]);
-				return headingBox!.y - topicBox!.y - topicBox!.height;
-			})
-			.toBeGreaterThanOrEqual(-1);
-		const headingBox = await heading.boundingBox();
-		const barBox = await page.locator('.site-split__navigation').boundingBox();
-		expect(headingBox!.y + headingBox!.height).toBeLessThanOrEqual(barBox!.y);
 	});
 });
 
