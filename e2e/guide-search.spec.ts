@@ -31,9 +31,12 @@ for (const width of [1440, 390, 320]) {
 			page.locator('.guidelines__entry:has(#doubled-exclamation) .site-sample--invalid pre')
 		).toHaveText('Turn it up!!');
 		await page.reload();
+		// The fragment is present in server HTML before the client router is ready for Back.
+		await expect(page.locator('#reference-search')).toBeEnabled();
 		await expect(page.locator('#doubled-exclamation')).toBeInViewport();
 		await page.goBack();
 		await expect(page).toHaveURL(/\/guidelines\/\?q=turn\+it\+up$/u);
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Transcription guide');
 		await expect(search).toHaveValue('turn it up');
 		await expect(result).toBeVisible();
 		await expect

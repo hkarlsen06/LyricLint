@@ -356,6 +356,8 @@ test('history navigation transitions while query and fragment changes do not', a
 		else await page.goForward();
 		await expect(page).toHaveURL(direction === 'back' ? /\/about\/$/ : /\/guidelines\/$/);
 		await expect.poll(transitions).toBeGreaterThan(previous);
+		// A started view transition can still be capturing the old page before the splash mounts.
+		await expect(page.locator('.navigation-splash')).toBeVisible();
 		await expect(page.locator('.navigation-splash')).toHaveCount(0);
 		await expect(page.locator('html')).not.toHaveAttribute('data-navigation-transition');
 		previous = await transitions();
