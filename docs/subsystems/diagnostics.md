@@ -97,8 +97,15 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 - A diagnostic's facts are one line (severity glyph, line number, citation) with the
   citation's section and verified date in its tooltip (`aria-describedby` there, because the
   visible tooltip is the only copy). Two or more citations fold behind `Sources ⌄`.
+- Expanded native findings offer `Read the guide` in the shared actions row, linking to
+  their published `/guidelines/checks/[rule]/` page. The lightweight shipped manifest and
+  existing slug helper own the mapping; Harper and unknown IDs get no fabricated page.
+  Like citations, this link opens a new tab with an icon and accessible disclosure, keeping
+  the draft, selected passage, and preview in the original workbench. It does not replace
+  external citations or add another disclosure. Pins: `guide-link.test.ts` and
+  `diagnostic-parity.svelte.test.ts`.
 - The card is the control all the way down: the stretched `::after` hit layer is measured
-  against the `<li>`, the head stays unpositioned, and only the buttons lift over it.
+  against the `<li>`, the head stays unpositioned, and only interactive controls lift over it.
 
 ## Decision record
 

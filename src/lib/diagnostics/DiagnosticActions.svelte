@@ -2,12 +2,15 @@
 	// Decision record: docs/subsystems/diagnostics.md. Read it before changing
 	// this file, and update it with any behavior change.
 	import { untrack } from 'svelte';
+	import { resolve } from '$app/paths';
+	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import { previewableFix, previewSignature } from '#lib/core/fix-preview.js';
 	import type { Diagnostic, DiagnosticFix } from '#lib/core/types.js';
 	import { describeControl } from '#lib/ui/state/control-tooltip.svelte.js';
 	import { acceptsDiagnosticAsCorrect } from './ignore.js';
 	import { acquirePreview } from './preview-slot.js';
+	import { diagnosticGuideSlug } from './guide-link.js';
 
 	interface Props {
 		diagnostic: Diagnostic;
@@ -50,6 +53,8 @@
 		onIgnore,
 		onClose
 	}: Props = $props();
+
+	const guideSlug = $derived(diagnosticGuideSlug(diagnostic.ruleId));
 
 	/**
 	 * The finding whose likeliest answer is that the text is already right. The
@@ -305,6 +310,18 @@
 					? 'The performer is unknown'
 					: 'Ignore'}
 		</button>
+	{/if}
+	{#if guideSlug}
+		<a
+			class="button button--quiet diagnostic-actions__guide"
+			href={resolve(`guidelines/checks/${guideSlug}/`)}
+			target="_blank"
+			rel="noopener noreferrer"
+		>
+			Read the guide
+			<ArrowSquareOutIcon aria-hidden="true" size={12} />
+			<span class="sr-only">(opens in a new tab)</span>
+		</a>
 	{/if}
 	{#if onClose}
 		<button type="button" class="button button--quiet diagnostic-actions__close" onclick={onClose}>

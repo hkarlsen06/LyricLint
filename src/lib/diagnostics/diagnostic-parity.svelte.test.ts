@@ -1,4 +1,5 @@
 import { render } from 'vitest-browser-svelte';
+import { fireEvent, within } from '@testing-library/dom';
 import { describe, expect, it, vi } from 'vitest';
 // The parity assertions compare rendered geometry as well as markup, so the
 // real tokens have to be loaded rather than mocked.
@@ -117,6 +118,60 @@ async function popoverActions(
 }
 
 describe('a diagnostic reads the same in the panel and in the editor', () => {
+	it('links native findings to the same guide without activating either host', async () => {
+		for (const ruleId of ['contraction.apostrophe', 'grammar.harper']) {
+			const diagnostic = { ...contractionDiagnostic(), ruleId };
+			const onNavigate = vi.fn();
+			const callbacks = {
+				onPreviewFix: vi.fn(),
+				onCancelPreview: vi.fn(),
+				onApplyFix: vi.fn(),
+				onIgnore: vi.fn()
+			};
+			for (const surface of ['panel', 'popover']) {
+				const screen =
+					surface === 'panel'
+						? await render(DiagnosticList, {
+								diagnostics: [diagnostic],
+								rowKey: () => 'finding',
+								sources: new Map(),
+								emptyState: { title: '', detail: '' },
+								onNavigate,
+								onChooseHeader: vi.fn(),
+								onSetLanguage: vi.fn(),
+								...callbacks
+							})
+						: await render(DiagnosticPopover, { diagnostic, ...callbacks });
+				const link = within(screen.container).queryByRole('link', {
+					name: 'Read the guide (opens in a new tab)'
+				});
+				if (ruleId === 'grammar.harper') {
+					expect(link).toBeNull();
+				} else {
+					if (!link) throw new Error('Native guide link is missing');
+					expect(link.getAttribute('href')).toBe('/guidelines/checks/contraction-apostrophe/');
+					expect(link.getAttribute('target')).toBe('_blank');
+					expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+					link.scrollIntoView({ block: 'center' });
+					const before = link.getBoundingClientRect();
+					expect(
+						document
+							.elementFromPoint(before.x + before.width / 2, before.y + before.height / 2)
+							?.closest('a')
+					).toBe(link);
+					link.focus();
+					expect(link.getBoundingClientRect().toJSON()).toEqual(before.toJSON());
+					link.addEventListener('click', (event) => event.preventDefault());
+					await fireEvent.click(link);
+					expect(onNavigate).not.toHaveBeenCalled();
+					expect(callbacks.onApplyFix).not.toHaveBeenCalled();
+					expect(callbacks.onIgnore).not.toHaveBeenCalled();
+				}
+				await screen.unmount();
+			}
+		}
+	});
+
 	it('offers one action row, built from one component, on both surfaces', async () => {
 		const diagnostic = contractionDiagnostic();
 		const panel = await panelActions(diagnostic);
