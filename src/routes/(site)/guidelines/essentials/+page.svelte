@@ -7,6 +7,7 @@
 	import { referenceHref } from '#lib/ui/site/reference-search.svelte.js';
 	import { siteUrl } from '#lib/seo.js';
 	import GuidanceConvention from '#lib/ui/site/GuidanceConvention.svelte';
+	import GuideJumpList from '#lib/ui/site/GuideJumpList.svelte';
 	import StructuredData from '#lib/ui/site/StructuredData.svelte';
 	const entries = essentialEntryIds.flatMap((id) =>
 		guidanceEntries.filter((entry) => entry.id === id)
@@ -44,13 +45,12 @@
 		Use this optional reference for common decisions. It is a selection from the reviewed Genius
 		guide, and each complete topic covers more situations and exceptions.
 	</p>
-	<nav aria-label="On this page">
-		<ul>
-			{#each entries as entry (entry.id)}<li>
-					<a href={`#${entryAnchor(entry.id)}`}>{entry.title}</a>
-				</li>{/each}
-		</ul>
-	</nav>
+	<div class="essentials-jump">
+		<p class="essentials-jump__title">Jump to a section</p>
+		<GuideJumpList
+			items={entries.map((entry) => ({ id: entryAnchor(entry.id), label: entry.title }))}
+		/>
+	</div>
 	{#each entries as entry (entry.id)}
 		<section>
 			<h2 id={entryAnchor(entry.id)}>{entry.title}</h2>
@@ -94,7 +94,17 @@
 	h3 {
 		scroll-margin-top: calc(var(--header-height) + var(--space-6));
 	}
-	nav li + li {
-		margin-top: var(--space-2);
+	/* The topic pages' contents row, without the disclosure: the first section's rule closes it. */
+	.essentials-jump {
+		border-block-start: var(--border-width) solid var(--color-border);
+	}
+	.essentials-jump__title {
+		display: flex;
+		align-items: center;
+		min-height: var(--control-height-md);
+		margin: 0;
+		padding: var(--space-3) var(--space-1);
+		font-weight: var(--font-weight-semibold);
+		line-height: var(--line-height-tight);
 	}
 </style>

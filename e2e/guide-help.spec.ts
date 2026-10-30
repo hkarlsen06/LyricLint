@@ -2,6 +2,51 @@ import { expect, test } from '@playwright/test';
 
 test.use({ reducedMotion: 'reduce' });
 
+test('contents jump within the current page without looking like external links', async ({
+	page,
+	isMobile
+}, testInfo) => {
+	const width = isMobile ? 320 : 1440;
+	await page.setViewportSize({ width, height: 900 });
+	for (const [route, fragment] of [
+		['section-headers', 'voice-order'],
+		['essentials', 'include-every'],
+		['all', 'topic-numbers']
+	]) {
+		const pathname = `/guidelines/${route}/`;
+		await page.goto(`${pathname}?q=voices`);
+		const disclosure = page.locator('.guide-contents');
+		if ((await disclosure.count()) && (await disclosure.getAttribute('open')) === null) {
+			await disclosure.locator('summary').click();
+		}
+		const contents = page.getByRole('navigation', { name: 'On this page' });
+		const jump = contents.locator(`a[href="#${fragment}"]`);
+		await expect(jump).toBeVisible();
+		expect(await jump.evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe(
+			'none'
+		);
+		await expect(jump).not.toHaveAttribute('target', '_blank');
+		if (route === 'section-headers') {
+			await page.screenshot({ path: testInfo.outputPath('topic-jump-navigation.png') });
+		}
+		await jump.focus();
+		await page.keyboard.press('Enter');
+		await expect(page).toHaveURL(`${pathname}?q=voices#${fragment}`);
+		const heading = page.locator(`#${fragment}`);
+		await expect(heading).toBeInViewport();
+		await expect
+			.poll(async () => {
+				const target = await heading.boundingBox();
+				const header = await page.locator('.site-header').boundingBox();
+				return target && header ? target.y - header.y - header.height : -1;
+			})
+			.toBeGreaterThanOrEqual(0);
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			width
+		);
+	}
+});
+
 test('guide disclosures and filter dropdowns remain accessible', async ({
 	page,
 	isMobile

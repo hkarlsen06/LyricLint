@@ -235,6 +235,7 @@ export default defineConfig(({ mode }) => ({
 	// Svelte runtime. See docs/ci.md.
 	optimizeDeps: {
 		include: [
+			'phosphor-svelte/lib/ArrowDownIcon',
 			'@codemirror/search',
 			'phosphor-svelte/lib/DownloadIcon',
 			'phosphor-svelte/lib/FileAudioIcon',

@@ -21,6 +21,7 @@
 	import GuidanceSearchHighlight from '#lib/ui/site/GuidanceSearchHighlight.svelte';
 	import SiteSourceFold from '#lib/ui/site/SiteSourceFold.svelte';
 	import GuidanceConvention from '#lib/ui/site/GuidanceConvention.svelte';
+	import GuideJumpList from '#lib/ui/site/GuideJumpList.svelte';
 	import type { Snapshot } from '@sveltejs/kit';
 	import type { LayoutData } from '../../../routes/(site)/guidelines/$types.js';
 	import type { GuidanceTopic } from '#lib/guidance/guidance.js';
@@ -36,11 +37,26 @@
 				entries: guidanceTopics().find((group) => group.topic === section.topic)?.entries ?? []
 			}))
 	);
+	const SPELLINGS_ANCHOR = 'standardized-spellings';
+	const contents = $derived(
+		groups.flatMap(({ section, entries }) =>
+			topic
+				? [
+						...(topic === 'spelling'
+							? [{ id: SPELLINGS_ANCHOR, label: 'The standardized spellings' }]
+							: []),
+						...entries.map((entry) => ({ id: entryAnchor(entry.id), label: entry.title })),
+						...(section.additionalChecks.length
+							? [{ id: `additional-checks-${topic}`, label: 'More checks for this topic' }]
+							: [])
+					]
+				: [{ id: `topic-${section.topic}`, label: topicTitle(section.topic) }]
+		)
+	);
 	const title = $derived(topic ? topicTitle(topic) : 'Complete Genius transcription guide');
 	function topicTitle(value: GuidanceTopic) {
 		return referenceTopics.find((item) => item.id === value)?.title ?? guidanceTopicTitles[value];
 	}
-	const SPELLINGS_ANCHOR = 'standardized-spellings';
 	let article: HTMLElement;
 	export const snapshot: Snapshot<GuideReadingSnapshot> = {
 		capture: () => ({
@@ -248,29 +264,10 @@
 		open={!topic || groups.reduce((count, group) => count + group.entries.length, 0) <= 8}
 	>
 		<summary
-			><span class="site-disclosure__label">{topic ? 'In this topic' : 'Contents'}</span
+			><span class="site-disclosure__label">{topic ? 'Jump to a section' : 'Jump to a topic'}</span
 			><CaretDownIcon class="site-disclosure__chevron" size={16} aria-hidden="true" /></summary
 		>
-		<nav aria-label="On this page">
-			<ul>
-				{#each groups as group (group.section.topic)}
-					{#if !topic}<li>
-							<a href={`#topic-${group.section.topic}`}>{topicTitle(group.section.topic)}</a>
-						</li>{/if}
-					{#if topic}
-						{#if topic === 'spelling'}<li>
-								<a href="#standardized-spellings">The standardized spellings</a>
-							</li>{/if}
-						{#each group.entries as entry (entry.id)}<li>
-								<a href={`#${entryAnchor(entry.id)}`}>{entry.title}</a>
-							</li>{/each}
-						{#if group.section.additionalChecks.length}<li>
-								<a href={`#additional-checks-${topic}`}>More checks for this topic</a>
-							</li>{/if}
-					{/if}
-				{/each}
-			</ul>
-		</nav>
+		<GuideJumpList items={contents} />
 	</details>
 	{#each groups as group (group.section.topic)}
 		<section class="guide-topic" aria-label={topicTitle(group.section.topic)}>
@@ -367,10 +364,7 @@
 	.guidelines__checks p {
 		margin: var(--space-1) 0 0;
 	}
-	.guide-contents ul {
-		margin-block-end: 0;
-	}
-	nav li + li {
+	.guide-related li + li {
 		margin-top: var(--space-2);
 	}
 	.guide-topic {

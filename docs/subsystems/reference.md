@@ -5,6 +5,7 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
 `src/lib/ui/site/SectionSplit.svelte`, `src/lib/ui/site/GuideWelcome.svelte`,
 `src/lib/ui/site/GuideArticle.svelte`, `src/lib/ui/site/GuidanceConvention.svelte`,
 `src/lib/ui/site/ReferenceIndex.svelte`, `src/lib/ui/site/GuideQuestions.svelte`,
+`src/lib/ui/site/GuideJumpList.svelte`,
 `src/lib/ui/site/StandardizedSpellings.svelte`, `src/lib/ui/site/GlossaryTerm.svelte`,
 `src/lib/ui/site/CodeProse.svelte`, `src/lib/guidance/glossary.ts`, `src/lib/guidance/essentials.ts`,
 `src/lib/ui/site/reference-search.svelte.ts`, `src/lib/ui/site/reference-url.ts`,
@@ -58,6 +59,10 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   No summary may erase an applicable exception. `essentials.test.ts` and
   `GuidanceConvention.svelte.test.ts` pin canonical content and visible notes.
 - Topic contents disclose below their trigger. Short topics and the complete guide start expanded.
+  Same-page contents use the shared `GuideJumpList`: neutral, full-row targets with a downward
+  cue beneath an explicit Jump to a section or Jump to a topic label. Topic pages, the complete
+  guide and Essentials use the same treatment. Links retain native fragments and query state;
+  source citations retain their distinct link styling. `e2e/guide-help.spec.ts` pins keyboard jumps.
   Topics have an h1, conventions h2 and check headings h3. The complete guide adds topic h2s,
   convention h3s and check h4s. Fragment headings, including Essentials companions, clear the
   site header. Examples retain their exact text and language. `GuideArticle.svelte.test.ts`
