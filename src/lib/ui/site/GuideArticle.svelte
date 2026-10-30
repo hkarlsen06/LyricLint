@@ -228,8 +228,10 @@
 				{/each}
 			</ul>
 			{#if section.checksById['spelling.standardized']}
-				<svelte:element this={topic ? 'h3' : 'h4'}>What LyricLint checks</svelte:element>
-				{@render checkList(SPELLINGS_ANCHOR, [section.checksById['spelling.standardized']])}
+				<div class="guidelines__check-group">
+					<svelte:element this={topic ? 'h3' : 'h4'}>What LyricLint checks</svelte:element>
+					{@render checkList(SPELLINGS_ANCHOR, [section.checksById['spelling.standardized']])}
+				</div>
 			{/if}
 		</section>
 	{/if}
@@ -242,13 +244,15 @@
 		>
 		<GuidanceConvention {entry} />
 		{#if entry.relatedRuleIds?.length}
-			<svelte:element this={topic ? 'h3' : 'h4'}>What LyricLint checks</svelte:element>
-			{@render checkList(
-				entry.id,
-				entry.relatedRuleIds.flatMap((id) =>
-					section.checksById[id] ? [section.checksById[id]] : []
-				)
-			)}
+			<div class="guidelines__check-group">
+				<svelte:element this={topic ? 'h3' : 'h4'}>What LyricLint checks</svelte:element>
+				{@render checkList(
+					entry.id,
+					entry.relatedRuleIds.flatMap((id) =>
+						section.checksById[id] ? [section.checksById[id]] : []
+					)
+				)}
+			</div>
 		{/if}
 	</section>
 {/snippet}
@@ -348,6 +352,19 @@
 	.guidelines__entry > :last-child,
 	.guidelines__landmark > :last-child {
 		margin-bottom: 0;
+	}
+	.guidelines__check-group {
+		margin-block-start: var(--space-6);
+		border-inline-start: var(--border-width) solid var(--color-border);
+		padding-inline-start: var(--space-6);
+	}
+	.guidelines__check-group > :first-child {
+		margin-block-start: 0;
+	}
+	@media (max-width: 46rem) {
+		.guidelines__check-group {
+			padding-inline-start: var(--space-3);
+		}
 	}
 	.guidelines__checks {
 		list-style: none;

@@ -72,6 +72,8 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   a turning chevron indicates the open state. Native details keep keyboard behavior and snapshots.
   Show and Topic filters retain native select pickers, with matching chevrons and token styling.
 - Guidelines explain sourced conventions; checks explain exact linter triggers and fixes.
+  Each convention's "What LyricLint checks" group is inset behind a quiet leading rule, including
+  the standardized spellings. The inset narrows on phones and includes expanded check content.
   Linked checks disclose their own sources, accepted/flagged examples and explanation.
   Source links stay available without nested source disclosures. A check does not claim to
   verify every part of a convention. `topic-checks.server.ts` derives check wording from the
