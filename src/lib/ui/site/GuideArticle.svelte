@@ -158,7 +158,9 @@
 	{#if data.spellings}
 		<section class="guidelines__landmark">
 			<header class="guidelines__entry-heading">
-				<h2 id={SPELLINGS_ANCHOR}>The standardized spellings</h2>
+				<svelte:element this={topic ? 'h2' : 'h3'} id={SPELLINGS_ANCHOR}
+					>The standardized spellings</svelte:element
+				>
 				{#if spellingsLandmark}
 					<div class="site-meta">
 						<AuthorityLadder authority={spellingsLandmark.authority} />
@@ -196,7 +198,7 @@
 				{/each}
 			</ul>
 			{#if section.checksById['spelling.standardized']}
-				<h3>What LyricLint checks</h3>
+				<svelte:element this={topic ? 'h3' : 'h4'}>What LyricLint checks</svelte:element>
 				{@render checkList(SPELLINGS_ANCHOR, [section.checksById['spelling.standardized']])}
 			{/if}
 		</section>
@@ -205,10 +207,12 @@
 
 {#snippet convention(entry: Entry, section: Section)}
 	<section class="guidelines__entry">
-		<h2 id={entryAnchor(entry.id)}><GuidanceSearchHighlight text={entry.title} /></h2>
+		<svelte:element this={topic ? 'h2' : 'h3'} id={entryAnchor(entry.id)}
+			><GuidanceSearchHighlight text={entry.title} /></svelte:element
+		>
 		<GuidanceConvention {entry} />
 		{#if entry.relatedRuleIds?.length}
-			<h3>What LyricLint checks</h3>
+			<svelte:element this={topic ? 'h3' : 'h4'}>What LyricLint checks</svelte:element>
 			{@render checkList(
 				entry.id,
 				entry.relatedRuleIds.flatMap((id) =>
@@ -254,7 +258,9 @@
 			{#each group.entries as entry (entry.id)}{@render convention(entry, group.section)}{/each}
 			{#if group.section.additionalChecks.length}
 				<section class="guidelines__additional">
-					<h2 id={`additional-checks-${group.section.topic}`}>More checks for this topic</h2>
+					<svelte:element this={topic ? 'h2' : 'h3'} id={`additional-checks-${group.section.topic}`}
+						>More checks for this topic</svelte:element
+					>
 					<p>
 						These checks cover other patterns in this topic. Each explains its source, trigger, and
 						suggested correction.
@@ -294,7 +300,8 @@
 	}
 	h1,
 	h2,
-	h3 {
+	h3,
+	h4 {
 		scroll-margin-top: calc(var(--header-height) + var(--space-6));
 	}
 	.guidelines__entry > :first-child,

@@ -35,7 +35,8 @@ describe('bounded guide reading', () => {
 	});
 	it('renders the complete guide only when no topic is passed', async () => {
 		const view = await render(GuideArticle, { data });
-		expect(view.container.querySelector('#include-every')).not.toBeNull();
+		expect(view.container.querySelector('#topic-ad-libs')?.tagName).toBe('H2');
+		expect(view.container.querySelector('#include-every')?.tagName).toBe('H3');
 		expect(view.container.querySelector('#bracketed-headers')).not.toBeNull();
 		expect(view.container.querySelector('#unknown-marker')).not.toBeNull();
 	});

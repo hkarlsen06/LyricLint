@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { guidanceEntries } from '#lib/guidance/entries.js';
-	import { essentialEntryIds } from '#lib/guidance/essentials.js';
+	import { essentialEntryIds, essentialCompanions } from '#lib/guidance/essentials.js';
 	import { entryAnchor } from '#lib/guidance/guidance.js';
 	import { referenceHref } from '#lib/ui/site/reference-search.svelte.js';
 	import { siteUrl } from '#lib/seo.js';
@@ -53,11 +53,15 @@
 		<section>
 			<h2 id={entryAnchor(entry.id)}>{entry.title}</h2>
 			<GuidanceConvention {entry} showIncorrect={false} />
+			{#each guidanceEntries.filter( (candidate) => essentialCompanions[entry.id]?.includes(candidate.id) ) as companion (companion.id)}
+				<h3 id={entryAnchor(companion.id)}>{companion.title}</h3>
+				<GuidanceConvention entry={companion} showIncorrect={false} />
+			{/each}
 			<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref preserves search on a resolved topic URL. -->
 			<p>
 				<a
 					href={referenceHref(
-						`${resolve('/(site)/guidelines/[topic]', { topic: entry.topic })}#${entryAnchor(entry.id)}`
+						`${resolve('/(site)/guidelines/[topic]', { topic: entry.topic })}/#${entryAnchor(entry.id)}`
 					)}>Read the complete topic: {entry.title}</a
 				>
 			</p>

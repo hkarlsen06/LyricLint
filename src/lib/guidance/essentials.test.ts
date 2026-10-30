@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { essentialEntryIds } from './essentials.js';
+import { essentialEntryIds, essentialCompanions } from './essentials.js';
 import { guidanceEntries } from './entries.js';
 import { entryAnchor } from './guidance.js';
 
@@ -19,5 +19,22 @@ describe('Genius essentials selection', () => {
 	it('has unique fragments for its in-page contents links', () => {
 		const anchors = essentialEntryIds.map(entryAnchor);
 		expect(new Set(anchors).size).toBe(anchors.length);
+	});
+
+	it('keeps the readability, echo, and brand-name qualifications beside their general advice', () => {
+		for (const [id, companions] of Object.entries(essentialCompanions)) {
+			expect(essentialEntryIds).toContain(id);
+			for (const companion of companions)
+				expect(guidanceEntries.find((entry) => entry.id === companion)?.statement).toBeTruthy();
+		}
+		expect(essentialCompanions['guidance.spelling.elision-apostrophe']).toContain(
+			'guidance.spelling.readability-limit'
+		);
+		expect(essentialCompanions['guidance.ad-libs.include-every']).toContain(
+			'guidance.ad-libs.echo-effects'
+		);
+		expect(essentialCompanions['guidance.punctuation.unmarked-question']).toContain(
+			'guidance.punctuation.brand-name-marks'
+		);
 	});
 });
