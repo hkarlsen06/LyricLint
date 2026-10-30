@@ -10,8 +10,8 @@ export const essentialEntryIds: readonly string[] = [
 ];
 
 /** These qualifications live in neighboring catalog entries and must travel with the advice. */
-export const essentialCompanions: Readonly<Record<string, readonly string[]>> = {
-	'guidance.spelling.elision-apostrophe': ['guidance.spelling.readability-limit'],
-	'guidance.ad-libs.include-every': ['guidance.ad-libs.echo-effects'],
-	'guidance.punctuation.unmarked-question': ['guidance.punctuation.brand-name-marks']
-};
+export const essentialCompanions = new Map<string, readonly string[]>([
+	['guidance.spelling.elision-apostrophe', ['guidance.spelling.readability-limit']],
+	['guidance.ad-libs.include-every', ['guidance.ad-libs.echo-effects']],
+	['guidance.punctuation.unmarked-question', ['guidance.punctuation.brand-name-marks']]
+]);

@@ -52,7 +52,7 @@ export function referenceSearchTokens(): readonly string[] {
 	return tokens;
 }
 
-/** Both panes apply the same query, scope and optional check filters. */
+/** The finder applies the current query, scope and optional check filters on every route. */
 export function createReferenceResults(corpus: readonly ReferenceDocument[]) {
 	const search = createReferenceSearch(corpus);
 	return () =>

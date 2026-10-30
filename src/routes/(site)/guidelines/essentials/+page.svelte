@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { guidanceEntries } from '#lib/guidance/entries.js';
 	import { essentialEntryIds, essentialCompanions } from '#lib/guidance/essentials.js';
+	import { referenceTopics } from '#lib/reference/topics.js';
 	import { entryAnchor } from '#lib/guidance/guidance.js';
 	import { referenceHref } from '#lib/ui/site/reference-search.svelte.js';
 	import { siteUrl } from '#lib/seo.js';
@@ -11,8 +12,7 @@
 		guidanceEntries.filter((entry) => entry.id === id)
 	);
 	const title = 'Genius transcription essentials · LyricLint';
-	const description =
-		'Seven practical starting points for Genius lyric transcription, with reviewed examples, qualifications, and links to the complete topics.';
+	const description = `${entries.length} practical starting points for Genius lyric transcription, with reviewed examples, qualifications, and links to the complete topics.`;
 	const canonical = siteUrl('/guidelines/essentials/');
 </script>
 
@@ -37,7 +37,9 @@
 />
 <main id="main" tabindex="-1" class="site-prose site-split__page">
 	<h1>Genius transcription essentials</h1>
-	<p class="site-lede">Seven practical starting points when you are new to transcribing.</p>
+	<p class="site-lede">
+		{entries.length} practical starting points when you are new to transcribing.
+	</p>
 	<p>
 		Use this optional reference for common decisions. It is a selection from the reviewed Genius
 		guide, and each complete topic covers more situations and exceptions.
@@ -52,17 +54,19 @@
 	{#each entries as entry (entry.id)}
 		<section>
 			<h2 id={entryAnchor(entry.id)}>{entry.title}</h2>
-			<GuidanceConvention {entry} showIncorrect={false} />
-			{#each guidanceEntries.filter( (candidate) => essentialCompanions[entry.id]?.includes(candidate.id) ) as companion (companion.id)}
+			<GuidanceConvention {entry} />
+			{#each guidanceEntries.filter((candidate) => essentialCompanions
+					.get(entry.id)
+					?.includes(candidate.id)) as companion (companion.id)}
 				<h3 id={entryAnchor(companion.id)}>{companion.title}</h3>
-				<GuidanceConvention entry={companion} showIncorrect={false} />
+				<GuidanceConvention entry={companion} />
 			{/each}
 			<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref preserves search on a resolved topic URL. -->
 			<p>
 				<a
 					href={referenceHref(
 						`${resolve('/(site)/guidelines/[topic]', { topic: entry.topic })}/#${entryAnchor(entry.id)}`
-					)}>Read the complete topic: {entry.title}</a
+					)}>More in {referenceTopics.find((topic) => topic.id === entry.topic)?.title}</a
 				>
 			</p>
 			<!-- eslint-enable svelte/no-navigation-without-resolve -->
@@ -85,6 +89,9 @@
 	}
 	section > h2 {
 		margin-top: 0;
+	}
+	h2,
+	h3 {
 		scroll-margin-top: calc(var(--header-height) + var(--space-6));
 	}
 	nav li + li {

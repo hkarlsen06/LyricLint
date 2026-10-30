@@ -1,21 +1,8 @@
 <script lang="ts">
-	import PlaylistIcon from 'phosphor-svelte/lib/PlaylistIcon';
-	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
-	import EarIcon from 'phosphor-svelte/lib/EarIcon';
-	import WaveformIcon from 'phosphor-svelte/lib/WaveformIcon';
-	import { resolve } from '$app/paths';
-	import { referenceHref } from '#lib/ui/site/reference-search.svelte.js';
+	import GuideQuestions from './GuideQuestions.svelte';
 	import { authorityLabels, type GuidanceAuthority } from '#lib/guidance/guidance.js';
 	import AuthorityLadder from '#lib/ui/site/AuthorityLadder.svelte';
 
-	/*
-	 * The legend for the authority ladder, ascending as the ladder fills. The
-	 * labels come off `authorityLabels` and the bars off `AuthorityLadder` (the
-	 * same map and the same component every entry's meta line draws), so
-	 * the legend cannot come to state a tier differently than the entries it
-	 * explains. The descriptions paraphrase `docs/guidelines.md`, which owns
-	 * the ladder's full argument.
-	 */
 	const tiers: readonly { authority: GuidanceAuthority; description: string }[] = [
 		{
 			authority: 'lyriclint',
@@ -44,73 +31,14 @@
 	];
 </script>
 
-<section id="guide-introduction" tabindex="-1" class="site-prose site-split__page guide-welcome">
-	<h1>Put what you hear<br /> into words.</h1>
-	<p class="site-lede">
-		A hard-to-hear word. A second singer. A chorus that comes back around. Find your way through the
-		little decisions that go into writing lyrics for Genius.
-	</p>
-	<h2>Start with the bit you’re stuck on</h2>
-	<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref decorates resolve() URLs with shared search parameters. -->
-	<ul class="reference-questions">
-		<li>
-			<a
-				href={referenceHref(
-					`${resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/`
-				)}
-				><PlaylistIcon size={24} aria-hidden="true" weight="bold" /><span
-					>How do I label song sections?</span
-				></a
-			>
-		</li>
-		<li>
-			<a
-				href={referenceHref(
-					`${resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/#artist-identifiers`
-				)}
-				><UsersIcon size={24} aria-hidden="true" weight="bold" /><span
-					>How do I credit different singers?</span
-				></a
-			>
-		</li>
-		<li>
-			<a
-				href={referenceHref(
-					`${resolve('/(site)/guidelines/[topic]', { topic: 'censored-unknown' })}/#unknown-marker`
-				)}
-				><EarIcon size={24} aria-hidden="true" weight="bold" /><span
-					>What if I cannot hear a word?</span
-				></a
-			>
-		</li>
-		<li>
-			<a
-				href={referenceHref(
-					`${resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/#parenthetical-formatting`
-				)}
-				><WaveformIcon size={24} aria-hidden="true" weight="bold" /><span
-					>How do I write backing vocals?</span
-				></a
-			>
-		</li>
-	</ul>
-	<!-- eslint-enable svelte/no-navigation-without-resolve -->
-
+<section class="site-prose site-split__page guide-welcome" aria-label="Getting started">
+	<div class="guide-welcome__questions"><GuideQuestions examples /></div>
 	<details class="reference-disclosure">
 		<summary>Where does the advice come from?</summary>
 		<p>
 			Each entry names its source and authority tier. A linked linter check may cover only part of a
 			convention; read its example and the entry’s qualifications for the limits.
 		</p>
-		<p>
-			The ascending bars ahead of each entry's tier label are its standing drawn as a ladder: four
-			steps for the four source tiers, filled up to the tier the entry's sources establish. Climbing
-			it is evidence, never an edit: an entry rises only when a higher-tier source confirming it
-			joins its citations.
-		</p>
-		<!-- The term is the entries' own pairing (the ladder and the label the meta
-	     lines draw), so a reader can carry the mark from here to any entry. The
-	     ladder stays `aria-hidden` as it is everywhere: the label is the fact. -->
 		<dl class="guidelines__tiers">
 			{#each tiers as { authority, description } (authority)}
 				<div>
@@ -135,97 +63,38 @@
 </section>
 
 <style>
-	.guide-welcome h1 {
-		font-size: clamp(calc(var(--font-size-xl) * 1.75), 3.5vw, calc(var(--font-size-xl) * 2.5));
-		line-height: var(--line-height-tight);
-		letter-spacing: -0.035em;
-		margin-bottom: var(--space-5);
+	@media (max-width: 62rem) {
+		.guide-welcome__questions {
+			display: none;
+		}
 	}
-	.guide-welcome h2 {
-		margin-top: var(--space-7);
-		font-size: var(--font-size-lg);
+	.reference-disclosure {
+		margin-block: var(--space-5);
 	}
-	/* Reference entrances and disclosures are prose on the canvas, not nested panels. */
-	.reference-questions {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		list-style: none;
-		padding: 0;
-		gap: var(--space-3);
-		margin-block: var(--space-4) var(--space-6);
+	.reference-disclosure > summary {
+		cursor: pointer;
+		font-weight: var(--font-weight-medium);
 	}
-	.reference-questions li {
-		margin: 0;
-		min-width: 0;
+	.reference-disclosure > summary:focus-visible {
+		outline: var(--focus-ring-width) solid var(--color-focus);
+		outline-offset: var(--focus-ring-offset);
 	}
-	.reference-questions a {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: var(--space-4) var(--space-2);
-		height: 100%;
-		padding: var(--space-4);
-		border: var(--border-width) solid var(--color-border);
-		border-radius: var(--radius-panel);
-		background: var(--color-surface);
-		color: var(--color-text);
-		text-decoration: none;
-		line-height: var(--line-height-body);
+	.reference-disclosure[open] > summary {
+		margin-block-end: var(--space-3);
 	}
-	.reference-questions a:hover {
-		background: var(--color-fill-subtle);
-		border-color: var(--color-border-strong);
-	}
-	.reference-questions a > :global(svg:first-child) {
-		grid-column: 1 / -1;
-		color: var(--color-text-muted);
-	}
-	/*
-	 * The guidelines welcome page's legend for the ladder: one term per tier,
-	 * ascending as the ladder fills. The term is the ladder and the label
-	 * together (the entries' own pairing, but in the body color and weight,
-	 * because here the tier is the subject being read rather than a fact in an
-	 * entry's margin), over one sentence of what earns it.
-	 */
 	.guidelines__tiers {
-		margin: 0 0 var(--space-4);
+		margin: 0;
 	}
-
 	.guidelines__tiers div + div {
 		margin-block-start: var(--space-4);
 	}
-
 	.guidelines__tiers dt {
 		display: flex;
 		gap: var(--space-2);
 		align-items: center;
 		font-weight: var(--font-weight-semibold);
 	}
-
 	.guidelines__tiers dd {
 		margin: var(--space-1) 0 0;
-	}
-
-	.reference-disclosure {
-		margin-block: var(--space-5);
-	}
-
-	.reference-disclosure > summary {
-		cursor: pointer;
-		color: var(--color-text);
-		font-weight: var(--font-weight-medium);
-	}
-
-	.reference-disclosure > summary:focus-visible {
-		outline: var(--focus-ring-width) solid var(--color-focus);
-		outline-offset: var(--focus-ring-offset);
-	}
-
-	.reference-disclosure[open] > summary {
-		margin-block-end: var(--space-3);
-	}
-	@media (max-width: 25rem) {
-		.reference-questions {
-			grid-template-columns: minmax(0, 1fr);
-		}
 	}
 </style>

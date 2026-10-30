@@ -1,5 +1,5 @@
 <script module lang="ts">
-	export type GuideReadingSnapshot = { checks: string[]; windowY: number };
+	export type GuideReadingSnapshot = { checks: string[]; contentsOpen: boolean; windowY: number };
 </script>
 
 <script lang="ts">
@@ -46,10 +46,13 @@
 			checks: Array.from(
 				article.querySelectorAll<HTMLDetailsElement>('details[data-check-id]')
 			).flatMap((element) => (element.open ? [element.id] : [])),
+			contentsOpen: article.querySelector<HTMLDetailsElement>('.guide-contents')?.open ?? false,
 			windowY: window.scrollY
 		}),
 		restore: (saved) => {
 			const restoredUrl = location.href;
+			const contents = article.querySelector<HTMLDetailsElement>('.guide-contents');
+			if (contents) contents.open = saved.contentsOpen;
 			article.querySelectorAll<HTMLDetailsElement>('details[data-check-id]').forEach((element) => {
 				element.open = saved.checks.includes(element.id);
 			});
@@ -224,31 +227,37 @@
 {/snippet}
 <main id="main" tabindex="-1" class="site-prose site-split__page" bind:this={article}>
 	<h1 id={topic ? `topic-${topic}` : undefined}>{title}</h1>
-	<p class="site-lede">Reviewed Genius conventions, examples, and the sources behind them.</p>
-	<p>
-		The checks below catch specific patterns in your text. They support your review; passing them
-		does not verify every part of a convention.
+	<p class="site-lede">
+		{topic
+			? referenceTopics.find((item) => item.id === topic)?.question
+			: 'Every reviewed convention, with examples and links to its sources.'}
 	</p>
-	<nav aria-label="On this page">
-		<ul>
-			{#each groups as group (group.section.topic)}
-				{#if !topic}<li>
-						<a href={`#topic-${group.section.topic}`}>{topicTitle(group.section.topic)}</a>
-					</li>{/if}
-				{#if topic}
-					{#if topic === 'spelling'}<li>
-							<a href="#standardized-spellings">The standardized spellings</a>
+	<details
+		class="guide-contents"
+		open={!topic || groups.reduce((count, group) => count + group.entries.length, 0) <= 8}
+	>
+		<summary>{topic ? 'In this topic' : 'Contents'}</summary>
+		<nav aria-label="On this page">
+			<ul>
+				{#each groups as group (group.section.topic)}
+					{#if !topic}<li>
+							<a href={`#topic-${group.section.topic}`}>{topicTitle(group.section.topic)}</a>
 						</li>{/if}
-					{#each group.entries as entry (entry.id)}<li>
-							<a href={`#${entryAnchor(entry.id)}`}>{entry.title}</a>
-						</li>{/each}
-					{#if group.section.additionalChecks.length}<li>
-							<a href={`#additional-checks-${topic}`}>More checks for this topic</a>
-						</li>{/if}
-				{/if}
-			{/each}
-		</ul>
-	</nav>
+					{#if topic}
+						{#if topic === 'spelling'}<li>
+								<a href="#standardized-spellings">The standardized spellings</a>
+							</li>{/if}
+						{#each group.entries as entry (entry.id)}<li>
+								<a href={`#${entryAnchor(entry.id)}`}>{entry.title}</a>
+							</li>{/each}
+						{#if group.section.additionalChecks.length}<li>
+								<a href={`#additional-checks-${topic}`}>More checks for this topic</a>
+							</li>{/if}
+					{/if}
+				{/each}
+			</ul>
+		</nav>
+	</details>
 	{#each groups as group (group.section.topic)}
 		<section class="guide-topic" aria-label={topicTitle(group.section.topic)}>
 			{#if !topic}<h2 id={`topic-${group.section.topic}`}>
@@ -271,7 +280,7 @@
 		</section>
 	{/each}
 	<nav class="guide-related" aria-label="Continue reading">
-		<h2>Continue reading</h2>
+		<h2>Explore other topics</h2>
 		<ul>
 			<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref preserves search on resolved URLs. -->
 			{#each referenceTopics.filter((item) => item.id !== topic) as related (related.id)}
@@ -284,6 +293,10 @@
 			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 		</ul>
 	</nav>
+	<p class="guide-check-note">
+		LyricLint checks catch specific patterns in your text. Passing them does not verify every part
+		of a convention.
+	</p>
 	<div class="site-actions">
 		<a class="button" href={resolve('workbench/')}>Check a transcription in the workbench</a>
 	</div>
@@ -297,6 +310,23 @@
 		border-top: var(--border-width) solid var(--color-border);
 		margin-top: var(--space-7);
 		padding-top: var(--space-6);
+	}
+	.guide-contents summary {
+		cursor: pointer;
+		font-weight: var(--font-weight-medium);
+	}
+	.guidelines__entry > :target,
+	.guidelines__landmark :target {
+		position: relative;
+	}
+	.guidelines__entry > :target::before,
+	.guidelines__landmark :target::before {
+		content: '';
+		position: absolute;
+		inset-block: 0;
+		left: calc(-1 * var(--space-3));
+		width: var(--focus-ring-width);
+		background: var(--color-text);
 	}
 	h1,
 	h2,
@@ -331,5 +361,12 @@
 	}
 	.guide-topic {
 		min-width: 0;
+		margin-block-start: var(--space-6);
+	}
+	.guide-topic > .guidelines__entry:first-child,
+	.guide-topic > .guidelines__landmark:first-child {
+		border-top: 0;
+		margin-top: 0;
+		padding-top: 0;
 	}
 </style>

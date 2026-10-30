@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-for (const width of [1440, 390]) {
+for (const width of [1440, 390, 320]) {
 	test(`finder opens a complete topic and Back restores results at ${width}px`, async ({
 		page
 	}) => {
@@ -133,4 +133,35 @@ test('all finder filters survive typing, navigation and reload', async ({ page }
 	await expect(page.locator('.reference-result > a').first()).toBeVisible();
 	await expect(page.locator('.reference-result > a[href*="/checks/"]')).toHaveCount(0);
 	await expect(page).toHaveURL(/scope=guidelines/u);
+});
+
+test('opening a lower result preserves the mounted desktop finder', async ({ page }) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto('/guidelines/?browse=all');
+	const result = page.locator('.reference-result:has(details)').nth(8);
+	await result.locator('summary').click();
+	await result.locator(':scope > a').scrollIntoViewIfNeeded();
+	const sidebar = page.locator('.guide-sidebar');
+	const before = await sidebar.evaluate((node) => node.scrollTop);
+	expect(before).toBeGreaterThan(100);
+	await result.locator(':scope > a').click();
+	await expect(page).not.toHaveURL('/guidelines/?browse=all');
+	await expect(result.locator('details')).toHaveAttribute('open');
+	await expect
+		.poll(async () => Math.abs((await sidebar.evaluate((node) => node.scrollTop)) - before))
+		.toBeLessThan(2);
+});
+
+test('essentials and complete-guide links carry active search filters', async ({ page }) => {
+	await page.goto('/guidelines/?q=unknown&scope=guidelines&topic=censored-unknown');
+	const directory = page.getByRole('navigation', { name: 'Browse reference topics' });
+	await directory.getByRole('link', { name: 'Start with the essentials' }).click();
+	await expect(page).toHaveURL(
+		'/guidelines/essentials/?q=unknown&scope=guidelines&topic=censored-unknown'
+	);
+	await directory.getByRole('link', { name: 'Read the whole guide' }).click();
+	await expect(page).toHaveURL(
+		'/guidelines/all/?q=unknown&scope=guidelines&topic=censored-unknown'
+	);
+	await expect(page.locator('#bracketed-headers')).toBeAttached();
 });

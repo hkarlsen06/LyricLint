@@ -13,9 +13,6 @@
 	let { children } = $props();
 	const socialImageUrl = siteUrl('/social-preview.png');
 
-	// The masthead's hairline arrives with the first scroll (see `.site-header`
-	// below). Read off the window, so the rule reference, whose shell
-	// scrolls internally and never moves the document, simply never draws it.
 	let scrollY = $state(0);
 
 	// Trailing slashes and the index route both have to match, so compare the
@@ -29,13 +26,7 @@
 			: undefined;
 	}
 
-	// The unified reference uses the window shell, and the window shell has
-	// no footer. Its columns own the viewport's height, so a footer there is a
-	// permanent band of colophon pinned under content somebody is reading, on
-	// every screen, saying nothing about either column. The colophon belongs to
-	// the document pages, which end; the Apple attribution it carries is a
-	// once-per-site requirement and the document pages still state it.
-	const windowShell = $derived(Boolean(current('/guidelines')));
+	const inGuide = $derived(Boolean(current('/guidelines')));
 
 	// The section the masthead names beside the brand, and the front page its
 	// title links to.
@@ -90,21 +81,13 @@
      reference keeps the workbench's animated intro: it is a document people come
      back to, so the brand yields to what they came to read.
 
-     `data-shell` says which of two things this chrome wraps. `document` is the
-     ordinary case and the landing page's: one column of prose that scrolls the
-     viewport, header and footer travelling with it. `window` is the rule
-     reference and the guidance catalog, which are a master and a detail rather
-     than an article: independent panes, each of which has to be
-     scrolled without moving the other or taking the header off the top of the
-     screen. There the shell is the workbench's own: exactly the viewport tall,
-     and the scrolling happens inside it. On narrow screens, one pane fills the horizontal strip, and vertical
-     scrolling stays inside that pane. -->
+     The guide uses ordinary document scrolling with a persistent desktop finder. -->
 <svelte:window bind:scrollY />
-{#if windowShell}<ReferenceSearchSync />{/if}
+{#if inGuide}<ReferenceSearchSync />{/if}
 
-<div class="site" data-shell={windowShell ? 'window' : 'document'}>
+<div class="site" data-shell={inGuide ? 'guide' : 'document'}>
 	<!-- The first tab stop on every page in this section, drawn only while it
-	     holds focus. Every page's `<main>` answers to `#main` and carries
+	     holds focus. Every page's main landmark answers to `#main` and carries
 	     `tabindex="-1"`, because a fragment jump moves the scroll on its own and
 	     not reliably the focus, which is the half a keyboard reader needs. -->
 	<a class="button button--contrast site-skip" href="#main">Skip to content</a>
@@ -147,7 +130,7 @@
 				<a href={resolve('docs/')} aria-current={current('/docs')}>Docs</a>
 				<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref decorates resolve() URLs with shared search parameters. -->
 				<a
-					href={windowShell ? referenceHref(resolve('guidelines/')) : resolve('guidelines/')}
+					href={inGuide ? referenceHref(resolve('guidelines/')) : resolve('guidelines/')}
 					aria-current={current('/guidelines')}>Guide</a
 				>
 
@@ -167,26 +150,24 @@
 
 	{@render children()}
 
-	{#if !windowShell}
-		<footer class="site-footer">
-			<div class="site-footer__inner">
-				<span
-					>Local-first · <a href={resolve('about/')}>About</a> ·
-					<a href={resolve('privacy/')}>Privacy</a></span
-				>
-				<span class="site-code">
-					Rule set {currentRuleSet.version}
-				</span>
-				<!-- Required by the Apple Music Identity Guidelines, which the Developer
+	<footer class="site-footer">
+		<div class="site-footer__inner">
+			<span
+				>Local-first · <a href={resolve('about/')}>About</a> ·
+				<a href={resolve('privacy/')}>Privacy</a></span
+			>
+			<span class="site-code">
+				Rule set {currentRuleSet.version}
+			</span>
+			<!-- Required by the Apple Music Identity Guidelines, which the Developer
 				     Program License Agreement makes binding on anything that calls MusicKit.
 				     Once per site, wherever the legal copy is, which is here. -->
-				<span
-					>Apple and Apple Music are trademarks of Apple Inc., registered in the U.S. and other
-					countries.</span
-				>
-			</div>
-		</footer>
-	{/if}
+			<span
+				>Apple and Apple Music are trademarks of Apple Inc., registered in the U.S. and other
+				countries.</span
+			>
+		</div>
+	</footer>
 </div>
 
 <style>
@@ -250,13 +231,6 @@
 		background: color-mix(in srgb, var(--color-chrome) 80%, transparent);
 		-webkit-backdrop-filter: blur(12px);
 		backdrop-filter: blur(12px);
-	}
-
-	/* Pane content clips below this chrome, so there is nothing behind it to blur. */
-	.site[data-shell='window'] .site-header {
-		background: transparent;
-		-webkit-backdrop-filter: none;
-		backdrop-filter: none;
 	}
 
 	.site-header {
@@ -446,8 +420,8 @@
 		   longer has a surface to keep type legible against. Both go together: the
 		   band either separates pinned chrome from the content moving under it, or it
 		   scrolls away with the document and separates nothing. */
-		/* The guide's fixed chrome remains transparent above its separately scrolling panes. */
-		.site:not([data-shell='window']) .site-header {
+		/* The guide retains a readable header above its document navigation. */
+		.site[data-shell='document'] .site-header {
 			position: static;
 			border-bottom: none;
 			background: transparent;

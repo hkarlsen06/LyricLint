@@ -12,19 +12,10 @@ describe('GuidanceConvention', () => {
 			[entry.example?.correct, entry.example?.incorrect]
 		);
 		expect(view.container.textContent).toContain(entry.note);
+		expect(view.container.querySelector('strong')?.textContent).toBe('Exceptions and context:');
 		expect(view.container.querySelectorAll('.source-citation a')).toHaveLength(
 			entry.sourceIds.length
 		);
 		expect(view.container.querySelector('details, button[aria-expanded]')).toBeNull();
-	});
-	it('keeps every qualification and citation when Essentials omits the incorrect example', async () => {
-		const view = await render(GuidanceConvention, { entry, showIncorrect: false });
-		expect([...view.container.querySelectorAll('pre')].map((sample) => sample.textContent)).toEqual(
-			[entry.example?.correct]
-		);
-		expect(view.container.textContent).toContain(entry.note);
-		expect(view.container.querySelectorAll('.source-citation a')).toHaveLength(
-			entry.sourceIds.length
-		);
 	});
 });

@@ -18,12 +18,12 @@ export default defineConfig({
 	projects: [
 		{
 			name: 'chromium',
-			testIgnore: '**/mobile-workbench.spec.ts',
+			testIgnore: ['**/mobile-workbench.spec.ts', '**/mobile-guide.spec.ts'],
 			use: { browserName: 'chromium', permissions: ['clipboard-read', 'clipboard-write'] }
 		},
 		{
 			name: 'mobile-webkit',
-			testMatch: '**/mobile-workbench.spec.ts',
+			testMatch: ['**/mobile-workbench.spec.ts', '**/mobile-guide.spec.ts'],
 			use: { ...devices['iPhone 13'], browserName: 'webkit' }
 		}
 	],

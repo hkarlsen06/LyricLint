@@ -176,23 +176,6 @@
 	pointer-events: none;
 }
 
-/*
- * The window shell, for a page whose content scrolls in columns rather than as
- * a document: the chrome is pinned, the middle row is exactly what is left of
- * the viewport, and whatever sits in it owns its own scrollers.
- *
- * `clip`, not `hidden`, for the same reason `.workspace` uses it: a hidden box
- * is still a scroll port, so a `scrollIntoView` from a focused row deep inside
- * a column could scroll the header off the top with no scrollbar to bring it
- * back. Clipping removes the port, so the shell cannot move at all.
- */
-.site[data-shell='window'] {
-	height: 100vh;
-	height: 100dvh;
-	min-height: 0;
-	overflow: clip;
-}
-
 /* The masthead, the footer, and the skip link are `src/routes/(site)/+layout.svelte`'s
    own styles, beside the markup that draws them. */
 
@@ -522,8 +505,7 @@
    moved. A box that is exactly as tall as the verse is correct at 320px and at
    1280px without being told. */
 
-/* The split shell (the frame, the three lanes, their scrollbars, and the
-   narrow-screen navigation) is `SectionSplit.svelte`'s own styles. */
+/* The guide layout (the sidebar and narrow-screen navigation) is `SectionSplit.svelte`'s own styles. */
 
 /* A ceiling on the read column, not the editor's wrap column; the grid column
    is what sizes the page. The reviewed examples on these pages are short enough
@@ -533,86 +515,9 @@
 	max-width: var(--measure-reference);
 	padding-bottom: var(--space-5);
 }
-.site-split__page:has(> .guide-glass) {
-	isolation: isolate;
-}
-
-/* One continuous backdrop sits below the transparent pinned text. Its out-of-flow
-   paint changes height without affecting the document's reserved heading space. */
-.guide-glass {
-	position: sticky;
-	inset-block-start: 0;
-	block-size: 0;
-	margin-inline-start: calc(-1 * var(--split-lane-start));
-	z-index: 1;
-	pointer-events: none;
-}
-.guide-glass::before {
-	content: '';
-	position: absolute;
-	inset-block-start: 0;
-	/* Overlay scrollbars occupy clientWidth too, so leave their edge unfiltered. */
-	inset-inline: 0 var(--space-3);
-	block-size: var(--guide-glass-height, 0px);
-	background: color-mix(in srgb, var(--color-canvas) 80%, transparent);
-	-webkit-backdrop-filter: blur(12px);
-	backdrop-filter: blur(12px);
-}
-
 .guide-topic {
 	display: flow-root;
 	margin-block-start: var(--space-8);
-}
-
-/* The pin has zero net flow height; the invisible full-size text below reserves
-   the same space at every scroll position, including while the title animates. */
-.guide-topic-pin {
-	position: sticky;
-	overflow-anchor: none;
-	inset-block-start: var(--topic-offset, 0px);
-	z-index: 3;
-	block-size: var(--topic-compact-height, 0px);
-	margin-block-end: calc(-1 * var(--topic-compact-height, 0px));
-}
-
-.guide-topic-title,
-.guide-topic-space {
-	font-size: var(--font-size-2xl);
-	font-weight: var(--font-weight-bold);
-	line-height: var(--line-height-tight);
-	color: var(--color-warning);
-}
-
-.guide-topic-pin > .guide-topic-title {
-	clip-path: inset(var(--topic-clip, 0px) 0 var(--topic-clip-end, 0px));
-	margin: 0;
-	margin-inline: calc(-1 * var(--split-lane-start)) calc(-1 * var(--split-lane-end));
-	padding: var(--space-2) var(--split-lane-end) var(--space-2) var(--split-lane-start);
-	scroll-margin-top: var(--split-heading-clearance);
-	font-size: var(--font-size-2xl);
-	font-weight: var(--font-weight-bold);
-}
-
-.guide-topic[data-stuck] .guide-topic-title,
-.guide-topic-space > .guide-topic-compact {
-	font-size: var(--font-size-xl);
-}
-
-.guide-topic-space {
-	display: grid;
-	visibility: hidden;
-	pointer-events: none;
-}
-.guide-topic-space > span {
-	grid-area: 1 / 1;
-	align-self: start;
-	padding-block: var(--space-2);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-	.guide-topic-title {
-		transition: font-size var(--duration-slow) var(--ease-out-quart);
-	}
 }
 
 /* A guidance entry's heading, its section rhythm, and its arrival wash are

@@ -21,9 +21,19 @@ const intents = [
 	},
 	{
 		id: 'guidance.section-headers.parenthetical-formatting',
-		aliases: ['backing vocals', 'background vocals', 'write backing vocals']
+		aliases: [
+			'backing vocals',
+			'background vocals',
+			'write backing vocals',
+			'format backing vocals',
+			'italic parentheses',
+			'backing vocal formatting'
+		]
 	},
-	{ id: 'guidance.ad-libs.include-every', aliases: ['adlibs', 'ad libs', 'write adlibs'] },
+	{
+		id: 'guidance.ad-libs.include-every',
+		aliases: ['adlibs', 'ad libs', 'write adlibs']
+	},
 	{ id: 'guidance.ad-libs.vocalized-sounds', aliases: ['sound effects'] },
 	{
 		id: 'guidance.censored-unknown.unknown-marker',

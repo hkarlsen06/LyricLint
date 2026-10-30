@@ -53,6 +53,7 @@ describe('shared reference discovery', () => {
 		['two singers', 'guidance.section-headers.artist-identifiers'],
 		['How do I credit different singers?', 'guidance.section-headers.artist-identifiers'],
 		['backing vocals', 'guidance.section-headers.parenthetical-formatting'],
+		['format backing vocals', 'guidance.section-headers.parenthetical-formatting'],
 		['cannot hear a word', 'guidance.censored-unknown.unknown-marker']
 	])('puts the answer first for %s', (query, id) => {
 		expect(search(query)[0]?.id).toBe(id);

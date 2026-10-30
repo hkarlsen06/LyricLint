@@ -22,18 +22,18 @@ describe('Genius essentials selection', () => {
 	});
 
 	it('keeps the readability, echo, and brand-name qualifications beside their general advice', () => {
-		for (const [id, companions] of Object.entries(essentialCompanions)) {
+		for (const [id, companions] of essentialCompanions) {
 			expect(essentialEntryIds).toContain(id);
 			for (const companion of companions)
 				expect(guidanceEntries.find((entry) => entry.id === companion)?.statement).toBeTruthy();
 		}
-		expect(essentialCompanions['guidance.spelling.elision-apostrophe']).toContain(
+		expect(essentialCompanions.get('guidance.spelling.elision-apostrophe')).toContain(
 			'guidance.spelling.readability-limit'
 		);
-		expect(essentialCompanions['guidance.ad-libs.include-every']).toContain(
+		expect(essentialCompanions.get('guidance.ad-libs.include-every')).toContain(
 			'guidance.ad-libs.echo-effects'
 		);
-		expect(essentialCompanions['guidance.punctuation.unmarked-question']).toContain(
+		expect(essentialCompanions.get('guidance.punctuation.unmarked-question')).toContain(
 			'guidance.punctuation.brand-name-marks'
 		);
 	});

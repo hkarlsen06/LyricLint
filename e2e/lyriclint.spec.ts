@@ -1270,7 +1270,7 @@ test('the offline snapshot precaches the app and admits the guide when read', as
 		})
 	).toBe(false);
 	await page.reload();
-	await expect(page.getByRole('heading', { name: 'Put what you hear into words.' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Transcription guide' })).toBeVisible();
 	await page.goto('/');
 	for (const poster of await page.locator('.lp-shot__poster').all()) {
 		await poster.scrollIntoViewIfNeeded();

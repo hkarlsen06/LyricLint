@@ -12,6 +12,8 @@ const paths = [
 	'/about/',
 	'/workbench/',
 	'/guidelines/',
+	'/guidelines/essentials/',
+	'/guidelines/all/',
 	'/privacy/',
 	'/docs/',
 	...docsPages.map(({ slug }) => `/docs/${slug}/`),

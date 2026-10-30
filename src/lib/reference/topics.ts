@@ -12,8 +12,8 @@ export const referenceTopics = [
 	},
 	{
 		id: 'ad-libs',
-		title: 'Ad-libs and backing vocals',
-		question: 'How do I write backing vocals and sound effects?'
+		title: 'Ad-libs and sound effects',
+		question: 'How do I write ad-libs and sound effects?'
 	},
 	{
 		id: 'censored-unknown',

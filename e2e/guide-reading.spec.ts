@@ -3,7 +3,7 @@ import { guidanceEntries } from '../src/lib/guidance/entries.js';
 import { entryAnchor } from '../src/lib/guidance/guidance.js';
 import { referenceTopics } from '../src/lib/reference/topics.js';
 
-for (const width of [1440, 390]) {
+for (const width of [1440, 390, 320]) {
 	test(`complete guide and essentials keep reviewed content readable at ${width}px`, async ({
 		page
 	}) => {
@@ -76,6 +76,7 @@ for (const width of [1440, 390]) {
 		await expect(page.locator('main h1')).toBeInViewport();
 		await expect(page.locator('main h1')).toHaveText('Spelling and contractions');
 		await expect(page.locator('#standardized-spellings')).toBeAttached();
+		await expect(page.locator('.guide-contents')).toHaveAttribute('open');
 		await page
 			.getByRole('navigation', { name: 'On this page' })
 			.getByRole('link', { name: 'The standardized spellings' })
@@ -92,13 +93,19 @@ for (const width of [1440, 390]) {
 		await page.goto('/guidelines/punctuation/?q=two+singers#doubled-exclamation');
 		const entry = page.locator('.guidelines__entry:has(#doubled-exclamation)');
 		await expect(entry.locator('h2')).toBeInViewport();
+		await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+		await expect
+			.poll(async () => {
+				const heading = await entry.locator('h2').boundingBox();
+				const header = await page.locator('.site-header').boundingBox();
+				return heading && header ? heading.y - header.y - header.height : -1;
+			})
+			.toBeGreaterThanOrEqual(0);
 		await expect(entry.locator('.site-sample--invalid pre')).toHaveText('Turn it up!!');
 		await expect(entry.locator('.site-sample--valid pre')).toHaveText('Turn it up!');
 		await expect(entry.locator('.site-meta a[href="https://genius.com/15593987"]')).toBeAttached();
 		await expect(page.locator('main #voice-order')).toHaveCount(0);
 		await expect(page.locator('main #unmarked-question')).toBeAttached();
-		await page.locator('#unmarked-question').scrollIntoViewIfNeeded();
-		await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
 			width
 		);
@@ -116,3 +123,50 @@ test('unmatched topic checks remain available with exact check routes', async ({
 		additional.locator('a[href="/guidelines/checks/language-selection-mismatch/"]')
 	).toBeVisible();
 });
+
+for (const width of [1440, 390, 320]) {
+	test(`essentials companion fragments clear the header at ${width}px`, async ({ page }) => {
+		await page.setViewportSize({ width, height: 900 });
+		await page.goto('/guidelines/essentials/#readability-limit');
+		await expect
+			.poll(async () => {
+				const heading = await page.locator('#readability-limit').boundingBox();
+				const header = await page.locator('.site-header').boundingBox();
+				return heading && header ? heading.y - header.y - header.height : -1;
+			})
+			.toBeGreaterThanOrEqual(0);
+	});
+}
+
+for (const width of [1440, 390]) {
+	test(`common transcription questions lead to sourced answers at ${width}px`, async ({ page }) => {
+		await page.setViewportSize({ width, height: 900 });
+		for (const [question, anchor] of [
+			['How do I label song sections?', 'bracketed-headers'],
+			['How do I credit different singers?', 'artist-identifiers'],
+			['What if I cannot hear a word?', 'unknown-marker'],
+			['How do I write ad-libs?', 'include-every']
+		]) {
+			await page.goto('/guidelines/');
+			await expect(
+				page.getByRole('link', { name: 'Start with the essentials', exact: true })
+			).toHaveCount(1);
+			await page.getByRole('link', { name: question, exact: true }).click();
+			await expect(page.locator(`#${anchor}`)).toBeInViewport();
+			await expect(
+				page.locator(`.guidelines__entry:has(#${anchor}) .source-citation a`).first()
+			).toBeAttached();
+		}
+		for (const [query, anchor] of [
+			['24/7', 'digit-exemptions'],
+			['backing vocals', 'parenthetical-formatting']
+		]) {
+			await page.goto('/guidelines/');
+			await page.getByRole('searchbox').fill(query);
+			await page.locator(`.reference-result > a[href$="#${anchor}"]`).click();
+			await expect(page.locator(`#${anchor}`)).toBeInViewport();
+			await page.getByRole('link', { name: 'Back to results', exact: true }).click();
+			await expect(page.getByRole('searchbox')).toHaveValue(query);
+		}
+	});
+}

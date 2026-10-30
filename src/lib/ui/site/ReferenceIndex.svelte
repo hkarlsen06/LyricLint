@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { tick } from 'svelte';
-	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
-	import MagicWandIcon from 'phosphor-svelte/lib/MagicWandIcon';
-	import SlidersHorizontalIcon from 'phosphor-svelte/lib/SlidersHorizontalIcon';
+	import { onMount } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import MagicWandIcon from 'phosphor-svelte/lib/MagicWandIcon';
+	import SlidersHorizontalIcon from 'phosphor-svelte/lib/SlidersHorizontalIcon';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import { assistantAvailable } from '#lib/assistant/api.js';
 	import { useAssistantState, type AssistantState } from '#lib/assistant/assistant.svelte.js';
 	import { referenceSearchTokens, type ReferenceDocument } from '#lib/reference/search.js';
@@ -12,15 +12,15 @@
 	import { severityOrder, fixabilityOrder, fixabilityLabel } from '#lib/rules/reference-search.js';
 	import { severityPluralLabels } from '#lib/diagnostics/severity-labels.js';
 	import SearchHighlight from './SearchHighlight.svelte';
-	import { stickyTopics } from './sticky-topics.js';
-	import { readingAnchor } from './guidance-reading.svelte.js';
+	import CodeProse from './CodeProse.svelte';
+	import GuideQuestions from './GuideQuestions.svelte';
 	import { safeDecodeHash } from './hash.js';
-	import { followSelectedRow, revealSelectedRow, revealRow } from './reveal-selected.js';
 	import {
 		createReferenceResults,
 		referenceSearchState,
 		setReferenceSearchState,
-		referenceHref
+		referenceHref,
+		resetReferenceSearchState
 	} from './reference-search.svelte.js';
 
 	let {
@@ -34,702 +34,440 @@
 		selectedTopic?: string;
 		assistant?: AssistantState;
 	} = $props();
-	// Corpus hrefs are site-absolute; this prefixes them with the base path.
 	const root = resolve('/(site)');
-
 	const contextAssistant = useAssistantState();
 	const assistant = $derived(assistantProp ?? contextAssistant);
-	const reading = $derived(readingAnchor());
 	const filters = $derived(referenceSearchState());
-	const searching = $derived(filters.query.trim().length > 0);
 	const tokens = $derived(referenceSearchTokens(filters.query));
-	const scope = $derived(filters.scope);
-	const hasFilters = $derived(
-		searching ||
-			scope !== 'all' ||
+	const searching = $derived(!!filters.query.trim());
+	const narrowed = $derived(
+		filters.scope !== 'all' ||
 			!!filters.topic ||
-			filters.severities.length > 0 ||
-			filters.fixabilities.length > 0
+			!!filters.severities.length ||
+			!!filters.fixabilities.length
 	);
-	let browsingTopics = $state(false);
-	let filtersOpen = $state(false);
-	const effectiveTopic = $derived(filters.topic);
-	const directory = $derived(
-		!searching &&
-			!effectiveTopic &&
-			!filters.browseAll &&
-			(browsingTopics || (!selectedTopic && !selectedSlug && !reading)) &&
-			!filters.severities.length &&
-			!filters.fixabilities.length
-	);
+	const showResults = $derived(searching || narrowed || filters.browseAll);
 	const search = $derived(createReferenceResults(corpus));
-	const matches = $derived(search());
-	const results = $derived(
-		searching
-			? matches
-			: [...matches].sort(
-					(a, b) =>
-						referenceTopics.findIndex((topic) => topic.id === a.topic) -
-						referenceTopics.findIndex((topic) => topic.id === b.topic)
-				)
-	);
-
-	const resultGroups = $derived(
-		searching || effectiveTopic
-			? [{ topic: '', title: '', results }]
-			: referenceTopics.flatMap((topic) => {
-					const group = results.filter((result) => result.topic === topic.id);
-					return group.length ? [{ topic: topic.id, title: topic.title, results: group }] : [];
-				})
-	);
-
+	const results = $derived(search());
 	const topics = $derived(
-		referenceTopics.filter((topic) =>
-			corpus.some(
-				(doc) =>
-					doc.topic === topic.id &&
-					(scope === 'all' || doc.kind === (scope === 'rules' ? 'rule' : 'guideline'))
-			)
-		)
+		referenceTopics.filter((topic) => corpus.some((doc) => doc.topic === topic.id))
 	);
-	const selectedTitle = $derived(
-		referenceTopics.find((topic) => topic.id === effectiveTopic)?.title
-	);
-	let column = $state<HTMLElement>();
+	let ready = $state(false);
+	onMount(() => {
+		ready = true;
+	});
+	let filtersOpen = $state(false);
 	let anchor = $state('');
-	function readAnchor(): void {
+	let path = $state('');
+	function readLocation(): void {
 		anchor = safeDecodeHash(location.hash.slice(1));
+		path = location.pathname;
 	}
-	afterNavigate(({ shallow }) => {
-		if (shallow) return;
-		// Clearing filters only overrides the current article. A subsequent selection
-		// must reveal its entries even though the shared finder stays mounted.
-		browsingTopics = false;
-		readAnchor();
-	});
+	afterNavigate(readLocation);
 	$effect(() => {
-		readAnchor();
-		window.addEventListener('hashchange', readAnchor);
-		return () => window.removeEventListener('hashchange', readAnchor);
+		readLocation();
+		window.addEventListener('hashchange', readLocation);
+		return () => window.removeEventListener('hashchange', readLocation);
 	});
-	let followedTopic: string | undefined;
-	$effect(() => {
-		if (!reading) return;
-		const topic = corpus.find((doc) => doc.href.split('#')[1] === reading)?.topic;
-		void followSelectedRow(column, !!followedTopic && topic !== followedTopic);
-		followedTopic = topic;
-	});
-	$effect(() => {
-		if (!directory || !anchor || selectedSlug || selectedTopic) return;
-		const target = topics.find((topic) => referenceTopicAnchors(topic.id).includes(anchor));
-		if (!target) return;
-		void tick().then(() =>
-			revealRow(column, column?.querySelector<HTMLElement>(`li[id="${target.id}"]`))
-		);
-	});
-
-	function current(doc: Pick<ReferenceDocument, 'kind' | 'href'>): 'page' | undefined {
-		const path = doc.href.split('#')[0];
+	function current(doc: ReferenceDocument): 'page' | undefined {
 		if (doc.kind === 'rule')
-			return selectedSlug && path === `/guidelines/checks/${selectedSlug}/` ? 'page' : undefined;
-		return !selectedSlug && doc.href.split('#')[1] === (reading || anchor) ? 'page' : undefined;
+			return selectedSlug && doc.href.endsWith(`/checks/${selectedSlug}/`) ? 'page' : undefined;
+		return selectedTopic === doc.topic && doc.href.split('#')[1] === anchor ? 'page' : undefined;
 	}
-
-	/** Reveal the current result without discarding the reader's search or filters. */
-	export async function revealSelected(): Promise<void> {
-		await revealSelectedRow(column);
+	function scope(value: string): void {
+		if (value === 'all' || value === 'guidelines' || value === 'rules')
+			setReferenceSearchState({ scope: value, severities: [], fixabilities: [] });
 	}
-	function setQuery(query: string): void {
-		setReferenceSearchState({ query });
-	}
-	function onKeydown(event: KeyboardEvent): void {
-		if (event.key === 'Escape' && filters.query) {
-			event.preventDefault();
-			setQuery('');
-		}
+	function query(value: string): void {
+		setReferenceSearchState({ query: value });
 	}
 </script>
 
-{#snippet topicLabel(topic: (typeof topics)[number])}
-	<span class="reference-topic-copy">
-		<span id={`topic-title-${topic.id}`}>{topic.title}</span>
-		<span id={`topic-question-${topic.id}`} class="reference-topic-question">{topic.question}</span>
-	</span>
-	<CaretRightIcon size={16} aria-hidden="true" weight="bold" />
-{/snippet}
+{#snippet marked(text: string)}<SearchHighlight {text} {tokens} />{/snippet}
 
-<div
-	class="site-split__index reference-index"
-	data-sveltekit-reset="false"
-	bind:this={column}
-	use:stickyTopics={[directory, resultGroups]}
-	tabindex="-1"
->
-	<div class="guide-glass" aria-hidden="true"></div>
-	<search class="site-finder" aria-label="Find transcription answers">
-		<label for="reference-search">Search the transcription guide</label>
+<div class="reference-index" tabindex="-1">
+	<search aria-label="Find transcription answers">
+		<label for="reference-search">What are you working on?</label>
 		<input
-			id="reference-search"
 			class="site-finder__search"
+			id="reference-search"
+			disabled={!ready}
 			type="search"
 			autocomplete="off"
 			spellcheck="false"
-			placeholder="Try two singers, a spelling, or a warning"
+			placeholder="Try two singers, an unclear word…"
 			value={filters.query}
-			oninput={(event) => setQuery(event.currentTarget.value)}
-			onkeydown={onKeydown}
+			oninput={(event) => query(event.currentTarget.value)}
+			onkeydown={(event) => {
+				if (event.key === 'Escape' && filters.query) {
+					event.preventDefault();
+					query('');
+				}
+			}}
 		/>
-
 		<div class="reference-tools">
 			<button
 				type="button"
 				class="button button--quiet"
 				aria-expanded={filtersOpen}
 				aria-controls="reference-filters"
+				disabled={!ready}
 				onclick={() => (filtersOpen = !filtersOpen)}
-			>
-				<SlidersHorizontalIcon aria-hidden="true" size={16} weight="bold" />
-				Filters{scope !== 'all' ||
-				filters.topic ||
-				filters.severities.length ||
-				filters.fixabilities.length
+				><SlidersHorizontalIcon size={16} aria-hidden="true" />Filters{narrowed
 					? ' (active)'
-					: ''}
-			</button>
+					: ''}</button
+			>
 			{#if assistant && assistantAvailable()}
 				<button
 					type="button"
 					class="button button--quiet reference-ask"
+					disabled={!ready}
 					onclick={() => void assistant.open()}
+					><MagicWandIcon size={18} aria-hidden="true" />Ask a question</button
 				>
-					<MagicWandIcon aria-hidden="true" size={20} />
-					Ask a question
-				</button>
 			{/if}
 		</div>
-		{#if effectiveTopic || scope !== 'all'}
-			<span class="reference-meta"
-				>{selectedTitle ?? 'All topics'}{scope === 'rules'
-					? ' · Linter checks'
-					: scope === 'guidelines'
-						? ' · Conventions'
-						: ''}</span
-			>
-		{/if}
-		<span class="sr-only" role="status"
-			>{directory
-				? ''
-				: `${results.length} results${selectedTitle ? ` in ${selectedTitle}` : ''}`}</span
-		>
+		<p class="sr-only" role="status">{showResults ? `${results.length} results` : ''}</p>
 	</search>
-
 	<div id="reference-filters" class="reference-filters" hidden={!filtersOpen}>
-		<div class="reference-filter-fields">
-			<div class="reference-controls">
-				<label for="reference-content">Content</label>
-				<select
-					id="reference-content"
-					value={scope}
-					onchange={(event) =>
-						setReferenceSearchState({
-							scope: event.currentTarget.value as 'all' | 'guidelines' | 'rules',
-							severities: [],
-							fixabilities: []
-						})}
-				>
-					<option value="all">Everything</option><option value="guidelines">Conventions</option
-					><option value="rules">Linter checks</option>
-				</select>
-			</div>
-			<div class="reference-controls">
-				<label for="reference-topic">Topic</label>
-				<select
-					id="reference-topic"
-					value={effectiveTopic ?? ''}
-					onchange={(event) =>
-						setReferenceSearchState({
-							topic: event.currentTarget.value,
-							browseAll: event.currentTarget.value === ''
-						})}
-				>
-					<option value="">All topics</option>
-					{#each referenceTopics as topic (topic.id)}<option value={topic.id}>{topic.title}</option
-						>{/each}
-				</select>
-			</div>
-		</div>
-		{#if scope === 'rules'}
-			<div class="reference-controls" role="group" aria-label="Filter checks by severity">
-				{#each severityOrder.filter( (value) => corpus.some((doc) => doc.severity === value) ) as severity (severity)}
-					<button
-						type="button"
-						class="button"
-						aria-pressed={filters.severities.includes(severity)}
-						onclick={() =>
-							setReferenceSearchState({
-								severities: filters.severities.includes(severity)
-									? filters.severities.filter((value) => value !== severity)
-									: [...filters.severities, severity]
-							})}>{severityPluralLabels[severity]}</button
-					>
-				{/each}
-			</div>
-			<div class="reference-controls" role="group" aria-label="Filter checks by fix type">
-				{#each fixabilityOrder.filter( (value) => corpus.some((doc) => doc.fixability === value) ) as fixability (fixability)}
-					<button
-						type="button"
-						class="button"
-						aria-pressed={filters.fixabilities.includes(fixability)}
-						onclick={() =>
-							setReferenceSearchState({
-								fixabilities: filters.fixabilities.includes(fixability)
-									? filters.fixabilities.filter((value) => value !== fixability)
-									: [...filters.fixabilities, fixability]
-							})}>{fixabilityLabel(fixability)}</button
-					>
-				{/each}
-			</div>
-			<p class="reference-meta">
-				Choose categories to narrow the checks. No selection includes every category.
-			</p>
+		<label for="reference-content">Show</label>
+		<select
+			id="reference-content"
+			value={filters.scope}
+			onchange={(event) => scope(event.currentTarget.value)}
+		>
+			<option value="all">All advice and checks</option><option value="guidelines"
+				>Transcription advice</option
+			><option value="rules">LyricLint checks</option>
+		</select>
+		<label for="reference-topic">Topic</label>
+		<select
+			id="reference-topic"
+			value={filters.topic}
+			onchange={(event) => setReferenceSearchState({ topic: event.currentTarget.value })}
+		>
+			<option value="">All topics</option>{#each topics as topic (topic.id)}<option value={topic.id}
+					>{topic.title}</option
+				>{/each}
+		</select>
+		{#if filters.scope === 'rules'}
+			<fieldset>
+				<legend>Severity</legend>
+				<div class="reference-options">
+					{#each severityOrder.filter( (value) => corpus.some((doc) => doc.severity === value) ) as severity (severity)}
+						<button
+							type="button"
+							class="button"
+							aria-pressed={filters.severities.includes(severity)}
+							onclick={() =>
+								setReferenceSearchState({
+									severities: filters.severities.includes(severity)
+										? filters.severities.filter((value) => value !== severity)
+										: [...filters.severities, severity]
+								})}>{severityPluralLabels[severity]}</button
+						>
+					{/each}
+				</div>
+			</fieldset>
+			<fieldset>
+				<legend>Fix type</legend>
+				<div class="reference-options">
+					{#each fixabilityOrder.filter( (value) => corpus.some((doc) => doc.fixability === value) ) as fixability (fixability)}
+						<button
+							type="button"
+							class="button"
+							aria-pressed={filters.fixabilities.includes(fixability)}
+							onclick={() =>
+								setReferenceSearchState({
+									fixabilities: filters.fixabilities.includes(fixability)
+										? filters.fixabilities.filter((value) => value !== fixability)
+										: [...filters.fixabilities, fixability]
+								})}>{fixabilityLabel(fixability)}</button
+						>
+					{/each}
+				</div>
+			</fieldset>
 		{/if}
 	</div>
 
-	{#snippet resultHeading()}
-		<div class="reference-results-header">
-			<div>
-				<h2>
-					{directory
-						? 'Browse by topic'
-						: searching
-							? 'Search results'
-							: (selectedTitle ?? 'All topics')}
-				</h2>
-				{#if !directory}<p class="reference-count">
-						{results.length}
-						{results.length === 1 ? 'result' : 'results'}{searching ? ', best matches first' : ''}
-					</p>{/if}
+	{#if showResults}
+		<section aria-labelledby="reference-results-title" class="reference-matches">
+			<div class="reference-results-header">
+				<h2 id="reference-results-title">{searching ? 'Search results' : 'Matching advice'}</h2>
+				<button class="button button--quiet" type="button" onclick={resetReferenceSearchState}
+					>{searching && !narrowed && !filters.browseAll ? 'Clear search' : 'Clear filters'}</button
+				>
 			</div>
-			{#if directory}
-				<button
-					type="button"
-					class="button button--quiet"
-					onclick={() => setReferenceSearchState({ browseAll: true })}>Browse all</button
-				>
-			{:else}
-				<button
-					type="button"
-					class="button button--quiet"
-					onclick={() => {
-						browsingTopics = true;
-						setReferenceSearchState({
-							query: '',
-							scope: 'all',
-							topic: '',
-							browseAll: false,
-							severities: [],
-							fixabilities: []
-						});
-					}}>{hasFilters ? 'Clear filters' : 'Browse topics'}</button
-				>
-			{/if}
-		</div>
-	{/snippet}
-
-	{#if directory}
-		<nav aria-label="Browse reference topics">
-			{@render resultHeading()}
-			<ul class="reference-topics">
-				{#each topics as topic (topic.id)}
-					<li
-						id={topic.id}
-						data-fragment-current={referenceTopicAnchors(topic.id).includes(anchor) || undefined}
-					>
-						{#each referenceTopicAnchors(topic.id).filter((id) => id !== topic.id) as legacyAnchor (legacyAnchor)}<span
-								id={legacyAnchor}
-								class="reference-legacy-anchor"
-								aria-hidden="true"
-							></span>{/each}
-						{#if scope === 'all'}
-							<!-- The shared search wrapper receives a route already resolved for the base path. -->
-							<!-- eslint-disable svelte/no-navigation-without-resolve -->
-							<a
-								class="button button--quiet"
-								href={referenceHref(
-									`${resolve('/(site)/guidelines/[topic]', { topic: topic.id })}/`
-								)}
-								aria-labelledby={`topic-title-${topic.id}`}
-								aria-describedby={`topic-question-${topic.id}`}>{@render topicLabel(topic)}</a
+			<p class="reference-count">
+				{results.length}
+				{results.length === 1 ? 'result' : 'results'}{searching ? ', best matches first' : ''}
+			</p>
+			{#if !results.length}<p>
+					No answers match yet. Try a shorter phrase or clear the filters. You can also browse the
+					topics below.
+				</p>{/if}
+			<ul class="reference-results">
+				{#each results as result (`${result.kind}:${result.id}`)}
+					<li class="reference-result" class:reference-result--current={!!current(result)}>
+						<!-- eslint-disable svelte/no-navigation-without-resolve -- Server-derived local corpus URL with the configured base and retained search. -->
+						<a
+							href={referenceHref(`${root}${result.href.slice(1)}`)}
+							aria-current={current(result)}
+						>
+							<span class="reference-result-title"
+								><SearchHighlight text={result.title} {tokens} /></span
 							>
-							<!-- eslint-enable svelte/no-navigation-without-resolve -->
-						{:else}
-							<button
-								type="button"
-								class="button button--quiet"
-								onclick={() => setReferenceSearchState({ topic: topic.id, browseAll: false })}
-								aria-labelledby={`topic-title-${topic.id}`}
-								aria-describedby={`topic-question-${topic.id}`}>{@render topicLabel(topic)}</button
+							<span class="reference-result-context"
+								>{result.topicTitle}{result.kind === 'rule'
+									? ' · LyricLint check'
+									: ''}{result.approximate ? ' · Similar spelling' : ''}</span
 							>
+							<span class="reference-description"
+								><CodeProse text={result.snippet || result.summary} mark={marked} /></span
+							>
+						</a>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
+						{#if result.relatedRules.length}
+							<details class="reference-related">
+								<summary>Related checks ({result.relatedRules.length})</summary>
+								<ul>
+									{#each result.relatedRules as check (check.id)}<li>
+											<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Same server-derived route contract as the result above. -->
+											<a href={referenceHref(`${root}${check.href.slice(1)}`)}>{check.title}</a>
+										</li>{/each}
+								</ul>
+							</details>
 						{/if}
 					</li>
 				{/each}
 			</ul>
-		</nav>
-	{:else}
-		<nav aria-label="Reference results">
-			{@render resultHeading()}
-			{#each resultGroups as group (group.topic)}
-				<div class:guide-topic={!!group.title}>
-					{#if group.title}
-						<div class="guide-topic-pin"><h3 class="guide-topic-title">{group.title}</h3></div>
-						<div class="guide-topic-space" aria-hidden="true">
-							<span>{group.title}</span><span class="guide-topic-compact">{group.title}</span>
-						</div>
-					{/if}
-					<ul class="reference-results">
-						{#each group.results as result (`${result.kind}:${result.id}`)}
-							<li>
-								<div class="reference-entry" data-current={current(result) || undefined}>
-									<!-- Corpus hrefs are generated internal paths; base is applied before shared URL state. -->
-									<!-- eslint-disable svelte/no-navigation-without-resolve -->
-									<a
-										class="reference-result"
-										href={referenceHref(`${root}${result.href.slice(1)}`)}
-										aria-current={current(result)}
-										onclick={(event) => {
-											if (!event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
-												// An explicit selection keeps the list under the pointer.
-												followedTopic = result.topic;
-											}
-										}}
-									>
-										<span class="site-run__title"
-											><SearchHighlight text={result.title} {tokens} /></span
-										>
-										<span class="reference-meta"
-											>{result.kind === 'guideline' ? 'Convention' : 'Linter check'} · {result.topicTitle}{result.authority
-												? ` · ${result.authority}`
-												: ''}</span
-										>
-										{#if result.approximate}<span class="reference-meta">Similar wording</span>{/if}
-									</a>
-									<!-- eslint-enable svelte/no-navigation-without-resolve -->
-									{#if result.relatedRules.length}
-										<details
-											class="reference-related"
-											open={result.relatedRules.some((rule) =>
-												current({ kind: 'rule', href: rule.href })
-											)}
-										>
-											<summary>Related checks ({result.relatedRules.length})</summary>
-											<ul>
-												{#each result.relatedRules as rule (rule.id)}<!-- Corpus hrefs are generated internal paths with base explicitly applied. -->
-													<!-- eslint-disable svelte/no-navigation-without-resolve -->
-													<li>
-														<a
-															href={referenceHref(`${root}${rule.href.slice(1)}`)}
-															aria-current={current({ kind: 'rule', href: rule.href })}
-															>{rule.title}{#if current({ kind: 'rule', href: rule.href })}<span
-																	class="reference-current-label"
-																>
-																	&nbsp;(current)</span
-																>{/if}</a
-														>
-													</li>
-													<!-- eslint-enable svelte/no-navigation-without-resolve -->{/each}
-											</ul>
-										</details>
-									{/if}
-								</div>
-							</li>
-						{/each}
-					</ul>
-				</div>
-			{/each}
-			{#if results.length === 0}<p class="site-index__empty">
-					No results match. Try a shorter phrase, another topic, or clear the filters.
-				</p>{/if}
-		</nav>
+		</section>
 	{/if}
+
+	<nav aria-label="Browse reference topics" class="reference-directory">
+		<!-- eslint-disable svelte/no-navigation-without-resolve -- All reference links preserve search on resolved local routes. -->
+		<div class="reference-start">
+			<a
+				href={referenceHref(resolve('/(site)/guidelines/essentials'))}
+				aria-label="Start with the essentials"
+				aria-current={path.includes('/guidelines/essentials') ? 'page' : undefined}
+				><span
+					>Start with the essentials<span class="reference-topic-question"
+						>Practical starting points for new transcribers</span
+					></span
+				>
+				<CaretRightIcon size={16} aria-hidden="true" /></a
+			>
+		</div>
+		{#if !showResults && !selectedTopic && !selectedSlug && !path.includes('/guidelines/all') && !path.includes('/guidelines/essentials')}
+			<div class="reference-questions"><GuideQuestions /></div>
+		{/if}
+		<h2>Browse by topic</h2>
+		<ul class="reference-topics">
+			{#each topics as topic (topic.id)}
+				<li
+					id={topic.id}
+					data-fragment-current={referenceTopicAnchors(topic.id).includes(anchor) || undefined}
+				>
+					{#each referenceTopicAnchors(topic.id).filter((id) => id !== topic.id) as legacyAnchor (legacyAnchor)}<span
+							id={legacyAnchor}
+							aria-hidden="true"
+						></span>{/each}
+					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Keep a reader's query available when returning from a topic. -->
+					<a
+						href={referenceHref(`${resolve('/(site)/guidelines/[topic]', { topic: topic.id })}/`)}
+						aria-current={selectedTopic === topic.id ? 'page' : undefined}
+					>
+						<span
+							><span class="reference-topic-title">{topic.title}</span><span
+								class="reference-topic-question">{topic.question}</span
+							></span
+						><CaretRightIcon size={16} aria-hidden="true" />
+					</a>
+				</li>
+			{/each}
+		</ul>
+		<a
+			class="reference-read-all"
+			href={referenceHref(resolve('/(site)/guidelines/all'))}
+			aria-current={path.includes('/guidelines/all') ? 'page' : undefined}>Read the whole guide</a
+		>
+		<!-- eslint-enable svelte/no-navigation-without-resolve -->
+	</nav>
 </div>
 
 <style>
-	/* The finder stays above scrolling rows. Its padding reserves focus-ring space;
-	   the pane's shared glass covers its full height along with the current topic.
-	   reveal-selected.ts measures that same pinned region. */
-	.site-finder {
-		position: sticky;
-		display: grid;
-		padding-block: var(--space-5) var(--space-3);
-		gap: var(--space-2);
-		inset-block-start: 0;
-	}
-
-	.site-finder__search {
-		width: 100%;
+	.reference-index {
 		min-width: 0;
 	}
-
-	.site-run__title {
-		font-weight: var(--font-weight-medium);
+	label,
+	legend {
+		display: block;
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-semibold);
+		margin-bottom: var(--space-2);
 	}
-
-	/* Selection is depth, not hue. No accent wash and no ring: the severity tag is
-	   already the one colored thing in the row, and a second color would compete
-	   with it.
-
-	   THIS STAYS RECESSED IN BOTH SCHEMES, and the linter's run of diagnostics no
-	   longer does, so the two are worth telling apart rather than assuming they
-	   drifted. A diagnostic card is a work surface: it opens, it carries the fix
-	   the reader is about to press, and in light mode sinking it to grey made the
-	   one active thing on the column read as the spent one. A row here is a nav
-	   item saying which page is on screen. Grey for "you are here" is what a
-	   selected item in a list of links has always looked like, and there is nothing
-	   in the row to press but the row.
-
-	   A result row gives the marker to its `.reference-entry` below; a related
-	   check keeps it. Declared before `.reference-related a:hover` so that hover
-	   still fills a current related check, as it did when this rule was global. */
-	.site-split__index a[aria-current='page'] {
-		background: var(--color-canvas);
-		box-shadow: var(--shadow-recessed);
-	}
-
-	/* The width of the upright that marks the current entry's start edge. */
-	.site-split__index {
-		--current-row-marker-width: calc(var(--border-width) * 3);
-	}
-
-	.reference-index {
-		padding-block-end: max(var(--space-6), var(--split-navigation-clearance, 0px));
-	}
-	.reference-index h2 {
-		margin-block: var(--space-4) var(--space-2);
-		font-size: var(--font-size-lg);
-	}
-	.site-finder > label {
-		font-weight: var(--font-weight-medium);
-	}
-	.site-finder {
-		/* Above the rows it is pinned over, and above the recessed shadow the open
-		   rule's row casts. */
-		z-index: 3;
-	}
-	.site-finder__search,
+	input,
 	select {
+		width: 100%;
+		font: inherit;
 		font-size: var(--font-size-editor);
+		min-height: var(--control-height-lg);
 	}
-	@media (pointer: coarse) {
-		/* Shared input selectors have specificity (0,0,1), so any class that
-		   sizes a field elsewhere in the system quietly outranks them, which is how
-		   the reference sections' search fields shipped at 13px under a finger and
-		   re-created the Safari focus-zoom `responsive-shared.css` exists to
-		   prevent. The raise is restated here at the finder's own specificity.
-		   `e2e/lyriclint.spec.ts` pins this one's computed size under a coarse
-		   pointer. */
-		.site-finder__search {
-			font-size: var(--font-size-lg);
-		}
+	.reference-tools {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1);
+		margin-top: var(--space-2);
 	}
-	.reference-controls {
+	.reference-filters {
+		padding-block: var(--space-4);
+	}
+	.reference-filters select {
+		margin-bottom: var(--space-4);
+	}
+	fieldset {
+		border: 0;
+		padding: 0;
+		margin: var(--space-3) 0;
+		min-width: 0;
+	}
+	.reference-options {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+	.reference-options [aria-pressed='true'] {
+		outline: var(--focus-ring-width) solid var(--color-text);
+		outline-offset: calc(-1 * var(--focus-ring-width));
+		font-weight: var(--font-weight-bold);
+	}
+	h2 {
+		font-size: var(--font-size-lg);
+		margin: 0;
+	}
+	.reference-results-header {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: var(--space-2);
-	}
-	.reference-controls select {
-		min-width: 0;
-		max-width: 100%;
-	}
-	.reference-controls [aria-pressed='true'] {
-		background: var(--color-fill);
-		border-color: var(--color-text);
-		font-weight: var(--font-weight-semibold);
-	}
-	.reference-tools,
-	.reference-results-header {
-		display: flex;
-		align-items: center;
 		justify-content: space-between;
-		gap: var(--space-3);
-	}
-	.reference-tools .button {
 		gap: var(--space-2);
 	}
-	.reference-tools [aria-expanded='true'] {
-		background: var(--color-fill);
-		text-decoration: underline;
-		text-underline-offset: var(--space-1);
-	}
-	.reference-results-header {
-		margin-block: var(--space-4) var(--space-3);
-	}
-	.reference-results-header h2,
-	.reference-results-header p {
-		margin: 0;
-	}
-	.reference-results-header > .button {
-		flex-shrink: 0;
-	}
-	.reference-filter-fields {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: var(--space-3);
-	}
-	.reference-filter-fields .reference-controls {
-		display: grid;
-		gap: var(--space-1);
-	}
-	.reference-filters:not([hidden]) {
-		padding-block: var(--space-3) var(--space-4);
-		border-bottom: var(--border-width) solid var(--color-border);
-	}
-	.reference-filters > .reference-controls {
-		margin-block-start: var(--space-3);
-	}
-	.reference-filter-fields label {
-		font-size: var(--font-size-sm);
+	.reference-count,
+	.reference-result-context {
+		font-size: var(--font-size-xs);
 		color: var(--color-text-muted);
 	}
-	.reference-filter-fields select {
-		width: 100%;
+	.reference-matches {
+		margin-top: var(--space-5);
 	}
-	@media (max-width: 30rem) {
-		.reference-filter-fields {
-			grid-template-columns: minmax(0, 1fr);
-		}
-	}
+	.reference-results,
 	.reference-topics {
-		display: block;
-	}
-	.reference-topics,
-	.reference-results {
 		list-style: none;
 		padding: 0;
-		margin: 0 0 var(--space-4);
+		margin: var(--space-3) 0 0;
 	}
-	.reference-topics > li {
-		position: relative;
-		padding-block: var(--space-2);
+	.reference-result {
+		border-bottom: var(--border-width) solid var(--color-border);
+		border-inline-start: var(--focus-ring-width) solid transparent;
+		padding-inline-start: var(--space-3);
+		padding-block: var(--space-4);
 	}
-	.reference-topics > li + li {
-		border-top: var(--border-width) solid var(--color-border);
+	.reference-result:first-child {
+		padding-top: 0;
 	}
-	.reference-topic-question {
-		display: block;
-		margin-block-start: var(--space-1);
-		font-weight: var(--font-weight-regular);
-		color: var(--color-text-muted);
+	.reference-result > a {
+		display: grid;
+		gap: var(--space-2);
+		color: var(--color-text);
+		text-decoration: none;
+	}
+	.reference-result-title {
+		font-weight: var(--font-weight-semibold);
+	}
+	.reference-description {
 		font-size: var(--font-size-sm);
 		line-height: var(--line-height-body);
 	}
-	.reference-topics a.button {
-		text-decoration: none;
-	}
-	.reference-topics a.button:hover .reference-topic-copy > span:first-child {
-		text-decoration: underline;
-	}
-	.reference-legacy-anchor {
-		position: absolute;
-		width: 0;
-		height: 0;
-		inset-block-start: 0;
-		inset-inline-start: 0;
-	}
-	.reference-topics > li[data-fragment-current] {
-		box-shadow: inset var(--space-0-5) 0 var(--color-text);
-		background: var(--color-fill);
-		border-radius: var(--radius-control);
-	}
-	.reference-topics .button {
-		display: grid;
-		width: 100%;
-		height: auto;
-		text-align: start;
-		grid-template-columns: minmax(0, 1fr) auto;
-		align-items: center;
-		gap: var(--space-2);
-		min-height: var(--control-height-md);
-		padding: var(--space-2) var(--space-2);
-	}
-	.reference-topics .button > span:first-child {
-		font-weight: var(--font-weight-medium);
-	}
-	.reference-results > li + li {
-		border-top: var(--border-width) solid var(--color-border);
-	}
-	.reference-result {
-		display: grid;
-		gap: var(--space-1);
-		padding: var(--space-2);
-		text-decoration: none;
-		color: inherit;
-		border-radius: var(--radius-control);
-	}
-	.reference-result:hover {
-		background: var(--color-fill-subtle);
-	}
-	.reference-entry {
-		margin-block: var(--space-2);
-		border-inline-start: var(--current-row-marker-width) solid transparent;
-		border-radius: var(--radius-control);
-	}
-	.reference-entry[data-current] {
-		background: var(--color-fill-subtle);
+	.reference-result--current {
 		border-inline-start-color: var(--color-text);
+		background: var(--color-fill-subtle);
 	}
-	.reference-entry .reference-result[aria-current='page'] {
-		background: transparent;
-		box-shadow: none;
-	}
-
-	.reference-meta,
-	.reference-count {
-		color: var(--color-text-muted);
+	.reference-result details {
+		margin-top: var(--space-2);
 		font-size: var(--font-size-sm);
 	}
-	.guide-topic {
-		margin-block-start: var(--space-4);
-	}
-	.guide-topic-title {
-		padding-inline: calc(var(--split-lane-start) + var(--space-2))
-			calc(var(--split-lane-end) + var(--space-2));
-	}
-	.guide-topic-space > span {
-		padding-inline: var(--space-2);
-	}
-	.reference-count {
-		margin: 0 0 var(--space-2);
-	}
-	.reference-related {
-		padding: 0 var(--space-2) var(--space-2);
-		font-size: var(--font-size-sm);
-	}
-	.reference-related summary {
+	summary {
 		cursor: pointer;
-		color: var(--color-text-muted);
-		width: fit-content;
 	}
-	.reference-related ul {
-		list-style: none;
-		margin: var(--space-2) 0 0;
-		padding: 0;
+	.reference-directory {
+		margin-top: var(--space-6);
 	}
-	.reference-related a {
-		display: block;
-		padding: var(--space-1) var(--space-2);
-		overflow-wrap: anywhere;
+	.reference-questions {
+		display: none;
+		margin-bottom: var(--space-6);
+	}
+	.reference-start {
+		margin-bottom: var(--space-6);
+	}
+	.reference-start a {
+		display: flex;
+		gap: var(--space-2);
+		align-items: center;
+		font-weight: var(--font-weight-semibold);
+	}
+	.reference-topics a {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3);
+		color: var(--color-text);
+		text-decoration: none;
+		border-inline-start: var(--focus-ring-width) solid transparent;
 		border-radius: var(--radius-control);
 	}
-	.reference-related a:hover {
-		background: var(--color-fill);
-	}
-	.reference-current-label {
-		font-weight: var(--font-weight-medium);
-		color: var(--color-text);
-	}
-	.reference-related a[aria-current='page'] {
-		text-decoration-thickness: var(--focus-ring-width);
+	.reference-topics a[aria-current='page'] {
+		border-inline-start-color: var(--color-text);
+		background: var(--color-fill-subtle);
 		font-weight: var(--font-weight-semibold);
+	}
+	.reference-topics a:hover,
+	.reference-result > a:hover {
+		background: var(--color-fill-subtle);
+	}
+	.reference-topic-title,
+	.reference-topic-question {
+		display: block;
+	}
+	.reference-topic-title {
+		font-size: var(--font-size-sm);
+	}
+	.reference-topic-question {
+		margin-top: var(--space-1);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-regular);
+		line-height: var(--line-height-body);
+	}
+	.reference-read-all {
+		display: inline-block;
+		margin-top: var(--space-5);
+	}
+	a:focus-visible,
+	summary:focus-visible {
+		outline: var(--focus-ring-width) solid var(--color-focus);
+		outline-offset: var(--focus-ring-offset);
+	}
+	@media (max-width: 62rem) {
+		.reference-questions {
+			display: block;
+		}
+		.reference-topic-title {
+			font-size: var(--font-size-md);
+		}
+		.reference-topic-question {
+			font-size: var(--font-size-sm);
+		}
 	}
 </style>

@@ -2,14 +2,31 @@
 	import { guidanceTopicTitles } from '#lib/guidance/guidance.js';
 	import { siteUrl } from '#lib/seo.js';
 	import StructuredData from '#lib/ui/site/StructuredData.svelte';
-	import GuideArticle, { type GuideReadingSnapshot } from '#lib/ui/site/GuideArticle.svelte';
+	import GuideWelcome from '#lib/ui/site/GuideWelcome.svelte';
 	import type { PageProps, Snapshot } from './$types.js';
 
 	let { data }: PageProps = $props();
-	let article: ReturnType<typeof GuideArticle>;
-	export const snapshot: Snapshot<GuideReadingSnapshot> = {
-		capture: () => article.snapshot.capture(),
-		restore: (saved) => article.snapshot.restore(saved)
+	export const snapshot: Snapshot<{ finderY: number; windowY: number; openChecks: number[] }> = {
+		capture: () => ({
+			finderY: document.querySelector('.guide-sidebar')?.scrollTop ?? 0,
+			windowY: window.scrollY,
+			openChecks: Array.from(
+				document.querySelectorAll<HTMLDetailsElement>('.reference-results details')
+			).flatMap((item, index) => (item.open ? [index] : []))
+		}),
+		restore: (saved) => {
+			const restoredUrl = location.href;
+			requestAnimationFrame(() => {
+				const checks = document.querySelectorAll<HTMLDetailsElement>('.reference-results details');
+				checks.forEach((item, index) => (item.open = saved.openChecks.includes(index)));
+				requestAnimationFrame(() => {
+					if (location.href !== restoredUrl) return;
+					const finder = document.querySelector('.guide-sidebar');
+					if (finder) finder.scrollTop = saved.finderY;
+					window.scrollTo(0, saved.windowY);
+				});
+			});
+		}
 	};
 
 	const total = $derived(data.guidanceCount);
@@ -49,4 +66,4 @@
 
 <StructuredData data={structuredData} />
 
-<GuideArticle {data} bind:this={article} />
+<GuideWelcome />

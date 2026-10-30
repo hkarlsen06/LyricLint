@@ -292,14 +292,14 @@ for (const width of [1440, 390]) {
 		await trackViewTransitions(page);
 		await page.goto('/guidelines/');
 		await page.waitForLoadState('networkidle');
-		const index = page.locator('.site-split__index');
+		const index = page.locator('.guide-sidebar');
 		await index.locator('a[href="/guidelines/spelling/"]').click();
 		await expect(page).toHaveURL(/\/guidelines\/spelling\/$/);
 		await expect(page.locator('.navigation-splash')).toHaveCount(0);
 
 		await page
 			.getByRole('navigation', { name: 'Guide navigation' })
-			.getByRole('button', { name: width === 390 ? 'Topics' : 'Introduction', exact: true })
+			.getByRole('link', { name: 'All topics', exact: true })
 			.click();
 		await expect(index.getByRole('searchbox')).toBeInViewport();
 		const punctuation = index
@@ -311,7 +311,7 @@ for (const width of [1440, 390]) {
 		await expect(page.locator('.navigation-splash')).toHaveCount(0);
 
 		await page.goBack();
-		await expect(page).toHaveURL(/\/guidelines\/spelling\/$/);
+		await expect(page).toHaveURL(/\/guidelines\/$/);
 		await expect(page.locator('.navigation-splash')).toHaveCount(0);
 		await page.goForward();
 		await expect(page).toHaveURL(destination);

@@ -23,10 +23,10 @@ Touches: `src/routes/(site)/+page.svelte`, `src/routes/(site)/+layout.svelte`,
   without opening the workbench. Route CSS loads synchronously before its surface renders.
   Stylesheets smaller than 50,000 UTF-16 code units are embedded by SvelteKit in the
   prerendered HTML; larger sheets retain normal blocking links.
-  The guide's window shell keeps the header and desktop Topics/back bar transparent.
-  Single-pane navigation floats at the bottom with safe-area and content clearance.
-  Each pane owns one canvas-tinted glass surface behind its pinned context, so separate
-  headings do not produce separate blur edges.
+  The guide uses ordinary document scrolling with a sticky site header and a desktop sidebar.
+  Phones keep that header while article routes offer ordinary return links above the reader.
+  Fragment headings clear the header; the former pane glass and floating bottom navigation
+  are retired. Other mobile site pages retain their normal nonsticky header.
 - Internal navigation to a different pathname starts a root-owned wordmark splash
   as route loading starts, including history traversal and different pages of the same dynamic
   route. Browsing within `/guidelines/`, including topic/check links and their Back/Forward

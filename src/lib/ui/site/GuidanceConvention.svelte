@@ -5,7 +5,7 @@
 	import CodeProse from './CodeProse.svelte';
 	import GuidanceSearchHighlight from './GuidanceSearchHighlight.svelte';
 	import SiteSourceFold from './SiteSourceFold.svelte';
-	let { entry, showIncorrect = true }: { entry: GuidanceEntry; showIncorrect?: boolean } = $props();
+	let { entry }: { entry: GuidanceEntry } = $props();
 	const sources = $derived(
 		entry.sourceIds.flatMap((id) => {
 			const source = getSource(id);
@@ -22,19 +22,19 @@
 		<pre class="site-sample__text"><GuidanceSearchHighlight text={entry.example.correct} /></pre>
 	</figure>
 {/if}
-<div class="site-meta convention-source">
-	<span>{authorityLabels[entry.authority]}</span>
-	<span class="site-meta__separator" aria-hidden="true">·</span>
-	{#each sources as source (source.id)}<SiteSourceFold sources={[source]} text={marked} />{/each}
-</div>
-{#if showIncorrect && entry.example?.incorrect}
+{#if entry.example?.incorrect}
 	<figure class="site-sample site-sample--invalid">
 		<figcaption class="site-sample__label">Incorrect</figcaption>
 		<pre class="site-sample__text"><GuidanceSearchHighlight text={entry.example.incorrect} /></pre>
 	</figure>
 {/if}
+<div class="site-meta convention-source">
+	<span>{authorityLabels[entry.authority]}</span>
+	<span class="site-meta__separator" aria-hidden="true">·</span>
+	{#each sources as source (source.id)}<SiteSourceFold sources={[source]} text={marked} />{/each}
+</div>
 {#if entry.note}
-	<p><CodeProse text={entry.note} mark={marked} /></p>
+	<p><strong>Exceptions and context:</strong> <CodeProse text={entry.note} mark={marked} /></p>
 {/if}
 
 <style>

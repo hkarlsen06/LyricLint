@@ -10,10 +10,10 @@ for (const width of [1440, 390]) {
 		const skip = page.getByRole('link', { name: /Skip to/u });
 		await expect(skip).toBeFocused();
 		await page.keyboard.press('Enter');
-		await expect(page.locator('main')).toBeFocused();
-		await expect(page.locator('main').getByRole('searchbox')).toBeInViewport();
+		await expect(page.getByRole('main')).toBeFocused();
+		await expect(page.getByRole('main').getByRole('searchbox')).toBeInViewport();
 		await expect(page.getByRole('searchbox')).toHaveCount(1);
-		await expect(page.locator('main h1')).toHaveText('Transcription guide');
+		await expect(page.getByRole('main').locator('h1')).toHaveText('Transcription guide');
 		const search = page.getByRole('searchbox', { name: 'What are you working on?' });
 		expect(
 			Number.parseFloat(await search.evaluate((field) => getComputedStyle(field).fontSize))
@@ -23,7 +23,10 @@ for (const width of [1440, 390]) {
 			.click();
 		await expect(page).toHaveURL(/\/guidelines\/section-headers\/#artist-identifiers$/u);
 		await expect(page.locator('#artist-identifiers')).toBeInViewport();
-		await expect(page.locator('main')).toBeFocused();
+		await page.keyboard.press('Tab');
+		await expect(
+			page.locator('.guidelines__entry:has(#artist-identifiers) a').first()
+		).toBeFocused();
 		if (width === 390) await expect(search).toBeHidden();
 		await page
 			.getByRole('navigation', { name: 'Guide navigation' })
@@ -45,6 +48,7 @@ for (const width of [1440, 390]) {
 	}) => {
 		await page.setViewportSize({ width, height: 900 });
 		await page.goto('/guidelines/section-headers/#voice-order');
+		await page.locator('.guide-contents > summary').click();
 		const disclosure = page
 			.locator('.guidelines__entry:has(#voice-order) .guidelines__checks details')
 			.first();
@@ -59,9 +63,41 @@ for (const width of [1440, 390]) {
 		await page.goBack();
 		await expect(page).toHaveURL(/\/guidelines\/section-headers\/#voice-order$/u);
 		await expect(disclosure).toHaveAttribute('open');
+		await expect(page.locator('.guide-contents')).toHaveAttribute('open');
 		await expect(check).toBeInViewport();
 		await expect
 			.poll(async () => Math.abs((await page.evaluate(() => window.scrollY)) - before))
 			.toBeLessThan(2);
 	});
 }
+
+test('old convention bookmarks resolve to their bounded topic and retain search', async ({
+	page
+}) => {
+	for (const pathname of ['/guidelines/', '/guidelines/spelling/']) {
+		await page.goto(`${pathname}?q=two+singers#artist-identifiers`);
+		await expect(page).toHaveURL('/guidelines/section-headers/?q=two+singers#artist-identifiers');
+		await expect(page.locator('#artist-identifiers')).toBeInViewport();
+	}
+	await page.goto('/guidelines/#unrecognized-fragment');
+	await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toHaveText(
+		'Transcription guide'
+	);
+});
+
+test('desktop finder stays at the same position between directory and article', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto('/guidelines/');
+	const search = page.getByRole('searchbox');
+	const before = await search.boundingBox();
+	await page.getByRole('link', { name: 'How do I credit different singers?', exact: true }).click();
+	await expect(page.locator('#artist-identifiers')).toBeInViewport();
+	await expect
+		.poll(async () => Math.abs((await search.boundingBox())!.y - before!.y))
+		.toBeLessThan(2);
+	await expect(page.locator('.guide-sidebar .reference-topics a[aria-current="page"]')).toHaveText(
+		/Section headers and performers/u
+	);
+});
