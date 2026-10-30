@@ -518,7 +518,14 @@ test('the unified guide has one entrance and exposes check metadata and language
 		'App'
 	]);
 	await expect(page.getByRole('heading', { name: 'Browse by topic', exact: true })).toHaveCount(1);
-	await expect(page.locator('.reference-questions a')).toHaveCount(4);
+	await expect(
+		page.getByRole('region', { name: 'Common questions', exact: true }).getByRole('link')
+	).toHaveText([
+		'How do I label song sections?',
+		'How do I credit different singers?',
+		'What if I cannot hear a word?',
+		'How do I write ad-libs?'
+	]);
 	await expect(page.locator('a[href^="/rules/"]')).toHaveCount(0);
 	await expect(page.locator('.reference-filters')).toBeHidden();
 	await expect(page.locator('.reference-controls[aria-label="Search scope"]')).toHaveCount(0);

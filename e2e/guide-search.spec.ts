@@ -65,6 +65,9 @@ test('desktop article search updates only the finder and replaces history', asyn
 		.getByRole('navigation', { name: 'Browse reference topics' })
 		.getByRole('link', { name: /^Section headers and performers/u })
 		.click();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+		'Section headers and performers'
+	);
 	const headings = page.locator('main h1, main h2');
 	const titles = await headings.allTextContents();
 	await page.locator('#voice-order').scrollIntoViewIfNeeded();
