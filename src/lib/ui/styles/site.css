@@ -402,6 +402,118 @@
 }
 
 /*
+ * The guide's native disclosures. Two sizes, one vocabulary: the label names
+ * what is behind it and never changes, a chevron after it turns to say open,
+ * and the content grows below the trigger without moving anything above it.
+ *
+ * - `.site-disclosure` is a reading row: a question or a check title across the
+ *   measure, hairlines above and below binding the label to its chevron at the
+ *   far edge. Adjacent rows share one hairline, so a run of them reads as one
+ *   list. Open, the bottom hairline closes the content it revealed.
+ * - `.site-disclosure--compact` is a small muted control beside a fact, the
+ *   same shape as the diagnostic card's `Sources` disclosure: label, then the
+ *   chevron, no rules.
+ *
+ * The summary holds the label in `.site-disclosure__label`, because a flex
+ * summary would otherwise split search marks into separate items.
+ */
+.site-disclosure {
+	border-block: var(--border-width) solid var(--color-border);
+}
+
+.site-disclosure + .site-disclosure {
+	border-block-start: 0;
+}
+
+.site-disclosure > summary {
+	display: flex;
+	gap: var(--space-3);
+	align-items: center;
+	justify-content: space-between;
+	min-height: var(--control-height-md);
+	/* Keep the focus ring clear of the label without extending the row beyond its container. */
+	padding: var(--space-3) var(--space-1);
+	border-radius: var(--radius-control);
+	color: var(--color-text);
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+	list-style: none;
+}
+
+.site-disclosure > summary::-webkit-details-marker {
+	display: none;
+}
+
+.site-disclosure > summary:hover .site-disclosure__label {
+	text-decoration: underline;
+	text-underline-offset: 0.16em;
+}
+
+.site-disclosure > summary:focus-visible {
+	outline: var(--focus-ring-width) solid var(--color-focus);
+	outline-offset: var(--focus-ring-offset);
+}
+
+.site-disclosure__label {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.site-disclosure__chevron {
+	flex: none;
+	color: var(--color-text-muted);
+}
+
+.site-disclosure > summary:hover .site-disclosure__chevron {
+	color: var(--color-text);
+}
+
+.site-disclosure[open] > summary .site-disclosure__chevron {
+	rotate: 180deg;
+}
+
+.site-disclosure[open] {
+	padding-block-end: var(--space-4);
+}
+
+.site-disclosure > :last-child {
+	margin-block-end: 0;
+}
+
+.site-disclosure--compact,
+.site-disclosure--compact + .site-disclosure--compact {
+	border: 0;
+}
+
+.site-disclosure--compact[open] {
+	padding-block-end: 0;
+}
+
+.site-disclosure--compact > summary {
+	justify-content: flex-start;
+	gap: var(--space-1);
+	width: fit-content;
+	min-height: var(--control-height-sm);
+	padding-block: 0;
+	color: var(--color-text-muted);
+	font-weight: var(--font-weight-medium);
+}
+
+.site-disclosure--compact > summary:hover {
+	color: var(--color-text);
+}
+
+.site-disclosure--compact[open] > summary {
+	margin-block-end: var(--space-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.site-disclosure__chevron {
+		transition: rotate var(--duration-fast) var(--ease-out-quart);
+	}
+}
+
+/*
  * The live demo: the workbench's own `EditorPane`, mounted without the shell
  * around it. It gets the same border and surface as a `.site-sample`, because
  * it is the same material (a piece of document text set apart from the prose

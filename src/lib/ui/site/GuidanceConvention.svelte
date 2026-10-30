@@ -15,7 +15,7 @@
 </script>
 
 {#snippet marked(value: string)}<GuidanceSearchHighlight text={value} />{/snippet}
-<p><CodeProse text={entry.statement} mark={marked} /></p>
+<p><CodeProse text={entry.statement} mark={marked} glossary /></p>
 {#if entry.example?.correct}
 	<figure class="site-sample site-sample--valid">
 		<figcaption class="site-sample__label">Correct</figcaption>
@@ -34,7 +34,10 @@
 	{#each sources as source (source.id)}<SiteSourceFold sources={[source]} text={marked} />{/each}
 </div>
 {#if entry.note}
-	<p><strong>Exceptions and context:</strong> <CodeProse text={entry.note} mark={marked} /></p>
+	<p>
+		<strong>Exceptions and context:</strong>
+		<CodeProse text={entry.note} mark={marked} glossary />
+	</p>
 {/if}
 
 <style>

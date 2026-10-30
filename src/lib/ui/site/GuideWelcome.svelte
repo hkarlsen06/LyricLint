@@ -1,7 +1,13 @@
 <script lang="ts">
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import GuideQuestions from './GuideQuestions.svelte';
 	import { authorityLabels, type GuidanceAuthority } from '#lib/guidance/guidance.js';
 	import AuthorityLadder from '#lib/ui/site/AuthorityLadder.svelte';
+	import StandardizedSpellings from './StandardizedSpellings.svelte';
+	import CodeProse from './CodeProse.svelte';
+	import type { RuleLookupTable } from '#lib/rules/lookup-tables.js';
+
+	let { spellings }: { spellings?: RuleLookupTable } = $props();
 
 	const tiers: readonly { authority: GuidanceAuthority; description: string }[] = [
 		{
@@ -32,55 +38,63 @@
 </script>
 
 <section class="site-prose site-split__page guide-welcome" aria-label="Getting started">
-	<div class="guide-welcome__questions"><GuideQuestions examples /></div>
-	<details class="reference-disclosure">
-		<summary>Where does the advice come from?</summary>
-		<p>
-			Each entry names its source and authority tier. A linked linter check may cover only part of a
-			convention; read its example and the entry’s qualifications for the limits.
-		</p>
-		<dl class="guidelines__tiers">
-			{#each tiers as { authority, description } (authority)}
-				<div>
-					<dt>
-						<AuthorityLadder {authority} />
-						{authorityLabels[authority]}
-					</dt>
-					<dd>{description}</dd>
-				</div>
-			{/each}
-		</dl>
-	</details>
+	<div class="guide-welcome__previews">
+		{#if spellings}<StandardizedSpellings {spellings} />{/if}
+		<GuideQuestions />
+	</div>
+	<div class="guide-welcome__more">
+		<details class="site-disclosure">
+			<summary
+				><span class="site-disclosure__label">Where does the advice come from?</span><CaretDownIcon
+					class="site-disclosure__chevron"
+					size={16}
+					aria-hidden="true"
+				/></summary
+			>
+			<p>
+				<CodeProse
+					glossary
+					text="Each entry names its source and authority tier. A linked linter check may cover only part of a convention; read its example and the entry’s qualifications for the limits."
+				/>
+			</p>
+			<dl class="guidelines__tiers">
+				{#each tiers as { authority, description } (authority)}
+					<div>
+						<dt>
+							<AuthorityLadder {authority} />
+							{authorityLabels[authority]}
+						</dt>
+						<dd><CodeProse glossary text={description} /></dd>
+					</div>
+				{/each}
+			</dl>
+		</details>
 
-	<details id="harper" class="reference-disclosure">
-		<summary>What about spelling and grammar?</summary>
-		<p>
-			The workbench also uses Harper for English spelling, grammar, and style suggestions. Those
-			suggestions come from the proofreader, so they are not listed here as Genius conventions. Read
-			them in the context of the lyrics before applying a change.
-		</p>
-	</details>
+		<details id="harper" class="site-disclosure">
+			<summary
+				><span class="site-disclosure__label">What about spelling and grammar?</span><CaretDownIcon
+					class="site-disclosure__chevron"
+					size={16}
+					aria-hidden="true"
+				/></summary
+			>
+			<p>
+				The workbench also uses Harper for English spelling, grammar, and style suggestions. Those
+				suggestions come from the proofreader, so they are not listed here as Genius conventions.
+				Read them in the context of the lyrics before applying a change.
+			</p>
+		</details>
+	</div>
 </section>
 
 <style>
 	@media (max-width: 62rem) {
-		.guide-welcome__questions {
+		.guide-welcome__previews {
 			display: none;
 		}
 	}
-	.reference-disclosure {
+	.guide-welcome__more {
 		margin-block: var(--space-5);
-	}
-	.reference-disclosure > summary {
-		cursor: pointer;
-		font-weight: var(--font-weight-medium);
-	}
-	.reference-disclosure > summary:focus-visible {
-		outline: var(--focus-ring-width) solid var(--color-focus);
-		outline-offset: var(--focus-ring-offset);
-	}
-	.reference-disclosure[open] > summary {
-		margin-block-end: var(--space-3);
 	}
 	.guidelines__tiers {
 		margin: 0;

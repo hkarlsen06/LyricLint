@@ -83,6 +83,40 @@ describe('ReferenceIndex', () => {
 		await expect.element(page.getByRole('link', { name: 'Read the whole guide' })).toBeVisible();
 	});
 
+	it('names each topic row by its title and describes it with quoted guide forms', async () => {
+		await render(ReferenceIndex, { corpus });
+		const performers = page.getByRole('link', {
+			name: 'Section headers and performers',
+			exact: true
+		});
+		await expect.element(performers).toHaveAccessibleDescription('Example: [Verse 1: Avery]');
+		await expect
+			.element(page.getByRole('link', { name: 'Spelling and contractions', exact: true }))
+			.toHaveAccessibleDescription(/^Examples: okay\s*,\s*ballin'$/u);
+		const preview = performers.element().querySelector('.reference-topic-preview');
+		expect(preview?.textContent).toContain('[Verse 1: Avery]');
+		expect(document.querySelectorAll('.reference-topics a')).toHaveLength(2);
+	});
+
+	it('wraps topic previews inside their rows on a 320px phone', async () => {
+		await page.viewport(320, 700);
+		const view = await render(ReferenceIndex, { corpus });
+		try {
+			for (const link of document.querySelectorAll<HTMLElement>('.reference-topics a')) {
+				const row = link.getBoundingClientRect();
+				const preview = link.querySelector('.reference-topic-preview')!.getBoundingClientRect();
+				expect(preview.right).toBeLessThanOrEqual(row.right);
+				expect(preview.top).toBeGreaterThanOrEqual(
+					link.querySelector('.reference-topic-title')!.getBoundingClientRect().bottom
+				);
+			}
+			expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
+		} finally {
+			await view.unmount();
+			await page.viewport(800, 600);
+		}
+	});
+
 	it('shows answer previews and keeps related checks available without duplicating results', async () => {
 		await render(ReferenceIndex, { corpus });
 		await page.getByRole('searchbox').fill('two singers');

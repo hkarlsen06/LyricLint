@@ -66,4 +66,4 @@
 
 <StructuredData data={structuredData} />
 
-<GuideWelcome />
+<GuideWelcome spellings={data.spellings} />

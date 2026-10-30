@@ -5,7 +5,8 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
 `src/lib/ui/site/SectionSplit.svelte`, `src/lib/ui/site/GuideWelcome.svelte`,
 `src/lib/ui/site/GuideArticle.svelte`, `src/lib/ui/site/GuidanceConvention.svelte`,
 `src/lib/ui/site/ReferenceIndex.svelte`, `src/lib/ui/site/GuideQuestions.svelte`,
-`src/lib/guidance/essentials.ts`,
+`src/lib/ui/site/StandardizedSpellings.svelte`, `src/lib/ui/site/GlossaryTerm.svelte`,
+`src/lib/ui/site/CodeProse.svelte`, `src/lib/guidance/glossary.ts`, `src/lib/guidance/essentials.ts`,
 `src/lib/ui/site/reference-search.svelte.ts`, `src/lib/ui/site/reference-url.ts`,
 `src/lib/ui/site/ReferenceSearchSync.svelte`,
 `src/lib/ui/site/rule-search.svelte.ts`, `src/lib/ui/site/guidance-search.svelte.ts`,
@@ -21,8 +22,10 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   language corpus is imported by the finder. The server derives its corpus.
 - `SectionSplit` keeps one mounted finder and a normal document-scrolling reader. Desktop
   has a sticky, independently scrollable sidebar. Its search control keeps the same desktop
-  position between the directory and articles. Common-question previews use canonical examples
-  and sources in the main column; phones show the same question links beside search. Phones use
+  position between the directory and articles. Common questions are compact destination tiles,
+  each showing a question and its exact canonical example without nested sample boxes or attribution
+  rows. The whole tile opens its sourced answer. Two columns become one when the available space
+  is narrow; phones show the same tiles beside search. `GuideQuestions.svelte.test.ts` pins this. Phones use
   ordinary routes: the directory shows the finder and article routes show their reader, with an All topics or Back to results
   link carrying search state. No horizontal strip, reading spy, floating navigation, or sticky
   article titles remain. Root has a main landmark containing its heading and search; article
@@ -59,12 +62,30 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   convention h3s and check h4s. Fragment headings, including Essentials companions, clear the
   site header. Examples retain their exact text and language. `GuideArticle.svelte.test.ts`
   and `e2e/guide-reading.spec.ts` pin bounded content, hierarchy, sources and geometry.
+- Guide disclosures share `.site-disclosure` in `site.css`: full reading rows for contents and
+  explanations, compact controls beside source facts and search results. Labels stay fixed;
+  a turning chevron indicates the open state. Native details keep keyboard behavior and snapshots.
+  Show and Topic filters retain native select pickers, with matching chevrons and token styling.
 - Guidelines explain sourced conventions; checks explain exact linter triggers and fixes.
   Linked checks disclose their own sources, accepted/flagged examples and explanation.
   Source links stay available without nested source disclosures. A check does not claim to
   verify every part of a convention. `topic-checks.server.ts` derives check wording from the
   same references as detail pages, keeps cross-topic links and unmatched checks discoverable,
   and invents no conventions. `topic-checks.test.ts` pins source and coverage derivation.
+- Unfamiliar terms in guide prose have dotted-underlined definition buttons. `CodeProse` opts
+  into the curated glossary and explains each term once per passage; quoted forms, lyric examples,
+  navigation and source links remain literal. Definitions describe vocabulary, never add policy.
+  The nonmodal definition keeps the passage still, stays within the viewport, and supports keyboard
+  activation, Escape, its close control and `dismissOnOutside`. Explicit dismissal returns focus;
+  outside presses and tabbing away keep the reader's new focus. `GlossaryTerm.svelte.test.ts` pins this.
+- The homepage previews six reviewed standardized spellings with their canonical
+  source in a closed disclosure and a state-preserving link to the complete list. The preview is a
+  compact Use / Instead of table. Topic navigation pairs each label with short typographic examples
+  from the guide, replacing question subtitles and repeated chevrons. `topics.test.ts` verifies each
+  preview against its source. Topic names remain link names; previews are accessible descriptions.
+  Selected and focused states remain visible. Desktop shows the spelling preview beside the finder;
+  phones show it before the topic directory. `StandardizedSpellings.svelte.test.ts` pins the preview
+  content and responsive placement.
 - Topic snapshots preserve their contents disclosure and open checks by stable identity, then
   restore window position after disclosure heights settle. Root snapshots retain finder disclosures and scroll positions.
   Delayed restoration must not act after a different navigation. Browser Back remains native.

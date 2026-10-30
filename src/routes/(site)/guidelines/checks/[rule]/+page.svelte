@@ -128,7 +128,7 @@
 		{/if}
 	</div>
 
-	<p><RuleSearchHighlight text={reference.explanation} /></p>
+	<p><CodeProse text={reference.explanation} mark={sourceText} glossary /></p>
 
 	{#if reference.guidelines?.length}
 		<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref decorates resolve() URLs with shared search parameters. -->
@@ -152,7 +152,7 @@
 	     line where they meet. -->
 	{#if lookup}
 		<h2>What this check detects</h2>
-		<p><RuleSearchHighlight text={lookup.description} /></p>
+		<p><CodeProse text={lookup.description} mark={sourceText} glossary /></p>
 		<ul class="site-run">
 			{#each lookup.entries as entry, index (index)}
 				<li class="rules__lookup-row">
@@ -183,7 +183,7 @@
 					{/if}
 					{#each [entry.appliesWhen, entry.note].filter(Boolean) as sentence (sentence)}
 						<p class="rules__lookup-note">
-							<CodeProse text={sentence!} mark={sourceText} />
+							<CodeProse text={sentence!} mark={sourceText} glossary />
 						</p>
 					{/each}
 				</li>
@@ -243,8 +243,10 @@
 			<p>
 				In the workbench this finding carries one control, labelled
 				<strong><RuleSearchHighlight text={reference.fix.label} /></strong>. The change is
-				contextual, so it is previewed as a diff in your document first and applies only when you
-				confirm it.
+				<CodeProse
+					glossary
+					text="contextual, so it is previewed as a diff in your document first and applies only when you confirm it."
+				/>
 			</p>
 		{/if}
 	{:else}

@@ -5,6 +5,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { resolve } from '$app/paths';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import { referenceHref } from '#lib/ui/site/reference-search.svelte.js';
 	import { guidanceTopics } from '#lib/guidance/entries.js';
 	import {
@@ -115,8 +116,16 @@
 	<ul class="guidelines__checks">
 		{#each checks as check (check.href)}
 			<li>
-				<details id={`check-${owner}-${check.id}`} data-check-id={check.id}>
-					<summary><GuidanceSearchHighlight text={check.title} /></summary>
+				<details id={`check-${owner}-${check.id}`} class="site-disclosure" data-check-id={check.id}>
+					<summary
+						><span class="site-disclosure__label"
+							><GuidanceSearchHighlight text={check.title} /></span
+						><CaretDownIcon
+							class="site-disclosure__chevron"
+							size={16}
+							aria-hidden="true"
+						/></summary
+					>
 
 					<div class="site-meta">
 						{#each check.sources as source (source.id)}<SiteSourceFold
@@ -142,7 +151,7 @@
 								text={check.invalid}
 							/></pre>
 					</figure>
-					<p><GuidanceSearchHighlight text={check.explanation} /></p>
+					<p><CodeProse text={check.explanation} mark={marked} glossary /></p>
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref decorates a resolve() URL with shared search parameters. -->
 					<p>
 						<a
@@ -195,7 +204,9 @@
 							>
 						</p>
 						{#each [...entry.appliesWhen, ...entry.notes] as sentence (sentence)}
-							<p class="rules__lookup-note"><CodeProse text={sentence!} mark={marked} /></p>
+							<p class="rules__lookup-note">
+								<CodeProse text={sentence!} mark={marked} glossary />
+							</p>
 						{/each}
 					</li>
 				{/each}
@@ -233,10 +244,13 @@
 			: 'Every reviewed convention, with examples and links to its sources.'}
 	</p>
 	<details
-		class="guide-contents"
+		class="guide-contents site-disclosure"
 		open={!topic || groups.reduce((count, group) => count + group.entries.length, 0) <= 8}
 	>
-		<summary>{topic ? 'In this topic' : 'Contents'}</summary>
+		<summary
+			><span class="site-disclosure__label">{topic ? 'In this topic' : 'Contents'}</span
+			><CaretDownIcon class="site-disclosure__chevron" size={16} aria-hidden="true" /></summary
+		>
 		<nav aria-label="On this page">
 			<ul>
 				{#each groups as group (group.section.topic)}
@@ -311,10 +325,6 @@
 		margin-top: var(--space-7);
 		padding-top: var(--space-6);
 	}
-	.guide-contents summary {
-		cursor: pointer;
-		font-weight: var(--font-weight-medium);
-	}
 	.guidelines__entry > :target,
 	.guidelines__landmark :target {
 		position: relative;
@@ -347,14 +357,18 @@
 		padding: 0;
 		margin: var(--space-3) 0 0;
 	}
-	.guidelines__checks li + li {
-		margin-top: var(--space-4);
+	/* One run of disclosure rows: neighbours share a hairline. */
+	.guidelines__checks li {
+		margin: 0;
 	}
-	.guidelines__checks summary {
-		font-weight: var(--font-weight-medium);
+	.guidelines__checks li + li > details {
+		border-block-start: 0;
 	}
 	.guidelines__checks p {
 		margin: var(--space-1) 0 0;
+	}
+	.guide-contents ul {
+		margin-block-end: 0;
 	}
 	nav li + li {
 		margin-top: var(--space-2);

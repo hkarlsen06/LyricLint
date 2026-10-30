@@ -4,6 +4,7 @@
 	import { resolve } from '$app/paths';
 	import MagicWandIcon from 'phosphor-svelte/lib/MagicWandIcon';
 	import SlidersHorizontalIcon from 'phosphor-svelte/lib/SlidersHorizontalIcon';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import { assistantAvailable } from '#lib/assistant/api.js';
 	import { useAssistantState, type AssistantState } from '#lib/assistant/assistant.svelte.js';
@@ -14,6 +15,8 @@
 	import SearchHighlight from './SearchHighlight.svelte';
 	import CodeProse from './CodeProse.svelte';
 	import GuideQuestions from './GuideQuestions.svelte';
+	import StandardizedSpellings from './StandardizedSpellings.svelte';
+	import type { RuleLookupTable } from '#lib/rules/lookup-tables.js';
 	import { safeDecodeHash } from './hash.js';
 	import {
 		createReferenceResults,
@@ -27,14 +30,17 @@
 		corpus,
 		selectedSlug,
 		selectedTopic,
+		spellings,
 		assistant: assistantProp
 	}: {
 		corpus: readonly ReferenceDocument[];
 		selectedSlug?: string;
 		selectedTopic?: string;
+		spellings?: RuleLookupTable;
 		assistant?: AssistantState;
 	} = $props();
 	const root = resolve('/(site)');
+	const uid = $props.id();
 	const contextAssistant = useAssistantState();
 	const assistant = $derived(assistantProp ?? contextAssistant);
 	const filters = $derived(referenceSearchState());
@@ -131,25 +137,31 @@
 	</search>
 	<div id="reference-filters" class="reference-filters" hidden={!filtersOpen}>
 		<label for="reference-content">Show</label>
-		<select
-			id="reference-content"
-			value={filters.scope}
-			onchange={(event) => scope(event.currentTarget.value)}
-		>
-			<option value="all">All advice and checks</option><option value="guidelines"
-				>Transcription advice</option
-			><option value="rules">LyricLint checks</option>
-		</select>
+		<span class="reference-select">
+			<select
+				id="reference-content"
+				value={filters.scope}
+				onchange={(event) => scope(event.currentTarget.value)}
+			>
+				<option value="all">All advice and checks</option><option value="guidelines"
+					>Transcription advice</option
+				><option value="rules">LyricLint checks</option>
+			</select>
+			<CaretDownIcon class="reference-select__chevron" size={16} aria-hidden="true" />
+		</span>
 		<label for="reference-topic">Topic</label>
-		<select
-			id="reference-topic"
-			value={filters.topic}
-			onchange={(event) => setReferenceSearchState({ topic: event.currentTarget.value })}
-		>
-			<option value="">All topics</option>{#each topics as topic (topic.id)}<option value={topic.id}
-					>{topic.title}</option
-				>{/each}
-		</select>
+		<span class="reference-select">
+			<select
+				id="reference-topic"
+				value={filters.topic}
+				onchange={(event) => setReferenceSearchState({ topic: event.currentTarget.value })}
+			>
+				<option value="">All topics</option>{#each topics as topic (topic.id)}<option
+						value={topic.id}>{topic.title}</option
+					>{/each}
+			</select>
+			<CaretDownIcon class="reference-select__chevron" size={16} aria-hidden="true" />
+		</span>
 		{#if filters.scope === 'rules'}
 			<fieldset>
 				<legend>Severity</legend>
@@ -228,8 +240,17 @@
 						</a>
 						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 						{#if result.relatedRules.length}
-							<details class="reference-related">
-								<summary>Related checks ({result.relatedRules.length})</summary>
+							<details class="reference-related site-disclosure site-disclosure--compact">
+								<summary
+									><span class="site-disclosure__label"
+										>Related checks ({result.relatedRules.length})</span
+									><CaretDownIcon
+										class="site-disclosure__chevron"
+										size={12}
+										weight="bold"
+										aria-hidden="true"
+									/></summary
+								>
 								<ul>
 									{#each result.relatedRules as check (check.id)}<li>
 											<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Same server-derived route contract as the result above. -->
@@ -251,16 +272,15 @@
 				href={referenceHref(resolve('/(site)/guidelines/essentials'))}
 				aria-label="Start with the essentials"
 				aria-current={path.includes('/guidelines/essentials') ? 'page' : undefined}
-				><span
-					>Start with the essentials<span class="reference-topic-question"
-						>Practical starting points for new transcribers</span
-					></span
-				>
+				><span>Start with the essentials</span>
 				<CaretRightIcon size={16} aria-hidden="true" /></a
 			>
 		</div>
 		{#if !showResults && !selectedTopic && !selectedSlug && !path.includes('/guidelines/all') && !path.includes('/guidelines/essentials')}
-			<div class="reference-questions"><GuideQuestions /></div>
+			<div class="reference-questions">
+				{#if spellings}<StandardizedSpellings {spellings} />{/if}
+				<GuideQuestions />
+			</div>
 		{/if}
 		<h2>Browse by topic</h2>
 		<ul class="reference-topics">
@@ -277,12 +297,16 @@
 					<a
 						href={referenceHref(`${resolve('/(site)/guidelines/[topic]', { topic: topic.id })}/`)}
 						aria-current={selectedTopic === topic.id ? 'page' : undefined}
+						aria-label={topic.title}
+						aria-describedby="{uid}-preview-{topic.id}"
 					>
-						<span
-							><span class="reference-topic-title">{topic.title}</span><span
-								class="reference-topic-question">{topic.question}</span
-							></span
-						><CaretRightIcon size={16} aria-hidden="true" />
+						<span class="reference-topic-title">{topic.title}</span>
+						<span class="reference-topic-preview" id="{uid}-preview-{topic.id}"
+							><span class="sr-only">{topic.preview.length > 1 ? 'Examples:' : 'Example:'}</span
+							>{#each topic.preview as example, index (example.text)}{#if index}<span
+										class="sr-only">,</span
+									><span aria-hidden="true">·</span>{/if}<code>{example.text}</code>{/each}</span
+						>
 					</a>
 				</li>
 			{/each}
@@ -323,8 +347,25 @@
 	.reference-filters {
 		padding-block: var(--space-4);
 	}
-	.reference-filters select {
+	/* The native select keeps its own keyboard and touch picker; only the closed
+	   control is drawn, with the chevron the site's disclosures use. */
+	.reference-select {
+		position: relative;
+		display: block;
 		margin-bottom: var(--space-4);
+	}
+	.reference-select select {
+		appearance: none;
+		padding-inline-end: calc(var(--control-padding-inline) * 2 + var(--space-4));
+		text-overflow: ellipsis;
+	}
+	.reference-select :global(.reference-select__chevron) {
+		position: absolute;
+		inset-inline-end: var(--control-padding-inline);
+		top: 50%;
+		translate: 0 -50%;
+		color: var(--color-text-muted);
+		pointer-events: none;
 	}
 	fieldset {
 		border: 0;
@@ -397,9 +438,6 @@
 		margin-top: var(--space-2);
 		font-size: var(--font-size-sm);
 	}
-	summary {
-		cursor: pointer;
-	}
 	.reference-directory {
 		margin-top: var(--space-6);
 	}
@@ -417,11 +455,9 @@
 		font-weight: var(--font-weight-semibold);
 	}
 	.reference-topics a {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3);
+		display: grid;
+		gap: var(--space-1);
+		padding: var(--space-2) var(--space-3);
 		color: var(--color-text);
 		text-decoration: none;
 		border-inline-start: var(--focus-ring-width) solid transparent;
@@ -436,26 +472,32 @@
 	.reference-result > a:hover {
 		background: var(--color-fill-subtle);
 	}
-	.reference-topic-title,
-	.reference-topic-question {
-		display: block;
-	}
 	.reference-topic-title {
 		font-size: var(--font-size-sm);
 	}
-	.reference-topic-question {
-		margin-top: var(--space-1);
+	/* The topic's own forms, quoted from the guide, so a row is recognized at a glance. They
+	   stay subordinate to the title and wrap (never truncate) on narrow phones. */
+	.reference-topic-preview {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		column-gap: var(--space-2);
 		color: var(--color-text-muted);
+		font-family: var(--font-mono);
 		font-size: var(--font-size-xs);
 		font-weight: var(--font-weight-regular);
 		line-height: var(--line-height-body);
+		overflow-wrap: anywhere;
+	}
+	.reference-topic-preview code {
+		font: inherit;
+		white-space: pre-line;
 	}
 	.reference-read-all {
 		display: inline-block;
 		margin-top: var(--space-5);
 	}
-	a:focus-visible,
-	summary:focus-visible {
+	a:focus-visible {
 		outline: var(--focus-ring-width) solid var(--color-focus);
 		outline-offset: var(--focus-ring-offset);
 	}
@@ -466,7 +508,7 @@
 		.reference-topic-title {
 			font-size: var(--font-size-md);
 		}
-		.reference-topic-question {
+		.reference-topic-preview {
 			font-size: var(--font-size-sm);
 		}
 	}

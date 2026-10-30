@@ -16,6 +16,11 @@ describe('GuidanceConvention', () => {
 		expect(view.container.querySelectorAll('.source-citation a')).toHaveLength(
 			entry.sourceIds.length
 		);
-		expect(view.container.querySelector('details, button[aria-expanded]')).toBeNull();
+		expect(
+			view.container.querySelector('.convention-source details, .convention-source button')
+		).toBeNull();
+		expect(
+			view.container.querySelector('button[aria-label="linter: show definition"]')
+		).not.toBeNull();
 	});
 });

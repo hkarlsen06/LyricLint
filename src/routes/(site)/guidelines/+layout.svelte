@@ -33,7 +33,12 @@
 
 <SectionSplit {detailOpen}>
 	{#snippet list()}
-		<ReferenceIndex corpus={data.referenceCorpus} selectedSlug={page.params.rule} {selectedTopic} />
+		<ReferenceIndex
+			corpus={data.referenceCorpus}
+			spellings={data.spellings}
+			selectedSlug={page.params.rule}
+			{selectedTopic}
+		/>
 	{/snippet}
 	{@render children()}
 </SectionSplit>

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { codeSegments } from './code-segments.js';
+	import { glossarySegments, type GlossarySegment } from '#lib/guidance/glossary.js';
+	import GlossaryTerm from './GlossaryTerm.svelte';
 
 	/**
 	 * A sentence whose quoted forms are set in the page's code face.
@@ -30,6 +32,9 @@
 	 * word most likely to have been searched for. A surface with no query
 	 * passes none.
 	 *
+	 * `glossary` adds definition buttons to prose only, once per term in this
+	 * passage. Literal code forms stay untouched. Links and headings leave it off.
+	 *
 	 * Like `SearchHighlight`, it draws text and nothing else, no wrapper, so it
 	 * stands inside a `<p>`, a muted meta line or a heading without any of them
 	 * knowing it is there. Which is why the template below is one unbroken line
@@ -37,14 +42,42 @@
 	 * with a comment node, and every space around it would come out as a real
 	 * text node in front of the sentence.
 	 */
-	let { text, mark }: { text: string; mark?: Snippet<[string]> } = $props();
+	let {
+		text,
+		mark,
+		glossary = false
+	}: { text: string; mark?: Snippet<[string]>; glossary?: boolean } = $props();
 
-	const segments = $derived(codeSegments(text));
+	const segments = $derived.by(() => {
+		const result: (GlossarySegment | { kind: 'code'; text: string })[] = [];
+		const seen: string[] = [];
+		for (const segment of codeSegments(text)) {
+			if (segment.code || !glossary) {
+				result.push({ kind: segment.code ? 'code' : 'text', text: segment.text });
+				continue;
+			}
+			for (const part of glossarySegments(segment.text)) {
+				if (part.kind === 'term') {
+					if (seen.includes(part.term.name)) {
+						result.push({ kind: 'text', text: part.text });
+						continue;
+					}
+					seen.push(part.term.name);
+				}
+				result.push(part);
+			}
+		}
+		return result;
+	});
 </script>
 
-{#each segments as segment, index (index)}{#if segment.code}<code class="site-form"
+{#each segments as segment, index (index)}{#if segment.kind === 'code'}<code class="site-form"
 			>{#if mark}{@render mark(segment.text)}{:else}{segment.text}{/if}</code
-		>{:else if mark}{@render mark(segment.text)}{:else}{segment.text}{/if}{/each}
+		>{:else if segment.kind === 'term'}<GlossaryTerm
+			text={segment.text}
+			term={segment.term}
+			{mark}
+		/>{:else if mark}{@render mark(segment.text)}{:else}{segment.text}{/if}{/each}
 
 <style>
 	/*
