@@ -23,9 +23,11 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   language corpus is imported by the finder. The server derives its corpus.
 - `SectionSplit` keeps one mounted finder and a normal document-scrolling reader. Desktop
   has a sticky, independently scrollable sidebar. Its search control keeps the same desktop
-  position between the directory and articles. Common questions are compact destination tiles,
-  each showing a question and its exact canonical example without nested sample boxes or attribution
-  rows. The whole tile opens its sourced answer. Two columns become one when the available space
+  position between the directory and articles. The directory headline keeps the pre-redesign
+  welcome column's display cut (fluid, bold, tightly tracked) over a muted `.site-lede`.
+  Common questions are compact destination tiles on the raised surface, each showing a muted
+  subject icon, a question and its exact canonical example without nested sample boxes or
+  attribution rows. The whole tile opens its sourced answer. Two columns become one when the available space
   is narrow; phones show the same tiles beside search. `GuideQuestions.svelte.test.ts` pins this. Phones use
   ordinary routes: the directory shows the finder and article routes show their reader, with an All topics or Back to results
   link carrying search state. No horizontal strip, reading spy, floating navigation, or sticky
@@ -87,8 +89,10 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
   outside presses and tabbing away keep the reader's new focus. `GlossaryTerm.svelte.test.ts` pins this.
 - The homepage previews six reviewed standardized spellings with their canonical
   source in a closed disclosure and a state-preserving link to the complete list. The preview is a
-  compact Use / Instead of table. Topic navigation pairs each label with short typographic examples
-  from the guide, replacing question subtitles and repeated chevrons. `topics.test.ts` verifies each
+  compact Use / Instead of table: one hairline under its column names, the preferred form in the
+  body color and the replaced forms muted. Topic navigation is one hairline-separated run of
+  medium-weight labels, each paired with short typographic examples from the guide, replacing
+  question subtitles and repeated chevrons. `topics.test.ts` verifies each
   preview against its source. Topic names remain link names; previews are accessible descriptions.
   Selected and focused states remain visible. Desktop shows the spelling preview beside the finder;
   phones show it before the topic directory. `StandardizedSpellings.svelte.test.ts` pins the preview
@@ -115,6 +119,17 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
 The guidance catalog's content pipeline stays in `docs/guidelines.md` and is followed exactly.
 
 ## Decision record
+
+### The bounded guide keeps the strip's visual voice
+
+After the 2026-10-30 redesign the user found the new navigation better but the pages plainer
+than the three-column strip (`ad79a64`). The visual treatments that carried no navigation
+behavior came back onto the new structure: the welcome column's display headline and muted lede,
+its raised question cards with a muted subject icon (now beside the example and caret the
+destination tiles added), the old lookup rows' muted replaced forms in the spelling preview, and
+the old finder's hairline-separated, medium-weight topic run. The strip itself, sticky amber
+topic pins, the recessed selection well and the reading spy stay retired, because each was tied
+to the navigation the redesign replaced.
 
 ### Bounded Genius reading replaces the continuous pane reader
 

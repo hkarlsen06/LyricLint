@@ -454,11 +454,20 @@
 		align-items: center;
 		font-weight: var(--font-weight-semibold);
 	}
+	/* The topics read as one run, as the old finder's list did: a hairline between
+	   neighbours, and room inside each row for the current row's fill. */
+	.reference-topics > li {
+		padding-block: var(--space-1);
+	}
+	.reference-topics > li + li {
+		border-top: var(--border-width) solid var(--color-border);
+	}
 	.reference-topics a {
 		display: grid;
 		gap: var(--space-1);
 		padding: var(--space-2) var(--space-3);
 		color: var(--color-text);
+		font-weight: var(--font-weight-medium);
 		text-decoration: none;
 		border-inline-start: var(--focus-ring-width) solid transparent;
 		border-radius: var(--radius-control);

@@ -87,9 +87,17 @@
 		vertical-align: top;
 		overflow-wrap: anywhere;
 	}
+	/* One hairline under the column names, the rest ruled by rhythm alone. The answer
+	   keeps the body color and the forms it replaces are muted, as the old lookup rows set
+	   them; the column names say which is which, so the tone is emphasis, not state. */
 	th {
+		padding-block-end: var(--space-2);
+		border-block-end: var(--border-width) solid var(--color-border);
 		font-weight: var(--font-weight-medium);
 		color: var(--color-text-muted);
+	}
+	tbody tr:first-child td {
+		padding-block-start: var(--space-2);
 	}
 	th:first-child,
 	td:first-child {
@@ -98,6 +106,9 @@
 	}
 	td:first-child {
 		font-weight: var(--font-weight-semibold);
+	}
+	td + td {
+		color: var(--color-text-muted);
 	}
 	code {
 		font-family: var(--font-mono);

@@ -238,9 +238,13 @@ export default defineConfig(({ mode }) => ({
 			'phosphor-svelte/lib/ArrowDownIcon',
 			'@codemirror/search',
 			'phosphor-svelte/lib/DownloadIcon',
+			'phosphor-svelte/lib/EarIcon',
 			'phosphor-svelte/lib/FileAudioIcon',
 			'phosphor-svelte/lib/MusicNotesMinusIcon',
-			'phosphor-svelte/lib/PencilIcon'
+			'phosphor-svelte/lib/PencilIcon',
+			'phosphor-svelte/lib/PlaylistIcon',
+			'phosphor-svelte/lib/UsersIcon',
+			'phosphor-svelte/lib/WaveformIcon'
 		]
 	},
 	plugins: [

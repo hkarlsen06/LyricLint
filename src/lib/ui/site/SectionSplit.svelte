@@ -23,7 +23,9 @@
 	{#if !detailOpen}
 		<header class="guide-heading">
 			<h1>Transcription guide</h1>
-			<p>Practical answers for writing lyrics on Genius. Start with the part you are working on.</p>
+			<p class="site-lede">
+				Practical answers for writing lyrics on Genius. Start with the part you are working on.
+			</p>
 		</header>
 	{/if}
 	<aside class="guide-sidebar" aria-label="Find transcription advice">
@@ -65,14 +67,17 @@
 		grid-column: 1;
 		grid-row: 1 / span 2;
 	}
+	/* The directory's headline keeps the old welcome column's display cut: a step
+	   past the article titles, bold and tightly tracked, over a muted lede. */
 	.guide-heading h1 {
-		font-size: var(--font-size-2xl);
+		font-size: clamp(calc(var(--font-size-xl) * 1.75), 3.5vw, calc(var(--font-size-xl) * 2.5));
+		font-weight: var(--font-weight-bold);
 		line-height: var(--line-height-tight);
-		margin: 0 0 var(--space-3);
+		letter-spacing: -0.035em;
+		margin: 0 0 var(--space-4);
 	}
 	.guide-heading p {
 		margin: 0;
-		line-height: var(--line-height-body);
 		max-width: var(--measure-prose);
 	}
 	.guide-sidebar {
