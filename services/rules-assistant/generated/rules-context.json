@@ -1,8 +1,8 @@
 {
 	"formatVersion": 6,
 	"ruleSetVersion": "2026.09.21.2",
-	"generatedAt": "2026-10-28T00:07:58.333Z",
-	"contentHash": "d109910e0bde9dbec5fab4ffc3a5d1175f38e2f63c5ce372a5d105eaee52e1b7",
+	"generatedAt": "2026-10-30T18:04:38.175Z",
+	"contentHash": "677bad79af943beba633b1a70c96734ef0126cbe033768131558eb828d1dd55c",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -1871,14 +1871,14 @@
 			"topic": "punctuation",
 			"topicTitle": "Punctuation",
 			"title": "Questions always end with a question mark",
-			"statement": "Every question ends with a question mark, even though lyric lines never take terminal periods or commas.",
+			"statement": "Every question ends with a question mark.",
 			"example": {
 				"correct": "Where do we go from here?",
 				"incorrect": "Where do we go from here"
 			},
 			"authority": "staff",
 			"sourceIds": ["G-QE-MARKS"],
-			"relatedRuleIds": ["punctuation.question", "punctuation.line-ending"],
+			"relatedRuleIds": ["punctuation.question"],
 			"note": "The linter flags only openings that are unmistakably interrogative; whether the rest of a sung line asks a question is a judgment about delivery that only the transcriber can make."
 		},
 		{

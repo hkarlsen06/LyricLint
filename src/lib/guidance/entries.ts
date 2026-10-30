@@ -417,12 +417,11 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		id: 'guidance.punctuation.unmarked-question',
 		topic: 'punctuation',
 		title: 'Questions always end with a question mark',
-		statement:
-			'Every question ends with a question mark, even though lyric lines never take terminal periods or commas.',
+		statement: 'Every question ends with a question mark.',
 		example: { correct: 'Where do we go from here?', incorrect: 'Where do we go from here' },
 		authority: 'staff',
 		sourceIds: ['G-QE-MARKS'],
-		relatedRuleIds: ['punctuation.question', 'punctuation.line-ending'],
+		relatedRuleIds: ['punctuation.question'],
 		note: 'The linter flags only openings that are unmistakably interrogative; whether the rest of a sung line asks a question is a judgment about delivery that only the transcriber can make.'
 	},
 	{

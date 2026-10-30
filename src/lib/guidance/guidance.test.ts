@@ -104,6 +104,11 @@ describe('guidance catalog', () => {
 			'elision-apostrophe'
 		]);
 		expect(guidanceForRule('language.selection-mismatch')).toEqual([]);
+		// The line-ending preference is cross-platform advice, not the Genius question convention.
+		expect(guidanceForRule('punctuation.line-ending')).toEqual([]);
+		expect(guidanceForRule('punctuation.question').map(({ anchor }) => anchor)).toEqual([
+			'unmarked-question'
+		]);
 
 		// One derivation for both shapes: a landmark's fragment comes out of
 		// `entryAnchor` exactly as an entry's does. It is a no-op for every

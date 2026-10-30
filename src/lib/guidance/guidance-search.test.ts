@@ -127,9 +127,9 @@ describe('guidance search', () => {
 				.map((entry) => entry.id)
 		).toContain(first.id);
 		expect(
-			filterGuidanceSections(sections, 'line-ending')
+			filterGuidanceSections(sections, 'performer.header-required')
 				.flatMap((section) => section.entries)
 				.map((entry) => entry.id)
-		).toContain('guidance.punctuation.unmarked-question');
+		).toContain('guidance.section-headers.artist-identifiers');
 	});
 });
