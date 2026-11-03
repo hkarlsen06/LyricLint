@@ -17,6 +17,16 @@ describe('symbols.special-characters', () => {
 		expect(checkRule(rule, '[Couplet]\nToi & moi à 37°', { language: 'fr' })).toEqual([]);
 	});
 
+	it('retains category order outside English with supported markup', () => {
+		const text = '[Couplet]\n☆<i>moi</i>®★™ & 37°';
+		expect(markedText(text, checkRule(rule, text, { language: 'fr' }))).toEqual([
+			'®',
+			'™',
+			'☆',
+			'★'
+		]);
+	});
+
 	it('skips lines containing unsupported markup', () => {
 		expect(checkRule(rule, '[Verse]\n<u>You & me™</u>')).toEqual([]);
 	});

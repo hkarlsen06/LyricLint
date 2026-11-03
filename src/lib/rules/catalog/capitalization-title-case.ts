@@ -10,16 +10,16 @@ import { diagnostic, hasUnsupportedMarkup, maskedMarkupText } from './utils.js';
 const WORD = /(?<![\p{L}\p{M}'’-])[\p{L}][\p{L}\p{M}'’-]*/gu;
 
 function looksTitleCased(text: string): boolean {
-	const words = Array.from(text.matchAll(WORD), (match) => match[0]);
-	if (words.length < 4) {
-		return false;
+	let words = 0;
+	let eligible = 0;
+	let capitalized = 0;
+	for (const match of text.matchAll(WORD)) {
+		words++;
+		if (words === 1 || /^(?:I|[A-Z]{2,})$/u.test(match[0])) continue;
+		eligible++;
+		if (/^\p{Lu}/u.test(match[0])) capitalized++;
 	}
-	const eligible = words.slice(1).filter((word) => !/^(?:I|[A-Z]{2,})$/u.test(word));
-	if (eligible.length < 3) {
-		return false;
-	}
-	const capitalized = eligible.filter((word) => /^\p{Lu}/u.test(word)).length;
-	return capitalized / eligible.length >= 0.85;
+	return words >= 4 && eligible >= 3 && capitalized / eligible >= 0.85;
 }
 
 export const capitalizationTitleCaseRule: RuleDefinition = {

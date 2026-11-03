@@ -2,7 +2,7 @@
 
 Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/results.ts`, `src/lib/rules/harper.ts`, `src/lib/rules/registry.ts`,
 `src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/spelling.ts`, `src/lib/rules/data/rule-set.ts`, `src/lib/ui/state/wiring.ts`,
-`src/lib/rules/catalog/policy-cases.ts`, `src/lib/languages/detect.ts`, `services/rules-assistant/`
+`src/lib/rules/catalog/policy-cases.ts`, `src/lib/languages/detect.ts`, `src/lib/languages/statistical-detector.ts`, `services/rules-assistant/`
 
 ## The rules
 
@@ -87,6 +87,13 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   These curated aliases share the preference predicate, so the language and custom-header
   rules do not produce duplicate findings. Other reviewed languages retain their catalog's
   accepted alternatives and previewed cross-language corrections.
+
+- Native text checks use the original line directly when it contains no markup. Markup masking
+  replaces tags with equal-length spaces without retaining a text-keyed result cache. Match and
+  fix offsets remain UTF-16 offsets, and unsupported markup still suppresses the same checks.
+- Statistical language scoring uses the dependency's complete profiles and sample parser with
+  flat numeric model ranks. Its ordered scores match `languagedetect`, including Unicode
+  candidate narrowing and valid rank-zero profiles. The model table initializes lazily.
 
 ## Decision record
 
@@ -670,6 +677,25 @@ current request. Changed lyrics still reach the complete statistical detector; n
 truncated, deferred or moved behind a second visibility gate. Larger input is analyzed normally
 without being retained. Tests cover changed text, shifted ranges, selected-language thresholds,
 caller mutation, line-cache eviction, repeated scripts and oversized lines.
+
+
+### Native checks avoid repeated scans and string-keyed model scoring
+
+The November 2026 profile found statistical scoring dominant in the 80-line native pass.
+`statistical-detector.ts` assigns fixed model trigrams integer IDs and stores all language ranks
+in one flat `Uint16Array`. Each input trigram is resolved once before scoring the candidate
+languages. The dependency still owns sample parsing, Unicode block classification and ISO
+mapping. Differential tests compare every ordered score across all model profiles, multilingual
+text, unseen trigrams and oversized input. The existing bounded line and last-sample caches
+retain their previous semantics. The model representation is not another result cache.
+
+`maskedMarkupText` now returns markup-free text directly and masks tags with equal-length spaces.
+Its old text-keyed cache and whole-line character arrays are removed. Ad-lib checks reuse fixed
+patterns and skip scans without the necessary punctuation. Title-case checks count eligible and
+capitalized words in one iteration. Censored-word checks skip lines without asterisks and match
+only candidates containing one. Symbol checks scan once, preserve context exceptions, and retain
+the existing category order outside English. These changes preserve diagnostic content, ordering,
+fix ranges and settling tiers.
 
 
 ### Result handling does not initialize the native catalog

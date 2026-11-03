@@ -68,28 +68,9 @@ export function hasUnsupportedMarkup(line: LyricLine): boolean {
 }
 
 export function maskedMarkupText(line: LyricLine): string {
-	const cached = maskedMarkupTextCache.get(line.text);
-	if (cached !== undefined) {
-		return cached;
-	}
-	// split('') preserves one array entry per UTF-16 code unit, matching parser offsets.
-	const characters = line.text.split('');
-	for (const match of line.text.matchAll(/<[^>]*>/gu)) {
-		const from = match.index;
-		for (let index = from; index < from + match[0].length; index += 1) {
-			characters[index] = ' ';
-		}
-	}
-	const masked = characters.join('');
-	if (maskedMarkupTextCache.size >= MASKED_MARKUP_CACHE_LIMIT) {
-		maskedMarkupTextCache.clear();
-	}
-	maskedMarkupTextCache.set(line.text, masked);
-	return masked;
+	if (!line.text.includes('<')) return line.text;
+	return line.text.replace(/<[^>]*>/gu, (tag) => ' '.repeat(tag.length));
 }
-
-const MASKED_MARKUP_CACHE_LIMIT = 2_000;
-const maskedMarkupTextCache = new Map<string, string>();
 
 interface AbsoluteMatch {
 	from: number;

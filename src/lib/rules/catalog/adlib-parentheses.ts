@@ -2,6 +2,8 @@ import type { Diagnostic, RuleDefinition, SupportedStyleSpan, TextRange } from '
 import { diagnostic, maskedMarkupText, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 const adlib = "yeah|ayy|uh|ooh|woo|hey|let's go";
+const parenthesizedAdlib = new RegExp(`\\((?<word>${adlib})\\)`, 'gu');
+const trailingAdlib = new RegExp(`,\\s*(?<word>${adlib})\\s*$`, 'giu');
 
 export const adlibParenthesesRule: RuleDefinition = {
 	id: 'adlib.parentheses',
@@ -13,10 +15,9 @@ export const adlibParenthesesRule: RuleDefinition = {
 		const diagnostics: Diagnostic[] = [];
 		for (const section of document.sections) {
 			for (const line of section.lines) {
-				for (const match of matchesOutsideMarkup(
-					line,
-					new RegExp(`\\((?<word>${adlib})\\)`, 'gu')
-				)) {
+				for (const match of line.text.includes('(')
+					? matchesOutsideMarkup(line, parenthesizedAdlib)
+					: []) {
 					const word = match.groups.word ?? '';
 					if (!/^\p{Ll}/u.test(word)) {
 						continue;
@@ -46,10 +47,9 @@ export const adlibParenthesesRule: RuleDefinition = {
 					);
 				}
 
-				for (const match of matchesOutsideMarkup(
-					line,
-					new RegExp(`,\\s*(?<word>${adlib})\\s*$`, 'giu')
-				)) {
+				for (const match of line.text.includes(',')
+					? matchesOutsideMarkup(line, trailingAdlib)
+					: []) {
 					const word = match.groups.word ?? '';
 					// Only the titlecased form is a finding. A lowercase trailing ad-lib
 					// is the lead's own line at least as often as a backing vocal, and

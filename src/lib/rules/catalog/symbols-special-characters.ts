@@ -1,26 +1,7 @@
-import type { Diagnostic, LyricLine, RuleContext, RuleDefinition } from '#lib/core/types.js';
+import type { Diagnostic, RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
-function symbolDiagnostic(
-	rule: RuleDefinition,
-	line: LyricLine,
-	context: RuleContext,
-	symbol: string,
-	message: string,
-	replacement: string
-): Diagnostic[] {
-	return matchesOutsideMarkup(line, new RegExp(symbol, 'gu')).map((match) =>
-		diagnostic(rule, match, message, 'Genius omits this symbol from lyric text.', [
-			replacementFix(
-				context,
-				'preview',
-				replacement ? `Replace with ${replacement}` : 'Remove symbol',
-				match,
-				replacement
-			)
-		])
-	);
-}
+const symbols = /[™®★☆&°]/gu;
 
 export const symbolsSpecialCharactersRule: RuleDefinition = {
 	id: 'symbols.special-characters',
@@ -32,30 +13,32 @@ export const symbolsSpecialCharactersRule: RuleDefinition = {
 	// character and cannot grow into something else.
 	settlesOn: 'character',
 	check(document, context) {
+		const english = /^en(?:-|$)/iu.test(context.language);
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) => {
-				const findings = [
-					...symbolDiagnostic(
-						this,
-						line,
-						context,
-						'[™®]',
-						'Remove this trademark symbol from the lyric.',
-						''
-					),
-					...symbolDiagnostic(
-						this,
-						line,
-						context,
-						'[★☆]',
-						'Remove this decorative symbol from the lyric.',
-						''
-					)
-				];
-
-				if (!/^en(?:-|$)/iu.test(context.language)) return findings;
-
-				for (const match of matchesOutsideMarkup(line, /[&°]/gu)) {
+				const findings: Diagnostic[] = [];
+				for (const match of matchesOutsideMarkup(line, symbols)) {
+					if (
+						match.text === '™' ||
+						match.text === '®' ||
+						match.text === '★' ||
+						match.text === '☆'
+					) {
+						const trademark = match.text === '™' || match.text === '®';
+						findings.push(
+							diagnostic(
+								this,
+								match,
+								trademark
+									? 'Remove this trademark symbol from the lyric.'
+									: 'Remove this decorative symbol from the lyric.',
+								'Genius omits this symbol from lyric text.',
+								[replacementFix(context, 'preview', 'Remove symbol', match, '')]
+							)
+						);
+						continue;
+					}
+					if (!english) continue;
 					const offset = match.from - line.from;
 					if (match.text === '&') {
 						if (
@@ -90,7 +73,15 @@ export const symbolsSpecialCharactersRule: RuleDefinition = {
 					);
 				}
 
-				return findings.sort((left, right) => left.from - right.from || left.to - right.to);
+				if (!english) {
+					// Keep the rule's existing category order outside English.
+					findings.sort(
+						(left, right) =>
+							Number('★☆'.includes(line.text[left.from - line.from]!)) -
+							Number('★☆'.includes(line.text[right.from - line.from]!))
+					);
+				}
+				return findings;
 			})
 		);
 	}
