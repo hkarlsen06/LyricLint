@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import LanguageDetect from 'languagedetect';
+import * as statisticalDetector from './statistical-detector.js';
 import { parseDocument } from '#lib/core/parser.js';
 import { detectSongLanguage, loadStatisticalLanguageDetector } from './detect.js';
 
@@ -75,7 +75,7 @@ Jeg drar hjem til Rykkinn for å røyke weeden min i fred`);
 	it('reuses statistical input after a header or performer wrapper edit with fresh lyric ranges', () => {
 		const lyric = 'I see the morning light and know that you will stay with me tonight';
 		const original = detectSongLanguage(parseDocument(`[Verse]\n${lyric}`), 'en');
-		const detect = vi.spyOn(LanguageDetect.prototype, 'detect');
+		const detect = vi.spyOn(statisticalDetector, 'statisticalLanguageScores');
 		try {
 			const prefix = '[Chorus: Avery]\n<i>';
 			const current = detectSongLanguage(parseDocument(`${prefix}${lyric}</i>`), 'fr');
@@ -94,7 +94,7 @@ Jeg drar hjem til Rykkinn for å røyke weeden min i fred`);
 			'[Vers]\nJeg ser på deg og tenker på alle dagene vi hadde sammen, men nå er alt stille og hjertet mitt lengter hjem'
 		);
 		detectSongLanguage(document, 'en');
-		const detect = vi.spyOn(LanguageDetect.prototype, 'detect');
+		const detect = vi.spyOn(statisticalDetector, 'statisticalLanguageScores');
 		try {
 			expect(detectSongLanguage(document, 'da')).toBeUndefined();
 			expect(detect).not.toHaveBeenCalled();

@@ -1,5 +1,4 @@
 import type { ParsedDocument, TextRange } from '#lib/core/types.js';
-import type LanguageDetect from 'languagedetect';
 import { languageSourceInventory } from './inventory.js';
 import { getLanguagePack, resolveLanguageTag } from './registry.js';
 
@@ -10,14 +9,12 @@ const norwegianMarkers =
 	/(?<!\p{L})(?:fortsatt|gjør|gjøre|hva|mer|mye|noe|noen|røyke|skjer)(?!\p{L})/giu;
 const selectableTags = new Set(['en', ...languageSourceInventory.map((entry) => entry.tag)]);
 
-let detector: LanguageDetect | undefined;
+let detector: typeof import('./statistical-detector.js') | undefined;
 let detectorPromise: Promise<void> | undefined;
 
 async function loadDetector(): Promise<void> {
 	try {
-		const { default: LanguageDetector } = await import('languagedetect');
-		detector = new LanguageDetector();
-		detector.setLanguageType('iso2');
+		detector = await import('./statistical-detector.js');
 	} catch (error) {
 		// A failed load is retried by the next asking editor rather than
 		// remembered, so the promise is cleared before the rejection travels.
@@ -166,7 +163,8 @@ function directScriptTag(counts: readonly number[], letterCount: number): string
 	return undefined;
 }
 
-function normalizedDetectorTag(tag: string): string | undefined {
+function normalizedDetectorTag(tag: string | null): string | undefined {
+	if (tag === null) return undefined;
 	const normalized = tag === 'sr' || tag === 'hr' || tag === 'bs' ? 'sh' : tag;
 	return selectableTags.has(normalized) ? normalized : undefined;
 }
@@ -177,7 +175,7 @@ function statisticalScores(text: string): ReadonlyMap<string, number> {
 	// selection-dependent thresholds and current document ranges remain fresh.
 	if (text === statisticalText && statisticalResult) return statisticalResult;
 	const scores = new Map<string, number>();
-	for (const [rawTag, score] of detector!.detect(text)) {
+	for (const [rawTag, score] of detector!.statisticalLanguageScores(text)) {
 		const tag = normalizedDetectorTag(rawTag);
 		if (!tag) continue;
 		scores.set(tag, Math.max(scores.get(tag) ?? 0, score));
