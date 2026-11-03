@@ -20,13 +20,15 @@
 		"render:docs": "node scripts/render-docs.mjs",
 		"test:browsers": "playwright install --with-deps chromium webkit",
 		"test:e2e": "bun run test:browsers && playwright test",
-		"test": "bun run test:browsers && bun run check && bun run lint && bun run test:unit -- --run && bun run assistant:test && playwright test",
+		"test": "bun run test:browsers && bun run check && bun run perf:test && bun run lint && bun run test:unit -- --run && bun run assistant:test && playwright test",
 		"test:unit": "vitest",
 		"token:apple": "node scripts/apple-music-token.mjs",
 		"harper:rules": "bun scripts/harper-rules.mjs",
 		"assistant:corpus": "bun scripts/generate-rules-context.ts",
 		"assistant:test": "bun test scripts/check-assistant-deployment.test.mjs scripts/check-assistant-release.test.mjs scripts/production-release.test.mjs && cd services/rules-assistant && bun install --frozen-lockfile && bun run check && bun run test",
-		"assistant:deploy": "bun scripts/request-production-deploy.mjs"
+		"assistant:deploy": "bun scripts/request-production-deploy.mjs",
+		"perf:test": "bun test scripts/performance/*.test.mjs scripts/check-production-release.test.mjs",
+		"release:check": "bun scripts/check-production-release.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

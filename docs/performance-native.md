@@ -90,8 +90,10 @@ bun build scripts/performance/lint-browser-entry.ts --target=browser --outfile=/
 bun scripts/performance/lint-browser.mjs /tmp/lint-before.js /tmp/lint-after.js
 ```
 
-The raw comparisons, rule-timing harness and separate CPU profiles from this run are retained
-locally under `.audit/performance-fixes/`. Profiler runs were excluded from reported timings.
+The raw comparisons and separate CPU profiles from this run are retained locally under
+`.audit/performance-fixes/`. Reusable comparison, per-rule timing and differential runners now
+live in `scripts/performance/`; their [usage guide](../scripts/performance/README.md) describes
+the checked-in interfaces. Profiler runs were excluded from reported timings.
 The initial profile identified string-keyed distance scoring, sample analysis and repeated
 matching and masking work. The follow-up profile no longer contains the old distance scorer.
 Repeated matching and the dependency sample parser now lead sampled CPU time.

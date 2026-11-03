@@ -151,6 +151,25 @@ ship a new revision to rebuild it into the tested artifact. Keep the Pages
 production build variable synchronized if retaining the old hook for manual
 recovery. The token's signing key remains outside this repository and CI.
 
+## Read-only release verification
+
+`bun run release:check` verifies that production serves the current local `HEAD` and that the
+assistant supports that site's exact ruleset and corpus hash. It uses the publisher's existing
+metadata parsers and cache-bypassing requests. It does not publish or retry a deployment.
+
+Pass a full revision to verify a release from another checkout:
+
+```bash
+bun run release:check <40-character-revision>
+```
+
+An optional second argument selects a site URL. A mismatched revision, failed response, malformed
+release or unsupported corpus exits nonzero.
+
+`bun run perf:test` runs deterministic tests for the performance harnesses and release-check CLI.
+The `checks` job and the complete local `bun run test` chain both include it. These checks validate
+measurement failures and output equivalence without imposing timing thresholds on shared CI runners.
+
 ## Lint result caching
 
 CI runs the same three linters as `bun run lint`: Prettier, oxlint, and ESLint.

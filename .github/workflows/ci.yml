@@ -34,6 +34,7 @@ jobs:
             ${{ runner.os }}-bun-
       - run: bun install --frozen-lockfile
       - run: bun run check
+      - run: bun run perf:test
       # Content hashes survive checkout timestamp changes. The restore prefix is
       # bounded by dependencies/configuration: Prettier does not invalidate its
       # own cache when a plugin changes. See docs/ci.md.
