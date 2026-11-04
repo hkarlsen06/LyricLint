@@ -26,6 +26,13 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   diff. Tapping an editor underline or count badge opens the chosen finding in this same
   Review surface and transfers focus out of the editor; mobile diagnostic popovers and
   cluster menus stay closed. All findings returns to the list. `e2e/mobile-workbench.spec.ts` pins the fix flow.
+- A focused conversion task uses the panel's full phone height. Its exact lyric-line excerpt
+  marks the target in bold, and Edit in lyrics returns to Write with that range selected.
+  The real editor stays mounted and hidden during the task, retaining history and playback;
+  Back to Review restores the ordinary finding and its editor context. Quantity tasks prefill
+  an exact selected ASCII integer without assuming its meaning or pronunciation. Exact
+  wording stays in a disclosure, and Apply quantity names the deliberate lyric change.
+  `MobileWorkspace.svelte.test.ts` pins the single scroll region and edit handoff.
 - Revealing a saved ignored or accepted finding opens its passage in Write without restoring
   the finding or opening the typing keyboard. `MobileWorkspace.svelte.test.ts` pins the reveal,
   selection, retained choice, and focus on the Write control.

@@ -313,7 +313,7 @@ test('opens the exact listening decision from a diagnostic, previews it, and ret
 	await page.getByRole('button', { name: 'Preview quantity', exact: true }).click();
 	await expect(page.getByText('Proposed Musixmatch wording: two', { exact: true })).toBeVisible();
 	await expect.poll(() => lyrics(page)).toBe('I saw 2 stars');
-	await page.getByRole('button', { name: 'Save quantity decision', exact: true }).click();
+	await page.getByRole('button', { name: 'Apply quantity', exact: true }).click();
 	await expect.poll(() => lyrics(page)).toBe('I saw two stars');
 	await choose(page, 'Genius');
 	await expect.poll(() => lyrics(page)).toBe(source);

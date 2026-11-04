@@ -103,8 +103,9 @@
 	$effect.pre(() => {
 		if (!panelCollapsed) panelInitialized = true;
 	});
+	const reviewEditorVisible = $derived(reviewFocused && !controller.requestedConversionReview);
 	const editorHidden = $derived(
-		phone.current && (mobileView === 'tools' || (mobileView === 'review' && !reviewFocused))
+		phone.current && (mobileView === 'tools' || (mobileView === 'review' && !reviewEditorVisible))
 	);
 	let previousTab = untrack(() => controller.activeTab);
 	$effect(() => {
@@ -1351,7 +1352,7 @@
 	class:workspace--expanded={!phone.current && editorExpanded}
 	data-mobile-view={mobileView}
 	data-video-floating={floatingVideo}
-	data-review-focused={reviewFocused}
+	data-review-focused={reviewEditorVisible}
 	data-testid="workspace"
 	data-entrance-pending={entranceReadyDraftId !== controller.draftId}
 	data-diagnostics-pending={!controller.isEmpty && nativeRulesStatus === 'pending'}

@@ -2,8 +2,9 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cdp, page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { createTestWorkbench } from '../test-utils.js';
+import { createTestWorkbench, diagnostic } from '../test-utils.js';
 import MockEditorPane from './MockEditorPane.svelte';
+import EditorPane from '#lib/editor/EditorPane.svelte';
 import Workspace from './Workspace.svelte';
 import ToastRegion from '../primitives/ToastRegion.svelte';
 import SongPanel from '../tools/SongPanel.svelte';
@@ -60,6 +61,53 @@ test('phone review opens one decision, releases it on return, and retains the ed
 	expect(screen.getByTestId('editor-region')).toBe(editor);
 	expect(editor.getBoundingClientRect().height).toBeGreaterThan(600);
 });
+
+test.each([360, 390])(
+	'gives a conversion task one phone scroll region and keeps a direct edit handoff at %ipx',
+	async (width) => {
+		await page.viewport(width, 844);
+		const { controller } = createTestWorkbench({ text: '[Verse]\nI counted 2 stars' });
+		await render(Workspace, {
+			controller,
+			editorComponent: EditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} }
+		});
+		await waitFor(() => expect(controller.editor.switchProfile).toBeDefined());
+		controller.switchProfile('musixmatch');
+		await fireEvent.click(
+			within(screen.getByRole('navigation', { name: 'Workbench views' })).getByRole('button', {
+				name: /^Review/
+			})
+		);
+		const editor = screen.getByTestId('editor-region');
+		const range = { from: 10, to: 11 };
+		controller.openConversionReview(
+			diagnostic({
+				ruleId: 'mxm.numbers.context',
+				message: 'Review this quantity.',
+				severity: 'warning',
+				...range
+			})
+		);
+		const heading = await screen.findByRole('heading', { name: 'Review quantity' });
+		await waitFor(() => expect(heading).toHaveFocus());
+		expect(editor.closest<HTMLElement>('.editor-region')!.inert).toBe(true);
+		expect(editor.closest('.editor-region')).not.toBeVisible();
+		const pane = document.querySelector('#document-panel')!.getBoundingClientRect();
+		const nav = screen.getByRole('navigation', { name: 'Workbench views' }).getBoundingClientRect();
+		expect(pane.height).toBeGreaterThan(550);
+		expect(pane.bottom).toBeLessThanOrEqual(nav.top);
+		expect(screen.getByLabelText('Exact whole-number value')).toHaveValue('2');
+		const edit = screen.getByRole('button', { name: 'Edit in lyrics' });
+		expect(edit.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+		await fireEvent.click(edit);
+		await waitFor(() => expect(editor.closest('.editor-region')).toBeVisible());
+		expect(controller.requestedConversionReview).toBeUndefined();
+		expect(controller.snapshot.selection).toEqual({ anchor: range.from, head: range.to });
+		expect(screen.getByTestId('editor-region')).toBe(editor);
+		expect(document.activeElement).not.toBe(screen.getByLabelText('Lyrics editor'));
+	}
+);
 
 test('choosing another phone finding retires the previous deferred reveal', async () => {
 	await page.viewport(390, 844);

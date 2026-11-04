@@ -82,7 +82,7 @@ test.each([390, 1200])(
 		expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
 		expect(trigger.getBoundingClientRect().top).toBe(top);
 		expect(view.container.scrollWidth).toBeLessThanOrEqual(width);
-		await fireEvent.click(panel.getByRole('button', { name: 'Save quantity decision' }));
+		await fireEvent.click(panel.getByRole('button', { name: 'Apply quantity' }));
 		await waitFor(() => expect(controller.snapshot.text).toBe('two stars'));
 		for (let n = 0; n < 4; n++) {
 			controller.switchProfile('genius');
@@ -98,11 +98,11 @@ test('uses the selected passage language and retires a preview when its facts ch
 	const { panel, controller, player } = await setup();
 	await fillQuantity(panel);
 	await fireEvent.click(panel.getByRole('button', { name: 'Preview quantity' }));
-	expect(panel.getByRole('button', { name: 'Save quantity decision' })).toBeVisible();
+	expect(panel.getByRole('button', { name: 'Apply quantity' })).toBeVisible();
 	await fireEvent.input(panel.getByLabelText('Exact whole-number value'), {
 		target: { value: '3' }
 	});
-	expect(panel.queryByRole('button', { name: 'Save quantity decision' })).toBeNull();
+	expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
 	await fireEvent.click(panel.getByRole('button', { name: 'Preview quantity' }));
 	expect(
 		panel.getByText('The selected digits do not match the exact confirmed quantity.')
@@ -114,7 +114,7 @@ test('uses the selected passage language and retires a preview when its facts ch
 	});
 	await fillQuantity(panel);
 	await fireEvent.click(panel.getByRole('button', { name: 'Preview quantity' }));
-	expect(panel.queryByRole('button', { name: 'Save quantity decision' })).toBeNull();
+	expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
 	expect(
 		panel.getByText(/Dedicated Arabic or Korean numeric-policy evidence is incomplete/u)
 	).toBeVisible();

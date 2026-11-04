@@ -8,6 +8,47 @@ import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import LinterPanel from '../linter/LinterPanel.svelte';
 
 afterEach(cleanup);
+
+test('shows one exact lyric context and prefills only the selected integer, with a direct edit handoff', async () => {
+	const imported = importDocument({
+		text: '[Verse]\nI counted 2 stars',
+		profile: 'genius',
+		language: 'en'
+	});
+	if (!imported.ok) throw Error(imported.refusal.message);
+	const projection = renderProfile(imported.value, 'musixmatch');
+	if (!projection.ok) throw Error(projection.refusal.message);
+	const { controller } = createTestWorkbench({ text: projection.value.text });
+	controller.onSnapshot({
+		...controller.snapshot,
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
+	const from = projection.value.text.indexOf('2');
+	const range = { from, to: from + 1 };
+	controller.openConversionReview(
+		diagnostic({
+			ruleId: 'mxm.numbers.context',
+			message: 'Review this quantity.',
+			severity: 'warning',
+			...range
+		})
+	);
+	const view = await render(LinterPanel, { controller });
+	const panel = within(view.container);
+	expect(panel.getByLabelText('Lyric passage').textContent).toBe('I counted 2 stars');
+	expect(panel.getByLabelText('Lyric passage').querySelector('strong')?.textContent).toBe('2');
+	expect(panel.getByLabelText('Exact whole-number value')).toHaveValue('2');
+	expect(panel.getByLabelText('Meaning')).toHaveValue('unknown');
+	expect(panel.getByLabelText('Reading on the recording')).toHaveValue('unknown');
+	expect(panel.getByLabelText('Exact words as sung')).not.toBeVisible();
+	await fireEvent.click(panel.getByText('Exact wording', { exact: true }));
+	expect(panel.getByLabelText('Exact words as sung')).toBeVisible();
+	await fireEvent.click(panel.getByRole('button', { name: 'Edit in lyrics' }));
+	expect(controller.requestedConversionReview).toBeUndefined();
+	expect(controller.editor.getSnapshot().selection).toEqual({ anchor: from, head: from + 1 });
+	expect(controller.conversionPassageRequest).toBe(1);
+});
+
 for (const [rule, title, sourceControl] of [
 	['mxm.transcription.repeat-placeholder', 'Replace repeat placeholder', true],
 	['mxm.numbers.context', 'Review quantity', false],

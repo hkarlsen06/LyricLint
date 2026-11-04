@@ -38,6 +38,17 @@
 	const conversion = $derived(controller.snapshot.conversion);
 	const projection = $derived(conversion && renderProfile(conversion.model, controller.profile));
 	const target = $derived(controller.snapshot.text.slice(request.range.from, request.range.to));
+	const passage = $derived.by(() => {
+		const text = controller.snapshot.text;
+		const from = text.lastIndexOf('\n', Math.max(0, request.range.from - 1)) + 1;
+		const nextLine = text.indexOf('\n', request.range.to);
+		const before = [...text.slice(from, request.range.from)];
+		const after = [...text.slice(request.range.to, nextLine === -1 ? text.length : nextLine)];
+		return {
+			before: (before.length > 60 ? '…' : '') + before.slice(-60).join(''),
+			after: after.slice(0, 60).join('') + (after.length > 60 ? '…' : '')
+		};
+	});
 	let sourceId = $state('');
 	let copies = $state<number | undefined>();
 	let heardPrefix = $state('');
@@ -89,6 +100,11 @@
 		];
 		destinations.find((control) => control && control.getClientRects().length > 0)?.focus();
 	}
+	function editPassage() {
+		const range = request.range;
+		controller.dismissConversionReview();
+		controller.showConversionPassage(range);
+	}
 	function prepare() {
 		if (!ready || !projection?.ok || !conversion) return;
 		const action: ConversionAction | undefined =
@@ -129,69 +145,67 @@
 			The lyrics or format changed. Return to Review and open the current finding before applying a
 			decision.
 		</p>
-	{:else if request.kind === 'quantity' || request.kind === 'instrumental'}
-		<ConversionFacts {controller} focused={request} onComplete={() => void back()} />
 	{:else}
-		<p class="lyrics">{target}</p>
-		{#if request.kind === 'repeat'}
-			<label
-				>Earlier source section<select bind:value={sourceId}
-					><option value="">Choose the version to repeat</option
-					>{#each sources as entry (entry.id)}<option value={entry.id}
-							>{entry.label} · {entry.text.replaceAll('\n', ' / ')}</option
-						>{/each}</select
-				></label
-			>
-			{#if !sources.length}<p>
-					No earlier section is available. Return to Review and edit the placeholder in the lyrics.
-				</p>{/if}
-			{#if source}<pre aria-label="Chosen source lyrics">{source.text}</pre>{/if}
-			<label
-				>Copies to insert here<input
-					type="number"
-					min="1"
-					max="100"
-					step="1"
-					bind:value={copies}
-				/></label
-			>
-			<p>
-				The earlier source stays unchanged. Confirm how many complete copies belong at this
-				placeholder, including for numbered notation.
-			</p>
+		<p class="lyrics" aria-label="Lyric passage">
+			{passage.before}<strong>{target}</strong>{passage.after}
+		</p>
+		<button class="button button--quiet" type="button" onclick={editPassage}>Edit in lyrics</button>
+		{#if request.kind === 'quantity' || request.kind === 'instrumental'}
+			<ConversionFacts {controller} focused={request} onComplete={() => void back()} />
 		{:else}
-			<label>Audible prefix<input bind:value={heardPrefix} /></label>
-			<label class="check"
-				><input type="checkbox" bind:checked={listened} />I listened: the recording censors this
-				word immediately after that prefix</label
+			{#if request.kind === 'repeat'}
+				<label
+					>Earlier source section<select bind:value={sourceId}
+						><option value="">Choose the version to repeat</option
+						>{#each sources as entry (entry.id)}<option value={entry.id}
+								>{entry.label} · {entry.text.replaceAll('\n', ' / ')}</option
+							>{/each}</select
+					></label
+				>
+				{#if !sources.length}<p>
+						No earlier section is available. Return to Review and edit the placeholder in the
+						lyrics.
+					</p>{/if}
+				{#if source}<pre aria-label="Chosen source lyrics">{source.text}</pre>{/if}
+				<label
+					>Copies to insert here<input
+						type="number"
+						min="1"
+						max="100"
+						step="1"
+						bind:value={copies}
+					/></label
+				>
+				<p>
+					The earlier source stays unchanged. Confirm how many complete copies belong at this
+					placeholder, including for numbered notation.
+				</p>
+			{:else}
+				<label>Audible prefix<input bind:value={heardPrefix} /></label>
+				<label class="check"
+					><input type="checkbox" bind:checked={listened} />I listened: the recording censors this
+					word immediately after that prefix</label
+				>
+			{/if}
+			<button
+				class="button"
+				type="button"
+				disabled={request.kind === 'repeat' ? !source : !listened}
+				onclick={prepare}>Preview replacement</button
 			>
+			<div aria-live="polite">
+				{#if shown}<p>{shown.message}</p>
+					{#if shown.action}<pre aria-label="Replacement preview">{shown.text}</pre>
+						<button
+							class="button button--contrast"
+							type="button"
+							onclick={() => {
+								if (ready && shown?.action && controller.applyConversionAction(shown.action))
+									void back();
+							}}>Apply replacement</button
+						>{/if}{/if}
+			</div>
 		{/if}
-		<button
-			class="button"
-			type="button"
-			disabled={request.kind === 'repeat' ? !source : !listened}
-			onclick={prepare}>Preview replacement</button
-		>
-		<div aria-live="polite">
-			{#if shown}<p>{shown.message}</p>
-				{#if !shown.action}<button
-						type="button"
-						class="button button--quiet"
-						onclick={() => {
-							controller.dismissConversionReview();
-							controller.showConversionPassage(request.range);
-						}}>Edit passage in lyrics</button
-					>{/if}
-				{#if shown.action}<pre aria-label="Replacement preview">{shown.text}</pre>
-					<button
-						class="button button--contrast"
-						type="button"
-						onclick={() => {
-							if (ready && shown?.action && controller.applyConversionAction(shown.action))
-								void back();
-						}}>Apply replacement</button
-					>{/if}{/if}
-		</div>
 	{/if}
 </section>
 

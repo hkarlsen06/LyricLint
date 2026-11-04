@@ -2,6 +2,7 @@
 	import { tick } from 'svelte';
 	import { renderProfile, resolveDecision, type ConversionAction } from '#lib/conversion/index.js';
 	import type { QuantityFacts, InstrumentalIntervalFacts } from '#lib/profiles/decisions.js';
+	import { parseQuantityInteger } from '#lib/profiles/decisions.js';
 	import type { ConversionReviewRequest, WorkbenchController } from '../state/workbench.svelte.js';
 	let {
 		controller,
@@ -120,7 +121,7 @@
 	// A listening confirmation is specific to the selected words or exact recording interval.
 	$effect(() => {
 		void selectionScope;
-		value = '';
+		value = parseQuantityInteger(selectedText) ?? '';
 		spokenForm = '';
 		digitForm = '';
 		usage = 'unknown';
@@ -189,7 +190,7 @@
 						{#if !focused}<h3 tabindex="-1" bind:this={quantityHeading}>
 								Quantity in the selected passage
 							</h3>{/if}
-						<p class="conversion-facts__lyrics">{selectedText}</p>
+						{#if !focused}<p class="conversion-facts__lyrics">{selectedText}</p>{/if}
 						<label>Exact whole-number value<input inputmode="numeric" bind:value /></label>
 						<label
 							>Meaning<select bind:value={usage}
@@ -209,12 +210,11 @@
 								><option value="individual-digits">Sung as individual digits</option></select
 							></label
 						>
-						{#if !focused || pronunciation !== 'unknown'}<label
-								>Exact words as sung<input bind:value={spokenForm} /></label
-							>{/if}
-						{#if !focused || (usage !== 'ordinary-cardinal' && usage !== 'unknown')}<label
-								>Digit form, if applicable<input bind:value={digitForm} /></label
-							>{/if}
+						<details>
+							<summary>Exact wording</summary>
+							<label>Exact words as sung<input bind:value={spokenForm} /></label>
+							<label>Digit form, if applicable<input bind:value={digitForm} /></label>
+						</details>
 						{#if !focused}
 							<label
 								>Format for this decision<select bind:value={target}
@@ -240,7 +240,7 @@
 								{#if currentQuantity.canApply}<button
 										type="button"
 										class="button button--contrast"
-										onclick={() => save(currentQuantity!.action)}>Save quantity decision</button
+										onclick={() => save(currentQuantity!.action)}>Apply quantity</button
 									>{/if}{/if}
 						</div>
 					</section>
