@@ -536,6 +536,8 @@ the order of empty wrapper delimiters.
 A shared line start occupied by closing Genius markup cannot host a heading without changing
 the authored text. Placement refuses that boundary. Styled passages owned by a withheld section
 retain that section's performer; reparsing the preceding visible legend does not reassign them.
+A styled wrapper can carry several performer groups. Reconciliation retains that complete
+assignment group once per wrapper, independently of the preceding visible legend's group count.
 
 The storage envelope pins renderer 2, independently of model schema/converter 1. Renderer-1
 rich envelopes upgrade only when their exact saved projection matches the corrected renderer.

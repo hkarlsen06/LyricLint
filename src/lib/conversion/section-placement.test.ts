@@ -316,4 +316,40 @@ describe('displaced retained headings', () => {
 			'[Verse]\n[Chorus]\n[A\n<i></i>](123)\nB'
 		);
 	});
+	it.each([
+		['<i>Mira</i>', '<i>Lena</i>'],
+		['<i>Mira</i>, <i>Noor</i>', '<i>Lena</i>'],
+		['<i>Mira</i>', '<i>Lena</i>, <i>Ken</i>'],
+		['<i>Mira</i>, <i>Noor</i>', '<i>Lena</i>, <i>Ken</i>'],
+		['Mira & <i>Noor</i>', '<i>Lena</i>, <i>Ken</i>']
+	])(
+		'retains every styled assignment exactly once across differing legends: %s / %s',
+		(visible, hidden) => {
+			const original = imported(`[Verse: ${visible}]\n<i>A</i>\n[Chorus: ${hidden}]\n<i>B</i>`);
+			const edited = value(
+				reconcileEdit(original, value(renderProfile(original, 'musixmatch')), {
+					changes: [{ from: 1, to: 2, insert: '' }]
+				})
+			);
+			const genius = value(renderProfile(edited.document, 'genius'));
+			const appended = value(
+				reconcileEdit(edited.document, genius, {
+					changes: [{ from: genius.text.length, to: genius.text.length, insert: '!' }]
+				})
+			);
+			const assignments = (model: typeof original) =>
+				model.voices
+					.filter((voice) => voice.wrapperId)
+					.map(({ id, wrapperId, sectionId, rawNameText, performerIds }) => ({
+						id,
+						wrapperId,
+						sectionId,
+						rawNameText,
+						performerIds
+					}))
+					.toSorted((a, b) => a.id.localeCompare(b.id));
+			expect(assignments(appended.document)).toEqual(assignments(edited.document));
+			expect(appended.projection.text).toBe(genius.text + '!');
+		}
+	);
 });

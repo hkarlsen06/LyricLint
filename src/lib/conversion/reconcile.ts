@@ -841,18 +841,28 @@ function reconcileGenius(
 	retainOtherRecords(document, next, map, contentEdits, []);
 	const retainedVoices = next.voices;
 	const usedVoices = new Set<string>();
-	next.voices = syntaxVoices.map((voice) => {
-		const retainedWrapper = voice.wrapperId
-			? retainedVoices.find((entry) => entry.wrapperId === voice.wrapperId)
-			: undefined;
-		if (
-			retainedWrapper &&
-			next.sections.some(
-				(section) => section.id === retainedWrapper.sectionId && section.placement === 'unresolved'
-			)
-		) {
-			usedVoices.add(retainedWrapper.id);
-			return retainedWrapper;
+	const unresolvedSections = new Set(
+		next.sections
+			.filter((section) => section.placement === 'unresolved')
+			.map((section) => section.id)
+	);
+	const retainedWrapperVoices = new Map<string, typeof retainedVoices>();
+	for (const voice of retainedVoices) {
+		if (!voice.wrapperId || !unresolvedSections.has(voice.sectionId)) continue;
+		const assignments = retainedWrapperVoices.get(voice.wrapperId) ?? [];
+		assignments.push(voice);
+		retainedWrapperVoices.set(voice.wrapperId, assignments);
+	}
+	const usedWrappers = new Set<string>();
+	next.voices = syntaxVoices.flatMap((voice) => {
+		if (voice.wrapperId) {
+			const assignments = retainedWrapperVoices.get(voice.wrapperId);
+			if (assignments) {
+				if (usedWrappers.has(voice.wrapperId)) return [];
+				usedWrappers.add(voice.wrapperId);
+				for (const assignment of assignments) usedVoices.add(assignment.id);
+				return assignments;
+			}
 		}
 		const index = document.sections.findIndex((section) => section.id === voice.sectionId);
 		const nextSection = document.sections[index + 1];
