@@ -1,10 +1,11 @@
 <script lang="ts">
+	import { canPlaceSection } from '#lib/conversion/section-placement.js';
 	import ConversionFacts from './ConversionFacts.svelte';
 
 	import { parseDocument } from '#lib/core/parser.js';
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { sectionTypeChoices as types } from '#lib/conversion/section-types.js';
-	import { projectOffset, renderProfile } from '#lib/conversion/index.js';
+	import { contentOffset, projectOffset, renderProfile } from '#lib/conversion/index.js';
 	import type { ContentKind, SectionRecord } from '#lib/conversion/model.js';
 	import type { ConversionAction } from '#lib/conversion/index.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
@@ -19,6 +20,13 @@
 	let newSectionType = $state('');
 	let addSectionSummary = $state<HTMLElement>();
 	let activeSection = $state<string>();
+	let sectionOptionsOpen = $state(false);
+	$effect(() => {
+		const id = activeSection;
+		sectionOptionsOpen = untrack(
+			() => model?.sections.find((section) => section.id === id)?.placement === 'unresolved'
+		);
+	});
 	let sectionChooser = $state<HTMLSelectElement>();
 	const selectedSection = $derived(
 		model?.sections.some((section) => section.id === activeSection) ? activeSection : undefined
@@ -189,7 +197,7 @@
 										>{/each}
 								</select>
 							</label>
-							<details class="conversion-section__advanced">
+							<details class="conversion-section__advanced" bind:open={sectionOptionsOpen}>
 								<summary>More section options</summary>
 								<label
 									>Genius section label
@@ -247,7 +255,12 @@
 												kind: 'moveSection',
 												sectionId: section.id,
 												at: controller.snapshot.selection.head
-											})}>Move to cursor</button
+											})}
+										disabled={!projection?.ok ||
+											!canPlaceSection(
+												model,
+												contentOffset(projection.value, controller.snapshot.selection.head, 1)
+											)}>Move to cursor</button
 									>
 									{#if !model.voices.some((voice) => voice.sectionId === section.id)}<button
 											type="button"

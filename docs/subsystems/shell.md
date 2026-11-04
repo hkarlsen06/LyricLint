@@ -55,6 +55,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   always use the active projection; Scribe export preserves the complete document.
   A retained-section prompt names its original header and opening lyric so the passage can
   be recognized before choosing and saving its type in Review. Retained repeat instructions remain a separate concern even on typed sections; Edit header in Genius selects their exact stable header for manual editing, without selecting a repeat source or count. Unsaved choices reset when the item changes; saving targets its stable section ID and returns focus to the retained-review heading, including after the last item. The Assistant introduction follows the active format.
+  A displaced section uses the existing Review in Song action, focused on its stable section ID.
+  Song opens its boundary options for explicit Move to cursor repair at a valid lyric line start.
   A section request opens at the section controls and return action, with focus on the requested
   section. Unrelated Song metadata stays above that reading position.
 - Format changes reset stale diagnostic and assistant proposals, including a switch away and

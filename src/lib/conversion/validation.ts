@@ -248,6 +248,7 @@ export function validateModel(value: unknown): EngineResult<ConversionDocument> 
 				'A retained section must contain one complete recognized header and its exact label.'
 			);
 		if (
+			(section.placement !== undefined && section.placement !== 'unresolved') ||
 			(section.headerVisible !== undefined && section.headerVisible !== false) ||
 			(section.literalHeaderRange !== undefined &&
 				(!object(section.literalHeaderRange) || !range(section.literalHeaderRange))) ||

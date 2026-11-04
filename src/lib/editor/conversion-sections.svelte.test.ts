@@ -36,6 +36,14 @@ function mount(text: string, width: number) {
 }
 
 describe('retained section boundaries', () => {
+	it('keeps a displaced hidden section out of the authored word and routes review through metadata', () => {
+		const { handle, view } = mount('[Verse]\nOne\n[Chorus]\nTwo', 360);
+		const id = handle.getSnapshot().conversion!.model.sections[1]!.id;
+		view.dispatch({ changes: { from: 1, to: 5, insert: 'by' } });
+		expect(handle.getSnapshot().text).toBe('Obywo');
+		expect(view.dom.querySelector(`[data-section-id="${id}"]`)).toBeNull();
+		expect(handle.getSnapshot().conversion!.model.sections[1]!.id).toBe(id);
+	});
 	it('shows local editing beside the retained boundary and clears the view-only cue on Escape and unlink', () => {
 		const { handle, view } = mount('[Verse]\nMoon rises\n\n[Chorus]\nMoon rises', 360);
 		const sections = handle.getSnapshot().conversion!.model.sections.map((section) => section.id);

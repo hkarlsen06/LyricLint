@@ -18,6 +18,7 @@ import {
 	type ProjectedSection,
 	type ProjectionSegment
 } from './model.js';
+import { canRenderSection } from './section-placement.js';
 import { validateModel } from './validation.js';
 
 interface Event {
@@ -186,7 +187,7 @@ export function renderProfile(
 			});
 	if (profile === 'genius')
 		for (const section of document.sections)
-			if (section.headerVisible !== false)
+			if (section.headerVisible !== false && canRenderSection(document, section))
 				events.push({
 					at: section.at,
 					order: section.order,
@@ -356,6 +357,12 @@ export function renderProfile(
 			projectedSection.headerTo = segment.to;
 		}
 		projection.sections.push(projectedSection);
+		if (section.headerVisible !== false && !canRenderSection(document, section))
+			projection.findings.push({
+				code: 'section-placement',
+				recordId: section.id,
+				message: `Place the retained ${section.header.trim()} at a lyric line start in Song. Its heading is withheld until you choose its boundary; the lyrics stay exact.`
+			});
 		if (!segment) projection.hidden.push({ recordId: section.id, at, contentAt: section.at });
 	}
 	for (const wrapper of document.wrappers)

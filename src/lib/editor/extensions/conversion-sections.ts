@@ -1,3 +1,4 @@
+import { canRenderSection } from '#lib/conversion/section-placement.js';
 import { StateField, type EditorState, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
 import { conversionForState } from './conversion-state.js';
@@ -75,6 +76,7 @@ function boundaries(state: EditorState): DecorationSet {
 	const groups = new Map<number, BoundarySection[]>();
 	for (const section of conversion.projection.sections) {
 		const record = conversion.envelope.model.sections.find((entry) => entry.id === section.id);
+		if (record && !canRenderSection(conversion.envelope.model, record)) continue;
 		const group = groups.get(section.at) ?? [];
 		group.push({
 			id: section.id,

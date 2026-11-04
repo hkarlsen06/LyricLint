@@ -10,7 +10,7 @@ export interface ConversionEnvelope {
 	schema: 1;
 	profile: ProfileId;
 	model: ConversionDocument;
-	converterVersion: '1';
+	converterVersion: '1' | '2';
 	policyVersions: { genius: string; musixmatch: string };
 	projectionText: string;
 }
@@ -87,7 +87,11 @@ function object(value: unknown): value is StoredConversionFields {
 
 /** Refuse the whole envelope: an unreadable field must never become a plain-text save. */
 export function parseConversionEnvelope(value: unknown, expectedText?: string): ConversionEnvelope {
-	if (!object(value) || value.schema !== 1 || value.converterVersion !== '1') {
+	if (
+		!object(value) ||
+		value.schema !== 1 ||
+		(value.converterVersion !== '1' && value.converterVersion !== '2')
+	) {
 		throw new ConversionStorageError(
 			'This conversion document needs a supported version of LyricLint.'
 		);
@@ -129,7 +133,7 @@ export function parseConversionEnvelope(value: unknown, expectedText?: string): 
 		profile: value.profile,
 		// SAFETY: validateModel checked every field; JSON cloning its JSON data only unwraps state proxies.
 		model: JSON.parse(JSON.stringify(parsed.value)) as ConversionDocument,
-		converterVersion: '1',
+		converterVersion: '2',
 		policyVersions: { genius: versions.genius, musixmatch: versions.musixmatch },
 		projectionText: value.projectionText
 	};
@@ -146,7 +150,7 @@ export function createConversionEnvelope(
 		schema: 1,
 		profile,
 		model,
-		converterVersion: '1',
+		converterVersion: '2',
 		policyVersions,
 		projectionText: projection.value.text
 	});

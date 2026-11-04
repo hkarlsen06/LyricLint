@@ -43,6 +43,58 @@ function mount(
 }
 
 describe('lossless profile transactions', () => {
+	it.each([
+		['[Verse]\nOne\n[Instrumental]', 0, 4, 'My new song', '[Verse]\nMy new song'],
+		['[Verse]\nOne\n[Chorus]\nTwo', 1, 5, 'by', '[Verse]\nObywo']
+	] as const)(
+		'retains displaced headings through history, repair and Scribe: %j',
+		(source, from, to, insert, geniusText) => {
+			const { handle, view } = mount(source);
+			handle.switchProfile!('musixmatch');
+			const before = handle.getSnapshot();
+			const id = before.conversion!.model.sections[1]!.id;
+			view.dispatch({ changes: { from, to, insert }, userEvent: 'input.type' });
+			const authored = handle.getSnapshot().text;
+			handle.undo();
+			expect(handle.getSnapshot().text).toBe(before.text);
+			handle.redo();
+			expect(handle.getSnapshot().text).toBe(authored);
+			handle.switchProfile!('genius');
+			expect(handle.getSnapshot().text).toBe(geniusText);
+			const saved = handle.getSnapshot();
+			const scribe = parseScribe(
+				serializeScribe({
+					title: 'Placement',
+					language: 'en',
+					lyrics: saved.text,
+					conversion: saved.conversion,
+					performers: [],
+					lineAnchors: [],
+					sectionLinks: [],
+					ignoredDiagnostics: []
+				})
+			);
+			const restored = mount(scribe.document.lyrics, scribe.document.conversion).handle;
+			expect(restored.getSnapshot().conversion!.model.sections[1]!.id).toBe(id);
+			expect(
+				restored.dispatchConversionAction!(
+					{ kind: 'moveSection', sectionId: id, at: 0 },
+					restored.getSnapshot().revision
+				)
+			).toEqual({ ok: true });
+			expect(
+				restored.getSnapshot().conversion!.model.sections.find((s) => s.id === id)!.placement
+			).toBeUndefined();
+			restored.undo();
+			expect(restored.getSnapshot().text).toBe(geniusText);
+			expect(
+				restored.getSnapshot().conversion!.model.sections.find((s) => s.id === id)!.placement
+			).toBe('unresolved');
+			restored.redo();
+			restored.switchProfile!('musixmatch');
+			expect(restored.getSnapshot().text).toBe(authored);
+		}
+	);
 	it('creates a typed section and edits its Genius label through history, Scribe and reload', () => {
 		const lyrics = 'A paper moon above the road\nI find my way back home\n\nStay beside me';
 		const { handle } = mount(lyrics);

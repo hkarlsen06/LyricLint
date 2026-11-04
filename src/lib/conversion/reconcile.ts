@@ -22,6 +22,7 @@ import {
 	type Projection,
 	type ReconciledDocument
 } from './model.js';
+import { canRenderSection, retainSectionPlacement } from './section-placement.js';
 import { contentOffset, projectOffset, renderProfile } from './projection.js';
 
 export function applyTextEdits(text: string, edits: readonly TextEdit[]): string {
@@ -646,6 +647,7 @@ function reconcilePlain(
 	retainOtherRecords(document, next, map, changes, transfers);
 	captureAuthoredEdits(next, projection.profile, changes, map);
 	updateEmptySections(next);
+	retainSectionPlacement(next);
 	const result = renderProfile(next, projection.profile);
 	if (!result.ok) return result;
 	const visibleChanges = changes.map((change) => ({
@@ -757,6 +759,11 @@ function reconcileGenius(
 	}
 	for (const previous of document.sections) {
 		if (used.has(previous.id)) continue;
+		if (previous.headerVisible !== false && !canRenderSection(document, previous)) {
+			next.sections.push({ ...previous, at: map(previous.at, -1), placement: 'unresolved' });
+			used.add(previous.id);
+			continue;
+		}
 		const range =
 			projectedRange(projection, previous.id) ??
 			(previous.literalHeaderRange
@@ -832,6 +839,13 @@ function reconcileGenius(
 	retainOtherRecords(document, next, map, contentEdits, []);
 	const retainedVoices = next.voices;
 	next.voices = syntaxVoices.map((voice) => {
+		const index = document.sections.findIndex((section) => section.id === voice.sectionId);
+		if (document.sections[index + 1]?.placement === 'unresolved') {
+			const retained = retainedVoices.find(
+				(entry) => entry.sectionId === voice.sectionId && entry.styleSlot === voice.styleSlot
+			);
+			if (retained) return retained;
+		}
 		const old = retainedVoices.find(
 			(entry) =>
 				entry.sectionId === voice.sectionId &&
@@ -855,12 +869,15 @@ function reconcileGenius(
 			(voice) =>
 				voice.styleSlot &&
 				next.sections.some(
-					(section) => section.id === voice.sectionId && section.headerVisible === false
+					(section) =>
+						section.id === voice.sectionId &&
+						(section.headerVisible === false || section.placement === 'unresolved')
 				)
 		)
 	);
 	captureAuthoredEdits(next, projection.profile, contentEdits, map);
 	updateEmptySections(next);
+	retainSectionPlacement(next);
 	const result = renderProfile(next, 'genius');
 	if (!result.ok) return result;
 	if (result.value.text !== text)

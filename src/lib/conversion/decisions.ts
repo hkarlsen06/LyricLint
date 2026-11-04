@@ -1,3 +1,4 @@
+import { canPlaceSection } from './section-placement.js';
 import { parseDocument } from '#lib/core/parser.js';
 import type { PerformerRecord, TextEdit, TextRange } from '#lib/core/types.js';
 import { escapeLegendText, serializeLegend, styleTags } from '#lib/serialization/genius-markup.js';
@@ -534,8 +535,10 @@ export function resolveDecision(
 				return invalid(
 					'Remove the confirmed instrumental interval before changing either of its section boundaries.'
 				);
-			if (at > 0 && at < next.content.length && next.content[at - 1] !== '\n')
-				return invalid('Place a section boundary at the start of a lyric line.');
+			if (!canPlaceSection(next, at))
+				return invalid(
+					'Place a section boundary at a lyric line start outside retained annotation or voice spans.'
+				);
 			if (next.wrappers.some((wrapper) => wrapper.from < at && at < wrapper.to))
 				return invalid(
 					'This boundary crosses a retained annotation or voice span. Split that detail explicitly first.'
@@ -546,6 +549,7 @@ export function resolveDecision(
 				if (section.literalHeaderRange && section.at !== at)
 					return invalid('Repair this section heading in Genius before moving its boundary.');
 				section.at = at;
+				delete section.placement;
 				separateRelocatedHeader(next, section);
 				orderSyntax(next);
 			} else {

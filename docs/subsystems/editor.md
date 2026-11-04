@@ -19,6 +19,9 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   IME changes finish before a queued switch. Undo retains the allocator high-water mark, including
   after save/reload, so a new edit never reuses a retired occurrence's ID. Selection and viewport
   follow occurrence mappings rather than searching for identical words.
+- Displaced section boundaries stay retained metadata with a range-free placement finding. Genius
+  withholds their generated headings and Musixmatch withholds their widgets until explicit placement
+  at an eligible lyric line start. Literal partial headers remain exact shared text.
 - Musixmatch section boundaries are editor widgets backed by stable retained IDs. Their controls
   open Song details; they never become copied text. Voice decorations update in the same editor
   transaction as the projection so a native caret cannot jump during asynchronous shell updates.
@@ -513,3 +516,23 @@ local exclusions even where their text still matches. Re-running discovery on a 
 silently reconnect those words. If rejecting an out-of-fragment hole leaves unequal legacy hole
 counts, migration suspends the group's propagation instead of guessing a missing counterpart;
 `clipboard-metadata.svelte.test.ts` exercises both matching local words and an overshooting column.
+
+### Retained section placement after hidden-boundary edits
+
+A Musixmatch edit can leave a section anchor inside a newly authored line or at EOF after
+its last word. The previous renderer emitted the hidden heading there, splitting words or
+gluing a header onto them. That behavior violated the unresolved-boundary contract.
+`section-placement.ts` now owns placement capability. Reconciliation retains the section ID,
+label and associated records with unresolved placement. Genius withholds generated headings
+until explicit placement, and both profiles expose one metadata finding without a lyric range.
+Partial literal headers remain shared content and are never withheld by this rule.
+Song's existing Move to cursor action repairs placement at an eligible line start; its options
+open for unresolved sections. Moving does not author lyric newlines. Undo restores the task.
+
+The storage envelope pins renderer 2, independently of model schema/converter 1. Renderer-1
+rich envelopes upgrade only when their exact saved projection matches the corrected renderer.
+Compatible prior drafts retain all rich metadata. A prior Genius save containing a heading
+inside a word cannot meet both exact saved-text validation and corrected rendering. It remains
+unreadable as a live rich draft, with its original preserved through the existing recovery path;
+no validator bypass, plain-text downgrade or guessed migration is performed. Old Musixmatch
+projections remain compatible. Scribe uses the same envelope validation.

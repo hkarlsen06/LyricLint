@@ -149,7 +149,7 @@ function importEditorState(state: EditorState) {
 				schema: 1 as const,
 				profile: 'genius' as const,
 				model: imported.value,
-				converterVersion: '1' as const,
+				converterVersion: '2' as const,
 				policyVersions: profilePolicyVersions,
 				projectionText: projection.value.text
 			},

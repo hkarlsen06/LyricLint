@@ -41,6 +41,7 @@ export interface ContentLine extends TextRange {
 	time?: number;
 }
 export interface SectionRecord {
+	placement?: 'unresolved';
 	id: string;
 	at: number;
 	order: number;
