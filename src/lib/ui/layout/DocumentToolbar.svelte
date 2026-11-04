@@ -163,6 +163,76 @@
 
 <svelte:window onkeydown={closeCommands} />
 
+{#snippet secondaryCommands()}
+	<div
+		class="document-toolbar__secondary"
+		class:document-toolbar__secondary--phone={phone.current}
+		{@attach dismissOnOutside(() => (commandsOpen = false))}
+	>
+		{#if phone.current}
+			<button
+				bind:this={commandsTrigger}
+				type="button"
+				class="button button--quiet"
+				aria-expanded={commandsOpen}
+				aria-controls="document-commands"
+				onclick={() => (commandsOpen = !commandsOpen)}>Document</button
+			>
+		{/if}
+		<div
+			id="document-commands"
+			class="document-toolbar__secondary-actions"
+			hidden={phone.current && !commandsOpen}
+		>
+			{#if phone.current}
+				<button
+					type="button"
+					class="button button--quiet new-draft-trigger"
+					aria-label="New 'scribe"
+					title="New 'scribe"
+					onclick={() => controller.createDraft()}
+				>
+					<PlusIcon aria-hidden="true" size={16} weight="bold" />
+					New 'scribe
+				</button>
+			{/if}
+			<!-- The keystrokes already exist in the editor; these are the same two
+		     commands for the pointer, and they act on the document, so they belong
+		     in this strip rather than beside the draft's name. Quiet tier: they are
+		     corrections, not the thing the surface is for. -->
+			<button
+				bind:this={undoButton}
+				type="button"
+				class="{phone.current ? 'button' : 'icon-button'} button--quiet document-toolbar__history"
+				aria-label="Undo"
+				title="Undo"
+				disabled={!controller.snapshot.canUndo}
+				onclick={(event) => runHistory(event, false)}
+			>
+				<ArrowCounterClockwiseIcon aria-hidden="true" size={16} weight="bold" />
+				{#if phone.current}Undo{/if}
+			</button>
+			<button
+				bind:this={redoButton}
+				type="button"
+				class="{phone.current ? 'button' : 'icon-button'} button--quiet document-toolbar__history"
+				aria-label="Redo"
+				title="Redo"
+				disabled={!controller.snapshot.canRedo}
+				onclick={(event) => runHistory(event, true)}
+			>
+				<ArrowClockwiseIcon aria-hidden="true" size={16} weight="bold" />
+				{#if phone.current}Redo{/if}
+			</button>
+			<LanguagePicker {controller} expandedLabel={phone.current} />
+			<!-- Reviewing what the copy will change on the page is the step before
+		     copying it, so it sits beside the action it precedes. The component
+		     gates itself on the document being empty. -->
+			<CompareDialog {controller} />
+		</div>
+	</div>
+{/snippet}
+
 <header
 	class:document-toolbar--phone={phone.current}
 	class="document-toolbar"
@@ -213,6 +283,7 @@
 				<PlusIcon aria-hidden="true" size={16} weight="bold" />
 			</button>
 		{/if}
+		{#if phone.current}{@render secondaryCommands()}{/if}
 		<!-- Nothing is drawn while saving is going well: a disk glyph that is always
 		     there reports a state that never changes, and the slot went to the plus.
 		     The readout stays in the accessible tree throughout, and a failed save
@@ -248,73 +319,7 @@
 	     the end of a job they have not started. -->
 	<div class="document-toolbar__commands">
 		<ProfilePicker {controller} />
-		<div
-			class="document-toolbar__secondary"
-			class:document-toolbar__secondary--phone={phone.current}
-			{@attach dismissOnOutside(() => (commandsOpen = false))}
-		>
-			{#if phone.current}
-				<button
-					bind:this={commandsTrigger}
-					type="button"
-					class="button button--quiet"
-					aria-expanded={commandsOpen}
-					aria-controls="document-commands"
-					onclick={() => (commandsOpen = !commandsOpen)}>Document</button
-				>
-			{/if}
-			<div
-				id="document-commands"
-				class="document-toolbar__secondary-actions"
-				hidden={phone.current && !commandsOpen}
-			>
-				{#if phone.current}
-					<button
-						type="button"
-						class="button button--quiet new-draft-trigger"
-						aria-label="New 'scribe"
-						title="New 'scribe"
-						onclick={() => controller.createDraft()}
-					>
-						<PlusIcon aria-hidden="true" size={16} weight="bold" />
-						New 'scribe
-					</button>
-				{/if}
-				<!-- The keystrokes already exist in the editor; these are the same two
-		     commands for the pointer, and they act on the document, so they belong
-		     in this strip rather than beside the draft's name. Quiet tier: they are
-		     corrections, not the thing the surface is for. -->
-				<button
-					bind:this={undoButton}
-					type="button"
-					class="{phone.current ? 'button' : 'icon-button'} button--quiet document-toolbar__history"
-					aria-label="Undo"
-					title="Undo"
-					disabled={!controller.snapshot.canUndo}
-					onclick={(event) => runHistory(event, false)}
-				>
-					<ArrowCounterClockwiseIcon aria-hidden="true" size={16} weight="bold" />
-					{#if phone.current}Undo{/if}
-				</button>
-				<button
-					bind:this={redoButton}
-					type="button"
-					class="{phone.current ? 'button' : 'icon-button'} button--quiet document-toolbar__history"
-					aria-label="Redo"
-					title="Redo"
-					disabled={!controller.snapshot.canRedo}
-					onclick={(event) => runHistory(event, true)}
-				>
-					<ArrowClockwiseIcon aria-hidden="true" size={16} weight="bold" />
-					{#if phone.current}Redo{/if}
-				</button>
-				<LanguagePicker {controller} expandedLabel={phone.current} />
-				<!-- Reviewing what the copy will change on the page is the step before
-		     copying it, so it sits beside the action it precedes. The component
-		     gates itself on the document being empty. -->
-				<CompareDialog {controller} />
-			</div>
-		</div>
+		{#if !phone.current}{@render secondaryCommands()}{/if}
 		{#if controller.isEmpty}
 			<button
 				type="button"
@@ -570,16 +575,17 @@
 		display: none;
 	}
 	.document-toolbar__secondary--phone {
-		position: static;
+		flex: none;
+		position: relative;
 	}
 	.document-toolbar__secondary--phone .document-toolbar__secondary-actions {
 		position: absolute;
 		inset-block-start: 100%;
-		inset-inline-end: var(--space-2);
+		inset-inline-end: 0;
 		z-index: var(--layer-popover);
 		width: max-content;
 		min-width: calc(4 * var(--control-height-touch));
-		max-width: calc(100% - 2 * var(--space-2));
+		max-width: calc(100vw - 2 * var(--space-2));
 		gap: 0;
 		padding: var(--space-2);
 		background: var(--color-overlay);

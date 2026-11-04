@@ -39,11 +39,14 @@ test('native immediate reload preserves the pending words and selected lyric for
 	expect(before).toContain('Silver moon tonight');
 	await freshReload(page);
 	expect(await text(page)).toBe(before);
-	await page.getByRole('button', { name: 'Lyric format: Genius' }).click();
-	await freshReload(page);
-	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toBeVisible();
-	expect(await text(page)).toBe('Silver moon tonight');
 	await page.getByRole('button', { name: 'Lyric format: Musixmatch' }).click();
+	await freshReload(page);
+	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	expect(await text(page)).toBe('Silver moon tonight');
+	await page.getByRole('button', { name: 'Lyric format: Genius' }).click();
 	await freshReload(page);
 	expect(await text(page)).toBe(before);
 });
@@ -156,8 +159,8 @@ test('each draft restores its own format and lyrics after immediate reload', asy
 	await editor.fill('[Verse]\nMoon words');
 	await title.fill('Moon draft');
 	await title.press('Enter');
-	await page.getByRole('button', { name: 'Lyric format: Genius' }).click();
 	await page.getByRole('button', { name: 'Lyric format: Musixmatch' }).click();
+	await page.getByRole('button', { name: 'Lyric format: Genius' }).click();
 	await freshReload(page);
 	expect(await text(page)).toBe('[Verse]\nMoon words');
 	await page.getByRole('button', { name: 'Document', exact: true }).click();
@@ -165,20 +168,26 @@ test('each draft restores its own format and lyrics after immediate reload', asy
 	await editor.fill('[Chorus]\nSun words');
 	await title.fill('Sun draft');
 	await title.press('Enter');
-	await page.getByRole('button', { name: 'Lyric format: Genius' }).click();
+	await page.getByRole('button', { name: 'Lyric format: Musixmatch' }).click();
 	await freshReload(page);
 	expect(await text(page)).toBe('Sun words');
 	await page.getByRole('button', { name: "'Scribes", exact: true }).click();
 	await page.getByRole('button', { name: /^Moon draft/u }).click();
 	await expect(title).toHaveValue('Moon draft');
 	await freshReload(page);
-	await expect(page.getByRole('button', { name: 'Lyric format: Genius' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Lyric format: Genius' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
 	expect(await text(page)).toBe('[Verse]\nMoon words');
 	await page.getByRole('button', { name: "'Scribes", exact: true }).click();
 	await page.getByRole('button', { name: /^Sun draft/u }).click();
 	await expect(title).toHaveValue('Sun draft');
 	await freshReload(page);
-	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
 	expect(await text(page)).toBe('Sun words');
 });
 

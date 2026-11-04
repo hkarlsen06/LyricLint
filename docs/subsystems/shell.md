@@ -47,9 +47,10 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 - Song uses one section chooser and one editor. Type and Show passage precede More section options; Add a section follows the editor. Selected passage tools, Document settings and retained details open deliberately. Clear this transcription is separate from export actions. Preferences exposes workspace backup actions directly; Local data and Reviewed rules remain secondary disclosures.
 
-- The document toolbar exposes a per-draft Genius/Musixmatch format button that switches directly in one click
-  or Enter/Space, names the committed format and reserves stable width. A pending switch can
-  be cancelled through the same button. Review owns the deliberate current-item retained section-type choice and Save action. Song keeps advanced section editing, voices, annotations,
+- The document toolbar exposes a per-draft Genius and Musixmatch buttons that select a destination in one click
+  or Enter/Space. A check and pressed state mark the committed format, and both buttons reserve
+  stable check space. During a pending switch, the committed button shows a cancel cross and
+  cancels the request. Review owns the deliberate current-item retained section-type choice and Save action. Song keeps advanced section editing, voices, annotations,
   language spans, authored forms and explicit conversion decisions. Hidden information is reviewed
   through its metadata location, never through invented lyric underlines. Copy and text export
   always use the active projection; Scribe export preserves the complete document.
@@ -333,8 +334,8 @@ at 320px, including field type size and the bounds of every visible action.
 
 ### Phone commands preserve the selected lyrics
 
-On the phone workspace query, the toolbar keeps the draft title/switcher and Copy/Paste
-on one row. The named Document disclosure owns New, Undo, Redo, language, and Compare;
+On the phone workspace query, the toolbar keeps the draft title/switcher and Document on its identity
+row, with both format buttons and Copy/Paste on its command row. The named Document disclosure owns New, Undo, Redo, language, and Compare;
 it dismisses on its trigger, Escape, and `dismissOnOutside`. Its existing dialog triggers
 remain mounted so closing a language or comparison dialog returns to a real control.
 The phone disclosure uses full-width named rows, including Undo, Redo and the full

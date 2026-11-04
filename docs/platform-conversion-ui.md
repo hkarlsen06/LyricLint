@@ -22,15 +22,21 @@ researched clause and its remaining scope.
 
 ## 1. Format selection
 
-The format button in `DocumentToolbar.svelte` sits beside Language on desktop and shows the
-committed value, **Genius ⇄** or **Musixmatch ⇄**, with accessible name `Lyric format: Genius`
-or `Lyric format: Musixmatch`. One click or Enter/Space switches directly to the other format.
-Its accessible description names the destination. There is no intermediate menu.
+The format group in `DocumentToolbar.svelte` always exposes ordinary **Genius** and
+**Musixmatch** buttons. The committed choice has a check and `aria-pressed="true"`;
+the other choice uses the quiet tier. One click or Enter/Space selects the named
+destination directly. Selecting the committed format is a no-op unless a switch is pending.
+There is no intermediate menu, and neither choice is disabled.
 
-Reserve its geometry for both profile labels and `Cancel switch`. During a pending switch,
-the old profile stays committed, the button exposes `aria-busy`, and its action cancels the
-request through the existing controller. Unsupported languages retain the accessible
-language-independent conversion explanation. Switching retains focus on the same button.
+Both buttons reserve their check space so switching keeps the format controls and Copy fixed.
+During a pending switch, the old profile stays committed and its check becomes a cancel cross.
+Its tooltip and accessible description explain that selecting it cancels the pending switch
+through the existing controller. Unsupported languages retain the accessible
+language-independent conversion explanation. Focus remains on the activated button.
+
+On phones, Document sits beside the truncated title in the identity row. Its commands
+open below that trigger, while both formats and Copy remain on the existing command row.
+Escape returns focus to Document; outside press and the trigger also close its surface.
 
 ### Layout sketches
 
@@ -38,13 +44,13 @@ These show placement and ownership; production styling uses existing tokens and 
 
 ```text
 Desktop
-Song title ▾    [Genius ⇄] [English ▾]    Undo  Redo  Compare with Genius  Copy lyrics
+Song title ▾    [✓ Genius] [  Musixmatch] [English ▾]    Undo  Redo  Compare with Genius  Copy lyrics
 Editor actions…                         Review Genius lyrics
 Lyrics…                                 Current-profile findings…
 
 Phone
-LyricLint                         Song title ▾
-[Musixmatch ⇄]         [Document] [Copy lyrics]
+Song title ▾                      [Document]
+[✓ Genius] [  Musixmatch]          [Copy lyrics]
 Active task…
 [Write]                    [Review]    [Tools]    ← existing bottom navigation
 ```

@@ -14,8 +14,11 @@ async function read(page: Page) {
 	});
 }
 async function format(page: Page, name: string) {
-	await page.getByRole('button', { name: /^Lyric format:/ }).click();
-	await expect(page.getByRole('button', { name: `Lyric format: ${name}` })).toBeVisible();
+	await page.getByRole('button', { name: `Lyric format: ${name}` }).click();
+	await expect(page.getByRole('button', { name: `Lyric format: ${name}` })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
 }
 async function review(page: Page, mobile: boolean) {
 	if (mobile)
@@ -68,7 +71,10 @@ for (const width of [1440, 360, 390]) {
 			await page.keyboard.press('Control+z');
 			await expect.poll(async () => (await read(page)).text).toBe(source);
 			await page.keyboard.press('Control+z');
-			await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toBeVisible();
+			await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
+				'aria-pressed',
+				'true'
+			);
 			expect((await read(page)).text).toBe(plain);
 			await review(page, width < 600);
 			if (!(await edit.isVisible()))

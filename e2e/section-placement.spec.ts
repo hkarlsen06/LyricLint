@@ -18,9 +18,13 @@ for (const width of [1440, 390]) {
 						};
 						return (node.cmView ?? node.cmTile)!.view.state.doc.toString();
 					});
-				const format = page.getByRole('button', { name: /^Lyric format:/ });
+				const choose = async (name: 'Genius' | 'Musixmatch') => {
+					const option = page.getByRole('button', { name: `Lyric format: ${name}` });
+					await option.click();
+					await expect(option).toHaveAttribute('aria-pressed', 'true');
+				};
 				await editor.fill(source);
-				await format.click();
+				await choose('Musixmatch');
 				const before = await lyrics();
 				await editor.evaluate(
 					(el, { from, to }) => {
@@ -41,7 +45,7 @@ for (const width of [1440, 390]) {
 				await expect.poll(lyrics).toBe(before);
 				await page.keyboard.press('Control+y');
 				await expect.poll(lyrics).toBe(authored);
-				await format.click();
+				await choose('Genius');
 				await expect.poll(lyrics).toBe(genius);
 				await expect(
 					page.getByRole('img', { name: /^Autosave status: Saved locally/ })
@@ -90,7 +94,7 @@ for (const width of [1440, 390]) {
 				await expect
 					.poll(lyrics)
 					.toContain(source.includes('Instrumental') ? '[Instrumental]' : '[Chorus]');
-				await format.click();
+				await choose('Musixmatch');
 				await expect.poll(lyrics).toBe(authored);
 				await page.screenshot({
 					path: `.audit/hillclimb/after-${width}-${from}.png`,

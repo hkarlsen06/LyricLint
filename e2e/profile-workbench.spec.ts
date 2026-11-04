@@ -10,8 +10,11 @@ async function lyrics(page: Page): Promise<string | undefined> {
 	});
 }
 async function choose(page: Page, profile: 'Genius' | 'Musixmatch') {
-	await page.getByRole('button', { name: /^Lyric format:/ }).click();
-	await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toBeVisible();
+	await page.getByRole('button', { name: `Lyric format: ${profile}` }).click();
+	await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
 }
 
 test('confirms a masked word in Musixmatch while retaining the exact Genius source', async ({
@@ -160,7 +163,10 @@ for (const width of [1440, 390, 360]) {
 				page.getByRole('img', { name: /^Autosave status: Saved locally/ })
 			).toBeAttached();
 			await page.reload();
-			await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toBeVisible();
+			await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
+				'aria-pressed',
+				'true'
+			);
 			await choose(page, 'Genius');
 			await expect.poll(() => lyrics(page)).toBe(source);
 			await choose(page, 'Musixmatch');
@@ -218,7 +224,10 @@ test('preserves exact source, edited annotations, history and saved mode through
 	await choose(page, 'Musixmatch');
 	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/ })).toBeAttached();
 	await page.reload();
-	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
 	await expect.poll(() => lyrics(page)).toBe('We follow the stars\n\nStay beside me');
 	await choose(page, 'Genius');
 	await expect.poll(() => lyrics(page)).toBe(source.replace('[moon]', '[stars]'));
@@ -233,8 +242,8 @@ test.describe('touch controls', () => {
 		await page.goto('/workbench/');
 		const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 		await editor.fill('[Verse]\nمرحبا بالعالم\n\n[Chorus]\n同じ言葉');
-		const control = page.getByRole('button', { name: /^Lyric format:/ });
-		await expect(control).toHaveAccessibleDescription(/Switch to Musixmatch/);
+		const control = page.getByRole('button', { name: 'Lyric format: Musixmatch' });
+		await expect(control).toHaveAttribute('aria-pressed', 'false');
 		const before = await control.boundingBox();
 		const copyBefore = await page
 			.getByRole('button', { name: 'Copy lyrics', exact: true })
@@ -242,13 +251,13 @@ test.describe('touch controls', () => {
 		await control.focus();
 		await page.keyboard.press('Enter');
 		await expect(page.getByRole('menu')).toHaveCount(0);
-		await expect(control).toHaveAttribute('aria-label', 'Lyric format: Musixmatch');
+		await expect(control).toHaveAttribute('aria-pressed', 'true');
 		await expect(control).toBeFocused();
 		const after = await control.boundingBox();
 		const copyAfter = await page
 			.getByRole('button', { name: 'Copy lyrics', exact: true })
 			.boundingBox();
-		await expect(control).toHaveAccessibleDescription(/Switch to Genius/);
+		await expect(control).toHaveAttribute('aria-pressed', 'true');
 		expect(after?.width).toBe(before?.width);
 		expect(after?.x).toBe(before?.x);
 		expect(after?.y).toBe(before?.y);
@@ -336,7 +345,10 @@ test('reopens a rich draft and switches both formats entirely offline', async ({
 		.toBe(true);
 	await context.setOffline(true);
 	await page.reload();
-	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
 	await expect.poll(() => lyrics(page)).toBe('Under the moon');
 	await choose(page, 'Genius');
 	await expect.poll(() => lyrics(page)).toBe(source);

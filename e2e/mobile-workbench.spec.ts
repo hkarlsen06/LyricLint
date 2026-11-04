@@ -41,8 +41,11 @@ test('phone format switching preserves multilingual lyrics and retained annotati
 	const plain = 'مرحبا — café\n\n夜の光 🎵';
 	await replaceLyrics(page, source);
 	async function choose(profile: 'Genius' | 'Musixmatch') {
-		await page.getByRole('button', { name: /^Lyric format:/u }).click();
-		await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toBeVisible();
+		await page.getByRole('button', { name: `Lyric format: ${profile}` }).click();
+		await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
 	}
 	for (let index = 0; index < 3; index++) {
 		await choose('Musixmatch');
@@ -53,7 +56,10 @@ test('phone format switching preserves multilingual lyrics and retained annotati
 	await choose('Musixmatch');
 	await expect(page.getByLabel('Autosave status')).toHaveAttribute('aria-label', /Saved locally/u);
 	await page.reload();
-	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
 	await expectLyrics(page, plain);
 	await choose('Genius');
 	await expectLyrics(page, source);
