@@ -15,6 +15,7 @@ function panelAssistant(
 	const revokeDraftAccess = vi.fn(async () => undefined);
 	const send = vi.fn(async () => false);
 	const assistant: Partial<AssistantState> = {
+		profile: 'genius',
 		messages,
 		quota: undefined,
 		failure: undefined,
