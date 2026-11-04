@@ -317,6 +317,7 @@ describe('Workspace and toolbar', () => {
 		expect(commands).toBeTruthy();
 		const undo = screen.getByRole('button', { name: 'Undo' });
 		const redo = screen.getByRole('button', { name: 'Redo' });
+		const format = screen.getByRole('button', { name: 'Lyric format: Genius' });
 		const language = screen.getByRole('button', { name: 'Lyric language: English' });
 		// Comparing acts on the whole document, so its trigger belongs to this
 		// strip, beside the contrast action whose press it is the review before.
@@ -326,7 +327,7 @@ describe('Workspace and toolbar', () => {
 			...commands!.querySelectorAll(
 				':scope > button, .document-toolbar__secondary-actions > button'
 			)
-		]).toEqual([undo, redo, language, compare, copy]);
+		]).toEqual([format, undo, redo, language, compare, copy]);
 		// Navigation between drafts left the strip for the draft's own name, and
 		// creation followed it; neither acts on the document this strip commands.
 		expect(commands!.contains(screen.getByRole('button', { name: "'Scribes" }))).toBe(false);
