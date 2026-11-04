@@ -3,12 +3,12 @@ import { diagnostic, matchesOutsideMarkup } from './utils.js';
 
 /** Header instructions remain actionable when their syntax is hidden by another format. */
 export function hasRepeatHeaderInstruction(header: string): boolean {
-	return /(?:\b(?:x|×)\s*\d+\b|\b\d+\s*(?:x|×)\b|\brepeat(?:ed)?\b)/iu.test(header);
+	return /(?:\b(?:x\s*\d+|\d+\s*x)\b|×\s*\d+\b|\b\d+\s*×|\brepeat(?:ed)?\b)/iu.test(header);
 }
 
 export const repeatPlaceholderRule: RuleDefinition = {
 	id: 'repeat.placeholder',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'warning',
 	fixability: 'none',
 	sourceIds: ['G-REPEATS'],

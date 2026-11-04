@@ -7,6 +7,10 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
 
 ## The rules
 
+- Repeat-header detection is shared with retained-detail Review. Multiplication signs in
+  `Chorus ×2` and `Chorus 2×` are punctuation, so their recognition does not require a word
+  boundary beside the sign. The source version and copy count remain explicit user decisions.
+
 - `RuleContext.profile` selects an isolated registry; omitted means Genius for existing callers.
   Musixmatch findings have `mxm.*` identifiers and their own sources. `getRule` resolves both
   registries, while `enabledRules` and the existing Genius manifest keep their original scope.

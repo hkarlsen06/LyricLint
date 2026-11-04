@@ -3,6 +3,13 @@ import { checkRule, markedText } from '../rule-test-utils.js';
 import { repeatPlaceholderRule as rule } from './repeat-placeholder.js';
 
 describe('repeat.placeholder', () => {
+	it.each(['Chorus ×2', 'Chorus 2×', 'Chorus×2', 'Chorus × 2'])(
+		'recognizes the multiplication sign in %s',
+		(name) => {
+			const text = `[${name}]\nWords`;
+			expect(markedText(text, checkRule(rule, text))).toEqual([name]);
+		}
+	);
 	it('marks a repetition count in the raw header name', () => {
 		const text = '[Chorus x2: Avery]\nWords';
 		const findings = checkRule(rule, text);
