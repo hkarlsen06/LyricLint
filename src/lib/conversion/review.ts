@@ -21,11 +21,9 @@ export function conversionReviewAction(
 	}
 }
 
-export interface RetainedFinding {
-	id: string;
-	sectionId?: string;
-	message: string;
-}
+export type RetainedFinding = { id: string; message: string } & (
+	{ kind: 'section-type'; sectionId: string } | { kind: 'metadata'; sectionId?: string }
+);
 
 /** Metadata has its own location; a hidden boundary is never invented lyric text. */
 export function retainedFindings(
@@ -35,8 +33,10 @@ export function retainedFindings(
 	const conversion = snapshot.conversion;
 	if (!conversion || snapshot.conversionRecovery || snapshot.originalRecovery) return [];
 	const projection = renderProfile(conversion.model, profile ?? conversion.profile);
-	if (!projection.ok) return [{ id: 'projection', message: projection.refusal.message }];
+	if (!projection.ok)
+		return [{ kind: 'metadata', id: 'projection', message: projection.refusal.message }];
 	const findings: RetainedFinding[] = projection.value.findings.map((finding) => ({
+		kind: 'metadata',
 		id: `${finding.code}:${finding.recordId}`,
 		sectionId:
 			conversion.model.voices.find((voice) => voice.id === finding.recordId)?.sectionId ??
@@ -54,6 +54,7 @@ export function retainedFindings(
 				const characters = [...firstLine];
 				const excerpt = characters.slice(0, 80).join('') + (characters.length > 80 ? '…' : '');
 				findings.push({
+					kind: 'section-type',
 					id: `section-type:${section.id}`,
 					sectionId: section.id,
 					message: `Choose a Musixmatch tag for ${label}${excerpt ? `, beginning “${excerpt}”` : ' (empty section)'}.`
@@ -62,6 +63,7 @@ export function retainedFindings(
 		}
 		if (!conversion.model.sections.length && conversion.model.content.trim())
 			findings.push({
+				kind: 'metadata',
 				id: 'section-boundaries',
 				message:
 					'Confirm the musical section boundaries and tags. Blank lines alone do not establish section types.'

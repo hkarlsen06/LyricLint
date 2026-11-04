@@ -3,7 +3,7 @@ import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
 import RetainedReview from './RetainedReview.svelte';
-import { retainedFindings } from '#lib/conversion/review.js';
+import { retainedFindings, type RetainedFinding } from '#lib/conversion/review.js';
 import { importDocument, renderProfile } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
@@ -29,15 +29,16 @@ test('identifies retained sections by their header and lyric, including empty bo
 	expect(message()).toContain('[Custom opening: Mira] (empty section)');
 	await fireEvent.click(screen.getByRole('button', { name: 'Next detail' }));
 	expect(message()).toContain('[The return: Noor], beginning “Stay beside me”');
-	await fireEvent.click(screen.getByRole('button', { name: 'Review in Song' }));
-	expect(controller.requestedSection?.id).toBe(imported.value.sections[1]!.id);
+	expect(screen.getByRole('combobox', { name: 'Musixmatch section type' })).toBeVisible();
+	expect(screen.queryByRole('button', { name: 'Review in Song' })).toBeNull();
 });
 
 test('reviews one retained detail at a time without moving navigation for long messages', async () => {
 	const { controller } = createTestWorkbench();
-	const findings = [
-		{ id: 'first', sectionId: 'one', message: 'Choose the section tag.' },
+	const findings: RetainedFinding[] = [
+		{ kind: 'metadata', id: 'first', sectionId: 'one', message: 'Choose the section tag.' },
 		{
+			kind: 'metadata',
 			id: 'second',
 			sectionId: 'two',
 			message:
@@ -59,5 +60,28 @@ test('reviews one retained detail at a time without moving navigation for long m
 	expect(controller.requestedSection).toEqual({ id: 'two', origin: 'review' });
 	await view.rerender({ controller, findings: findings.slice(0, 1) });
 	expect(message()).toBe(findings[0].message);
-	expect(screen.queryByRole('button', { name: 'Next detail' })).toBeNull();
+	expect(screen.getByRole('button', { name: 'Next detail' })).toBeDisabled();
+});
+
+test('requires Save, resets pending choice between items, and refuses unavailable commits', async () => {
+	const { controller } = createTestWorkbench();
+	const findings: RetainedFinding[] = [
+		{ kind: 'section-type', id: 'one', sectionId: 'stable-one', message: 'Empty section.' },
+		{ kind: 'section-type', id: 'two', sectionId: 'stable-two', message: 'Another section.' }
+	];
+	const view = await render(RetainedReview, { controller, findings });
+	const select = () => screen.getByRole('combobox', { name: 'Musixmatch section type' });
+	await fireEvent.change(select(), { target: { value: 'Verse' } });
+	expect(controller.feedback.announcement).toBe('');
+	await fireEvent.click(screen.getByRole('button', { name: 'Next detail' }));
+	expect(select()).toHaveValue('');
+	await fireEvent.change(select(), { target: { value: 'Chorus' } });
+	await fireEvent.click(screen.getByRole('button', { name: 'Save section type' }));
+	expect(controller.feedback.announcement).toBe('Document details are not ready yet.');
+	expect(select()).toHaveValue('Chorus');
+	select().focus();
+	await view.rerender({ controller, findings: [] });
+	expect(screen.getByRole('heading', { name: 'Retained details (0)' })).toHaveFocus();
+	await view.rerender({ controller, findings });
+	expect(select()).toHaveValue('');
 });

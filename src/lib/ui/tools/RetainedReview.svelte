@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { tick, untrack } from 'svelte';
+	import { sectionTypeChoices } from '#lib/conversion/section-types.js';
+	import type { SectionRecord } from '#lib/conversion/model.js';
 	import type { RetainedFinding } from '#lib/conversion/review.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	let {
@@ -8,11 +11,56 @@
 	let selected = $state(0);
 	const position = $derived(Math.min(selected, findings.length - 1));
 	const current = $derived(findings[position]);
+	let container = $state<HTMLElement>();
+	let heading = $state<HTMLHeadingElement>();
+	let choice = $state<NonNullable<SectionRecord['type']> | ''>('');
+	let choiceFor = $state('');
+	let reviewed = $state(false);
+	const currentId = $derived(
+		current ? `${controller.draftId}:${controller.profile}:${current.id}` : undefined
+	);
+	const chosen = $derived(choiceFor === currentId ? choice : '');
+	// Capture focus before a keyed decision leaves, including edits and Undo outside this form.
+	$effect.pre(() => {
+		const id = currentId;
+		untrack(() => {
+			if (id) reviewed = true;
+			const active = document.activeElement;
+			const owned = active instanceof HTMLElement && container?.contains(active);
+			choiceFor = id ?? '';
+			choice = '';
+			if (owned)
+				void tick().then(() => {
+					if (!active.isConnected || (active instanceof HTMLButtonElement && active.disabled))
+						heading?.focus({ preventScroll: true });
+				});
+		});
+	});
+	async function save(event: SubmitEvent) {
+		event.preventDefault();
+		if (current?.kind !== 'section-type' || !chosen) return;
+		if (
+			!controller.applyConversionAction({
+				kind: 'setSectionType',
+				sectionId: current.sectionId,
+				type: chosen
+			})
+		)
+			return;
+		controller.feedback.announce('Section type saved.');
+		await tick();
+		heading?.focus({ preventScroll: true });
+	}
 </script>
 
-{#if findings.length}
-	<section class="retained-review" aria-label="Retained details needing review">
-		<h2>Retained details ({findings.length})</h2>
+{#if findings.length || reviewed}
+	<section
+		bind:this={container}
+		class="retained-review"
+		aria-label="Retained details needing review"
+	>
+		<h2 bind:this={heading} tabindex="-1">Retained details ({findings.length})</h2>
+		{#if !findings.length}<p role="status">No retained details need review.</p>{/if}
 		<ul>
 			{#each current ? [current] : [] as finding (finding.id)}
 				<li>
@@ -25,16 +73,40 @@
 							</p>{/each}
 						<p aria-live="polite">{finding.message}</p>
 					</div>
-					<button
-						type="button"
-						class="button button--quiet"
-						onclick={() => controller.openSectionDetails(finding.sectionId ?? 'new', 'review')}
-						>Review in Song</button
-					>
+					{#if finding.kind === 'section-type'}
+						<form onsubmit={save}>
+							<label
+								>Musixmatch section type
+								<select
+									value={chosen}
+									onchange={(event) => {
+										const value = event.currentTarget.value;
+										choiceFor = currentId ?? '';
+										choice = sectionTypeChoices.find((type) => type === value) ?? '';
+									}}
+								>
+									<option value="">Choose a section type</option>
+									{#each sectionTypeChoices as type (type)}<option value={type}
+											>{type === 'PreChorus' ? 'Pre-Chorus' : type}</option
+										>{/each}
+								</select>
+							</label>
+							<button type="submit" class="button button--contrast" disabled={!chosen}
+								>Save section type</button
+							>
+						</form>
+					{:else}
+						<button
+							type="button"
+							class="button button--quiet"
+							onclick={() => controller.openSectionDetails(finding.sectionId ?? 'new', 'review')}
+							>Review in Song</button
+						>
+					{/if}
 				</li>
 			{/each}
 		</ul>
-		{#if findings.length > 1}<div class="tool-actions">
+		{#if findings.length}<div class="tool-actions">
 				<button
 					type="button"
 					class="button button--quiet"
@@ -53,6 +125,34 @@
 {/if}
 
 <style>
+	form,
+	label {
+		display: grid;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+	form {
+		margin-block: var(--space-3);
+	}
+	select {
+		width: 100%;
+		min-width: 0;
+		font-size: var(--font-size-editor);
+		min-height: var(--control-height-touch);
+	}
+	button {
+		min-height: var(--control-height-touch);
+		white-space: normal;
+	}
+	.tool-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+	.tool-actions span {
+		white-space: nowrap;
+	}
+
 	.retained-review__message {
 		display: grid;
 	}

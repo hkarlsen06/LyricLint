@@ -48,36 +48,97 @@ test('keeps annotation spacing exact after typing over a selection across its hi
 	await expect.poll(() => lyrics(page)).toBe(plain);
 });
 
-for (const phone of [false, true]) {
-	test.describe(`retained review on ${phone ? 'phone' : 'desktop'}`, () => {
-		test.use({ hasTouch: phone, isMobile: phone });
-		test('returns to Review and reopens the requested section', async ({ page }) => {
-			await page.setViewportSize({ width: phone ? 390 : 1440, height: 900 });
+for (const width of [1440, 390, 360]) {
+	test.describe(`focused retained type at ${width}`, () => {
+		test.use({ hasTouch: width < 600, isMobile: width < 600 });
+		test('saves in Review with stable geometry, keyboard, Undo and reload', async ({ page }) => {
+			await page.setViewportSize({ width, height: 900 });
+			if (width < 600)
+				expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
 			await page.goto('/workbench/');
-			await page
-				.getByRole('textbox', { name: 'Lyrics editor' })
-				.fill('[Verse]\nUnder the moon\n\n[Chorus]\nStay beside me');
+			const source =
+				'[Custom opening: Mira]\n[The extraordinarily long returning section for the final refrain: Noor]\nStay beside me';
+			const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
+			await editor.fill(source);
 			await choose(page, 'Musixmatch');
-			if (phone)
+			const plain = await lyrics(page);
+			if (width < 600)
 				await page
 					.getByRole('navigation', { name: 'Workbench views' })
 					.getByRole('button', { name: /Review/ })
 					.click();
-			const review = page.getByRole('button', { name: 'Review in Song' });
-			await review.click();
-			await expect(page.getByRole('heading', { name: /Section 1/ })).toBeFocused();
-			await page.getByRole('combobox', { name: 'Choose a section' }).selectOption({
-				label: await page
-					.getByRole('combobox', { name: 'Choose a section' })
-					.locator('option')
-					.nth(2)
-					.innerText()
-			});
-			await page.getByRole('button', { name: 'Back to Review', exact: true }).click();
-			await expect(review).toBeFocused();
-			await review.click();
-			await expect(page.getByRole('heading', { name: /Section 1/ })).toBeFocused();
-			await expect(page.getByRole('heading', { name: /Section 2/ })).toHaveCount(0);
+			const region = page.getByRole('region', { name: 'Retained details needing review' });
+			const select = region.getByRole('combobox', { name: 'Musixmatch section type' });
+			const save = region.getByRole('button', { name: 'Save section type' });
+			const next = region.getByRole('button', { name: 'Next detail' });
+			const before = {
+				select: await select.boundingBox(),
+				save: await save.boundingBox(),
+				next: await next.boundingBox()
+			};
+			await select.focus();
+			await select.press('ArrowDown');
+			await select.press('Enter');
+			await expect(region.getByRole('heading')).toHaveText('Retained details (2)');
+			await expect.poll(() => lyrics(page)).toBe(plain);
+			await next.click();
+			await expect(select).toHaveValue('');
+			expect(await select.boundingBox()).toEqual(before.select);
+			expect(await save.boundingBox()).toEqual(before.save);
+			expect(await next.boundingBox()).toEqual(before.next);
+			await page.screenshot({ path: `.audit/retained-section-type-${width}.png`, fullPage: true });
+			const box = await select.boundingBox();
+			expect(box!.height).toBeGreaterThanOrEqual(44);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+			expect(
+				await select.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
+			).toBeGreaterThanOrEqual(16);
+			await select.selectOption('Chorus');
+			await select.press('Tab');
+			await expect(save).toBeFocused();
+			await save.press('Enter');
+			await expect(region.getByRole('heading')).toHaveText('Retained details (1)');
+			await expect(region.getByRole('heading')).toBeFocused();
+			await expect(region.locator('[aria-live="polite"]')).toContainText('empty section');
+			await expect.poll(() => lyrics(page)).toBe(plain);
+			if (width < 600) {
+				await page
+					.getByRole('navigation', { name: 'Workbench views' })
+					.getByRole('button', { name: /Write/ })
+					.click();
+				await page.getByRole('button', { name: 'Document', exact: true }).click();
+			}
+			await page
+				.locator('.document-toolbar')
+				.getByRole('button', { name: 'Undo', exact: true })
+				.click();
+			if (width < 600)
+				await page
+					.getByRole('navigation', { name: 'Workbench views' })
+					.getByRole('button', { name: /Review/ })
+					.click();
+			await expect(region.getByRole('heading')).toHaveText('Retained details (2)');
+			await select.selectOption('Verse');
+			await save.click();
+			await select.selectOption('Chorus');
+			await save.click();
+			await expect(region.getByRole('heading')).toHaveText('Retained details (0)');
+			await expect(region.getByRole('heading')).toBeFocused();
+			await expect(page.getByRole('button', { name: 'Review in Song' })).toHaveCount(0);
+			await expect(
+				page.getByRole('img', { name: /^Autosave status: Saved locally/ })
+			).toBeAttached();
+			await page.reload();
+			await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toBeVisible();
+			await choose(page, 'Genius');
+			await expect.poll(() => lyrics(page)).toBe(source);
+			await choose(page, 'Musixmatch');
+			if (width < 600)
+				await page
+					.getByRole('navigation', { name: 'Workbench views' })
+					.getByRole('button', { name: /Review/ })
+					.click();
+			await expect(select).toHaveCount(0);
 		});
 	});
 }

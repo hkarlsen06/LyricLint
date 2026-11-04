@@ -3,6 +3,7 @@
 
 	import { parseDocument } from '#lib/core/parser.js';
 	import { tick } from 'svelte';
+	import { sectionTypeChoices as types } from '#lib/conversion/section-types.js';
 	import { projectOffset, renderProfile } from '#lib/conversion/index.js';
 	import type { ContentKind, SectionRecord } from '#lib/conversion/model.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
@@ -12,15 +13,6 @@
 	const projection = $derived(
 		conversion ? renderProfile(conversion.model, conversion.profile) : undefined
 	);
-	const types: NonNullable<SectionRecord['type']>[] = [
-		'Intro',
-		'Verse',
-		'PreChorus',
-		'Chorus',
-		'Hook',
-		'Bridge',
-		'Outro'
-	];
 
 	let addingSection = $state(false);
 	let newSectionType = $state('');

@@ -354,3 +354,27 @@ describe('confirmed scoped conversion facts', () => {
 		).toBe(false);
 	});
 });
+
+it('tags only the stable section while preserving Genius source and every other identity', () => {
+	const source = '[Custom opening: Mira]\n[The return: Noor]\nStay [beside](123456) me';
+	const document = imported(source);
+	const sectionId = document.sections[1]!.id;
+	const result = value(
+		resolveDecision(document, view(document), { kind: 'setSectionType', sectionId, type: 'Chorus' })
+	);
+	expect(result.document).toEqual({
+		...document,
+		sections: document.sections.map((section) =>
+			section.id === sectionId ? { ...section, type: 'Chorus' } : section
+		)
+	});
+	expect(view(result.document, 'genius').text).toBe(source);
+	expect(result.projection.text).toBe(view(document).text);
+	const stale = resolveDecision(document, view(document), {
+		kind: 'setSectionType',
+		sectionId: 'removed-section',
+		type: 'Verse'
+	});
+	expect(stale.ok).toBe(false);
+	if (!stale.ok) expect(stale.refusal.message).toBe('This section no longer exists.');
+});

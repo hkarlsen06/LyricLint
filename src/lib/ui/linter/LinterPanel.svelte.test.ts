@@ -530,7 +530,7 @@ describe('retained-only review', () => {
 		});
 		const view = await render(LinterPanel, { controller });
 		expect(screen.getByRole('region', { name: 'Retained details needing review' })).toBeVisible();
-		expect(screen.getByRole('button', { name: 'Review in Song' })).toBeVisible();
+		expect(screen.getByRole('combobox', { name: 'Musixmatch section type' })).toBeVisible();
 		expect(view.container.querySelector('.diagnostic-list__empty')).toBeNull();
 		await view.rerender({ controller, nativeRulesStatus: 'failed' });
 		expect(screen.getByText('Checking unavailable')).toBeVisible();

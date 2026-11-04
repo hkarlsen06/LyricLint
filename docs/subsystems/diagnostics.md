@@ -10,7 +10,7 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 - Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
 
 - Retained-detail Review presents one finding with Previous detail and Next detail. Listening requests select the relevant quantity or instrumental form; its alternative and saved decisions remain explicitly accessible.
-	Retained section requests reopen and focus their section even when requested repeatedly;
+	Section-type findings offer a named selector and explicit Save in Review without opening Song. Other retained section requests reopen and focus their section even when requested repeatedly;
 	missing boundaries open Add a section. Back to Review restores focus to the next retained
 	decision, or the Review tab when none remain. `e2e/profile-workbench.spec.ts` pins desktop
 	and phone navigation.
@@ -19,7 +19,7 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   A profile change recomputes findings against that projection without applying fixes. Native
   Musixmatch checks honor explicit language spans; Harper is withheld in Musixmatch until its
   behavior is reviewed for that profile. Metadata-only findings appear in retained-detail review
-  with a Song destination, not at a fabricated text offset.
+  with a focused section-type form or a Song destination for other metadata, never at a fabricated text offset.
 - Quantity, instrumental, censored-word and repeat findings offer a shared Review action in
   both the card and popover. It selects the actual finding, opens only its focused task within Review
   and focuses its heading without opening the typing keyboard. Song retains metadata separately. The preview uses the commit

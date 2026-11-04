@@ -39,12 +39,12 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 - The document toolbar exposes a per-draft Genius/Musixmatch format button that switches directly in one click
   or Enter/Space, names the committed format and reserves stable width. A pending switch can
-  be cancelled through the same button. Song owns retained section types, voices, annotations,
+  be cancelled through the same button. Review owns the deliberate current-item retained section-type choice and Save action. Song keeps advanced section editing, voices, annotations,
   language spans, authored forms and explicit conversion decisions. Hidden information is reviewed
   through its metadata location, never through invented lyric underlines. Copy and text export
   always use the active projection; Scribe export preserves the complete document.
   A retained-section prompt names its original header and opening lyric so the passage can
-  be recognized before opening Song. The Assistant introduction follows the active format.
+  be recognized before choosing and saving its type in Review. Unsaved choices reset when the item changes; saving targets its stable section ID and returns focus to the retained-review heading, including after the last item. The Assistant introduction follows the active format.
   A section request opens at the section controls and return action, with focus on the requested
   section. Unrelated Song metadata stays above that reading position.
 - Format changes reset stale diagnostic and assistant proposals, including a switch away and
