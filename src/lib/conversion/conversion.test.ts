@@ -386,6 +386,47 @@ describe('lossless shared conversion', () => {
 		).toBe(false);
 	});
 
+	it.each(['censor', 'quantity'] as const)(
+		'refuses a %s decision inside a larger retained wording without dropping its words',
+		(kind) => {
+			const source = kind === 'censor' ? 'I said **** tonight' : 'I saw 2 birds';
+			const wording = kind === 'censor' ? 'I shouted f*** tonight' : 'I counted 2 stars tonight';
+			const document = value(importDocument({ text: source, profile: 'genius', language: 'en' }));
+			const retained = value(
+				resolveDecision(document, rendered(document, 'genius'), {
+					kind: 'setForm',
+					range: { from: 0, to: source.length },
+					profile: 'musixmatch',
+					text: wording
+				})
+			);
+			const projection = rendered(retained.document, 'musixmatch');
+			const token = kind === 'censor' ? 'f***' : '2';
+			const from = wording.indexOf(token);
+			const range = { from, to: from + token.length };
+			const result = resolveDecision(
+				retained.document,
+				projection,
+				kind === 'censor'
+					? { kind: 'confirmCensoredToken', range, heardPrefix: 'f', audioCensored: true }
+					: {
+							kind: 'confirmQuantity',
+							range,
+							facts: {
+								profile: 'musixmatch',
+								language: 'en',
+								value: '2',
+								usage: 'ordinary-cardinal',
+								pronunciation: 'whole-quantity'
+							}
+						}
+			);
+			expect(result.ok).toBe(false);
+			expect(rendered(retained.document, 'musixmatch').text).toBe(wording);
+			expect(rendered(retained.document, 'genius').text).toBe(source);
+		}
+	);
+
 	it('resolves exact roster identities including ampersands and renames only the named performer', () => {
 		const roster = [
 			{

@@ -64,7 +64,10 @@ function visibleRange(projection: Projection, range: TextRange): TextRange | und
 	if (
 		projection.segments.some(
 			(segment) =>
-				segment.kind === 'generated' && segment.from < range.to && range.from < segment.to
+				(segment.kind === 'generated' && segment.from < range.to && range.from < segment.to) ||
+				(segment.kind === 'transformed' &&
+					((segment.from < range.from && range.from < segment.to) ||
+						(segment.from < range.to && range.to < segment.to)))
 		)
 	)
 		return undefined;
@@ -420,6 +423,10 @@ export function resolveDecision(
 				projection.profile === 'genius'
 					? token === '****' && isMaskedCensorRange(projection.text, action.range)
 					: isMaskedCensorRange(projection.text, action.range);
+			if (masked && !range)
+				return invalid(
+					'This word is part of a longer retained wording. Edit it in the lyrics to keep the surrounding words.'
+				);
 			if (
 				!range ||
 				action.audioCensored !== true ||

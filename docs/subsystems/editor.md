@@ -28,8 +28,10 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 - Censored-word tasks accept the complete starred token in Musixmatch after explicit audible-prefix
   and audio-cutoff confirmation. The original starred spelling stays retained for Genius. The
   decision's profile names its source representation, so removing a mask decision restores that mask.
-- Explicit semantic decisions use `resolveDecision` for both preview and commit. Quantities
-  require a complete selection, role and pronunciation; intervals require adjacent confirmed
+- Explicit semantic decisions use `resolveDecision` for both preview and commit. Range decisions
+  cannot cut through a retained wording's transformed unit. Ambiguous selections refuse before
+  changing any form, preserving surrounding lyrics for direct editing. Quantities require a complete
+  selection, role and pronunciation; intervals require adjacent confirmed
   section types and recording-bound listening facts. Repeat expansion requires independently
   selected lyric and notation ranges, count and separator. Additional occurrences receive fresh
   untimed identities without copied annotations or voices. None of these decisions is inferred
