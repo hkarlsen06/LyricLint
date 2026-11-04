@@ -50,6 +50,9 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   editor's own annotation) over any guess; `isTypingChange` judges only undispatched changes,
   by changed span. A selection defers nothing; mirrored-line deferral clamps to the peer's
   own line range.
+- `profiles/censorship.ts` owns whole masked-word candidates shared by both format checks and
+  explicit censor decisions. Candidates spanning multiple star runs remain one decision; a partial
+  range cannot leave a residual mask behind.
 - Where two rules can fire on one line, one owns the predicate and the other imports it:
   `isProseHeaderLine` (header-prose ← header-missing, numbers.spell-out),
   `isImmediateRepeat`, `recognizedUnknownMarker`, `headerNameIsEmpty`, and

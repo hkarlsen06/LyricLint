@@ -25,6 +25,9 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `conversion.svelte.test.ts`, `conversion-identities.svelte.test.ts`,
   `conversion-history.svelte.test.ts` and `e2e/profile-workbench.spec.ts` cover switching,
   undo, reload, native typing, selection and scrolled passage continuity.
+- Censored-word tasks accept the complete starred token in Musixmatch after explicit audible-prefix
+  and audio-cutoff confirmation. The original starred spelling stays retained for Genius. The
+  decision's profile names its source representation, so removing a mask decision restores that mask.
 - Explicit semantic decisions use `resolveDecision` for both preview and commit. Quantities
   require a complete selection, role and pronunciation; intervals require adjacent confirmed
   section types and recording-bound listening facts. Repeat expansion requires independently

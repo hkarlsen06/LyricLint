@@ -26,6 +26,7 @@ import {
 	type RepeatPlaceholderAction
 } from './repeat.js';
 import { resolveLinkDecision, type LinkDecision } from './links.js';
+import { isMaskedCensorRange } from '#lib/profiles/censorship.js';
 
 export type ConversionAction =
 	| RepeatAction
@@ -415,19 +416,24 @@ export function resolveDecision(
 		case 'confirmCensoredToken': {
 			const range = visibleRange(projection, action.range);
 			const token = projection.text.slice(action.range.from, action.range.to);
+			const masked =
+				projection.profile === 'genius'
+					? token === '****' && isMaskedCensorRange(projection.text, action.range)
+					: isMaskedCensorRange(projection.text, action.range);
 			if (
 				!range ||
 				action.audioCensored !== true ||
 				typeof action.heardPrefix !== 'string' ||
 				action.heardPrefix.length > 100 ||
 				/[\s[\]<>*]/u.test(action.heardPrefix) ||
-				(projection.profile === 'genius' ? token !== '****' : token !== `${action.heardPrefix}-`)
+				(!masked && (projection.profile !== 'musixmatch' || token !== `${action.heardPrefix}-`))
 			)
 				return invalid(
-					'Confirm a four-asterisk Genius token or the exact audible prefix and cutoff in Musixmatch.'
+					'Confirm the complete masked word or the exact audible prefix and cutoff in Musixmatch.'
 				);
 			const owner = next.owners.find((entry) => entry.from <= range.from && range.to <= entry.to);
-			const target = projection.profile === 'genius' ? 'musixmatch' : 'genius';
+			const sourceProfile = masked ? 'genius' : 'musixmatch';
+			const target = sourceProfile === 'genius' ? 'musixmatch' : 'genius';
 			const text = target === 'musixmatch' ? `${action.heardPrefix}-` : '****';
 			if (!owner || !putForm(next, range, target, text))
 				return invalid('This confirmed token does not have one stable lyric owner.');
@@ -441,7 +447,7 @@ export function resolveDecision(
 				{
 					id: allocateId(next, 'decision'),
 					kind: 'censored-token',
-					profile: projection.profile,
+					profile: sourceProfile,
 					ownerId: owner.id,
 					ownerRevision: owner.revision,
 					...range,

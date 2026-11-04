@@ -122,6 +122,16 @@ describe('Musixmatch transcription and structure', () => {
 		}
 	});
 
+	it.each(['f**k***', 'føe\u0301***', '***ing'])(
+		'keeps the entire masked token %s in one censorship decision',
+		(mask) => {
+			const text = `Say ${mask} now`;
+			const findings = has(text, 'transcription.censor-mask');
+			expect(findings).toHaveLength(1);
+			expect(text.slice(findings[0]!.from, findings[0]!.to)).toBe(mask);
+		}
+	);
+
 	it('flags metadata and uncertain sound descriptions without deleting potential vocals', () => {
 		expect(has('[Verse]\nWe sing', 'transcription.labels')).toHaveLength(1);
 		const [finding] = has('*Door shuts*\nWe sing', 'transcription.sound-description');

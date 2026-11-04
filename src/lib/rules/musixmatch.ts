@@ -1,5 +1,6 @@
 import { profileLanguage } from '#lib/profiles/languages.js';
 import { hasConfirmedFact } from '#lib/profiles/confirmed-facts.js';
+import { censoredWordCandidate, isMaskedCensorCandidate } from '#lib/profiles/censorship.js';
 import type {
 	Diagnostic,
 	LyricLine,
@@ -113,19 +114,21 @@ const repetitionRule: RuleDefinition = {
 
 const censorRule: RuleDefinition = {
 	id: 'mxm.transcription.censor-mask',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'manual-review',
 	sourceIds: general,
 	check(document) {
 		return lyrics(document).flatMap((line) =>
-			matchesOutsideMarkup(line, /(?:\p{L}+\*+\p{L}*|\*{2,}\p{L}*)/gu).map((match) =>
-				review(
-					this,
-					match,
-					'Confirm the audible part of this censored word.',
-					'Musixmatch transcribes audible expletives and represents an audio-censored cutoff with a hyphen. Stars do not establish which letters were heard; listen before replacing them.'
+			matchesOutsideMarkup(line, censoredWordCandidate)
+				.filter((match) => isMaskedCensorCandidate(match.text))
+				.map((match) =>
+					review(
+						this,
+						match,
+						'Confirm the audible part of this censored word.',
+						'Musixmatch transcribes audible expletives and represents an audio-censored cutoff with a hyphen. Stars do not establish which letters were heard; listen before replacing them.'
+					)
 				)
-			)
 		);
 	}
 };

@@ -106,6 +106,7 @@ export type ConversionDecision =
 	| {
 			id: string;
 			kind: 'censored-token';
+			/** Source representation of the confirmed pair, independent of the open view. */
 			profile: ProfileId;
 			ownerId: string;
 			ownerRevision: number;

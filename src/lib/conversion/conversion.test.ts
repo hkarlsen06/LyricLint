@@ -343,6 +343,49 @@ describe('lossless shared conversion', () => {
 		expect(decided.document.decisions[0]!.kind).toBe('censored-token');
 	});
 
+	it.each([
+		['genius', '****'],
+		['musixmatch', '****'],
+		['musixmatch', 'f***'],
+		['musixmatch', 'f**k***'],
+		['musixmatch', 'føe\u0301***']
+	] as const)('resolves a confirmed %s mask %s in the active Musixmatch view', (origin, mask) => {
+		const source = `I said ${mask} now`;
+		const document = imported(source, origin);
+		const projection = rendered(document, 'musixmatch');
+		const range = { from: 7, to: 7 + mask.length };
+		const decided = value(
+			resolveDecision(document, projection, {
+				kind: 'confirmCensoredToken',
+				range,
+				heardPrefix: 'f',
+				audioCensored: true
+			})
+		);
+		expect(decided.projection.text).toBe('I said f- now');
+		expect(rendered(decided.document, 'genius').text).toBe(source);
+		const restored = value(
+			resolveDecision(decided.document, decided.projection, {
+				kind: 'removeDetail',
+				detailId: decided.document.decisions[0]!.id
+			})
+		);
+		expect(restored.projection.text).toBe(source);
+		expect(restored.document.forms).toEqual([]);
+	});
+
+	it('refuses a censored-word decision for only part of a mask', () => {
+		const document = imported('Say f**k*** now', 'musixmatch');
+		expect(
+			resolveDecision(document, rendered(document, 'musixmatch'), {
+				kind: 'confirmCensoredToken',
+				range: { from: 4, to: 8 },
+				heardPrefix: 'f',
+				audioCensored: true
+			}).ok
+		).toBe(false);
+	});
+
 	it('resolves exact roster identities including ampersands and renames only the named performer', () => {
 		const roster = [
 			{
