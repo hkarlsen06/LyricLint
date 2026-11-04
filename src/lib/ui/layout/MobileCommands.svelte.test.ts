@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
-import { cdp, page } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
@@ -43,6 +43,32 @@ test('keeps phone identity and copy visible while document commands dismiss thre
 	await fireEvent.click(trigger);
 	await fireEvent.pointerDown(copy);
 	expect(screen.queryByRole('button', { name: 'Compare' })).toBeNull();
+});
+
+test.each([360, 390])('keeps history focus on the usable command at %ipx', async (width) => {
+	await page.viewport(width, 844);
+	const { controller, calls } = createTestWorkbench({ text: '[Verse]\nThe words' });
+	controller.editor.undo = () =>
+		controller.onSnapshot({ ...controller.snapshot, canUndo: false, canRedo: true });
+	controller.editor.redo = () =>
+		controller.onSnapshot({ ...controller.snapshot, canUndo: true, canRedo: false });
+	await render(DocumentToolbar, { controller });
+	await userEvent.click(await screen.findByRole('button', { name: 'Document' }));
+	const undo = screen.getByRole('button', { name: 'Undo' });
+	const redo = screen.getByRole('button', { name: 'Redo' });
+	const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+	const before = copy.getBoundingClientRect();
+	await userEvent.click(undo);
+	await waitFor(() => expect(document.activeElement).toBe(redo));
+	await userEvent.keyboard('{Enter}');
+	await waitFor(() => expect(document.activeElement).toBe(undo));
+	expect(screen.getByRole('button', { name: 'Document' }).getAttribute('aria-expanded')).toBe(
+		'true'
+	);
+	expect(copy.getBoundingClientRect().toJSON()).toEqual(before.toJSON());
+	expect(calls.focusCount).toBe(0);
+	await userEvent.keyboard('{Escape}');
+	expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Document' }));
 });
 
 test('names touch editing actions and preserves the selection before opening assignment', async () => {

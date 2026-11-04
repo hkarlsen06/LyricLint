@@ -8,7 +8,7 @@
 	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import { resolve } from '$app/paths';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
@@ -29,6 +29,28 @@
 	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
 	let commandsOpen = $state(false);
 	let commandsTrigger = $state<HTMLButtonElement>();
+	let undoButton = $state<HTMLButtonElement>();
+	let redoButton = $state<HTMLButtonElement>();
+
+	async function runHistory(
+		event: MouseEvent & { currentTarget: HTMLButtonElement },
+		redo: boolean
+	) {
+		const button = event.currentTarget;
+		const heldFocus = document.activeElement === button;
+		if (redo) controller.redo();
+		else controller.undo();
+		await tick();
+		if (
+			heldFocus &&
+			button.disabled &&
+			(document.activeElement === button || document.activeElement === document.body)
+		) {
+			const counterpart = redo ? undoButton : redoButton;
+			if (counterpart && !counterpart.disabled) counterpart.focus();
+			else commandsTrigger?.focus();
+		}
+	}
 
 	function closeCommands(event: KeyboardEvent) {
 		if (event.key !== 'Escape' || !commandsOpen || event.defaultPrevented) return;
@@ -263,23 +285,25 @@
 		     in this strip rather than beside the draft's name. Quiet tier: they are
 		     corrections, not the thing the surface is for. -->
 				<button
+					bind:this={undoButton}
 					type="button"
 					class="{phone.current ? 'button' : 'icon-button'} button--quiet document-toolbar__history"
 					aria-label="Undo"
 					title="Undo"
 					disabled={!controller.snapshot.canUndo}
-					onclick={() => controller.undo()}
+					onclick={(event) => runHistory(event, false)}
 				>
 					<ArrowCounterClockwiseIcon aria-hidden="true" size={16} weight="bold" />
 					{#if phone.current}Undo{/if}
 				</button>
 				<button
+					bind:this={redoButton}
 					type="button"
 					class="{phone.current ? 'button' : 'icon-button'} button--quiet document-toolbar__history"
 					aria-label="Redo"
 					title="Redo"
 					disabled={!controller.snapshot.canRedo}
-					onclick={() => controller.redo()}
+					onclick={(event) => runHistory(event, true)}
 				>
 					<ArrowClockwiseIcon aria-hidden="true" size={16} weight="bold" />
 					{#if phone.current}Redo{/if}
