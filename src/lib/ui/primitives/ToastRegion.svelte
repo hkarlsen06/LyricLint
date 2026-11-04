@@ -77,7 +77,9 @@
 		position: fixed;
 		z-index: var(--layer-toast);
 		right: var(--space-3);
-		bottom: calc(var(--media-strip-height, 0px) + var(--space-2));
+		bottom: calc(
+			var(--mobile-navigation-height, 0px) + var(--media-strip-height, 0px) + var(--space-2)
+		);
 		left: var(--space-3);
 		display: grid;
 		width: min(25rem, calc(100vw - 2rem));

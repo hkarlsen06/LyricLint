@@ -55,6 +55,8 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   rotation with an already-open keyboard. Pinch zoom keeps the pre-zoom layout. Transport remains in flow. Write/Review/Tools hides while the keyboard is open and
   returns after dismissal; it never rides above the keys. This gives the editor or Assistant
   composer the remaining height. `MobileWorkspace.svelte.test.ts` pins hide and restore. Desktop keeps its existing floating transport behavior.
+  Notifications clear the measured navigation and media-strip heights. Hidden navigation
+  contributes no offset; unmounting the workspace removes its published height.
   `keyboard-inset.svelte.test.ts` pins measurement and cleanup; native keyboard behavior
   also needs simulator/device validation.
 

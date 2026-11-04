@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
 import MockEditorPane from './MockEditorPane.svelte';
 import Workspace from './Workspace.svelte';
+import ToastRegion from '../primitives/ToastRegion.svelte';
 import SongPanel from '../tools/SongPanel.svelte';
 import { importDocument, renderProfile } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
@@ -58,6 +59,22 @@ test('phone review opens one decision, releases it on return, and retains the ed
 	expect(document.querySelector('#document-panel')).toBe(panel);
 	expect(screen.getByTestId('editor-region')).toBe(editor);
 	expect(editor.getBoundingClientRect().height).toBeGreaterThan(600);
+});
+
+test('notifications leave phone navigation reachable and release its offset on teardown', async () => {
+	await page.viewport(390, 844);
+	const controller = await mount();
+	controller.feedback.addToast({ message: 'Imported two performers.', duration: 60_000 });
+	await render(ToastRegion, { feedback: controller.feedback });
+	const navigation = screen.getByRole('navigation', { name: 'Workbench views' });
+	const notification = screen.getByRole('group', { name: 'Notification' });
+	await waitFor(() =>
+		expect(notification.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+			navigation.getBoundingClientRect().top
+		)
+	);
+	await cleanup();
+	expect(document.documentElement.style.getPropertyValue('--mobile-navigation-height')).toBe('');
 });
 
 test('Song fields keep touch targets outside the workspace ancestor', async () => {

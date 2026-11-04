@@ -85,6 +85,12 @@
 	let workspaceElement = $state<HTMLElement>();
 	let entranceReadyDraftId = $state<string>();
 	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
+	let navigationHeight = $state(0);
+	$effect(() => {
+		const root = document.documentElement;
+		root.style.setProperty('--mobile-navigation-height', `${navigationHeight}px`);
+		return () => root.style.removeProperty('--mobile-navigation-height');
+	});
 	const floatingVideo = $derived(!phone.current);
 	type MobileView = 'write' | 'review' | 'tools';
 	let mobileView = $state<MobileView>('write');
@@ -1451,7 +1457,7 @@
 		{/if}
 	</div>
 
-	<nav class="mobile-navigation" aria-label="Workbench views">
+	<nav class="mobile-navigation" aria-label="Workbench views" bind:offsetHeight={navigationHeight}>
 		<button
 			type="button"
 			class="button button--quiet"
