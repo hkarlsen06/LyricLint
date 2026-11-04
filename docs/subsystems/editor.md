@@ -158,12 +158,15 @@ in the same view update as the restored text and model. The shell receives one s
 Ordinary typing retains CodeMirror's own selection history. A composition's final model update
 uses `input.type.compose` to join its native text edits instead of adding a metadata-only undo.
 
-The same dispatch path maps the visible block through the two projections for direct switches,
-Undo and Redo. CodeMirror's scroll effect targets that occurrence at its existing viewport inset,
-even when the caret is elsewhere. The former switch-only measurement could read stale geometry
-after replacement and reset a long document to the top. `conversion-history.svelte.test.ts`
-covers both profile directions, repeated history, native typing and IME, multiple selections,
-text-identical switches and a distant passage containing repeated words.
+The same dispatch path maps a visible text position through the two projections for direct
+switches, Undo and Redo, retaining its measured text inset even when the caret is elsewhere.
+A logical line block can include a section widget or several screens of wrapped lyrics; its
+inset cannot be passed as a caret margin, which CodeMirror clamps to the viewport height.
+At the document start a native scroll snapshot preserves the first block and its widgets.
+The former switch-only measurement could also read stale geometry after replacement and reset
+a long document to the top. `conversion-history.svelte.test.ts` covers both profile directions,
+repeated history, native typing and IME, multiple selections, text-identical switches, deep
+wrapped lines and distant repeated passages beside section widgets.
 
 ### Section-header choices keep a fixed song progression
 

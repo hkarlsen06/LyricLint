@@ -173,6 +173,85 @@ it.each(['genius', 'musixmatch'] satisfies ProfileId[])(
 	}
 );
 
+it.each(['genius', 'musixmatch'] satisfies ProfileId[])(
+	'keeps a deeply wrapped lyric at its visual offset through %s history',
+	async (start) => {
+		const { view, handle } = mount('Silver moon over water '.repeat(1000));
+		if (start === 'musixmatch') handle.switchProfile!(start);
+		view.dom.style.height = '300px';
+		view.dom.style.width = '300px';
+		view.scrollDOM.style.overflow = 'auto';
+		await vi.waitFor(() => expect(view.scrollDOM.clientHeight).toBe(300));
+		const settle = async () => {
+			await new Promise(requestAnimationFrame);
+			await new Promise(requestAnimationFrame);
+		};
+		await settle();
+		view.scrollDOM.scrollTop = 600;
+		await settle();
+		const before = view.scrollDOM.scrollTop;
+		expect(before).toBeGreaterThan(500);
+		const other = start === 'genius' ? 'musixmatch' : 'genius';
+		for (const action of [() => handle.switchProfile!(other), handle.undo, handle.redo]) {
+			action();
+			await settle();
+			await vi.waitFor(() => expect(Math.abs(view.scrollDOM.scrollTop - before)).toBeLessThan(4));
+		}
+	}
+);
+
+it.each(['genius', 'musixmatch'] satisfies ProfileId[])(
+	'keeps the visible opening lyric below a section widget through %s history',
+	async (start) => {
+		const text = Array.from(
+			{ length: 100 },
+			(_, index) => `[Verse ${index + 1}]\nSame [silver compass](123456)\nStay beside me\n`
+		).join('\n');
+		const { view, handle } = mount(text);
+		if (start === 'musixmatch') handle.switchProfile!(start);
+		view.dom.style.height = '300px';
+		view.dom.style.width = '700px';
+		view.scrollDOM.style.overflow = 'auto';
+		await vi.waitFor(() => expect(view.scrollDOM.clientHeight).toBe(300));
+		const position = (profile: ProfileId) =>
+			view.state.doc.line(profile === 'genius' ? 198 : 148).from;
+		const offset = (profile: ProfileId) =>
+			view.coordsAtPos(position(profile))!.top - view.scrollDOM.getBoundingClientRect().top;
+		view.dispatch({
+			effects: EditorView.scrollIntoView(position(start), { y: 'start', yMargin: 2 })
+		});
+		const settle = async () => {
+			await new Promise(requestAnimationFrame);
+			await new Promise(requestAnimationFrame);
+		};
+		await settle();
+		const before = offset(start);
+		const other = start === 'genius' ? 'musixmatch' : 'genius';
+		for (const [action, profile] of [
+			[() => handle.switchProfile!(other), other],
+			[handle.undo, start],
+			[handle.redo, other]
+		] as const) {
+			action();
+			await settle();
+			await vi.waitFor(() => expect(Math.abs(offset(profile) - before)).toBeLessThan(4));
+		}
+	}
+);
+
+it('keeps the document start visible when its first section widget changes', async () => {
+	const { view, handle } = mount('[Verse]\n' + 'Silver moon over water\n'.repeat(100));
+	view.dom.style.height = '300px';
+	view.scrollDOM.style.overflow = 'auto';
+	await vi.waitFor(() => expect(view.scrollDOM.clientHeight).toBe(300));
+	for (const action of [() => handle.switchProfile!('musixmatch'), handle.undo, handle.redo]) {
+		action();
+		await new Promise(requestAnimationFrame);
+		await new Promise(requestAnimationFrame);
+		expect(view.scrollDOM.scrollTop).toBe(0);
+	}
+});
+
 it('keeps native IME composition in its own typing event after a profile replay', async () => {
 	const { view, handle } = mount(source);
 	view.dispatch({ selection: { anchor: source.length, head: source.length - 2 } });

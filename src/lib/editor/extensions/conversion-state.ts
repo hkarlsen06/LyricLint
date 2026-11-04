@@ -296,6 +296,7 @@ export function dispatchConversionTransactions(
 	let projection = conversionForState(view.state)?.projection;
 	let passage: number | undefined;
 	let inset = 0;
+	let startSnapshot: ReturnType<EditorView['scrollSnapshot']> | undefined;
 	if (
 		transactions.some(
 			(transaction) =>
@@ -304,8 +305,16 @@ export function dispatchConversionTransactions(
 	) {
 		const top = view.scrollDOM.scrollTop - view.documentPadding.top;
 		const block = view.lineBlockAtHeight(Math.max(0, top));
-		passage = block.from;
-		inset = block.top - top;
+		const bounds = view.scrollDOM.getBoundingClientRect();
+		passage =
+			view.posAtCoords({
+				x: Math.max(bounds.left, view.contentDOM.getBoundingClientRect().left) + 1,
+				y: bounds.top + Math.min(view.defaultLineHeight / 2, bounds.height / 2)
+			}) ?? block.from;
+		const coordinates = view.coordsAtPos(passage);
+		inset = coordinates ? coordinates.top - bounds.top : block.top - top;
+		// Position zero remains the document start, including its block widgets.
+		if (view.scrollDOM.scrollTop === 0) startSnapshot = view.scrollSnapshot();
 		if (!projection) {
 			const imported = importEditorState(view.state);
 			if (imported.ok) projection = imported.value.projection;
@@ -330,7 +339,7 @@ export function dispatchConversionTransactions(
 	const effects =
 		passage === undefined
 			? []
-			: [EditorView.scrollIntoView(passage, { y: 'start', yMargin: inset })];
+			: [startSnapshot ?? EditorView.scrollIntoView(passage, { y: 'start', yMargin: inset })];
 	view.update(
 		selection || effects.length
 			? [
