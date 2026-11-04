@@ -538,6 +538,8 @@ the authored text. Placement refuses that boundary. Styled passages owned by a w
 retain that section's performer; reparsing the preceding visible legend does not reassign them.
 A styled wrapper can carry several performer groups. Reconciliation retains that complete
 assignment group once per wrapper, independently of the preceding visible legend's group count.
+An unassigned retained style in a withheld section stays unassigned. A previous section's
+legend cannot supply missing attribution during a later Genius edit.
 
 The storage envelope pins renderer 2, independently of model schema/converter 1. Renderer-1
 rich envelopes upgrade only when their exact saved projection matches the corrected renderer.

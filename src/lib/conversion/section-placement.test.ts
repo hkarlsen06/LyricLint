@@ -320,6 +320,8 @@ describe('displaced retained headings', () => {
 		['<i>Mira</i>', '<i>Lena</i>'],
 		['<i>Mira</i>, <i>Noor</i>', '<i>Lena</i>'],
 		['<i>Mira</i>', '<i>Lena</i>, <i>Ken</i>'],
+		['Mira & <i>Noor</i>', 'Lena'],
+		['Mira & <i>Noor</i>', '<b>Lena</b>, <b>Ken</b>'],
 		['<i>Mira</i>, <i>Noor</i>', '<i>Lena</i>, <i>Ken</i>'],
 		['Mira & <i>Noor</i>', '<i>Lena</i>, <i>Ken</i>']
 	])(
