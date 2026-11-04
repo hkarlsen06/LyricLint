@@ -15,16 +15,15 @@
 	let heading = $state<HTMLHeadingElement>();
 	let choice = $state<NonNullable<SectionRecord['type']> | ''>('');
 	let choiceFor = $state('');
-	let reviewed = $state(false);
-	const currentId = $derived(
-		current ? `${controller.draftId}:${controller.profile}:${current.id}` : undefined
-	);
+	let reviewedFor = $state('');
+	const reviewOwner = $derived(`${controller.draftId}:${controller.profile}`);
+	const currentId = $derived(current ? `${reviewOwner}:${current.id}` : undefined);
 	const chosen = $derived(choiceFor === currentId ? choice : '');
 	// Capture focus before a keyed decision leaves, including edits and Undo outside this form.
 	$effect.pre(() => {
 		const id = currentId;
 		untrack(() => {
-			if (id) reviewed = true;
+			if (id) reviewedFor = reviewOwner;
 			const active = document.activeElement;
 			const owned = active instanceof HTMLElement && container?.contains(active);
 			choiceFor = id ?? '';
@@ -53,7 +52,7 @@
 	}
 </script>
 
-{#if findings.length || reviewed}
+{#if findings.length || (reviewedFor === reviewOwner && !controller.isEmpty)}
 	<section
 		bind:this={container}
 		class="retained-review"

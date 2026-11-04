@@ -10,6 +10,19 @@ import { profilePolicyVersions } from '#lib/profiles/versions.js';
 
 afterEach(cleanup);
 
+test('does not carry a completed review into a new empty draft', async () => {
+	const { controller } = createTestWorkbench();
+	const findings: RetainedFinding[] = [
+		{ kind: 'metadata', id: 'one', message: 'Review this detail.' }
+	];
+	const view = await render(RetainedReview, { controller, findings });
+	await view.rerender({ controller, findings: [] });
+	expect(screen.getByRole('heading', { name: 'Retained details (0)' })).toBeVisible();
+	await controller.createDraft();
+	await view.rerender({ controller, findings: [] });
+	expect(screen.queryByRole('region', { name: 'Retained details needing review' })).toBeNull();
+});
+
 test('identifies retained sections by their header and lyric, including empty boundaries', async () => {
 	const imported = importDocument({
 		text: '[Custom opening: Mira]\n[The return: Noor]\nStay beside me',
