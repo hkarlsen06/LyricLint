@@ -88,7 +88,9 @@ test('Song fields keep touch targets outside the workspace ancestor', async () =
 		...controller.snapshot,
 		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
 	});
-	await render(SongPanel, { controller });
+	const view = await render(SongPanel, { controller });
+	view.container.style.height = '550px';
+	view.container.style.overflowY = 'auto';
 	const chooser = screen.getByRole('combobox', { name: 'Choose a section' });
 	await fireEvent.change(chooser, { target: { value: imported.value.sections[0]!.id } });
 	for (const control of [
@@ -99,6 +101,14 @@ test('Song fields keep touch targets outside the workspace ancestor', async () =
 		expect(control.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
 		expect(parseFloat(getComputedStyle(control).fontSize)).toBeGreaterThanOrEqual(16);
 	}
+	controller.openSectionDetails(imported.value.sections[0]!.id, 'review');
+	await waitFor(() => {
+		const task = view.container.querySelector('.conversion-details')!;
+		expect(
+			Math.abs(task.getBoundingClientRect().top - view.container.getBoundingClientRect().top)
+		).toBeLessThanOrEqual(1);
+	});
+	expect(document.activeElement).toBe(view.container.querySelector('[data-section-id]'));
 });
 
 test('the keyboard gives its space to writing and restores navigation only after dismissal', async () => {

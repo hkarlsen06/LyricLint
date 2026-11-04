@@ -45,6 +45,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   always use the active projection; Scribe export preserves the complete document.
   A retained-section prompt names its original header and opening lyric so the passage can
   be recognized before opening Song. The Assistant introduction follows the active format.
+  A section request opens at the section controls and return action, with focus on the requested
+  section. Unrelated Song metadata stays above that reading position.
 - Format changes reset stale diagnostic and assistant proposals, including a switch away and
   back. Compare always renders the Genius projection against the Genius baseline and maps a
   chosen difference back to the active editor. Text checks and retained-detail review never claim

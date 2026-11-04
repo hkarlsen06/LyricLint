@@ -99,11 +99,12 @@
 		activeSection = request.id;
 		if (request.id === 'new') addingSection = true;
 		void tick().then(() => {
-			if (request.id === 'new') addSectionSummary?.focus();
+			if (request.id === 'new') addSectionSummary?.focus({ preventScroll: true });
 			else
 				container
 					?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(request.id)}"]`)
-					?.focus();
+					?.focus({ preventScroll: true });
+			container?.scrollIntoView({ block: 'start' });
 		});
 	});
 </script>
