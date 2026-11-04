@@ -17,6 +17,13 @@ function imported(text: string) {
 	return value(importDocument({ text, profile: 'genius', language: 'en' }));
 }
 describe('displaced retained headings', () => {
+	it('assigns an empty style after coincident headings only to its actual section', () => {
+		const document = imported('[Verse: <i>Mira</i>]\n[Chorus: <i>Noor</i>]\n<i></i>C');
+		const wrapper = document.wrappers[0]!;
+		expect(document.voices.filter((voice) => voice.wrapperId === wrapper.id)).toEqual([
+			expect.objectContaining({ sectionId: document.sections[1]!.id, rawNameText: 'Noor' })
+		]);
+	});
 	it.each(['\n', '\r\n'])(
 		'withholds an EOF heading after a whole visible replacement with %j',
 		(eol) => {
@@ -290,6 +297,41 @@ describe('displaced retained headings', () => {
 		);
 		expect(appended.projection.text).toBe(genius.text + '!');
 	});
+	it.each(['', '[Bridge]\n'])(
+		'accepts explicitly authored attribution after a displaced section and %j',
+		(coincident) => {
+			const original = imported(`[Verse]\nA\n[Chorus]\nB\n${coincident}[Outro: Lena]\n<i></i>C`);
+			const edited = value(
+				reconcileEdit(original, value(renderProfile(original, 'musixmatch')), {
+					changes: [{ from: 1, to: 2, insert: '' }]
+				})
+			);
+			const genius = value(renderProfile(edited.document, 'genius'));
+			const from = genius.text.indexOf('Lena');
+			const wrapper = edited.document.wrappers.find((entry) => entry.kind === 'voice')!;
+			const authored = value(
+				reconcileEdit(edited.document, genius, {
+					changes: [{ from, to: from + 4, insert: '<i>Lena</i>' }]
+				})
+			);
+			expect(authored.projection.text).toBe(genius.text.replace('Lena', '<i>Lena</i>'));
+			expect(authored.document.wrappers.find((entry) => entry.id === wrapper.id)).toMatchObject({
+				id: wrapper.id,
+				from: wrapper.from,
+				to: wrapper.to,
+				open: wrapper.open,
+				close: wrapper.close
+			});
+			expect(authored.document.voices.filter((voice) => voice.wrapperId === wrapper.id)).toEqual([
+				expect.objectContaining({
+					sectionId: original.sections.at(-1)!.id,
+					rawNameText: 'Lena',
+					from: wrapper.from,
+					to: wrapper.to
+				})
+			]);
+		}
+	);
 	it('refuses a heading where closing markup occupies the Genius line start', () => {
 		const original = imported('[Verse]\n[A\n<i></i>](123)\n[Chorus]\nB');
 		const projection = value(renderProfile(original, 'musixmatch'));

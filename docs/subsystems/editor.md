@@ -540,6 +540,9 @@ A styled wrapper can carry several performer groups. Reconciliation retains that
 assignment group once per wrapper, independently of the preceding visible legend's group count.
 An unassigned retained style in a withheld section stays unassigned. A previous section's
 legend cannot supply missing attribution during a later Genius edit.
+An empty style at a shared section boundary belongs to the heading before its syntax,
+determined by delimiter order. Import and later edits use the same ownership check, so a
+following section's explicit legend edit still applies to its own empty styles.
 
 The storage envelope pins renderer 2, independently of model schema/converter 1. Renderer-1
 rich envelopes upgrade only when their exact saved projection matches the corrected renderer.

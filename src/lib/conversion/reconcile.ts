@@ -8,7 +8,6 @@ import {
 import type { PassageMember } from '#lib/core/link-passages.js';
 import type { TextEdit, TextRange } from '#lib/core/types.js';
 import { importDocument } from './import.js';
-import { conversionSectionRanges } from './links.js';
 import {
 	allocateId,
 	CONVERSION_LIMITS,
@@ -23,7 +22,11 @@ import {
 	type Projection,
 	type ReconciledDocument
 } from './model.js';
-import { canRenderSection, retainSectionPlacement } from './section-placement.js';
+import {
+	canRenderSection,
+	retainSectionPlacement,
+	sectionContainsWrapper
+} from './section-placement.js';
 import { contentOffset, projectOffset, renderProfile } from './projection.js';
 
 export function applyTextEdits(text: string, edits: readonly TextEdit[]): string {
@@ -852,16 +855,18 @@ function reconcileGenius(
 	const assignedWrappers = new Set(
 		retainedVoices.flatMap((voice) => (voice.wrapperId ? [voice.wrapperId] : []))
 	);
-	const unresolvedRanges = [...conversionSectionRanges(next)]
-		.filter(([id]) => unresolvedSections.has(id))
-		.map(([, range]) => range);
+	const unresolvedRanges = next.sections.flatMap((section, index) =>
+		unresolvedSections.has(section.id) ? [{ section, following: next.sections[index + 1] }] : []
+	);
 	// An existing unassigned style must not acquire the preceding visible legend's performer.
 	for (const wrapper of next.wrappers)
 		if (
 			wrapper.kind === 'voice' &&
 			oldWrappers.has(wrapper.id) &&
 			!assignedWrappers.has(wrapper.id) &&
-			unresolvedRanges.some((range) => range.from <= wrapper.from && wrapper.to <= range.to)
+			unresolvedRanges.some(({ section, following }) =>
+				sectionContainsWrapper(section, following, wrapper)
+			)
 		)
 			retainedWrapperVoices.set(wrapper.id, []);
 	for (const voice of retainedVoices) {

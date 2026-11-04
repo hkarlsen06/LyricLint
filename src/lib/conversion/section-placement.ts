@@ -1,4 +1,22 @@
-import type { ConversionDocument, SectionRecord } from './model.js';
+import type { ConversionDocument, SectionRecord, WrapperRecord } from './model.js';
+
+/** Syntax order distinguishes empty styles from headings at the same lyric offset. */
+export function sectionContainsWrapper(
+	section: SectionRecord,
+	following: SectionRecord | undefined,
+	wrapper: WrapperRecord
+): boolean {
+	return (
+		(section.literalHeaderRange?.to ?? section.at) <= wrapper.from &&
+		(section.at < wrapper.from ||
+			section.placement === 'unresolved' ||
+			section.headerVisible === false ||
+			section.order < wrapper.openOrder) &&
+		(!following ||
+			wrapper.to < following.at ||
+			(wrapper.to === following.at && wrapper.closeOrder < following.order))
+	);
+}
 
 /** Closing markup at a shared line start would precede the heading on the Genius line. */
 export function canPlaceSection(document: ConversionDocument, at: number): boolean {

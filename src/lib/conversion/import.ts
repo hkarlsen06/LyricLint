@@ -16,6 +16,7 @@ import {
 import { renderProfile } from './projection.js';
 import { validateModel } from './validation.js';
 import { updateMetadata } from './metadata.js';
+import { sectionContainsWrapper } from './section-placement.js';
 
 interface Extraction {
 	from: number;
@@ -234,6 +235,7 @@ export function importDocument(input: ImportInput): EngineResult<ConversionDocum
 			if (!section.header) continue;
 			const record = sectionsByLocation.get(`${sharedAt(section.from)}:${section.header.name}`);
 			if (!record) continue;
+			const following = document.sections[document.sections.indexOf(record) + 1];
 			for (const group of logicalHeaderGroups(parsed, section, input.performers ?? [])) {
 				if (!group.markupSupported) continue;
 				const performers = exactMembers(group.rawNameText, input.performers ?? []);
@@ -241,8 +243,7 @@ export function importDocument(input: ImportInput): EngineResult<ConversionDocum
 					(wrapper) =>
 						wrapper.kind === 'voice' &&
 						wrapper.styleSlot === group.styleSlot &&
-						record.at <= wrapper.from &&
-						wrapper.to <= sharedAt(section.to)
+						sectionContainsWrapper(record, following, wrapper)
 				);
 				const ranges =
 					group.styleSlot === 1
