@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cdp, page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
-import { afterEach, beforeEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
 import MockEditorPane from './MockEditorPane.svelte';
 import Workspace from './Workspace.svelte';
@@ -59,6 +59,47 @@ test('phone review opens one decision, releases it on return, and retains the ed
 	expect(document.querySelector('#document-panel')).toBe(panel);
 	expect(screen.getByTestId('editor-region')).toBe(editor);
 	expect(editor.getBoundingClientRect().height).toBeGreaterThan(600);
+});
+
+test('choosing another phone finding retires the previous deferred reveal', async () => {
+	await page.viewport(390, 844);
+	const controller = await mount();
+	const editor = screen.getByTestId('editor-region');
+	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
+	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
+	const findings = await screen.findAllByRole('button', { name: /^Go to / });
+	await fireEvent.click(findings[0]);
+	await waitFor(() =>
+		expect(controller.editor.getSnapshot().selection).toEqual({ anchor: 8, head: 12 })
+	);
+	const previous = controller.editor.getSnapshot().selection;
+	await fireEvent.click(screen.getByRole('button', { name: 'All findings' }));
+
+	await waitFor(() => expect(document.activeElement).toBe(findings[0]));
+	const navigate = controller.navigateToDiagnostic;
+	const requests = vi.spyOn(controller, 'navigateToDiagnostic').mockImplementation((...args) => {
+		// A stale reveal used to alternate forever and starve the browser runner.
+		// Bound delegation so that regression fails assertions instead of hanging.
+		if (requests.mock.calls.length <= 8) navigate(...args);
+	});
+	await fireEvent.click(findings[1]);
+	await waitFor(() =>
+		expect(controller.editor.getSnapshot().selection).toEqual({ anchor: 16, head: 20 })
+	);
+	const selected = controller.editor.getSnapshot().selection;
+	expect(selected).not.toEqual(previous);
+	for (const [diagnostic] of requests.mock.calls) {
+		expect({ anchor: diagnostic.from, head: diagnostic.to }).toEqual(selected);
+	}
+	expect(screen.getAllByRole('button', { name: /^Go to / })).toEqual([findings[1]]);
+	expect(controller.editor.getSnapshot().text).toBe('[Verse]\nImma go\nImma stay');
+	expect(screen.getByTestId('editor-region')).toBe(editor);
+	expect(document.activeElement).not.toBe(screen.getByLabelText('Lyrics editor'));
+	await fireEvent.click(screen.getByRole('button', { name: 'All findings' }));
+	await waitFor(() => expect(document.activeElement).toBe(findings[1]));
+	await fireEvent.click(navigation.getByRole('button', { name: 'Write' }));
+	expect(controller.editor.getSnapshot().selection).toEqual(selected);
+	requests.mockRestore();
 });
 
 test('notifications leave phone navigation reachable and release its offset on teardown', async () => {

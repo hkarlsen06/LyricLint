@@ -141,6 +141,14 @@ The list's shared ordering, preview, and focus logic still owns Previous, Next, 
 set-aside behavior. Other rows leave layout and the accessibility tree during the decision.
 All findings restores the overview and releases the preview; Write restores the writing area.
 
+The phone navigation owner commits the requested diagnostic identity before exposing focused
+Review, then selects and reveals its exact occurrence after the editor receives its context
+height. Deferring both identity and reveal let the list queue the previously active card during
+that layout handoff. Its reveal and the deliberate press then selected each other indefinitely,
+starving the renderer after task application and Undo. The identity handoff preserves the
+ordinary reveal, selection, history and keyboard behavior without suppressing list updates.
+`MobileWorkspace.svelte.test.ts` pins switching from an earlier finding to another one.
+
 Saved choices have no active decision card. Their location controls therefore reveal the
 passage in Write, after the editor becomes visible, and return focus to the Write control.
 Calling ordinary diagnostic navigation from the overview left the editor hidden and inert,

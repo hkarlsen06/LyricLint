@@ -147,6 +147,10 @@
 
 	async function openMobileFinding(diagnostic: Diagnostic, range?: TextRange): Promise<void> {
 		if (!phone.current || mobileView !== 'review') return;
+		// Commit the target before exposing focused Review. Otherwise its reveal
+		// effect queues the previous card, and the two deferred selections keep
+		// sending each other back through this handoff.
+		controller.highlightDiagnostic(diagnostic);
 		reviewFocused = true;
 		await tick();
 		// Reveal after the editor has acquired its review-context height.
