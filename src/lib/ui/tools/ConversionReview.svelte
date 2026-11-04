@@ -21,7 +21,12 @@
 			heading?.focus({ preventScroll: true });
 		});
 	});
-	const recordingChanged = $derived(request.recordingId !== controller.media?.recordingId);
+	const recordingMismatch = $derived(request.recordingId !== controller.media?.recordingId);
+	let recordingInvalidated = $state(false);
+	$effect(() => {
+		if (recordingMismatch) recordingInvalidated = true;
+	});
+	const recordingChanged = $derived(recordingMismatch || recordingInvalidated);
 	const current = $derived(
 		!recordingChanged &&
 			request.draftId === controller.draftId &&
