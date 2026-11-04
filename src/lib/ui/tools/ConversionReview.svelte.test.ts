@@ -9,9 +9,9 @@ import LinterPanel from '../linter/LinterPanel.svelte';
 
 afterEach(cleanup);
 
-test('shows one exact lyric context and prefills only the selected integer, with a direct edit handoff', async () => {
+async function focusedTask(text: string, token: string, ruleId = 'mxm.numbers.context') {
 	const imported = importDocument({
-		text: '[Verse]\nI counted 2 stars',
+		text,
 		profile: 'genius',
 		language: 'en'
 	});
@@ -23,11 +23,12 @@ test('shows one exact lyric context and prefills only the selected integer, with
 		...controller.snapshot,
 		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
 	});
-	const from = projection.value.text.indexOf('2');
-	const range = { from, to: from + 1 };
+	const from = projection.value.text.indexOf(token);
+	if (from < 0) throw Error('The fixture must contain its target.');
+	const range = { from, to: from + token.length };
 	controller.openConversionReview(
 		diagnostic({
-			ruleId: 'mxm.numbers.context',
+			ruleId,
 			message: 'Review this quantity.',
 			severity: 'warning',
 			...range
@@ -35,6 +36,11 @@ test('shows one exact lyric context and prefills only the selected integer, with
 	);
 	const view = await render(LinterPanel, { controller });
 	const panel = within(view.container);
+	return { controller, panel, range };
+}
+
+test('shows one exact lyric context and prefills only the selected integer, with a direct edit handoff', async () => {
+	const { controller, panel, range } = await focusedTask('[Verse]\nI counted 2 stars', '2');
 	expect(panel.getByLabelText('Lyric passage').textContent).toBe('I counted 2 stars');
 	expect(panel.getByLabelText('Lyric passage').querySelector('strong')?.textContent).toBe('2');
 	expect(panel.getByLabelText('Exact whole-number value')).toHaveValue('2');
@@ -45,8 +51,68 @@ test('shows one exact lyric context and prefills only the selected integer, with
 	expect(panel.getByLabelText('Exact words as sung')).toBeVisible();
 	await fireEvent.click(panel.getByRole('button', { name: 'Edit in lyrics' }));
 	expect(controller.requestedConversionReview).toBeUndefined();
-	expect(controller.editor.getSnapshot().selection).toEqual({ anchor: from, head: from + 1 });
+	expect(controller.editor.getSnapshot().selection).toEqual({ anchor: range.from, head: range.to });
 	expect(controller.conversionPassageRequest).toBe(1);
+});
+
+test('previews the resulting lyric line below a stable quantity trigger without changing the lyrics', async () => {
+	const { controller, panel } = await focusedTask('[Verse]\nI counted 2 stars', '2');
+	await fireEvent.change(panel.getByLabelText('Meaning'), {
+		target: { value: 'ordinary-cardinal' }
+	});
+	await fireEvent.change(panel.getByLabelText('Reading on the recording'), {
+		target: { value: 'whole-quantity' }
+	});
+	const trigger = panel.getByRole('button', { name: 'Preview quantity' });
+	const before = trigger.getBoundingClientRect().toJSON();
+	const model = JSON.stringify(controller.snapshot.conversion?.model);
+	await fireEvent.click(trigger);
+	const preview = panel.getByLabelText('Replacement preview');
+	expect(preview.textContent).toBe('I counted two stars');
+	expect(preview.querySelector('strong')?.textContent).toBe('two');
+	expect(panel.queryByText('Proposed Musixmatch wording: two')).toBeNull();
+	expect(trigger.getBoundingClientRect().toJSON()).toEqual(before);
+	expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(model);
+	expect(panel.getByLabelText('Lyric passage').textContent).toBe('I counted 2 stars');
+	await fireEvent.input(panel.getByLabelText('Exact whole-number value'), {
+		target: { value: '3' }
+	});
+	expect(panel.queryByLabelText('Replacement preview')).toBeNull();
+	expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
+});
+
+test('explains an uninitialized unsupported quantity before a preview can be requested', async () => {
+	const { panel } = await focusedTask('[Verse]\nMy number is 007', '007');
+	const value = panel.getByLabelText('Exact whole-number value');
+	expect(value).toHaveValue('');
+	const guidance = panel.getByRole('status');
+	expect(guidance.textContent).toContain('without leading zeros');
+	expect(value.getAttribute('aria-describedby')).toBe(guidance.id);
+	expect(panel.getByRole('button', { name: 'Preview quantity' })).toBeDisabled();
+	expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
+});
+
+test('previews a censored prefix in its lyric line and retires it when the confirmation changes', async () => {
+	const { panel, controller } = await focusedTask(
+		'[Verse]\nI said **** tonight',
+		'****',
+		'mxm.transcription.censor-mask'
+	);
+	await fireEvent.input(panel.getByLabelText('Audible prefix'), { target: { value: 'f' } });
+	await fireEvent.click(panel.getByRole('checkbox'));
+	const trigger = panel.getByRole('button', { name: 'Preview replacement' });
+	const before = trigger.getBoundingClientRect().toJSON();
+	const model = JSON.stringify(controller.snapshot.conversion?.model);
+	await fireEvent.click(trigger);
+	const preview = panel.getByLabelText('Replacement preview');
+	expect(preview.textContent).toBe('I said f- tonight');
+	expect(preview.querySelector('strong')?.textContent).toBe('f-');
+	expect(panel.getByText('No missing letters are inferred.')).toBeVisible();
+	expect(trigger.getBoundingClientRect().toJSON()).toEqual(before);
+	expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(model);
+	await fireEvent.click(panel.getByRole('checkbox'));
+	expect(panel.queryByLabelText('Replacement preview')).toBeNull();
+	expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
 });
 
 for (const [rule, title, sourceControl] of [

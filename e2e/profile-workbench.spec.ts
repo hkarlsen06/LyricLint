@@ -31,7 +31,7 @@ test('confirms a masked word in Musixmatch while retaining the exact Genius sour
 	await page.getByRole('textbox', { name: 'Audible prefix', exact: true }).fill('f');
 	await page.getByRole('checkbox', { name: /^I listened: the recording censors/u }).check();
 	await page.getByRole('button', { name: 'Preview replacement', exact: true }).click();
-	await expect(page.getByLabel('Replacement preview')).toHaveText('f-');
+	await expect(page.getByLabel('Replacement preview')).toHaveText('I said f- tonight');
 	await page.getByRole('button', { name: 'Apply replacement', exact: true }).click();
 	await expect.poll(() => lyrics(page)).toBe('I said f- tonight');
 	const toolbar = page.locator('.document-toolbar');
@@ -320,7 +320,7 @@ test('opens the exact listening decision from a diagnostic, previews it, and ret
 		.getByRole('combobox', { name: 'Reading on the recording', exact: true })
 		.selectOption('whole-quantity');
 	await page.getByRole('button', { name: 'Preview quantity', exact: true }).click();
-	await expect(page.getByText('Proposed Musixmatch wording: two', { exact: true })).toBeVisible();
+	await expect(page.getByLabel('Replacement preview')).toHaveText('I saw two stars');
 	await expect.poll(() => lyrics(page)).toBe('I saw 2 stars');
 	await page.getByRole('button', { name: 'Apply quantity', exact: true }).click();
 	await expect.poll(() => lyrics(page)).toBe('I saw two stars');

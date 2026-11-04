@@ -84,12 +84,10 @@
 	});
 	const source = $derived(sources.find((entry) => entry.id === sourceId));
 	const basis = $derived(JSON.stringify([request, sourceId, copies, heardPrefix, listened]));
-	let preview = $state<{
-		basis: string;
-		message: string;
-		text?: string;
-		action?: ConversionAction;
-	}>();
+	type Preview = { basis: string; message: string } & (
+		{ ok: false } | { ok: true; text: string; lyrics: string; action: ConversionAction }
+	);
+	let preview = $state<Preview>();
 	const shown = $derived(preview?.basis === basis ? preview : undefined);
 	async function back() {
 		const panel = container.closest('.right-panel');
@@ -129,6 +127,7 @@
 		const result = resolveDecision(conversion.model, projection.value, action);
 		preview = result.ok
 			? {
+					ok: true,
 					basis,
 					message:
 						request.kind === 'repeat'
@@ -138,11 +137,26 @@
 						request.range.from,
 						request.range.to + result.value.projection.text.length - projection.value.text.length
 					),
+					lyrics: result.value.projection.text,
 					action
 				}
-			: { basis, message: result.refusal.message };
+			: { ok: false, basis, message: result.refusal.message };
 	}
 </script>
+
+{#snippet replacementPassage(lyrics: string)}
+	<div class="conversion-review__preview">
+		<h3>Proposed lyrics</h3>
+		<p class="lyrics" aria-label="Replacement preview">
+			{passage.before}<strong
+				>{lyrics.slice(
+					request.range.from,
+					request.range.to + lyrics.length - controller.snapshot.text.length
+				)}</strong
+			>{passage.after}
+		</p>
+	</div>
+{/snippet}
 
 <section class="conversion-review" bind:this={container} aria-label="Conversion task">
 	<button class="button button--quiet" type="button" onclick={back}>Back to Review</button>
@@ -159,7 +173,12 @@
 		</p>
 		<button class="button button--quiet" type="button" onclick={editPassage}>Edit in lyrics</button>
 		{#if request.kind === 'quantity' || request.kind === 'instrumental'}
-			<ConversionFacts {controller} focused={request} onComplete={() => void back()} />
+			<ConversionFacts
+				{controller}
+				focused={request}
+				previewPassage={replacementPassage}
+				onComplete={() => void back()}
+			/>
 		{:else}
 			{#if request.kind === 'repeat'}
 				<label
@@ -194,6 +213,7 @@
 					><input type="checkbox" bind:checked={listened} />I listened: the recording censors this
 					word immediately after that prefix</label
 				>
+				<p>If you are unsure, return to Review without applying.</p>
 			{/if}
 			<button
 				class="button"
@@ -202,13 +222,17 @@
 				onclick={prepare}>Preview replacement</button
 			>
 			<div aria-live="polite">
-				{#if shown}<p>{shown.message}</p>
-					{#if shown.action}<pre aria-label="Replacement preview">{shown.text}</pre>
+				{#if shown}
+					{#if shown.ok && request.kind === 'censor'}{@render replacementPassage(shown.lyrics)}{/if}
+					<p>{shown.message}</p>
+					{#if shown.ok}
+						{#if request.kind !== 'censor'}<pre
+								aria-label="Replacement preview">{shown.text}</pre>{/if}
 						<button
 							class="button button--contrast"
 							type="button"
 							onclick={() => {
-								if (ready && shown?.action && controller.applyConversionAction(shown.action))
+								if (ready && shown?.ok && controller.applyConversionAction(shown.action))
 									void back();
 							}}>Apply replacement</button
 						>{/if}{/if}
@@ -225,11 +249,20 @@
 		min-width: 0;
 	}
 	h2,
+	h3,
 	p {
 		margin: 0;
 	}
 	h2 {
 		font-size: var(--font-size-lg);
+	}
+	h3 {
+		font-size: var(--font-size-md);
+	}
+	.conversion-review__preview {
+		display: grid;
+		gap: var(--space-2);
+		margin-block: var(--space-2);
 	}
 	label {
 		display: grid;
@@ -244,9 +277,12 @@
 	}
 	.check {
 		grid-template-columns: auto 1fr;
+		align-items: center;
+		min-height: var(--control-height-touch);
 	}
 	.check input {
 		width: auto;
+		min-height: auto;
 	}
 	pre,
 	.lyrics {

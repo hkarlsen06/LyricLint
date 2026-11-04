@@ -1,17 +1,19 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, type Snippet } from 'svelte';
 	import { renderProfile, resolveDecision, type ConversionAction } from '#lib/conversion/index.js';
 	import type { QuantityFacts, InstrumentalIntervalFacts } from '#lib/profiles/decisions.js';
-	import { parseQuantityInteger } from '#lib/profiles/decisions.js';
+	import { decideQuantityRepresentation, parseQuantityInteger } from '#lib/profiles/decisions.js';
 	import type { ConversionReviewRequest, WorkbenchController } from '../state/workbench.svelte.js';
 	let {
 		controller,
 		savedOnly = false,
 		onComplete,
-		focused
+		focused,
+		previewPassage
 	}: {
 		controller: WorkbenchController;
 		focused?: ConversionReviewRequest;
+		previewPassage?: Snippet<[lyrics: string]>;
 		savedOnly?: boolean;
 		onComplete?: () => void;
 	} = $props();
@@ -62,6 +64,11 @@
 		if (digitForm) facts.digitForm = digitForm;
 		return facts;
 	});
+	const valueGuidance = $derived(
+		focused?.kind === 'quantity' && parseQuantityInteger(value) === undefined
+			? decideQuantityRepresentation(quantityFacts)
+			: undefined
+	);
 	let beforeId = $state('');
 	let start = $state<number>();
 	let end = $state<number>();
@@ -96,7 +103,9 @@
 		if (selectedMarker) action.markerRange = selection;
 		return action;
 	});
-	type Preview = { basis: string; action: ConversionAction; message: string; canApply: boolean };
+	type Preview = { basis: string; action: ConversionAction; message: string } & (
+		{ canApply: false } | { canApply: true; lyrics: string }
+	);
 	let quantityPreview = $state<Preview>();
 	let intervalPreview = $state<Preview>();
 	const quantityBasis = $derived(
@@ -153,6 +162,7 @@
 			basis,
 			action,
 			canApply: true,
+			lyrics: result.value.projection.text,
 			message:
 				action.kind === 'confirmQuantity'
 					? `Proposed ${target === 'genius' ? 'Genius' : 'Musixmatch'} wording: ${result.value.document.forms.at(-1)?.text ?? ''}`
@@ -191,7 +201,18 @@
 								Quantity in the selected passage
 							</h3>{/if}
 						{#if !focused}<p class="conversion-facts__lyrics">{selectedText}</p>{/if}
-						<label>Exact whole-number value<input inputmode="numeric" bind:value /></label>
+						<label
+							>Exact whole-number value<input
+								inputmode="numeric"
+								bind:value
+								aria-describedby={valueGuidance && !valueGuidance.ok
+									? `${id}-value-guidance`
+									: undefined}
+							/></label
+						>
+						{#if valueGuidance && !valueGuidance.ok}<p id={`${id}-value-guidance`} role="status">
+								{valueGuidance.message}
+							</p>{/if}
 						<label
 							>Meaning<select bind:value={usage}
 								><option value="unknown">Not confirmed</option><option value="ordinary-cardinal"
@@ -227,6 +248,7 @@
 						<button
 							type="button"
 							class="button"
+							disabled={!!valueGuidance && !valueGuidance.ok}
 							aria-expanded={!!currentQuantity}
 							aria-controls={`${id}-quantity`}
 							onclick={() =>
@@ -236,7 +258,10 @@
 								))}>Preview quantity</button
 						>
 						<div id={`${id}-quantity`} aria-live="polite">
-							{#if currentQuantity}<p>{currentQuantity.message}</p>
+							{#if currentQuantity}
+								{#if currentQuantity.canApply && previewPassage}{@render previewPassage(
+										currentQuantity.lyrics
+									)}{:else}<p>{currentQuantity.message}</p>{/if}
 								{#if currentQuantity.canApply}<button
 										type="button"
 										class="button button--contrast"
