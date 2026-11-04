@@ -17,7 +17,7 @@ import {
 	type WrapperRecord
 } from './model.js';
 import { contentOffset, projectOffset, renderProfile } from './projection.js';
-import { applyTextEdits, reconcileEdit } from './reconcile.js';
+import { applyTextEdits, reconcileEdit, updateEmptySections } from './reconcile.js';
 import { resolveFactDecision, type FactAction } from './facts.js';
 import {
 	expandRepeat,
@@ -25,7 +25,7 @@ import {
 	type RepeatAction,
 	type RepeatPlaceholderAction
 } from './repeat.js';
-import { resolveLinkDecision, type LinkDecision } from './links.js';
+import { conversionSectionRanges, resolveLinkDecision, type LinkDecision } from './links.js';
 import { isMaskedCensorRange } from '#lib/profiles/censorship.js';
 
 export type ConversionAction =
@@ -144,6 +144,19 @@ function exactReplacement(before: string, after: string): TextEdit[] {
 		afterTo--;
 	}
 	return [{ from, to, insert: after.slice(from, afterTo) }];
+}
+
+function separateRelocatedHeader(document: ConversionDocument, section: SectionRecord): void {
+	if (section.at < document.content.length && !/[\r\n]$/u.test(section.header))
+		section.header += document.content.match(/\r\n|\r|\n/u)?.[0] ?? '\n';
+}
+
+function sameVoiceStyle(voice: VoiceAssignment, other: VoiceAssignment): boolean {
+	return (
+		voice.styleSlot === other.styleSlot &&
+		makeVoiceGroupKey(voice.performerIds) === makeVoiceGroupKey(other.performerIds) &&
+		(voice.performerIds.length > 0 || voice.rawNameText === other.rawNameText)
+	);
 }
 
 function putForm(
@@ -530,7 +543,10 @@ export function resolveDecision(
 			if (action.kind === 'moveSection') {
 				const section = next.sections.find((entry) => entry.id === action.sectionId);
 				if (!section) return invalid('This section no longer exists.');
+				if (section.literalHeaderRange && section.at !== at)
+					return invalid('Repair this section heading in Genius before moving its boundary.');
 				section.at = at;
+				separateRelocatedHeader(next, section);
 				orderSyntax(next);
 			} else {
 				if (
@@ -541,6 +557,7 @@ export function resolveDecision(
 				)
 					return invalid('Choose a supported section type.');
 				const name = action.type === 'PreChorus' ? 'Pre-Chorus' : (action.type ?? 'Section');
+				const previous = next.sections.findLast((section) => section.at <= at);
 				const section: SectionRecord = {
 					id: allocateId(next, 'section'),
 					at,
@@ -550,9 +567,40 @@ export function resolveDecision(
 					explicitEmpty: at === next.content.length
 				};
 				if (action.type) section.type = action.type;
+				let inheritedVoice = false;
+				next.voices = next.voices.flatMap((voice) => {
+					if (voice.sectionId !== previous?.id || voice.to <= at) return [voice];
+					inheritedVoice = true;
+					if (voice.from >= at) return [{ ...voice, sectionId: section.id }];
+					return [
+						{ ...voice, to: at },
+						{ ...voice, id: allocateId(next, 'voice'), from: at, sectionId: section.id }
+					];
+				});
+				if (inheritedVoice && previous) {
+					const header = parseDocument(previous.header).sections[0]?.header;
+					if (header?.legendRange) {
+						const legend = previous.header.slice(
+							previous.header.indexOf(':', header.from),
+							header.to - 1
+						);
+						section.header = `[${name}${legend}]${at < next.content.length ? '\n' : ''}`;
+					}
+				}
 				next.sections.push(section);
 				orderSyntax(next, undefined, section.id);
 			}
+			const bounds = conversionSectionRanges(next);
+			if (
+				next.voices.some((voice) => {
+					const owner = bounds.get(voice.sectionId);
+					return !owner || voice.from < owner.from || voice.to > owner.to;
+				})
+			)
+				return invalid(
+					'This boundary would move voice-assigned lyrics into another section. Remove or reassign those voices before changing the boundary.'
+				);
+			updateEmptySections(next);
 			break;
 		}
 		case 'removeSection': {
@@ -574,6 +622,10 @@ export function resolveDecision(
 			const target = action.targetSectionId
 				? next.sections.find((entry) => entry.id === action.targetSectionId)
 				: undefined;
+			if (action.targetSectionId && !target)
+				return invalid('The destination section no longer exists.');
+			if (target?.literalHeaderRange)
+				return invalid('Repair the destination heading in Genius before merging its boundary.');
 			if (
 				target &&
 				(target.id === section.id ||
@@ -589,11 +641,7 @@ export function resolveDecision(
 					voices.some(
 						(voice) =>
 							!next.voices.some(
-								(other) =>
-									other.sectionId === target.id &&
-									voice.styleSlot === other.styleSlot &&
-									makeVoiceGroupKey(voice.performerIds) === makeVoiceGroupKey(other.performerIds) &&
-									(voice.performerIds.length > 0 || voice.rawNameText === other.rawNameText)
+								(other) => other.sectionId === target.id && sameVoiceStyle(voice, other)
 							)
 					)
 				)
@@ -601,7 +649,27 @@ export function resolveDecision(
 						'These sections use different voice styles. Resolve their voice assignments before merging the boundary.'
 					);
 			}
+			if (
+				!action.deleteLyrics &&
+				target &&
+				next.content.slice(section.at, end).trim() &&
+				next.voices.some(
+					(other) =>
+						other.sectionId === target.id &&
+						other.styleSlot === 1 &&
+						!voices.some((voice) => sameVoiceStyle(voice, other))
+				)
+			)
+				return invalid(
+					'These sections use different voice styles. Resolve their voice assignments before merging the boundary.'
+				);
+			if (target && next.sections.indexOf(target) > next.sections.indexOf(section)) {
+				target.at = section.at;
+				target.order = section.order;
+				separateRelocatedHeader(next, target);
+			}
 			next.sections = next.sections.filter((entry) => entry.id !== section.id);
+			updateEmptySections(next);
 			next.voices = next.voices.flatMap((voice) =>
 				voice.sectionId !== section.id
 					? [voice]

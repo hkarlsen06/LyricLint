@@ -250,7 +250,12 @@ describe('lossless shared conversion', () => {
 		);
 		expect(insert.document.sections[1]!.type).toBeUndefined();
 		expect(insert.projection.text).toBe('Moon\nStars');
-		expect(rendered(insert.document, 'genius').text).toBe('[Verse: Mira]\nMoon\n[Section]\nStars');
+		expect(rendered(insert.document, 'genius').text).toBe(
+			'[Verse: Mira]\nMoon\n[Section: Mira]\nStars'
+		);
+		expect(insert.document.voices.map((voice) => voice.sectionId)).toEqual(
+			insert.document.sections.map((section) => section.id)
+		);
 	});
 
 	it('attaches an annotation inside the shared model and removes only that detail', () => {

@@ -135,7 +135,7 @@ function retainedWrappers(
 	});
 }
 
-function updateEmptySections(document: ConversionDocument): void {
+export function updateEmptySections(document: ConversionDocument): void {
 	document.sections = document.sections.map((section, index) => ({
 		...section,
 		explicitEmpty:

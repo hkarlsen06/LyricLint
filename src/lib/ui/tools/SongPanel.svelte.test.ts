@@ -498,6 +498,110 @@ describe('SongPanel conversion restraint', () => {
 		return workbench;
 	}
 
+	async function withLiveConversion(source: string) {
+		const { controller } = createTestWorkbench({ text: source });
+		const host = document.createElement('div');
+		document.body.append(host);
+		const editor = createLyricEditor(host, {
+			initialText: source,
+			context: { language: 'en', performers: [], ruleSetVersion: 'test' },
+			callbacks: {
+				onSnapshot: (snapshot) => controller.onSnapshot(snapshot),
+				onAssignRequest: vi.fn(),
+				onSectionHeaderRequest: vi.fn(),
+				onDiagnosticActivate: vi.fn(),
+				onAnnouncement: vi.fn()
+			}
+		});
+		controller.setEditorHandle(editor.handle);
+		editor.handle.switchProfile!('musixmatch');
+		const view = await render(SongPanel, { controller });
+		return {
+			controller,
+			view,
+			dispose() {
+				editor.destroy();
+				host.remove();
+			}
+		};
+	}
+
+	test.each(['previous', 'next'] as const)(
+		'keeps the surviving section selected and focused after merging into %s, with exact Undo',
+		async (direction) => {
+			const source = '[Verse]\nOne [silver](123456) line\n[Chorus]\nTwo';
+			const { controller, dispose } = await withLiveConversion(source);
+			try {
+				const before = controller.snapshot.conversion;
+				const sections = before!.model.sections;
+				const chosen = sections[direction === 'next' ? 0 : 1]!;
+				const survivor = sections[direction === 'next' ? 1 : 0]!;
+				const chooser = screen.getByRole('combobox', { name: 'Choose a section' });
+				await fireEvent.change(chooser, { target: { value: chosen.id } });
+				await fireEvent.click(screen.getByText('More section options'));
+				const merge = screen.getByRole('button', { name: `Merge into ${direction} section` });
+				merge.focus();
+				await fireEvent.click(merge);
+				await waitFor(() =>
+					expect(
+						screen.getByRole('heading', { name: `Section 1 · ${survivor.name}` })
+					).toHaveFocus()
+				);
+				expect(chooser).toHaveValue(survivor.id);
+				expect(controller.geniusText).toBe(survivor.header + 'One [silver](123456) line\nTwo');
+				controller.undo();
+				await waitFor(() => expect(controller.snapshot.conversion).toEqual(before));
+				expect(controller.geniusText).toBe(source);
+				controller.redo();
+				await waitFor(() => expect(controller.snapshot.conversion!.model.sections).toHaveLength(1));
+				expect(chooser).toHaveValue(survivor.id);
+			} finally {
+				dispose();
+			}
+		}
+	);
+
+	test('returns focus to the chooser after removing the last boundary and restores its prompt', async () => {
+		const { controller, dispose } = await withLiveConversion('[Verse]\nWords');
+		try {
+			const chooser = screen.getByRole('combobox', { name: 'Choose a section' });
+			const sectionId = controller.snapshot.conversion!.model.sections[0]!.id;
+			await fireEvent.change(chooser, { target: { value: sectionId } });
+			await fireEvent.click(screen.getByText('More section options'));
+			const remove = screen.getByRole('button', { name: 'Remove boundary' });
+			remove.focus();
+			await fireEvent.click(remove);
+			await waitFor(() => expect(chooser).toHaveFocus());
+			expect(chooser).toHaveValue('');
+			expect((chooser as HTMLSelectElement).selectedOptions[0]!.textContent).toContain(
+				'0 musical sections'
+			);
+			expect(controller.geniusText).toBe('Words');
+		} finally {
+			dispose();
+		}
+	});
+
+	test('keeps the chosen section and action focus when different performer voices refuse a merge', async () => {
+		const source = '[Verse: Mira]\nOne\n[Chorus: Noor]\nTwo';
+		const { controller, dispose } = await withLiveConversion(source);
+		try {
+			const chooser = screen.getByRole('combobox', { name: 'Choose a section' });
+			const sectionId = controller.snapshot.conversion!.model.sections[1]!.id;
+			await fireEvent.change(chooser, { target: { value: sectionId } });
+			await fireEvent.click(screen.getByText('More section options'));
+			const merge = screen.getByRole('button', { name: 'Merge into previous section' });
+			merge.focus();
+			await fireEvent.click(merge);
+			expect(merge).toHaveFocus();
+			expect(chooser).toHaveValue(sectionId);
+			expect(controller.feedback.announcement).toContain('different voice styles');
+			expect(controller.geniusText).toBe(source);
+		} finally {
+			dispose();
+		}
+	});
+
 	test.each([360, 960])(
 		'creates and immediately opens a typed musical section with distinct stanza counts at %ipx',
 		async (width) => {

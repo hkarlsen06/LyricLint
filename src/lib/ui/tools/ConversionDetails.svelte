@@ -6,6 +6,7 @@
 	import { sectionTypeChoices as types } from '#lib/conversion/section-types.js';
 	import { projectOffset, renderProfile } from '#lib/conversion/index.js';
 	import type { ContentKind, SectionRecord } from '#lib/conversion/model.js';
+	import type { ConversionAction } from '#lib/conversion/index.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	let { controller }: { controller: WorkbenchController } = $props();
 	const conversion = $derived(controller.snapshot.conversion);
@@ -18,6 +19,10 @@
 	let newSectionType = $state('');
 	let addSectionSummary = $state<HTMLElement>();
 	let activeSection = $state<string>();
+	let sectionChooser = $state<HTMLSelectElement>();
+	const selectedSection = $derived(
+		model?.sections.some((section) => section.id === activeSection) ? activeSection : undefined
+	);
 	let removeId = $state<string>();
 	let passageLanguage = $state('');
 	let annotationId = $state('');
@@ -75,6 +80,19 @@
 				?.focus();
 		}
 	}
+	async function removeSection(action: Extract<ConversionAction, { kind: 'removeSection' }>) {
+		const index = model?.sections.findIndex((section) => section.id === action.sectionId) ?? -1;
+		const destination =
+			action.targetSectionId ?? model?.sections[index - 1]?.id ?? model?.sections[index + 1]?.id;
+		if (!controller.applyConversionAction(action)) return;
+		activeSection = destination;
+		removeId = undefined;
+		await tick();
+		const heading = destination
+			? container.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(destination)}"]`)
+			: undefined;
+		(heading ?? sectionChooser)?.focus();
+	}
 
 	async function backToReview() {
 		const panel = container.closest('.right-panel');
@@ -111,7 +129,8 @@
 			<h2>Sections</h2>
 			<label
 				>Choose a section<select
-					value={activeSection ?? ''}
+					bind:this={sectionChooser}
+					value={selectedSection ?? ''}
 					onchange={(event) => {
 						activeSection = event.currentTarget.value || undefined;
 						removeId = undefined;
@@ -234,7 +253,7 @@
 											type="button"
 											class="button button--quiet"
 											onclick={() =>
-												controller.applyConversionAction({
+												removeSection({
 													kind: 'removeSection',
 													sectionId: section.id
 												})}>Remove boundary</button
@@ -243,7 +262,7 @@
 											type="button"
 											class="button button--quiet"
 											onclick={() =>
-												controller.applyConversionAction({
+												removeSection({
 													kind: 'removeSection',
 													sectionId: section.id,
 													targetSectionId: model.sections[index - 1].id
@@ -253,7 +272,7 @@
 											type="button"
 											class="button button--quiet"
 											onclick={() =>
-												controller.applyConversionAction({
+												removeSection({
 													kind: 'removeSection',
 													sectionId: section.id,
 													targetSectionId: model.sections[index + 1].id
@@ -273,14 +292,11 @@
 												);
 												return;
 											}
-											if (
-												controller.applyConversionAction({
-													kind: 'removeSection',
-													sectionId: section.id,
-													deleteLyrics: true
-												})
-											)
-												removeId = undefined;
+											void removeSection({
+												kind: 'removeSection',
+												sectionId: section.id,
+												deleteLyrics: true
+											});
 										}}
 										>{removeId === section.id
 											? 'Confirm deletion'

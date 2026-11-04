@@ -294,7 +294,10 @@ actions, and decisions. Do not fabricate an empty text change to bypass its vali
 | Delete a body while a section control remains | Keep an explicit empty section |
 | Two originally empty sections share one boundary | Keep their ordered identities; this is valid, including at EOF |
 | An edit collapses distinct nonempty boundaries or leaves one mid-line | Preserve text and records, mark placement unresolved; no automatic newlines or section merging |
-| Remove a section boundary through controls | Keep lyric text; preview conflicting labels/assignments before an explicit merge decision |
+| Insert a section boundary through controls | Require a lyric-line start, retain annotations and split or transfer affected voice ranges with their original legend; the first surviving voice fragment keeps its ID and a new fragment receives a fresh ID |
+| Move a section boundary through controls | Require a lyric-line start and retain annotation/voice ownership; refuse a boundary that would move existing voice ranges outside their owning section |
+| Merge into the previous or next section | Keep both lyric bodies under the destination's stable ID, label and type; move a following destination to the removed boundary's position, retain matching voice ranges, and refuse incompatible voice styles |
+| Remove an unvoiced section boundary through controls | Keep lyric text and retire the boundary's link membership; Undo restores it. The implemented directional merge replaces the earlier proposed conflict-preview planner |
 | Delete section and lyrics | Remove the chosen section and body together; retire live attachments; one undo restores all |
 | Clear entire draft | Remove content and retained records together through a separate explicit command |
 

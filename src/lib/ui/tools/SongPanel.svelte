@@ -269,7 +269,7 @@
 		the user already has. `current draft` is gone from the label rather than
 		shortened for room; the toolbar names the draft.
 	-->
-	<ConversionDetails {controller} />
+	{#key controller.draftId}<ConversionDetails {controller} />{/key}
 	<section>
 		<h2>Document</h2>
 		{#if documentCounts.length > 0}

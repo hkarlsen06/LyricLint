@@ -118,23 +118,30 @@ falling back to the Review tab after the last decision is resolved.
 | Type | Choose an explicit supported profile type; preserve the independent Genius label and performer legend exactly |
 | Genius section label | Edit the label in More section options without raw source editing; preserve the performer legend and other metadata |
 | Insert section | Require a New section type choice, then insert a boundary with that type and a matching Genius heading; select the new section and focus its editor |
-| Split here | Split at a chosen line boundary; original identity stays on the original part, new part starts untyped |
-| Move boundary | Choose another valid line boundary; preserve lyric text and display which lines change section |
-| Merge with previous | Show the affected label/voice/link consequences in the same surface, then apply the selected resolution |
-| Remove section boundary | Keep lyrics; use the same merge planner when ownership would conflict |
+| Split a section | Use Add a section at a lyric-line boundary; the original identity stays on the original part and the new part receives the explicitly chosen type |
+| Move to cursor | Move the chosen boundary to the start of a lyric line; refuse changes that cross retained annotation or voice ownership |
+| Merge into previous or next section | Keep both bodies in the chosen destination, retaining its label, type and identity; refuse incompatible voice styles |
+| Remove boundary | Remove an unvoiced boundary and keep the lyrics |
 | Delete section and lyrics | Inline confirmation in the existing action slot; delete this section/body/attachments as one undo event |
 | Passage language | Use current document language or choose an explicit override for selected lyrics |
 
-For a merge with differing section types, offer `Keep previous type`, `Use this type`, and
-`Leave type unset`, preserving both original labels as retained details. Retain all compatible
-range assignments and existing exclusions; new voice-capacity/representation conflicts stay
-explicit review items. Never silently discard voices or invent new linked passages to complete
-the merge. The action preview states the affected sections and retained conflicts.
+The directional merge chooses the destination's existing label and type. A merge into the next
+section moves that destination to the removed section's start, so its body includes both sets
+of lyrics. Matching voice assignments retain their ranges and identities under the surviving
+section; incompatible assignments refuse visibly. Removed link membership is retired without
+inventing shared passages. Undo restores the removed heading and its records. After a successful
+merge, removal or deletion, the surviving section is selected and its heading receives focus;
+with no survivor, focus returns to the section chooser. An unavailable selected ID displays the
+chooser prompt, and changing drafts resets unfinished section controls.
 
-Select fields and choices are constrained by reviewed capabilities. A boundary at a line start
-can be represented by a Genius header. A boundary inside a line needs a decision: `Move before
-this line`, `Move after this line`, or `Split line here`. The last explicitly inserts a lyric
-line break with a preview; merely switching must never do that.
+These controls supersede the earlier proposed split button and multi-choice merge planner.
+Boundary moves require an existing line start. A move inside a line refuses without inserting
+newlines. Inserting a boundary splits and transfers affected voice ranges to the new section,
+inheriting the original performer legend so both formats retain the same attribution. The
+original assignment ID stays with its first surviving part; a new fragment gets a fresh ID.
+A move refuses if retained voice ranges would fall outside their owning section. Resolve
+those assignments explicitly first. Merely switching formats never changes section ownership
+or lyric line breaks.
 
 Ordered explicit empty sections remain valid and inspectable even when their boundaries share
 a position. Sections collapsed by an ambiguous edit show a placement decision. A widget may
