@@ -14,6 +14,40 @@ async function choose(page: Page, profile: 'Genius' | 'Musixmatch') {
 	await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toBeVisible();
 }
 
+test('keeps annotation spacing exact after typing over a selection across its hidden boundary', async ({
+	page
+}) => {
+	await page.goto('/workbench/');
+	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
+	const source =
+		'[Verse 1: Mira]\ni found your [silver compass](123456) by the door\nBut every road kept turning black';
+	await editor.fill(source);
+	await choose(page, 'Musixmatch');
+	await editor.evaluate((element) => {
+		const node = element as HTMLElement & {
+			cmView?: { view: import('@codemirror/view').EditorView };
+			cmTile?: { view: import('@codemirror/view').EditorView };
+		};
+		const view = (node.cmView ?? node.cmTile)!.view;
+		const from = view.state.doc.toString().indexOf('compass by');
+		view.dispatch({ selection: { anchor: from + 'compass by'.length, head: from } });
+		view.focus();
+	});
+	await page.keyboard.insertText('by');
+	const plain = 'i found your silver by the door\nBut every road kept turning black';
+	await expect.poll(() => lyrics(page)).toBe(plain);
+	await choose(page, 'Genius');
+	const expected = source.replace('[silver compass](123456) by', '[silver](123456) by');
+	await expect.poll(() => lyrics(page)).toBe(expected);
+	await page.getByRole('button', { name: 'Copy lyrics', exact: true }).click();
+	await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(expected);
+	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/u })).toBeAttached();
+	await page.reload();
+	await expect.poll(() => lyrics(page)).toBe(expected);
+	await choose(page, 'Musixmatch');
+	await expect.poll(() => lyrics(page)).toBe(plain);
+});
+
 for (const phone of [false, true]) {
 	test.describe(`retained review on ${phone ? 'phone' : 'desktop'}`, () => {
 		test.use({ hasTouch: phone, isMobile: phone });

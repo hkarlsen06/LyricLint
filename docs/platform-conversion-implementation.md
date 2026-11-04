@@ -226,6 +226,11 @@ wrapper. For hidden annotation/voice ranges, insertion strictly inside extends t
 insertion exactly at either endpoint is outside unless an explicit assignment/edit command
 includes it. Store start/end affinity and test both directions.
 
+A replacement clipping a hidden annotation edge excludes leftover separator whitespace from
+that attachment, without changing the lyric text. Nested wrappers follow the shortened range;
+empty children retain their identities at the nearest surviving parent boundary. Unrelated and
+fully enclosed edits leave authored annotation spacing intact.
+
 All editor selection ranges map independently, retaining the main selection index and direction.
 If a range becomes wholly hidden, collapse it at its owning boundary, then the nearest surviving
 boundary in document order if the owner was removed. Use document start only when none survives.

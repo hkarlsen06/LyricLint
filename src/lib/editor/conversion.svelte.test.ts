@@ -132,6 +132,49 @@ describe('lossless profile transactions', () => {
 		}
 	);
 
+	it('keeps a clipped annotation on surviving words through replacement, switching, undo and reload', () => {
+		const source =
+			'[Verse 1: Mira]\ni found your [silver compass](123456) by the door\nBut every road kept turning black';
+		const expected = source.replace('[silver compass](123456) by', '[silver](123456) by');
+		const { handle, view } = mount(source);
+		handle.setLineAnchors!([{ line: 2, time: 8 }]);
+		handle.switchProfile!('musixmatch');
+		const before = handle.getSnapshot();
+		const from = before.text.indexOf('compass by');
+		view.dispatch({ selection: { anchor: from + 'compass by'.length, head: from } });
+		view.dispatch(view.state.replaceSelection('by'));
+		const edited = handle.getSnapshot();
+		expect(edited.conversionRecovery).toBeUndefined();
+		expect(edited.text).toBe(before.text.replace('compass by', 'by'));
+		expect(edited.conversion!.model.wrappers[0]!.id).toBe(before.conversion!.model.wrappers[0]!.id);
+		expect(edited.conversion!.model.voices).toEqual(
+			before.conversion!.model.voices.map((voice) => ({
+				...voice,
+				to: voice.to - ('compass by'.length - 'by'.length)
+			}))
+		);
+		handle.switchProfile!('genius');
+		expect(handle.getSnapshot().text).toBe(expected);
+		expect(handle.getLineAnchors!()).toEqual([{ line: 2, time: 8 }]);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(edited.text);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(before.text);
+		expect(handle.getSnapshot().conversion!.model.wrappers).toEqual(
+			before.conversion!.model.wrappers
+		);
+		handle.redo();
+		expect(handle.getSnapshot().text).toBe(edited.text);
+		handle.redo();
+		expect(handle.getSnapshot().text).toBe(expected);
+		const saved = handle.getSnapshot();
+		const restored = mount(saved.text, JSON.parse(JSON.stringify(saved.conversion))).handle;
+		restored.switchProfile!('musixmatch');
+		expect(restored.getSnapshot().text).toBe(edited.text);
+		restored.switchProfile!('genius');
+		expect(restored.getSnapshot().text).toBe(expected);
+	});
+
 	it('publishes and undoes a text-identical profile change and rejects stale fixes', () => {
 		const { handle, snapshots } = mount('Hold the light');
 		const before = handle.getSnapshot();

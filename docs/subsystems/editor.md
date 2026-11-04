@@ -30,6 +30,10 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   selected lyric and notation ranges, count and separator. Additional occurrences receive fresh
   untimed identities without copied annotations or voices. None of these decisions is inferred
   merely by changing format. Diagnostic decisions open focused tasks in Review and invalidate stale previews. Standalone repeat placeholders use an explicitly chosen earlier section and fresh-copy count; the safe adjacent same-line expansion remains separate.
+	When a Musixmatch replacement clips an annotation edge, its delimiters follow the surviving
+	words and leave separator whitespace outside. Nested syntax stays within that attachment;
+	empty children keep their identities at its nearest surviving boundary. The lyric text stays
+	exact, and enclosed or unrelated edits preserve authored annotation spacing.
 
 - Rich selection copies use clipboard metadata version 2 with a validated conversion fragment
   and only its referenced performer identities. The exact `text/plain` flavor must match the

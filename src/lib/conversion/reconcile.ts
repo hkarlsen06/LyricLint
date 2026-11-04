@@ -79,6 +79,62 @@ function overlaps(range: TextRange, edit: TextEdit): boolean {
 		: range.from < edit.to && edit.from < range.to;
 }
 
+function retainedWrappers(
+	document: ConversionDocument,
+	content: string,
+	changes: readonly TextEdit[],
+	map: (at: number, affinity: -1 | 1) => number
+): ConversionDocument['wrappers'] {
+	const mapped = document.wrappers.flatMap((wrapper) => {
+		const deleted = changes.some(
+			(change) =>
+				change.from <= wrapper.from &&
+				wrapper.to <= change.to &&
+				change.from !== change.to &&
+				(change.insert.length === 0 || change.from < wrapper.from || change.to > wrapper.to)
+		);
+		if (deleted) return [];
+		const before = {
+			...wrapper,
+			from: map(wrapper.from, 1),
+			to: map(wrapper.to, wrapper.from === wrapper.to ? 1 : -1)
+		};
+		if (before.from > before.to) return [];
+		let { from, to } = before;
+		if (wrapper.kind === 'annotation') {
+			// A clipped annotation keeps surviving words, while their separator stays plain.
+			if (changes.some((change) => change.from <= wrapper.from && wrapper.from < change.to))
+				while (from < to && /\s/u.test(content[from]!)) from++;
+			if (changes.some((change) => change.from < wrapper.to && wrapper.to <= change.to))
+				while (from < to && /\s/u.test(content[to - 1]!)) to--;
+		}
+		return [{ before, after: { ...before, from, to } }];
+	});
+	const trimmed = mapped.filter(
+		({ before, after }) => before.from !== after.from || before.to !== after.to
+	);
+	return mapped.flatMap(({ before, after }) => {
+		// Nested syntax follows a trimmed parent, so moving its delimiter cannot cross a child.
+		for (const parent of trimmed) {
+			if (
+				(parent.before.from < before.from ||
+					(parent.before.from === before.from && parent.before.openOrder <= before.openOrder)) &&
+				(before.to < parent.before.to ||
+					(before.to === parent.before.to && before.closeOrder <= parent.before.closeOrder))
+			) {
+				after = {
+					...after,
+					from: Math.min(parent.after.to, Math.max(after.from, parent.after.from)),
+					to: Math.max(parent.after.from, Math.min(after.to, parent.after.to))
+				};
+			}
+		}
+		return after.from < after.to || (before.from === before.to && after.from === after.to)
+			? [after]
+			: [];
+	});
+}
+
 function updateEmptySections(document: ConversionDocument): void {
 	document.sections = document.sections.map((section, index) => ({
 		...section,
@@ -462,12 +518,13 @@ function retainOtherRecords(
 	const tokens = new Map(before.sections.map((section, index) => [section.id, -index - 1]));
 	const byToken = new Map([...tokens].map(([id, token]) => [token, id]));
 	const sectionIds = new Set(after.sections.map((section) => section.id));
-	const wrapperIds = new Set(after.wrappers.map((wrapper) => wrapper.id));
+	const wrappers = new Map(after.wrappers.map((wrapper) => [wrapper.id, wrapper]));
 	after.voices = before.voices.flatMap((voice) => {
-		if (!sectionIds.has(voice.sectionId) || (voice.wrapperId && !wrapperIds.has(voice.wrapperId)))
+		if (!sectionIds.has(voice.sectionId) || (voice.wrapperId && !wrappers.has(voice.wrapperId)))
 			return [];
-		const from = map(voice.from, 1);
-		const to = map(voice.to, -1);
+		const wrapper = voice.wrapperId ? wrappers.get(voice.wrapperId) : undefined;
+		const from = wrapper?.from ?? map(voice.from, 1);
+		const to = wrapper?.to ?? map(voice.to, -1);
 		if (
 			from > to ||
 			(from === to &&
@@ -584,19 +641,7 @@ function reconcilePlain(
 			};
 		return result;
 	});
-	next.wrappers = document.wrappers.flatMap((wrapper) => {
-		const deleted = changes.some(
-			(change) =>
-				change.from <= wrapper.from &&
-				wrapper.to <= change.to &&
-				change.from !== change.to &&
-				(change.insert.length === 0 || change.from < wrapper.from || change.to > wrapper.to)
-		);
-		if (deleted) return [];
-		const from = map(wrapper.from, 1);
-		const to = map(wrapper.to, wrapper.from === wrapper.to ? 1 : -1);
-		return from <= to ? [{ ...wrapper, from, to }] : [];
-	});
+	next.wrappers = retainedWrappers(document, next.content, changes, map);
 	retainLinesAndOwners(document, next, map, changes, projection.profile);
 	retainOtherRecords(document, next, map, changes, transfers);
 	captureAuthoredEdits(next, projection.profile, changes, map);
