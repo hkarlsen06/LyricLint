@@ -1,14 +1,45 @@
-import { fireEvent, screen } from '@testing-library/dom';
+import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
 import RetainedReview from './RetainedReview.svelte';
 import { retainedFindings, type RetainedFinding } from '#lib/conversion/review.js';
-import { importDocument, renderProfile } from '#lib/conversion/index.js';
+import { importDocument, renderProfile, resolveDecision } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
 
 afterEach(cleanup);
+
+test('keeps completion focus when the reviewed section has no visible lyrics', async () => {
+	const imported = importDocument({ text: '[Custom opening]', profile: 'genius' });
+	if (!imported.ok) throw Error(imported.refusal.message);
+	const projection = renderProfile(imported.value, 'musixmatch');
+	if (!projection.ok) throw Error(projection.refusal.message);
+	const { controller } = createTestWorkbench({ text: '' });
+	controller.onSnapshot({
+		...controller.snapshot,
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
+	const view = await render(RetainedReview, {
+		controller,
+		findings: retainedFindings(controller.snapshot)
+	});
+	screen.getByRole('combobox', { name: 'Musixmatch section type' }).focus();
+	const next = resolveDecision(imported.value, projection.value, {
+		kind: 'setSectionType',
+		sectionId: imported.value.sections[0]!.id,
+		type: 'Intro'
+	});
+	if (!next.ok) throw Error(next.refusal.message);
+	controller.onSnapshot({
+		...controller.snapshot,
+		conversion: createConversionEnvelope(next.value.document, 'musixmatch', profilePolicyVersions)
+	});
+	await view.rerender({ controller, findings: retainedFindings(controller.snapshot) });
+	await waitFor(() =>
+		expect(screen.getByRole('heading', { name: 'Retained details (0)' })).toHaveFocus()
+	);
+});
 
 test('does not carry a completed review into a new empty draft', async () => {
 	const { controller } = createTestWorkbench();

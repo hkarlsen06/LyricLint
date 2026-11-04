@@ -17,6 +17,7 @@
 	let choiceFor = $state('');
 	let reviewedFor = $state('');
 	const reviewOwner = $derived(`${controller.draftId}:${controller.profile}`);
+	const hasSections = $derived((controller.snapshot.conversion?.model.sections.length ?? 0) > 0);
 	const currentId = $derived(current ? `${reviewOwner}:${current.id}` : undefined);
 	const chosen = $derived(choiceFor === currentId ? choice : '');
 	// Capture focus before a keyed decision leaves, including edits and Undo outside this form.
@@ -52,7 +53,7 @@
 	}
 </script>
 
-{#if findings.length || (reviewedFor === reviewOwner && !controller.isEmpty)}
+{#if findings.length || (reviewedFor === reviewOwner && (!controller.isEmpty || hasSections))}
 	<section
 		bind:this={container}
 		class="retained-review"
