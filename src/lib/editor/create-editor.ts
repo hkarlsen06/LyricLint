@@ -148,6 +148,7 @@ import {
 import { conversionSectionBoundaries } from './extensions/conversion-sections.js';
 import {
 	conversionState,
+	dispatchConversionTransactions,
 	conversionForState,
 	switchEditorProfile,
 	profileForState,
@@ -961,7 +962,11 @@ export function createLyricEditor(
 			? hostRoot
 			: host.ownerDocument
 	) as Document | ShadowRoot;
-	const view = new EditorView({ state, root });
+	const view = new EditorView({
+		state,
+		root,
+		dispatchTransactions: dispatchConversionTransactions
+	});
 	// Read once, beside the extension list's own options: a listener bound at
 	// mount is not something a pane can take back without remounting.
 	const windowFind = options.windowFind ?? true;

@@ -22,8 +22,9 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 - Musixmatch section boundaries are editor widgets backed by stable retained IDs. Their controls
   open Song details; they never become copied text. Voice decorations update in the same editor
   transaction as the projection so a native caret cannot jump during asynchronous shell updates.
-  `conversion.svelte.test.ts`, `conversion-identities.svelte.test.ts` and
-  `e2e/profile-workbench.spec.ts` cover switching, undo, reload, native typing and selection.
+  `conversion.svelte.test.ts`, `conversion-identities.svelte.test.ts`,
+  `conversion-history.svelte.test.ts` and `e2e/profile-workbench.spec.ts` cover switching,
+  undo, reload, native typing, selection and scrolled passage continuity.
 - Explicit semantic decisions use `resolveDecision` for both preview and commit. Quantities
   require a complete selection, role and pronunciation; intervals require adjacent confirmed
   section types and recording-bound listening facts. Repeat expansion requires independently
@@ -145,6 +146,24 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `audio-drop.svelte.test.ts` asserts both halves.
 
 ## Decision record
+
+### Profile history retains explicit selections and maps the visible passage
+
+CodeMirror history normally derives Redo's selection by mapping the pre-change selection
+through the edit. A whole-document projection replacement collapses a selected range to a
+caret. `conversion-state.ts` inverts the complete selection only for profile transitions,
+including their history replays. History bypasses transaction filters, so
+`dispatchConversionTransactions` applies that selection without adding a history event,
+in the same view update as the restored text and model. The shell receives one settled snapshot.
+Ordinary typing retains CodeMirror's own selection history. A composition's final model update
+uses `input.type.compose` to join its native text edits instead of adding a metadata-only undo.
+
+The same dispatch path maps the visible block through the two projections for direct switches,
+Undo and Redo. CodeMirror's scroll effect targets that occurrence at its existing viewport inset,
+even when the caret is elsewhere. The former switch-only measurement could read stale geometry
+after replacement and reset a long document to the top. `conversion-history.svelte.test.ts`
+covers both profile directions, repeated history, native typing and IME, multiple selections,
+text-identical switches and a distant passage containing repeated words.
 
 ### Section-header choices keep a fixed song progression
 

@@ -4,10 +4,11 @@ import {
 	EditorSelection,
 	EditorState,
 	StateField,
+	StateEffect,
 	Transaction
 } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
-import type { EditorView } from '@codemirror/view';
+import { EditorView } from '@codemirror/view';
 import { projectedVoiceGroups } from '#lib/conversion/voices.js';
 import { setVoiceGroupsEffect } from './performer-decorations.js';
 import type { PerformerRecord, PerformerRecordDelta, TextEdit } from '#lib/core/types.js';
@@ -262,13 +263,6 @@ export function switchEditorProfile(
 		});
 		return EditorSelection.range(mapped.anchor, mapped.head);
 	});
-	const visibleTop = view.scrollDOM.getBoundingClientRect().top - view.documentTop;
-	const firstBlock = view.lineBlockAtHeight(Math.max(0, visibleTop));
-	const passage = mapSelection(value.projection, projection, {
-		anchor: firstBlock.from,
-		head: firstBlock.from
-	}).anchor;
-	const passageInset = firstBlock.top - visibleTop;
 	view.dispatch({
 		changes:
 			projection.text === view.state.doc.toString()
@@ -286,18 +280,69 @@ export function switchEditorProfile(
 			isolateHistory.of('full')
 		]
 	});
-	view.requestMeasure({
-		read: (current) =>
-			current.lineBlockAt(passage).top -
-			passageInset +
-			current.documentTop -
-			current.scrollDOM.getBoundingClientRect().top +
-			current.scrollDOM.scrollTop,
-		write: (top, current) => {
-			current.scrollDOM.scrollTop = top;
-		}
-	});
 	return { ok: true };
+}
+
+const restoreProfileSelection = StateEffect.define<EditorSelection>();
+
+/** History bypasses filters, so restore its selection in the same view update. */
+export function dispatchConversionTransactions(
+	transactions: readonly Transaction[],
+	view: EditorView
+): void {
+	const last = transactions.at(-1);
+	if (!last) return;
+	let selection: EditorSelection | undefined;
+	let projection = conversionForState(view.state)?.projection;
+	let passage: number | undefined;
+	let inset = 0;
+	if (
+		transactions.some(
+			(transaction) =>
+				profileForState(transaction.startState) !== profileForState(transaction.state)
+		)
+	) {
+		const top = view.scrollDOM.scrollTop - view.documentPadding.top;
+		const block = view.lineBlockAtHeight(Math.max(0, top));
+		passage = block.from;
+		inset = block.top - top;
+		if (!projection) {
+			const imported = importEditorState(view.state);
+			if (imported.ok) projection = imported.value.projection;
+		}
+	}
+	for (const transaction of transactions) {
+		if (selection) selection = transaction.selection ?? selection.map(transaction.changes);
+		for (const effect of transaction.effects) {
+			if (effect.is(restoreProfileSelection)) selection = effect.value;
+		}
+		const next = conversionForState(transaction.state)?.projection;
+		if (passage !== undefined) {
+			passage =
+				projection &&
+				next &&
+				profileForState(transaction.startState) !== profileForState(transaction.state)
+					? mapSelection(projection, next, { anchor: passage, head: passage }).anchor
+					: transaction.changes.mapPos(passage);
+		}
+		projection = next;
+	}
+	const effects =
+		passage === undefined
+			? []
+			: [EditorView.scrollIntoView(passage, { y: 'start', yMargin: inset })];
+	view.update(
+		selection || effects.length
+			? [
+					...transactions,
+					last.state.update({
+						selection,
+						effects,
+						annotations: Transaction.addToHistory.of(false)
+					})
+				]
+			: transactions
+	);
 }
 
 export function conversionState(
@@ -326,6 +371,17 @@ export function conversionState(
 			}
 			return [
 				setConversionStateEffect.of(previous),
+				// History guesses the opposite selection through the full replacement.
+				// Retain it explicitly on switches and their inverses, never on typing.
+				...(transaction.effects.some((effect) => effect.is(restoreProfileSelection)) ||
+				transaction.effects.some(
+					(effect) =>
+						effect.is(setConversionStateEffect) &&
+						(effect.value?.envelope.profile ?? 'genius') !==
+							(previous?.envelope.profile ?? 'genius')
+				)
+					? [restoreProfileSelection.of(transaction.startState.selection)]
+					: []),
 				...(previous
 					? metadataEffects(previous, transaction.startState.field(editorContextField)?.performers)
 					: [
@@ -458,6 +514,8 @@ export function conversionState(
 				transaction,
 				{
 					changes: additionalChanges,
+					// The settled model belongs to the native composition's typing event.
+					userEvent: ended && pending ? 'input.type.compose' : undefined,
 					effects: [
 						setConversionStateEffect.of(next),
 						...metadataEffects(next, transaction.startState.field(editorContextField)?.performers)
