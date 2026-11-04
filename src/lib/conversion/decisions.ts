@@ -38,6 +38,7 @@ export type ConversionAction =
 	| { kind: 'setForm'; range: TextRange; profile: Projection['profile']; text: string }
 	| { kind: 'keepForm'; range: TextRange }
 	| { kind: 'confirmCensoredToken'; range: TextRange; heardPrefix: string; audioCensored: true }
+	| { kind: 'setSectionLabel'; sectionId: string; label: string }
 	| { kind: 'setSectionType'; sectionId: string; type: NonNullable<SectionRecord['type']> }
 	| { kind: 'insertSection'; at: number; type?: NonNullable<SectionRecord['type']> }
 	| { kind: 'moveSection'; sectionId: string; at: number }
@@ -447,6 +448,31 @@ export function resolveDecision(
 					heardPrefix: action.heardPrefix
 				}
 			];
+			break;
+		}
+		case 'setSectionLabel': {
+			const section = next.sections.find((entry) => entry.id === action.sectionId);
+			if (!section) return invalid('This section no longer exists.');
+			if (section.headerVisible === false)
+				return invalid('Repair the partially edited section header before changing its label.');
+			if (
+				typeof action.label !== 'string' ||
+				!action.label.trim() ||
+				/[[\]:\r\n]/u.test(action.label)
+			)
+				return invalid('Enter a section label without brackets, colons or line breaks.');
+			const header = parseDocument(section.header).sections[0]?.header;
+			if (!header?.closed) return invalid('This section needs a complete Genius header.');
+			const from = section.header.indexOf(header.rawNamePart, header.from + 1);
+			const updated =
+				section.header.slice(0, from) +
+				action.label.trim() +
+				section.header.slice(from + header.rawNamePart.length);
+			const parsed = parseDocument(updated).sections[0]?.header;
+			if (!parsed?.closed || !parsed.name.trim())
+				return invalid('Enter a usable Genius section label.');
+			section.header = updated;
+			section.name = parsed.name;
 			break;
 		}
 		case 'setSectionType': {

@@ -628,3 +628,54 @@ describe('lossless shared conversion', () => {
 		}
 	});
 });
+
+describe('explicit musical section labels', () => {
+	it.each(['  [Couplet 2: Mira & <i>Noor</i>]  \nA [moon](000123)', '[Section]\nWords'])(
+		'preserves independently authored labels on type changes: %s',
+		(source) => {
+			const document = imported(source);
+			const changed = value(
+				resolveDecision(document, rendered(document, 'musixmatch'), {
+					kind: 'setSectionType',
+					sectionId: document.sections[0]!.id,
+					type: 'Verse'
+				})
+			).document;
+			expect(rendered(changed, 'genius').text).toBe(source);
+			expect(changed.wrappers).toEqual(document.wrappers);
+			expect(changed.voices).toEqual(document.voices);
+		}
+	);
+	it('edits only the requested label while retaining legend syntax, annotations and identity', () => {
+		const document = imported('  [Couplet 2: Mira & <i>Noor</i>]  \nA [moon](000123)');
+		const sectionId = document.sections[0]!.id;
+		const changed = value(
+			resolveDecision(document, rendered(document, 'musixmatch'), {
+				kind: 'setSectionLabel',
+				sectionId,
+				label: 'Verse 3'
+			})
+		).document;
+		expect(rendered(changed, 'genius').text).toBe(
+			'  [Verse 3: Mira & <i>Noor</i>]  \nA [moon](000123)'
+		);
+		expect(changed.sections[0]!.id).toBe(sectionId);
+		expect(changed.voices).toEqual(document.voices);
+		expect(changed.wrappers).toEqual(document.wrappers);
+	});
+	it.each(['', ' ', '[Verse]', 'Verse: Mira', 'Verse\nChorus', 'Verse\rChorus'])(
+		'refuses unsafe label %j without changing the document',
+		(label) => {
+			const document = imported('[Verse: Mira]\nWords');
+			const before = JSON.stringify(document);
+			expect(
+				resolveDecision(document, rendered(document, 'musixmatch'), {
+					kind: 'setSectionLabel',
+					sectionId: document.sections[0]!.id,
+					label
+				}).ok
+			).toBe(false);
+			expect(JSON.stringify(document)).toBe(before);
+		}
+	);
+});

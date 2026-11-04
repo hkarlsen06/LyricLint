@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createLyricEditor, type LyricEditorInstance } from './create-editor.js';
-import type { EditorSnapshot } from '#lib/core/types.js';
+import type { EditorSnapshot, PerformerRecord } from '#lib/core/types.js';
 import type { ConversionEnvelope } from '#lib/persistence/conversion.js';
+import { parseScribe, serializeScribe } from '#lib/scribe/format.js';
 import { setComposingEffect } from './extensions/editor-state.js';
 
 const genius =
@@ -16,14 +17,19 @@ afterEach(() => {
 	}
 });
 
-function mount(text = genius, initialConversion?: ConversionEnvelope, language = 'en') {
+function mount(
+	text = genius,
+	initialConversion?: ConversionEnvelope,
+	language = 'en',
+	performers: PerformerRecord[] = []
+) {
 	const snapshots: EditorSnapshot[] = [];
 	const host = document.createElement('div');
 	document.body.append(host);
 	const editor = createLyricEditor(host, {
 		initialText: text,
 		initialConversion,
-		context: { language, performers: [], ruleSetVersion: 'test' },
+		context: { language, performers, ruleSetVersion: 'test' },
 		callbacks: {
 			onSnapshot: (snapshot) => snapshots.push(snapshot),
 			onAssignRequest: vi.fn(),
@@ -37,6 +43,125 @@ function mount(text = genius, initialConversion?: ConversionEnvelope, language =
 }
 
 describe('lossless profile transactions', () => {
+	it('creates a typed section and edits its Genius label through history, Scribe and reload', () => {
+		const lyrics = 'A paper moon above the road\nI find my way back home\n\nStay beside me';
+		const { handle } = mount(lyrics);
+		handle.switchProfile!('musixmatch');
+		handle.setLineAnchors!([{ line: 1, time: 12 }]);
+		expect(
+			handle.dispatchConversionAction!(
+				{ kind: 'insertSection', at: 0, type: 'Verse' },
+				handle.getSnapshot().revision
+			)
+		).toEqual({ ok: true });
+		const id = handle.getSnapshot().conversion!.model.sections[0]!.id;
+		expect(handle.getSnapshot().text).toBe(lyrics);
+		handle.switchProfile!('genius');
+		expect(handle.getSnapshot().text).toBe('[Verse]\n' + lyrics);
+		expect(
+			handle.dispatchConversionAction!(
+				{ kind: 'setSectionLabel', sectionId: id, label: 'Verse 2' },
+				handle.getSnapshot().revision
+			)
+		).toEqual({ ok: true });
+		const saved = handle.getSnapshot();
+		expect(saved.text).toBe('[Verse 2]\n' + lyrics);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe('[Verse]\n' + lyrics);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(lyrics);
+		handle.undo();
+		expect(handle.getSnapshot().conversion!.model.sections).toHaveLength(0);
+		handle.redo();
+		handle.redo();
+		handle.redo();
+		expect(handle.getSnapshot().text).toBe(saved.text);
+		expect(handle.getSnapshot().conversion!.model).toEqual(saved.conversion!.model);
+		const scribe = parseScribe(
+			serializeScribe({
+				title: 'Moon',
+				language: 'en',
+				lyrics: saved.text,
+				conversion: saved.conversion,
+				performers: [],
+				lineAnchors: handle.getLineAnchors!(),
+				sectionLinks: [],
+				ignoredDiagnostics: []
+			})
+		);
+		expect(scribe.document.conversion).toEqual(saved.conversion);
+		const restored = mount(scribe.document.lyrics, scribe.document.conversion).handle;
+		expect(restored.getSnapshot().text).toBe(saved.text);
+		expect(restored.getSnapshot().conversion!.model.sections[0]!.id).toBe(id);
+		restored.switchProfile!('musixmatch');
+		expect(restored.getSnapshot().text).toBe(lyrics);
+		expect(restored.getLineAnchors!()).toEqual([{ line: 1, time: 12 }]);
+	});
+
+	it('retains performer IDs, annotations, timing and links when types and explicit labels change', () => {
+		const performers: PerformerRecord[] = [
+			{
+				id: 'mira',
+				displayName: 'Mira',
+				normalizedKey: 'mira',
+				aliases: [],
+				colorId: 'rose',
+				order: 0
+			}
+		];
+		const source = '  [Couplet 2: Mira]  \nA [moon](000123)\n\n[Refrain: Mira]\nA moon';
+		const { handle } = mount(source, undefined, 'fr', performers);
+		handle.setLineAnchors!([{ line: 2, time: 12 }]);
+		handle.setSectionLinks!([{ lines: [1, 4] }]);
+		handle.switchProfile!('musixmatch');
+		const before = handle.getSnapshot().conversion!.model;
+		const id = before.sections[0]!.id;
+		expect(before.voices[0]!.performerIds).toEqual(['mira']);
+		expect(
+			handle.dispatchConversionAction!(
+				{ kind: 'setSectionType', sectionId: id, type: 'Verse' },
+				handle.getSnapshot().revision
+			)
+		).toEqual({ ok: true });
+		handle.switchProfile!('genius');
+		expect(handle.getSnapshot().text).toBe(source);
+		expect(
+			handle.dispatchConversionAction!(
+				{ kind: 'setSectionLabel', sectionId: id, label: 'Verse 3' },
+				handle.getSnapshot().revision
+			)
+		).toEqual({ ok: true });
+		const saved = handle.getSnapshot();
+		for (const key of ['voices', 'wrappers', 'lines', 'links', 'forms', 'languageRanges'] as const)
+			expect(saved.conversion!.model[key]).toEqual(before[key]);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(source);
+		handle.redo();
+		expect(handle.getSnapshot().text).toBe(source.replace('Couplet 2', 'Verse 3'));
+		const scribe = parseScribe(
+			serializeScribe({
+				title: 'Moon',
+				language: 'fr',
+				lyrics: saved.text,
+				conversion: saved.conversion,
+				performers,
+				lineAnchors: handle.getLineAnchors!(),
+				sectionLinks: handle.getSectionLinks!(),
+				ignoredDiagnostics: []
+			})
+		);
+		expect(scribe.performers).toEqual(performers);
+		const restored = mount(
+			scribe.document.lyrics,
+			scribe.document.conversion,
+			'fr',
+			scribe.performers
+		).handle;
+		expect(restored.getSnapshot().conversion!.model).toEqual(saved.conversion!.model);
+		expect(restored.getLineAnchors!()).toEqual([{ line: 2, time: 12 }]);
+		expect(restored.getSectionLinks!()).toEqual(handle.getSectionLinks!());
+	});
+
 	it('switches the real editor 100 times without changing content, records, IDs, timings, or links', () => {
 		const { handle } = mount();
 		handle.setLineAnchors!([
