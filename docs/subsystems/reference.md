@@ -23,6 +23,8 @@ Musixmatch additions: `src/lib/profiles/reference.server.ts`, `src/lib/profiles/
   with clause counts. `/guidelines/?profile=musixmatch` enters that directory.
   Check pages keep the common `/guidelines/checks/` path and derive their text from actual rule
   output and tested invented cases. `mxm.*` IDs make profile ownership explicit.
+  A Musixmatch statement identical to its heading (with an optional final period) appears only
+  as the heading; distinct explanations, source scope, examples and checking limits remain visible.
 - A source-review finding is not an assertion that its example lyric is wrong. Check pages label
   manual examples as requiring review and do not invent an accepted lyric for a missing-policy
   finding. The assistant opens with the selected guide's independent, versioned corpus; stored

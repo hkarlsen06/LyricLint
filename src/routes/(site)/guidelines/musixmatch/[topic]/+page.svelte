@@ -79,7 +79,9 @@
 				<span class="site-meta__separator" aria-hidden="true">·</span>
 				<SiteSourceFold sources={entry.sources} />
 			</div>
-			<p><CodeProse text={entry.statement} /></p>
+			{#if entry.statement !== entry.title && entry.statement !== `${entry.title}.`}
+				<p><CodeProse text={entry.statement} /></p>
+			{/if}
 			{#if entry.handling === 'source-conflict'}
 				<p class="mxm-conflict">
 					<strong>Guidelines disagree.</strong> The official sources behind this convention state different
