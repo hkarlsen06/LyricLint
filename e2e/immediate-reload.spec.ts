@@ -69,6 +69,86 @@ test('a failed local transaction retains the latest edit for a fresh reload', as
 	expect(await text(page)).toBe('[Verse]\nSilver moon tonight');
 });
 
+test('client navigation retains pending words before the page is reloaded elsewhere', async ({
+	page
+}) => {
+	await page.goto('/workbench/');
+	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
+	await editor.fill('[Verse]\nSilver moon');
+	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/u })).toBeAttached();
+	await page.evaluate(() => {
+		document.documentElement.dataset.clientRouteToken = 'same-document';
+		const put = IDBObjectStore.prototype.put;
+		IDBObjectStore.prototype.put = function (...args) {
+			if (this.name === 'draftsV6')
+				throw new DOMException('Injected disk refusal', 'QuotaExceededError');
+			return put.apply(this, args);
+		};
+	});
+	await editor.click();
+	await page.keyboard.press('ControlOrMeta+End');
+	await page.keyboard.insertText(' tonight');
+	await expect(page.getByRole('img', { name: /^Autosave status: Save failed/u })).toBeAttached();
+	await page
+		.getByRole('navigation', { name: 'Workbench views' })
+		.getByRole('button', { name: 'Tools', exact: true })
+		.click();
+	await page.getByRole('tab', { name: 'Preferences', exact: true }).click();
+	await page.getByRole('link', { name: 'About LyricLint', exact: true }).click();
+	await expect(page).toHaveURL(/\/$/u);
+	expect(await page.locator('html').getAttribute('data-client-route-token')).toBe('same-document');
+	expect(await page.evaluate(() => sessionStorage.getItem('lyriclint:departure:v1'))).toContain(
+		'Silver moon tonight'
+	);
+	await page.reload();
+	await page.goto('/workbench/');
+	await expect(editor).toBeVisible();
+	expect(await text(page)).toBe('[Verse]\nSilver moon tonight');
+});
+
+test('failed departure recovery keeps the workbench accessible when an in-app exit is requested', async ({
+	page
+}) => {
+	await page.goto('/workbench/');
+	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
+	await editor.fill('[Verse]\nSilver moon');
+	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/u })).toBeAttached();
+	await page.evaluate(() => {
+		const put = IDBObjectStore.prototype.put;
+		IDBObjectStore.prototype.put = function (...args) {
+			if (this.name === 'draftsV6')
+				throw new DOMException('Injected disk refusal', 'QuotaExceededError');
+			return put.apply(this, args);
+		};
+		const setItem = Storage.prototype.setItem;
+		Storage.prototype.setItem = function (key, value) {
+			if (key === 'lyriclint:departure:v1')
+				throw new DOMException('Injected checkpoint refusal', 'QuotaExceededError');
+			setItem.call(this, key, value);
+		};
+	});
+	await editor.click();
+	await page.keyboard.press('ControlOrMeta+End');
+	await page.keyboard.insertText(' tonight');
+	await expect(page.getByRole('img', { name: /^Autosave status: Save failed/u })).toBeAttached();
+	await page
+		.getByRole('navigation', { name: 'Workbench views' })
+		.getByRole('button', { name: 'Tools', exact: true })
+		.click();
+	await page.getByRole('tab', { name: 'Preferences', exact: true }).click();
+	await page.getByRole('link', { name: 'About LyricLint', exact: true }).click();
+	await expect(page).toHaveURL(/\/workbench\//u);
+	await expect(page.getByRole('group', { name: 'Notification' })).toContainText(
+		'Your latest edits could not be kept for reload'
+	);
+	await page
+		.getByRole('navigation', { name: 'Workbench views' })
+		.getByRole('button', { name: 'Write', exact: true })
+		.click();
+	await expect(editor).toBeVisible();
+	expect(await text(page)).toBe('[Verse]\nSilver moon tonight');
+});
+
 test('each draft restores its own format and lyrics after immediate reload', async ({ page }) => {
 	await page.goto('/workbench/');
 	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });

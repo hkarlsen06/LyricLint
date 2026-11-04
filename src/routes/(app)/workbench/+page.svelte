@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/env';
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { parseDocument } from '#lib/core/parser.js';
@@ -65,6 +65,10 @@
 	// which returns while that flush is still in flight.
 	let guard: TabGuard | undefined;
 	const feedback = useFeedbackState();
+	beforeNavigate((navigation) => {
+		if (navigation.willUnload || navigation.to?.route.id === page.route.id) return;
+		if (checkpointPending?.() === false) navigation.cancel();
+	});
 	const finishNavigation = finishWorkbenchNavigation();
 	$effect(() => {
 		if (revealed || bootError || tabBusy) finishNavigation();
@@ -285,7 +289,7 @@
 
 	// Leaving the page is the other last moment, and the only one the
 	// `visibilitychange` flush above never sees: a client-side navigation (the
-	// `About LyricLint` link in the status bar is one press away from the caret)
+	// `About LyricLint` link in Preferences is reachable from the workbench)
 	// hides nothing and unloads nothing. Closing the database under the autosave's
 	// own ~250ms debounce lost the last edit and left the deferred write to throw
 	// against a closed connection, so the flush comes first and the close waits for
@@ -300,6 +304,7 @@
 	// the teardown side.
 	onDestroy(() => {
 		if (!browser) return;
+		checkpointPending?.();
 		backup?.destroy();
 		void (controller?.flushAutosave() ?? Promise.resolve())
 			.catch((error: unknown) => console.error('The final autosave flush failed.', error))

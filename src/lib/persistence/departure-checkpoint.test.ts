@@ -351,6 +351,82 @@ describe('departure durability', () => {
 		expect(await db.drafts.count()).toBe(2);
 	});
 
+	it('recovers pending media and words after their in-flight predecessor forks into a conflict copy', async () => {
+		const { db, repository, session, checkpoint } = await setup();
+		const original = await repository.create({ ...rich(), storageGeneration: 1 });
+		const competing = await repository.compareAndSave?.(
+			{ ...rich('[Verse]\nOther tab'), storageGeneration: 1 },
+			1
+		);
+		let releaseFirst = () => {};
+		let releaseSecond = () => {};
+		let firstEntered = () => {};
+		let secondEntered = () => {};
+		const firstReady = new Promise<void>((resolve) => {
+			firstEntered = resolve;
+		});
+		const secondReady = new Promise<void>((resolve) => {
+			secondEntered = resolve;
+		});
+		const firstGate = new Promise<void>((resolve) => {
+			releaseFirst = resolve;
+		});
+		const secondGate = new Promise<void>((resolve) => {
+			releaseSecond = resolve;
+		});
+		let writes = 0;
+		const controller = createAutosaveController(
+			{
+				...repository,
+				async compareAndSave(draft, generation, sides) {
+					if (writes++ === 0) {
+						const result = await repository.compareAndSave?.(draft, generation, sides);
+						if (!result) throw Error('Missing guarded save');
+						firstEntered();
+						await firstGate;
+						return result;
+					}
+					secondEntered();
+					await secondGate;
+					throw Error('Simulated document destruction before pending write committed');
+				}
+			},
+			{ debounceMs: 60_000, checkpoint }
+		);
+		controllers.push(controller);
+		const media = {
+			draftId: original.id,
+			name: 'Track',
+			source: 'youtube' as const,
+			videoId: 'dQw4w9WgXcQ',
+			attachedAt: original.createdAt,
+			position: 12
+		};
+		controller.schedule({ revision: 1, draft: original, sideRecords: { media } });
+		const flushing = controller.flush();
+		await firstReady;
+		controller.schedule({
+			revision: 2,
+			draft: { ...rich('[Verse]\nLatest tonight'), storageGeneration: 1 },
+			sideRecords: { media: { ...media, position: 16 } }
+		});
+		releaseFirst();
+		await secondReady;
+		controller.checkpoint?.();
+		const raw = session.getItem(DEPARTURE_KEY)!;
+		controller.cancel();
+		releaseSecond();
+		await flushing;
+		session.setItem(DEPARTURE_KEY, raw);
+		await recoverDepartureCheckpoint(db, checkpoint);
+		const recovered = await recoverStartupDraft(repository);
+		expect(recovered.text).toContain('Latest tonight');
+		expect((await db.mediaHandles.get(recovered.id))?.position).toBe(16);
+		expect((await db.mediaHandles.get(recovered.id))?.draftId).toBe(recovered.id);
+		expect(await repository.get(original.id)).toEqual(competing?.draft);
+		expect(await db.drafts.count()).toBe(2);
+	});
+
 	it('preserves the checkpoint when recovery storage or acknowledgement fails', async () => {
 		const { db, session, checkpoint, controller } = await setup();
 		controller.schedule({

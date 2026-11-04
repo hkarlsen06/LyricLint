@@ -233,6 +233,7 @@ export function createAutosaveController(
 							pending.delete(saveDraftId);
 							clearDraftTimer(saveDraftId);
 							next.draft.id = result.draft.id;
+							if (next.sideRecords?.media) next.sideRecords.media.draftId = result.draft.id;
 							next.draft.title = result.draft.title;
 							next.draft.storageGeneration = result.draft.storageGeneration;
 							next.generation = generationFor(result.draft.id);

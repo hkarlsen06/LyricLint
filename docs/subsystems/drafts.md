@@ -6,6 +6,12 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 
 ## The rules
 
+- In-app navigation checkpoints pending drafts before leaving the workbench. A failed
+  synchronous checkpoint cancels that navigation and keeps the editor available for saving
+  or export. Teardown also captures a checkpoint before its asynchronous flush. When a
+  guarded save creates a conflict copy, pending media references follow the new draft ID,
+  so a subsequent checkpoint validates and recovers the complete pending snapshot.
+
 - Rich drafts store the exact active text with a versioned `conversion` envelope. Its pinned
   renderer, guideline versions, model, and recovery projection must validate together. Legacy
   line-number anchors and links are omitted after migration; the model owns their stable records.
