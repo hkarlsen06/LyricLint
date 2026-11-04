@@ -14,6 +14,37 @@ async function choose(page: Page, profile: 'Genius' | 'Musixmatch') {
 	await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toBeVisible();
 }
 
+test('confirms a masked word in Musixmatch while retaining the exact Genius source', async ({
+	page
+}) => {
+	await page.goto('/workbench/');
+	const source = '[Verse: Mira]\nI said [****](123456) tonight';
+	await page.getByRole('textbox', { name: 'Lyrics editor' }).fill(source);
+	await choose(page, 'Musixmatch');
+	await page.getByRole('button', { name: 'Review censored word', exact: true }).click();
+	await expect(
+		page.getByRole('button', { name: 'Preview replacement', exact: true })
+	).toBeDisabled();
+	await page.getByRole('textbox', { name: 'Audible prefix', exact: true }).fill('f');
+	await page.getByRole('checkbox', { name: /^I listened: the recording censors/u }).check();
+	await page.getByRole('button', { name: 'Preview replacement', exact: true }).click();
+	await expect(page.getByLabel('Replacement preview')).toHaveText('f-');
+	await page.getByRole('button', { name: 'Apply replacement', exact: true }).click();
+	await expect.poll(() => lyrics(page)).toBe('I said f- tonight');
+	const toolbar = page.locator('.document-toolbar');
+	await toolbar.getByRole('button', { name: 'Undo', exact: true }).click();
+	await expect.poll(() => lyrics(page)).toBe('I said **** tonight');
+	await toolbar.getByRole('button', { name: 'Redo', exact: true }).click();
+	await expect.poll(() => lyrics(page)).toBe('I said f- tonight');
+	await choose(page, 'Genius');
+	await expect.poll(() => lyrics(page)).toBe(source);
+	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/u })).toBeAttached();
+	await page.reload();
+	await expect.poll(() => lyrics(page)).toBe(source);
+	await choose(page, 'Musixmatch');
+	await expect.poll(() => lyrics(page)).toBe('I said f- tonight');
+});
+
 test('keeps annotation spacing exact after typing over a selection across its hidden boundary', async ({
 	page
 }) => {
