@@ -95,7 +95,7 @@ test('client navigation retains pending words before the page is reloaded elsewh
 		.click();
 	await page.getByRole('tab', { name: 'Preferences', exact: true }).click();
 	await page.getByRole('link', { name: 'About LyricLint', exact: true }).click();
-	await expect(page).toHaveURL(/\/$/u);
+	await expect.poll(() => new URL(page.url()).pathname).toBe('/');
 	expect(await page.locator('html').getAttribute('data-client-route-token')).toBe('same-document');
 	expect(await page.evaluate(() => sessionStorage.getItem('lyriclint:departure:v1'))).toContain(
 		'Silver moon tonight'
