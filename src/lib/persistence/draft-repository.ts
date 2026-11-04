@@ -162,6 +162,7 @@ function createRecord(input: DraftCreateInput): DraftRecord {
 	if (input.conversionRecovery !== undefined) record.conversionRecovery = input.conversionRecovery;
 	if (input.originalRecovery !== undefined) record.originalRecovery = input.originalRecovery;
 	if (input.storageGeneration !== undefined) record.storageGeneration = input.storageGeneration;
+	if (input.storageWriteId !== undefined) record.storageWriteId = input.storageWriteId;
 
 	return copyDraft(record);
 }
@@ -357,16 +358,28 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 				database.mediaHandles,
 				database.draftIgnores,
 				async () => {
+					const record = copyDraft(input);
 					const existing = await database.drafts.get(input.id);
+					// A departure checkpoint can outlive the transaction it captured.
+					// Recognize its commit before considering any competing generations.
+					if (record.storageWriteId !== undefined) {
+						if (
+							existing?.storageWriteId === record.storageWriteId &&
+							(existing.storageGeneration ?? 0) > expectedGeneration
+						)
+							return { sourceId: input.id, draft: copyDraft(existing), conflicted: false };
+						const previousFork = await database.drafts.get(`autosave:${record.storageWriteId}`);
+						if (previousFork && previousFork.id !== input.id)
+							return { sourceId: input.id, draft: copyDraft(previousFork), conflicted: true };
+					}
 					const conflicted =
 						(existing?.storageGeneration ?? 0) !== expectedGeneration ||
 						(existing === undefined && expectedGeneration > 0);
 					if (!conflicted && existing?.conversion !== undefined && input.conversion === undefined) {
 						throw new Error('A rich draft cannot be replaced by a plain-text snapshot.');
 					}
-					const record = copyDraft(input);
 					if (conflicted) {
-						record.id = randomId();
+						record.id = record.storageWriteId ? `autosave:${record.storageWriteId}` : randomId();
 						record.title = `${input.title} (conflict copy)`;
 						record.storageGeneration = 1;
 						const media =

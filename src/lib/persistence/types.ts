@@ -33,6 +33,8 @@ export type {
  */
 export type AutosaveController = Omit<CoreAutosaveController, 'schedule'> & {
 	noteDraftLoaded?(draftId: string): void;
+	/** Synchronous departure recovery. False means navigation needs a warning. */
+	checkpoint?(): boolean;
 	schedule(snapshot: AutosaveSnapshot & { sideRecords?: DraftSaveSideRecords }): void;
 	/** Completed writes, including an atomic conflict copy. Never reload the editor from this. */
 	subscribeSaved?(listener: (result: DraftSaveResult) => void): () => void;
@@ -235,8 +237,20 @@ export interface SessionStorageLike {
 	removeItem(key: string): void;
 }
 
+export type DepartureSnapshot = Pick<AutosaveSnapshot, 'draft'> & {
+	precedingWrite?: { id: string; generation: number };
+	sideRecords?: DraftSaveSideRecords;
+};
+
+export interface DepartureCheckpoint {
+	write(snapshots: readonly DepartureSnapshot[]): void;
+	clear(): void;
+}
+
 /** Timing configuration for local autosave. */
 export interface AutosaveOptions {
 	debounceMs?: number;
+	checkpoint?: DepartureCheckpoint;
+	onCheckpointFailure?(): void;
 	onStatusChange?(status: AutosaveStatus): void;
 }

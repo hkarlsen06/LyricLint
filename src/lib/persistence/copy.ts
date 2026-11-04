@@ -10,6 +10,13 @@ import type { DraftRecord } from './types.js';
 
 /** Rich state is authoritative; legacy view coordinates are migration inputs only. */
 export function copyConversionFields(source: DraftRecord, target: DraftRecord): void {
+	if (source.storageWriteId !== undefined) {
+		if (
+			!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u.test(source.storageWriteId)
+		)
+			throw new Error('Invalid draft write identity.');
+		target.storageWriteId = source.storageWriteId;
+	}
 	if (source.originalRecovery !== undefined)
 		target.originalRecovery = parseOriginalRecovery(source.originalRecovery);
 	if (source.storageGeneration !== undefined) {

@@ -175,6 +175,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	let originalText = $state(deps.initialDraft.originalText);
 	let compareBaseline = $state(deps.initialDraft.compareBaseline);
 	let storageGeneration = deps.initialDraft.storageGeneration;
+	let storageWriteId = deps.initialDraft.storageWriteId;
 	let drafts = $state<DraftSummary[]>([]);
 	let saveStatus = $state<AutosaveStatus>(deps.autosave.status());
 	let statusRefreshTimer: ReturnType<typeof setTimeout> | undefined;
@@ -230,6 +231,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			record.compareBaseline = copyCompareBaseline(compareBaseline);
 		}
 		if (storageGeneration !== undefined) record.storageGeneration = storageGeneration;
+		if (storageWriteId !== undefined) record.storageWriteId = storageWriteId;
 		if (bindings.conversion !== undefined) record.conversion = bindings.conversion;
 		if (bindings.conversionRecovery !== undefined)
 			record.conversionRecovery = bindings.conversionRecovery;
@@ -368,6 +370,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		originalText = nextDraft.originalText;
 		compareBaseline = nextDraft.compareBaseline;
 		storageGeneration = nextDraft.storageGeneration;
+		storageWriteId = nextDraft.storageWriteId;
 		bindings.onDraftLoaded(nextDraft);
 	}
 
@@ -618,6 +621,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	deps.autosave.subscribeSaved?.((result) => {
 		if (result.sourceId !== draftId) return;
 		storageGeneration = result.draft.storageGeneration;
+		storageWriteId = result.draft.storageWriteId;
 		if (!result.conflicted) return;
 		draftId = result.draft.id;
 		title = result.draft.title;

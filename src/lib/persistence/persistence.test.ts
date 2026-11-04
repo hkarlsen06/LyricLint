@@ -675,6 +675,7 @@ describe('autosave and recovery', () => {
 		const complete = {
 			...draft({ id: 'whole-draft', text: '[Verse]\nFirst line\n[Chorus]\nFirst line' }),
 			storageGeneration: 0,
+			storageWriteId: '3aeb939e-9336-4b5f-8348-6d20b6b7f9ff',
 			originalText: '[Verse]\noriginal',
 			geniusUrl: 'https://genius.com/Artist-song-lyrics',
 			editorSelection: { anchor: 3, head: 7 },
@@ -730,6 +731,11 @@ describe('autosave and recovery', () => {
 		autosave.schedule({ revision: 1, draft: complete });
 		await autosave.flush();
 		complete.storageGeneration = 1;
+		const savedWriteId = (await repository.get(complete.id))?.storageWriteId;
+		expect(savedWriteId).toBeTypeOf('string');
+		if (savedWriteId === undefined) throw new Error('Missing write identity.');
+		expect(savedWriteId).not.toBe(complete.storageWriteId);
+		complete.storageWriteId = savedWriteId;
 
 		const backup = createWorkspaceBackup(database, {
 			now: () => '2026-01-02T00:00:00.000Z'
@@ -880,6 +886,7 @@ describe('autosave and recovery', () => {
 		expect((await repository.get('failed-draft'))?.text).toBe('private lyric content');
 		expect(autosave.status()).toBe('saved');
 		expect(Object.keys(autosave)).toEqual([
+			'checkpoint',
 			'subscribeSaved',
 			'schedule',
 			'flush',

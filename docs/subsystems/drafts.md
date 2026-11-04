@@ -31,6 +31,17 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   revisions and timestamps never arbitrate competing writers. Media attachment, detach, title,
   playhead, and ignored-diagnostic changes remain local until that same guarded transaction.
   Consumers without a draft generation context retain their legacy direct-storage behavior.
+- Immediate reload uses a versioned, tab-scoped session-storage departure checkpoint, written
+  synchronously on `beforeunload`, `pagehide`, or hidden visibility before async flushing. It keeps
+  the latest complete snapshot per draft plus any in-flight predecessor identity, at most 16
+  drafts and 2 Mi UTF-16 code units. Normal typing retains its debounce and does no checkpoint
+  serialization until departure. `storageWriteId` makes interrupted writes and conflict forks
+  idempotent. Recovery validates the existing workspace-file boundary and replays through CAS
+  atomically before startup selection or ignore-store hydration. It never trusts timestamps or
+  overwrites a competing generation. Malformed or failed recovery keeps its bytes and offers a
+  download with an alert; a refused departure checkpoint warns visibly and announces, and asks
+  the browser to confirm leaving. File capabilities never enter JSON or request permission:
+  recovery reuses only the same recording's committed handle; unsaved files need reconnecting.
 - Rich backups and Scribe files use version 2; ordinary legacy exports retain version 1. Import
   refuses unknown or mismatched rich state before writing. Reconciliation recovery carries both
   latest visible text and the last valid checkpoint; unreadable originals carry a source-draft
@@ -72,6 +83,29 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   `docs/subsystems/media.md` for what counts as a name worth having.
 
 ## Decision record
+
+### Departure can interrupt an IndexedDB flush
+
+A native immediate reload after typing ` tonight` lost the new words in Chromium and WebKit,
+while the toolbar still read Save pending. WebKit could fire `pagehide` while visible before
+hidden visibility. Starting another async flush in that lifecycle is insufficient: the page can
+be destroyed before the transaction commits. Departure now checkpoints synchronously and fresh
+startup replays a validated full document, including format, model, selection and side records.
+The ordinary debounce and native navigation stay intact.
+
+The latest pending edit subsumes an in-flight edit for the same draft. Its predecessor identity
+allows recovery to distinguish a landed local transaction from a competing writer; neither
+undo revision nor wall-clock time grants overwrite authority. A deterministic conflict ID and
+write identity recognize a commit whose acknowledgement was interrupted, avoiding duplicate
+copies on repeated startup. Checkpoint acknowledgement follows the atomic recovery transaction.
+A recovery failure blocks editing over the retained checkpoint rather than replacing it with a
+new document. Session storage bridges a same-tab navigation; it does not promise recovery after
+browser eviction or closing the tab. A checkpoint beyond the bounded budget refuses departure
+instead of truncating lyrics.
+
+`departure-checkpoint.test.ts` covers retained failures, stale writers and side records,
+interrupted predecessor writes, repeated recovery, malformed inputs and unreadable rich originals.
+`e2e/immediate-reload.spec.ts` drives native typing and real fresh-document reloads.
 
 ### Profile switching keeps one durable document
 

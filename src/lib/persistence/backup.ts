@@ -193,6 +193,8 @@ function parseDraft(value: Json): DraftRecord {
 		updatedAt: stringField(value, 'updatedAt'),
 		ruleSetVersion: stringField(value, 'ruleSetVersion')
 	};
+	if (value.storageWriteId !== undefined)
+		draft.storageWriteId = stringField(value, 'storageWriteId');
 	if (value.storageGeneration !== undefined) {
 		if (!Number.isSafeInteger(value.storageGeneration) || Number(value.storageGeneration) < 0) {
 			throw new WorkspaceBackupError('Invalid storage generation in backup.');

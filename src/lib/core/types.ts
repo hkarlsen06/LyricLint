@@ -432,6 +432,8 @@ export interface DraftRecord {
 	originalRecovery?: import('../persistence/conversion.js').OriginalRecovery;
 	/** Storage compare-and-save generation, independent of editor undo revisions. */
 	storageGeneration?: number;
+	/** Idempotent autosave identity, including interrupted departure checkpoints. */
+	storageWriteId?: string;
 	/** The Genius page this transcription belongs to, independent of attached audio. */
 	geniusUrl?: string;
 	id: string;

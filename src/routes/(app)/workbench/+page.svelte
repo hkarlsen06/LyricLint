@@ -24,6 +24,11 @@
 		type LyricLintDatabase,
 		type WorkspaceBackupController
 	} from '#lib/persistence/index.js';
+	import {
+		createDepartureCheckpoint,
+		recoverDepartureCheckpoint,
+		DEPARTURE_KEY
+	} from '#lib/persistence/departure-checkpoint.js';
 	import { siteUrl } from '#lib/seo.js';
 	import { currentRuleSet } from '#lib/rules/data/rule-set.js';
 	import { sourceRegistry } from '#lib/rules/data/sources.js';
@@ -53,6 +58,8 @@
 	let revealed = $state(false);
 	let database: LyricLintDatabase | undefined;
 	let backup: WorkspaceBackupController | undefined;
+	let checkpointPending: (() => boolean) | undefined;
+	let recoveryFile = $state<string | undefined>();
 	// Held for the life of this tab and given up in `onDestroy`, after the final
 	// flush has landed and the database is closed, never in the mount cleanup,
 	// which returns while that flush is still in flight.
@@ -161,13 +168,23 @@
 				});
 				// Hydrated before the workbench exists to ask: the store's readers are
 				// synchronous, so the one await this costs is spent here, at boot.
+				const checkpoint = createDepartureCheckpoint(() => window.sessionStorage);
+				const recovery = await recoverDepartureCheckpoint(database, checkpoint);
 				const ignoreStore = await createDraftIgnoreStore(database);
 				backup = createWorkspaceBackup(database, { ignoreStore });
 				const repository = createDraftRepository(database);
 				const mediaRepository = createMediaRepository(database);
 				const autosave = createAutosaveController(repository, {
-					onStatusChange: (status: AutosaveStatus) => controller?.setSaveStatus(status)
+					onStatusChange: (status: AutosaveStatus) => controller?.setSaveStatus(status),
+					checkpoint,
+					onCheckpointFailure: () => {
+						const message =
+							'Your latest edits could not be kept for reload. Keep this tab open until saved, or export your Scribe.';
+						feedback.announce(message);
+						feedback.addToast({ message });
+					}
 				});
+				checkpointPending = () => autosave.checkpoint?.() ?? false;
 				const initialDraft = await recoverStartupDraft(repository, mediaRepository);
 				const initialRecentLanguages = await repository.getRecentLanguages();
 				// `onDestroy` ran while the open was still in flight, so it found no
@@ -212,28 +229,57 @@
 						return snapshot;
 					}
 				});
+				if (recovery.recovered) {
+					const message = recovery.conflicted
+						? 'Your latest edits were recovered as a separate conflict copy. The other saved version is unchanged.'
+						: 'Your latest edits were recovered after leaving before autosave finished. Reconnect any unsaved local audio file if needed.';
+					feedback.announce(message);
+					feedback.addToast({ message });
+				}
 			} catch (error) {
 				if (!cancelled) {
 					bootError = "Local storage is unavailable, so 'scribes cannot be saved in this browser.";
+					try {
+						recoveryFile = window.sessionStorage.getItem(DEPARTURE_KEY) ?? undefined;
+					} catch {
+						/* Storage itself is unavailable. */
+					}
+					if (recoveryFile)
+						bootError =
+							'Your pending edits could not be recovered. Download the recovery file before trying again. Your saved drafts and pending recovery are preserved.';
 					console.error('LyricLint failed to open local storage.', error);
 				}
 			}
 		})();
 
-		// Hiding the tab is the last moment either of these is reachable, and a
-		// reload or a close arrives here first. The controller captures the playhead
-		// before draining the guarded draft save, then the backup sees both.
+		// The synchronous checkpoint survives destruction during the async flush.
+		// Browsers can deliver pagehide before hidden visibility. If the page stays
+		// alive, the guarded save and linked backup still finish normally.
 		const flushWhenHidden = () => {
 			if (document.visibilityState !== 'hidden') return;
+			checkpointPending?.();
 			void (async () => {
 				await controller?.flushAutosave();
 				await controller?.backup?.flush();
 			})();
 		};
+		const beforeUnload = (event: BeforeUnloadEvent) => {
+			if (checkpointPending?.() === false) {
+				event.preventDefault();
+				event.returnValue = '';
+			}
+		};
+		const pageHide = () => {
+			checkpointPending?.();
+		};
+		window.addEventListener('beforeunload', beforeUnload);
+		window.addEventListener('pagehide', pageHide);
 		document.addEventListener('visibilitychange', flushWhenHidden);
 		return () => {
 			cancelled = true;
 			document.removeEventListener('visibilitychange', flushWhenHidden);
+			window.removeEventListener('beforeunload', beforeUnload);
+			window.removeEventListener('pagehide', pageHide);
 		};
 	});
 
@@ -290,6 +336,14 @@
 {#if bootError}
 	<div class="boot-message">
 		<p role="alert">{bootError}</p>
+		{#if recoveryFile}
+			<a
+				class="button"
+				download="lyriclint-departure-recovery.json"
+				href={`data:application/json;charset=utf-8,${encodeURIComponent(recoveryFile)}`}
+				>Download recovery file</a
+			>
+		{/if}
 		<button class="button" type="button" onclick={() => location.reload()}>Reload</button>
 	</div>
 {:else if controller}

@@ -1,3 +1,4 @@
+import { randomId } from '../core/random-id.js';
 import { copyCompareBaseline, copySectionLinks, copyConversionFields } from './copy.js';
 import type {
 	AutosaveController,
@@ -7,7 +8,8 @@ import type {
 	DraftRecord,
 	DraftRepository,
 	DraftSaveResult,
-	DraftSaveSideRecords
+	DraftSaveSideRecords,
+	DepartureSnapshot
 } from './types.js';
 
 const DEFAULT_DEBOUNCE_MS = 250;
@@ -98,6 +100,42 @@ export function createAutosaveController(
 	const savedListeners = new Set<(result: DraftSaveResult) => void>();
 	let drainQueue = Promise.resolve();
 	let isSaving = false;
+	let inFlight: PendingSave | undefined;
+	let checkpointWritten = false;
+	const checkpoint = (): boolean => {
+		if (!options.checkpoint) return pending.size === 0 && !inFlight;
+		try {
+			const latest = new Map<string, DepartureSnapshot>();
+			const saves = [...(inFlight ? [inFlight] : []), ...pending.values()]
+				.filter((save) => generationFor(save.draft.id) === save.generation)
+				.sort((a, b) => a.order - b.order);
+			for (const save of saves) {
+				const previous = latest.get(save.draft.id);
+				const draft = {
+					...save.draft,
+					storageGeneration: Math.max(
+						committedGenerations.get(save.draft.id) ?? 0,
+						save.draft.storageGeneration ?? 0
+					)
+				};
+				const snapshot: DepartureSnapshot = { draft, sideRecords: save.sideRecords };
+				if (previous?.draft.storageWriteId)
+					snapshot.precedingWrite = {
+						id: previous.draft.storageWriteId,
+						generation: previous.draft.storageGeneration ?? 0
+					};
+				latest.set(draft.id, snapshot);
+			}
+			const snapshots = [...latest.values()];
+			if (snapshots.length === 0 && !checkpointWritten) return true;
+			options.checkpoint.write(snapshots);
+			checkpointWritten = snapshots.length > 0;
+			return true;
+		} catch {
+			options.onCheckpointFailure?.();
+			return false;
+		}
+	};
 	let lastSettledStatus: Extract<AutosaveStatus, 'idle' | 'saved'> = 'idle';
 	let currentStatus: AutosaveStatus = 'idle';
 
@@ -174,6 +212,11 @@ export function createAutosaveController(
 			}
 
 			isSaving = true;
+			inFlight = save;
+			save.draft.storageGeneration = Math.max(
+				committedGenerations.get(saveDraftId) ?? 0,
+				save.draft.storageGeneration ?? 0
+			);
 			refreshStatus();
 
 			try {
@@ -218,6 +261,8 @@ export function createAutosaveController(
 				}
 			} finally {
 				isSaving = false;
+				inFlight = undefined;
+				if (checkpointWritten) checkpoint();
 				refreshStatus();
 			}
 		}
@@ -230,6 +275,7 @@ export function createAutosaveController(
 	};
 
 	return {
+		checkpoint,
 		subscribeSaved(listener) {
 			savedListeners.add(listener);
 			return () => savedListeners.delete(listener);
@@ -270,7 +316,9 @@ export function createAutosaveController(
 						snapshot.sideRecords.media === null ? null : { ...snapshot.sideRecords.media };
 				next.sideRecords = sideRecords;
 			}
+			next.draft.storageWriteId = randomId();
 			pending.set(draftId, next);
+			if (checkpointWritten) checkpoint();
 			refreshStatus();
 
 			clearDraftTimer(draftId);
@@ -301,6 +349,7 @@ export function createAutosaveController(
 			for (const draftId of knownDraftIds) {
 				generations.set(draftId, generationFor(draftId) + 1);
 			}
+			if (checkpointWritten) checkpoint();
 			lastSettledStatus = 'idle';
 			refreshStatus();
 		},
@@ -311,6 +360,7 @@ export function createAutosaveController(
 			latestRevision.delete(draftId);
 			committedGenerations.delete(draftId);
 			generations.set(draftId, generationFor(draftId) + 1);
+			if (checkpointWritten) checkpoint();
 			if (pending.size === 0) {
 				lastSettledStatus = 'idle';
 			}
