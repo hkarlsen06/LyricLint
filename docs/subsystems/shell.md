@@ -43,6 +43,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   language spans, authored forms and explicit conversion decisions. Hidden information is reviewed
   through its metadata location, never through invented lyric underlines. Copy and text export
   always use the active projection; Scribe export preserves the complete document.
+  A retained-section prompt names its original header and opening lyric so the passage can
+  be recognized before opening Song. The Assistant introduction follows the active format.
 - Format changes reset stale diagnostic and assistant proposals, including a switch away and
   back. Compare always renders the Genius projection against the Genius baseline and maps a
   chosen difference back to the active editor. Text checks and retained-detail review never claim

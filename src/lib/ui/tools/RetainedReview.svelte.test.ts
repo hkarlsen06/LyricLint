@@ -3,8 +3,35 @@ import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
 import RetainedReview from './RetainedReview.svelte';
+import { retainedFindings } from '#lib/conversion/review.js';
+import { importDocument, renderProfile } from '#lib/conversion/index.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 
 afterEach(cleanup);
+
+test('identifies retained sections by their header and lyric, including empty boundaries', async () => {
+	const imported = importDocument({
+		text: '[Custom opening: Mira]\n[The return: Noor]\nStay beside me',
+		profile: 'genius'
+	});
+	if (!imported.ok) throw new Error(imported.refusal.message);
+	const projection = renderProfile(imported.value, 'musixmatch');
+	if (!projection.ok) throw new Error(projection.refusal.message);
+	const { controller } = createTestWorkbench({ text: projection.value.text });
+	controller.onSnapshot({
+		...controller.snapshot,
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
+	const findings = retainedFindings(controller.snapshot);
+	const view = await render(RetainedReview, { controller, findings });
+	const message = () => view.container.querySelector('[aria-live="polite"]')?.textContent;
+	expect(message()).toContain('[Custom opening: Mira] (empty section)');
+	await fireEvent.click(screen.getByRole('button', { name: 'Next detail' }));
+	expect(message()).toContain('[The return: Noor], beginning “Stay beside me”');
+	await fireEvent.click(screen.getByRole('button', { name: 'Review in Song' }));
+	expect(controller.requestedSection?.id).toBe(imported.value.sections[1]!.id);
+});
 
 test('reviews one retained detail at a time without moving navigation for long messages', async () => {
 	const { controller } = createTestWorkbench();

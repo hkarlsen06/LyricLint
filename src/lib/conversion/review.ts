@@ -45,12 +45,20 @@ export function retainedFindings(
 	}));
 	if (profile === 'musixmatch') {
 		for (const [index, section] of conversion.model.sections.entries()) {
-			if (!section.type)
+			if (!section.type) {
+				const label = section.header.trim() || section.name || `section ${index + 1}`;
+				const firstLine = conversion.model.content
+					.slice(section.at, conversion.model.sections[index + 1]?.at)
+					.trim()
+					.split('\n')[0]!;
+				const characters = [...firstLine];
+				const excerpt = characters.slice(0, 80).join('') + (characters.length > 80 ? '…' : '');
 				findings.push({
 					id: `section-type:${section.id}`,
 					sectionId: section.id,
-					message: `Choose the Musixmatch tag for section ${index + 1}. Its original Genius label is retained.`
+					message: `Choose a Musixmatch tag for ${label}${excerpt ? `, beginning “${excerpt}”` : ' (empty section)'}.`
 				});
+			}
 		}
 		if (!conversion.model.sections.length && conversion.model.content.trim())
 			findings.push({
