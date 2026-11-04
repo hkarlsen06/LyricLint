@@ -95,6 +95,13 @@
 								>Save section type</button
 							>
 						</form>
+					{:else if finding.kind === 'repeat-header'}
+						<button
+							type="button"
+							class="button button--quiet"
+							onclick={() => controller.editRetainedRepeatHeader(finding.sectionId)}
+							>Edit header in Genius</button
+						>
 					{:else}
 						<button
 							type="button"

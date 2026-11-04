@@ -29,7 +29,7 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
 - A focused conversion task uses the panel's full phone height. Its exact lyric-line excerpt
   marks the target in bold, and Edit in lyrics returns to Write with that range selected.
   The real editor stays mounted and hidden during the task, retaining history and playback;
-  Back to Review restores the ordinary finding and its editor context. Quantity tasks prefill
+  Back to Review restores the ordinary finding and its editor context. A retained repeat header opens its exact Genius range in Write. Passage handoffs restore selection after Write becomes visible and focus the Write control without opening the keyboard. Quantity tasks prefill
   an exact selected ASCII integer without assuming its meaning or pronunciation. Exact
   wording stays in a disclosure, and Apply quantity names the deliberate lyric change.
   `MobileWorkspace.svelte.test.ts` pins the single scroll region and edit handoff.

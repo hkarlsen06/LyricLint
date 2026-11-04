@@ -417,3 +417,13 @@ profile-specific reference behavior, and exact active-format output.
 ## Focused conversion tasks
 
 Conversion diagnostic actions stay within Review, showing only the requested task. Song remains the metadata tool. Repeat tasks capture the target before choosing an earlier source, preview explicit fresh copies and replace only the placeholder. Draft or format changes retire the task; lyric edits require reopening the current finding.
+
+Retained repeat instructions have their own metadata finding in Musixmatch, even after a section
+has a type. Edit header in Genius switches formats and selects that exact stable section's
+header for manual transcription and instruction editing. It never chooses a source or copy count.
+Ordinary untyped labels keep the inline type selector and deliberate Save. Hidden instructions
+never receive invented lyric ranges. Format switches and subsequent edits keep normal Undo.
+Conversion task requests capture recording identity alongside the original range, revision, draft
+and profile. A replacement recording retires the task with an announced recording-specific reason;
+reopen the finding and reconfirm listening. Finite ordered bounds past the recording end name its
+actual duration; precision, interior placement, listening and greater-than-fifteen-second guards remain.

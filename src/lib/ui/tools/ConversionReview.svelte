@@ -21,8 +21,10 @@
 			heading?.focus({ preventScroll: true });
 		});
 	});
+	const recordingChanged = $derived(request.recordingId !== controller.media?.recordingId);
 	const current = $derived(
-		request.draftId === controller.draftId &&
+		!recordingChanged &&
+			request.draftId === controller.draftId &&
 			request.profile === controller.profile &&
 			request.revision === controller.snapshot.revision
 	);
@@ -142,8 +144,9 @@
 	<h2 tabindex="-1" bind:this={heading}>{titles[request.kind]}</h2>
 	{#if !ready}
 		<p role="status">
-			The lyrics or format changed. Return to Review and open the current finding before applying a
-			decision.
+			{recordingChanged
+				? 'The recording changed. Return to Review and reopen the current finding, then listen to this recording and reconfirm before applying a decision.'
+				: 'The lyrics or format changed. Return to Review and open the current finding before applying a decision.'}
 		</p>
 	{:else}
 		<p class="lyrics" aria-label="Lyric passage">

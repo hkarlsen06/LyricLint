@@ -121,7 +121,22 @@
 	let previousPassageRequest = untrack(() => controller.conversionPassageRequest);
 	$effect(() => {
 		const request = controller.conversionPassageRequest;
-		if (request !== previousPassageRequest && phone.current) mobileView = 'write';
+		if (request !== previousPassageRequest) {
+			const selection = untrack(() => controller.snapshot.selection);
+			if (phone.current) mobileView = 'write';
+			void tick().then(() => {
+				controller.editor.setSelection(selection);
+				controller.editor.revealRange({
+					from: Math.min(selection.anchor, selection.head),
+					to: Math.max(selection.anchor, selection.head)
+				});
+				if (phone.current)
+					workspaceElement
+						?.querySelector<HTMLButtonElement>('.mobile-navigation [aria-pressed="true"]')
+						?.focus({ preventScroll: true });
+				else controller.editor.focus();
+			});
+		}
 		previousPassageRequest = request;
 	});
 

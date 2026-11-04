@@ -33,7 +33,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 ## The rules
 
-- Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
+- Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft, format and recording identity. A replacement recording visibly asks the user to reopen the finding and reconfirm listening. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
 - Focused conversion tasks show one lyric-line context with a bold target and one Edit in
   lyrics action. On phones the task takes the whole panel height while the editor remains
   mounted and hidden. Quantity values may be prefilled from exact unsigned ASCII digits;
@@ -49,7 +49,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   through its metadata location, never through invented lyric underlines. Copy and text export
   always use the active projection; Scribe export preserves the complete document.
   A retained-section prompt names its original header and opening lyric so the passage can
-  be recognized before choosing and saving its type in Review. Unsaved choices reset when the item changes; saving targets its stable section ID and returns focus to the retained-review heading, including after the last item. The Assistant introduction follows the active format.
+  be recognized before choosing and saving its type in Review. Retained repeat instructions remain a separate concern even on typed sections; Edit header in Genius selects their exact stable header for manual editing, without selecting a repeat source or count. Unsaved choices reset when the item changes; saving targets its stable section ID and returns focus to the retained-review heading, including after the last item. The Assistant introduction follows the active format.
   A section request opens at the section controls and return action, with focus on the requested
   section. Unrelated Song metadata stays above that reading position.
 - Format changes reset stale diagnostic and assistant proposals, including a switch away and

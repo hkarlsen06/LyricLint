@@ -86,6 +86,7 @@ interface WorkbenchDependencies {
 }
 
 export interface ConversionReviewRequest {
+	recordingId: string | undefined;
 	kind: ConversionReviewKind;
 	sequence: number;
 	range: { from: number; to: number };
@@ -101,6 +102,7 @@ export interface WorkbenchController {
 	readonly requestedConversionReview: ConversionReviewRequest | undefined;
 	dismissConversionReview(): void;
 	openConversionReview(diagnostic: Diagnostic): void;
+	editRetainedRepeatHeader(sectionId: string): void;
 	readonly conversionPassageRequest: number;
 	openSectionDetails(sectionId: string, origin?: 'editor' | 'review'): void;
 	showConversionPassage(range: TextRange): void;
@@ -667,6 +669,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			requestedSection = undefined;
 			requestedConversionReview = {
 				kind: action.kind,
+				recordingId: controller.media?.recordingId,
 				range: { from: diagnostic.from, to: diagnostic.to },
 				revision: editorSession.snapshot.revision,
 				draftId: controller.draftId,
@@ -674,6 +677,27 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				sequence: (requestedConversionReview?.sequence ?? 0) + 1
 			};
 			panel.setActiveTab('linter');
+		},
+		editRetainedRepeatHeader(sectionId) {
+			const conversion = controller.snapshot.conversion;
+			const projection = conversion && renderProfile(conversion.model, 'genius');
+			const section =
+				projection?.ok && projection.value.sections.find((item) => item.id === sectionId);
+			if (
+				!section ||
+				section.headerFrom === undefined ||
+				section.headerTo === undefined ||
+				controller.snapshot.composing
+			) {
+				const message =
+					'This retained header cannot be opened yet. Finish editing and reopen the current detail.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return;
+			}
+			controller.switchProfile('genius');
+			if (controller.profile !== 'genius') return;
+			controller.showConversionPassage({ from: section.headerFrom, to: section.headerTo });
 		},
 		dismissConversionReview() {
 			requestedConversionReview = undefined;

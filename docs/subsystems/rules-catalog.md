@@ -53,6 +53,7 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
 - `profiles/censorship.ts` owns whole masked-word candidates shared by both format checks and
   explicit censor decisions. Candidates spanning multiple star runs remain one decision; a partial
   range cannot leave a residual mask behind.
+- `repeat.placeholder` owns `hasRepeatHeaderInstruction`, shared by visible Genius findings and retained Musixmatch metadata. A section type cannot settle a repeat instruction. Instrumental bounds beyond a finite recording name its actual duration separately from malformed boundaries; all listening, precision and interior-placement guards remain.
 - Where two rules can fire on one line, one owns the predicate and the other imports it:
   `isProseHeaderLine` (header-prose ← header-missing, numbers.spell-out),
   `isImmediateRepeat`, `recognizedUnknownMarker`, `headerNameIsEmpty`, and

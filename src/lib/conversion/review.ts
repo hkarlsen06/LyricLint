@@ -1,4 +1,6 @@
+import { parseDocument } from '#lib/core/parser.js';
 import type { Diagnostic, EditorSnapshot } from '#lib/core/types.js';
+import { hasRepeatHeaderInstruction } from '#lib/rules/catalog/repeat-placeholder.js';
 import { renderProfile } from './projection.js';
 
 export type ConversionReviewKind = 'quantity' | 'instrumental' | 'censor' | 'repeat';
@@ -22,7 +24,8 @@ export function conversionReviewAction(
 }
 
 export type RetainedFinding = { id: string; message: string } & (
-	{ kind: 'section-type'; sectionId: string } | { kind: 'metadata'; sectionId?: string }
+	| { kind: 'section-type' | 'repeat-header'; sectionId: string }
+	| { kind: 'metadata'; sectionId?: string }
 );
 
 /** Metadata has its own location; a hidden boundary is never invented lyric text. */
@@ -45,7 +48,18 @@ export function retainedFindings(
 	}));
 	if (profile === 'musixmatch') {
 		for (const [index, section] of conversion.model.sections.entries()) {
-			if (!section.type) {
+			if (
+				hasRepeatHeaderInstruction(
+					parseDocument(section.header).sections[0]?.header?.rawNamePart ?? ''
+				)
+			) {
+				findings.push({
+					kind: 'repeat-header',
+					id: `repeat-header:${section.id}`,
+					sectionId: section.id,
+					message: `Resolve the retained repeat instruction ${section.header}. Open this header in Genius to transcribe the intended repeated lyrics and edit the instruction. No source version or copy count is assumed.`
+				});
+			} else if (!section.type) {
 				const label = section.header.trim() || section.name || `section ${index + 1}`;
 				const firstLine = conversion.model.content
 					.slice(section.at, conversion.model.sections[index + 1]?.at)

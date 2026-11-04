@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/dom';
+import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
@@ -129,3 +129,29 @@ test('requires Save, resets pending choice between items, and refuses unavailabl
 	await view.rerender({ controller, findings });
 	expect(select()).toHaveValue('');
 });
+
+for (const header of ['Chorus x2', 'Repeat Chorus', 'Chorus 2x', 'Chorus x 2']) {
+	test(`retains ${header} as a repeat concern even after tagging`, async () => {
+		const imported = importDocument({
+			text: `[${header}: Mira]\nStay beside me`,
+			profile: 'genius'
+		});
+		if (!imported.ok) throw Error(imported.refusal.message);
+		const section = imported.value.sections[0]!;
+		section.type = 'Chorus';
+		const { controller } = createTestWorkbench({ text: 'Stay beside me' });
+		controller.onSnapshot({
+			...controller.snapshot,
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+		});
+		const findings = retainedFindings(controller.snapshot);
+		expect(findings).toEqual([
+			expect.objectContaining({ kind: 'repeat-header', sectionId: section.id })
+		]);
+		const view = await render(RetainedReview, { controller, findings });
+		expect(
+			within(view.container).getByRole('button', { name: 'Edit header in Genius' })
+		).toBeVisible();
+		expect(within(view.container).queryByRole('combobox')).toBeNull();
+	});
+}
