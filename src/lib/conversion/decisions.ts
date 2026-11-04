@@ -112,7 +112,9 @@ function orderSyntax(
 	const rank = (event: (typeof events)[number]) => {
 		if (event.id === addedWrapper) return event.kind === 'open' ? 2 : 1;
 		if (event.id === addedSection) return 2;
-		return event.kind === 'close' ? 0 : event.kind === 'header' ? 1 : 3;
+		if (event.kind === 'header') return 1;
+		if (event.kind === 'close' && event.record.from !== event.record.to) return 0;
+		return 3;
 	};
 	events.sort(
 		(a, b) =>
@@ -551,7 +553,7 @@ export function resolveDecision(
 				section.at = at;
 				delete section.placement;
 				separateRelocatedHeader(next, section);
-				orderSyntax(next);
+				orderSyntax(next, undefined, section.id);
 			} else {
 				if (
 					action.type !== undefined &&

@@ -528,6 +528,11 @@ until explicit placement, and both profiles expose one metadata finding without 
 Partial literal headers remain shared content and are never withheld by this rule.
 Song's existing Move to cursor action repairs placement at an eligible line start; its options
 open for unresolved sections. Moving does not author lyric newlines. Undo restores the task.
+Later Genius edits allocate unique ordering keys for withheld headings alongside parsed syntax.
+Retained voices match their own wrapper occurrence. A hidden next boundary preserves the preceding
+default voice's mapped range and ID while an explicitly edited legend still updates its performer.
+Explicit heading placement orders the heading outside wrappers at the same boundary, preserving
+the order of empty wrapper delimiters.
 
 The storage envelope pins renderer 2, independently of model schema/converter 1. Renderer-1
 rich envelopes upgrade only when their exact saved projection matches the corrected renderer.

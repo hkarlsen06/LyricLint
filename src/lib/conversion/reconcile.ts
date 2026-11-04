@@ -791,11 +791,13 @@ function reconcileGenius(
 		Math.max(
 			-1,
 			...next.sections
-				.filter((section) => section.headerVisible !== false)
+				.filter((section) => section.headerVisible !== false && section.placement !== 'unresolved')
 				.map((section) => section.order),
 			...next.wrappers.flatMap((wrapper) => [wrapper.openOrder, wrapper.closeOrder])
 		) + 1;
-	for (const section of next.sections) if (section.headerVisible === false) section.order = order++;
+	for (const section of next.sections)
+		if (section.headerVisible === false || section.placement === 'unresolved')
+			section.order = order++;
 	next.sections.sort((a, b) => a.at - b.at || a.order - b.order);
 	for (const wrapper of next.wrappers) {
 		const previousId = wrapper.id;
@@ -838,30 +840,35 @@ function reconcileGenius(
 	retainLinesAndOwners(document, next, map, contentEdits, projection.profile);
 	retainOtherRecords(document, next, map, contentEdits, []);
 	const retainedVoices = next.voices;
+	const usedVoices = new Set<string>();
 	next.voices = syntaxVoices.map((voice) => {
 		const index = document.sections.findIndex((section) => section.id === voice.sectionId);
-		if (document.sections[index + 1]?.placement === 'unresolved') {
-			const retained = retainedVoices.find(
-				(entry) => entry.sectionId === voice.sectionId && entry.styleSlot === voice.styleSlot
-			);
-			if (retained) return retained;
-		}
+		const nextSection = document.sections[index + 1];
+		const retainedBoundary =
+			nextSection !== undefined &&
+			nextSection.headerVisible !== false &&
+			!canRenderSection(document, nextSection);
 		const old = retainedVoices.find(
 			(entry) =>
+				!usedVoices.has(entry.id) &&
 				entry.sectionId === voice.sectionId &&
 				entry.styleSlot === voice.styleSlot &&
-				entry.from === voice.from &&
-				entry.to === voice.to
+				entry.wrapperId === voice.wrapperId &&
+				((retainedBoundary && !voice.wrapperId) ||
+					(entry.from === voice.from && entry.to === voice.to))
 		);
 		if (!old) return { ...voice, id: allocateId(next, 'voice') };
+		usedVoices.add(old.id);
+		const mapped =
+			retainedBoundary && !voice.wrapperId ? { ...voice, from: old.from, to: old.to } : voice;
 		return voice.rawNameText === old.rawNameText
 			? {
-					...voice,
+					...mapped,
 					id: old.id,
 					performerIds: old.performerIds,
 					...(old.anonymous ? { anonymous: true as const } : { anonymous: undefined })
 				}
-			: { ...voice, id: old.id };
+			: { ...mapped, id: old.id };
 	});
 	next.voices.push(...retainedVoices.filter((voice) => !voice.styleSlot));
 	next.voices.push(

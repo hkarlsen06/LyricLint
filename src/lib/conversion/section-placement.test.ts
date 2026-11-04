@@ -8,6 +8,7 @@ import {
 } from './index.js';
 import { createConversionEnvelope, parseConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
+import type { PerformerRecord } from '#lib/core/types.js';
 function value<T>(result: EngineResult<T>): T {
 	if (!result.ok) throw Error(result.refusal.message);
 	return result.value;
@@ -145,5 +146,112 @@ describe('displaced retained headings', () => {
 				projectionText: '[Verse]\nO[Chorus]\nne\nTwo'
 			})
 		).toThrow('do not match');
+	});
+	it('keeps hidden and freshly parsed syntax orders unique after a later Genius edit', () => {
+		const original = imported('[Verse]\nOne\n[Chorus]\nTwo\n[Outro]\nThree');
+		const edited = value(
+			reconcileEdit(original, value(renderProfile(original, 'musixmatch')), {
+				changes: [{ from: 1, to: 5, insert: 'by' }]
+			})
+		);
+		const genius = value(renderProfile(edited.document, 'genius'));
+		const appended = value(
+			reconcileEdit(edited.document, genius, {
+				changes: [{ from: genius.text.length, to: genius.text.length, insert: '!' }]
+			})
+		);
+		expect(appended.projection.text).toBe('[Verse]\nObywo\n[Outro]\nThree!');
+		expect(appended.document.sections.map((section) => section.id)).toEqual(
+			original.sections.map((section) => section.id)
+		);
+		expect(new Set(appended.document.sections.map((section) => section.order)).size).toBe(3);
+	});
+	it('retains separate styled voice occurrences before a withheld heading', () => {
+		const original = imported('[Verse: Mira & <i>Noor</i>]\n<i>A</i> B <i>C</i>\n[Chorus]\nTwo');
+		const plain = value(renderProfile(original, 'musixmatch'));
+		const newline = plain.text.indexOf('\n');
+		const edited = value(
+			reconcileEdit(original, plain, { changes: [{ from: newline, to: newline + 1, insert: '' }] })
+		);
+		const genius = value(renderProfile(edited.document, 'genius'));
+		const appended = value(
+			reconcileEdit(edited.document, genius, {
+				changes: [{ from: genius.text.length, to: genius.text.length, insert: '!' }]
+			})
+		);
+		expect(appended.projection.text).toBe(genius.text + '!');
+		expect(appended.document.voices.map((voice) => voice.id)).toEqual(
+			edited.document.voices.map((voice) => voice.id)
+		);
+		expect(
+			appended.document.voices.filter((voice) => voice.wrapperId).map((voice) => voice.wrapperId)
+		).toEqual(
+			edited.document.voices.filter((voice) => voice.wrapperId).map((voice) => voice.wrapperId)
+		);
+	});
+	it.each([
+		['[One](123)', '[O](123)'],
+		['<i>[One](123)</i>', '<i>[O](123)</i>'],
+		['<i></i>[One](123)', '<i></i>[O](123)']
+	])('places a repaired heading outside coincident syntax: %s', (source, expected) => {
+		const original = imported(`[Verse]\n${source}\n[Chorus]\nTwo`);
+		const edited = value(
+			reconcileEdit(original, value(renderProfile(original, 'musixmatch')), {
+				changes: [{ from: 1, to: 5, insert: 'by' }]
+			})
+		);
+		const repaired = value(
+			resolveDecision(edited.document, value(renderProfile(edited.document, 'musixmatch')), {
+				kind: 'moveSection',
+				sectionId: original.sections[1]!.id,
+				at: 0
+			})
+		);
+		const genius = value(renderProfile(repaired.document, 'genius'));
+		expect(genius.text).toBe(`[Verse]\n[Chorus]\n${expected}bywo`);
+		expect(genius.findings).toEqual([]);
+		expect(value(renderProfile(imported(genius.text), 'musixmatch')).text).toBe('Obywo');
+	});
+	it('applies an edited performer while retaining the preceding voice occurrence range and ID', () => {
+		const performers: PerformerRecord[] = ['Mira', 'Noor'].map((name, order) => ({
+			id: name.toLowerCase(),
+			displayName: name,
+			normalizedKey: name.toLowerCase(),
+			aliases: [],
+			colorId: 'rose',
+			order
+		}));
+		const original = value(
+			importDocument({
+				text: '[Verse: Mira]\nOne\n[Chorus: Noor]\nTwo',
+				profile: 'genius',
+				performers
+			})
+		);
+		const edited = value(
+			reconcileEdit(original, value(renderProfile(original, 'musixmatch')), {
+				changes: [{ from: 1, to: 5, insert: 'by' }]
+			})
+		);
+		const genius = value(renderProfile(edited.document, 'genius'));
+		const at = genius.text.indexOf('Mira');
+		const renamed = value(
+			reconcileEdit(edited.document, genius, {
+				performers,
+				changes: [{ from: at, to: at + 4, insert: 'Noor' }]
+			})
+		);
+		const before = edited.document.voices.find(
+			(voice) => voice.sectionId === original.sections[0]!.id
+		)!;
+		const after = renamed.document.voices.find((voice) => voice.id === before.id)!;
+		expect(after).toMatchObject({
+			id: before.id,
+			from: before.from,
+			to: before.to,
+			rawNameText: 'Noor',
+			performerIds: ['noor']
+		});
+		expect(renamed.projection.text).toBe(genius.text.replace('Mira', 'Noor'));
 	});
 });
