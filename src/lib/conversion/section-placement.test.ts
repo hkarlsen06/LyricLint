@@ -254,4 +254,66 @@ describe('displaced retained headings', () => {
 		});
 		expect(renamed.projection.text).toBe(genius.text.replace('Mira', 'Noor'));
 	});
+	it('does not reassign a retained styled passage to the preceding visible legend', () => {
+		const original = imported(
+			'[Verse: Mira & <i>Noor</i>]\n<i>A</i>\n[Chorus: Ken & <i>Lena</i>]\n<i>B</i>'
+		);
+		const edited = value(
+			reconcileEdit(original, value(renderProfile(original, 'musixmatch')), {
+				changes: [{ from: 1, to: 2, insert: '' }]
+			})
+		);
+		const genius = value(renderProfile(edited.document, 'genius'));
+		const appended = value(
+			reconcileEdit(edited.document, genius, {
+				changes: [{ from: genius.text.length, to: genius.text.length, insert: '!' }]
+			})
+		);
+		expect(
+			appended.document.voices
+				.filter((voice) => voice.wrapperId)
+				.map((voice) => ({
+					id: voice.id,
+					sectionId: voice.sectionId,
+					wrapperId: voice.wrapperId,
+					rawNameText: voice.rawNameText
+				}))
+		).toEqual(
+			edited.document.voices
+				.filter((voice) => voice.wrapperId)
+				.map((voice) => ({
+					id: voice.id,
+					sectionId: voice.sectionId,
+					wrapperId: voice.wrapperId,
+					rawNameText: voice.rawNameText
+				}))
+		);
+		expect(appended.projection.text).toBe(genius.text + '!');
+	});
+	it('refuses a heading where closing markup occupies the Genius line start', () => {
+		const original = imported('[Verse]\n[A\n<i></i>](123)\n[Chorus]\nB');
+		const projection = value(renderProfile(original, 'musixmatch'));
+		const before = structuredClone(original);
+		const moved = resolveDecision(original, projection, {
+			kind: 'moveSection',
+			sectionId: original.sections[1]!.id,
+			at: 2
+		});
+		expect(moved).toMatchObject({
+			ok: false,
+			refusal: { message: expect.stringContaining('line start outside retained') }
+		});
+		expect(original).toEqual(before);
+		const valid = value(
+			resolveDecision(original, projection, {
+				kind: 'moveSection',
+				sectionId: original.sections[1]!.id,
+				at: 0
+			})
+		);
+		expect(value(renderProfile(valid.document, 'musixmatch')).text).toBe(projection.text);
+		expect(value(renderProfile(valid.document, 'genius')).text).toBe(
+			'[Verse]\n[Chorus]\n[A\n<i></i>](123)\nB'
+		);
+	});
 });

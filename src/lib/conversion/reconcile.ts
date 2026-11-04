@@ -842,6 +842,18 @@ function reconcileGenius(
 	const retainedVoices = next.voices;
 	const usedVoices = new Set<string>();
 	next.voices = syntaxVoices.map((voice) => {
+		const retainedWrapper = voice.wrapperId
+			? retainedVoices.find((entry) => entry.wrapperId === voice.wrapperId)
+			: undefined;
+		if (
+			retainedWrapper &&
+			next.sections.some(
+				(section) => section.id === retainedWrapper.sectionId && section.placement === 'unresolved'
+			)
+		) {
+			usedVoices.add(retainedWrapper.id);
+			return retainedWrapper;
+		}
 		const index = document.sections.findIndex((section) => section.id === voice.sectionId);
 		const nextSection = document.sections[index + 1];
 		const retainedBoundary =
@@ -875,6 +887,7 @@ function reconcileGenius(
 		...retainedVoices.filter(
 			(voice) =>
 				voice.styleSlot &&
+				!usedVoices.has(voice.id) &&
 				next.sections.some(
 					(section) =>
 						section.id === voice.sectionId &&

@@ -1,12 +1,12 @@
 import type { ConversionDocument, SectionRecord } from './model.js';
 
-/** Generated headings require a physical line boundary. Literal source stays in content. */
+/** Closing markup at a shared line start would precede the heading on the Genius line. */
 export function canPlaceSection(document: ConversionDocument, at: number): boolean {
 	return (
 		(at === 0 ||
 			document.content[at - 1] === '\n' ||
 			(document.content[at - 1] === '\r' && document.content[at] !== '\n')) &&
-		!document.wrappers.some((wrapper) => wrapper.from < at && at < wrapper.to)
+		!document.wrappers.some((wrapper) => wrapper.from < at && at <= wrapper.to)
 	);
 }
 

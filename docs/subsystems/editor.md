@@ -533,6 +533,9 @@ Retained voices match their own wrapper occurrence. A hidden next boundary prese
 default voice's mapped range and ID while an explicitly edited legend still updates its performer.
 Explicit heading placement orders the heading outside wrappers at the same boundary, preserving
 the order of empty wrapper delimiters.
+A shared line start occupied by closing Genius markup cannot host a heading without changing
+the authored text. Placement refuses that boundary. Styled passages owned by a withheld section
+retain that section's performer; reparsing the preceding visible legend does not reassign them.
 
 The storage envelope pins renderer 2, independently of model schema/converter 1. Renderer-1
 rich envelopes upgrade only when their exact saved projection matches the corrected renderer.
