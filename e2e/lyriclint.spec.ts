@@ -353,10 +353,11 @@ test('a failed mobile hero keeps its still without downloading the desktop video
 	expect(requested).toEqual(['/workbench-mobile.webm']);
 });
 
-test('landing video frames keep their dimensions through loading on phone and desktop', async ({
-	page
-}) => {
-	for (const width of [390, 1280]) {
+// Each viewport is an independent media lifecycle with its own page and decoder.
+for (const width of [390, 1280]) {
+	test(`landing video frames keep their dimensions through loading at ${width}px`, async ({
+		page
+	}) => {
 		await page.setViewportSize({ width, height: 844 });
 		await page.goto('/');
 		await page.evaluate(() => document.fonts.ready);
@@ -415,12 +416,14 @@ test('landing video frames keep their dimensions through loading on phone and de
 			expect(after!.width).toBeCloseTo(before!.width, 1);
 			expect(after!.height).toBeCloseTo(before!.height, 1);
 		}
-	}
-});
+	});
+}
 
-test('demo subtitles follow spoken beats inside the video header', async ({ page }) => {
-	test.setTimeout(60_000);
-	for (const width of [390, 1280]) {
+for (const width of [390, 1280]) {
+	test(`demo subtitles follow spoken beats inside the video header at ${width}px`, async ({
+		page
+	}) => {
+		test.setTimeout(60_000);
 		await page.setViewportSize({ width, height: 1000 });
 		await page.goto('/');
 		await page.evaluate(() => document.fonts.ready);
@@ -451,31 +454,43 @@ test('demo subtitles follow spoken beats inside the video header', async ({ page
 				}, cue.start + 0.1);
 				await expect(caption).toHaveText(cue.text);
 				await expect(caption).toBeVisible();
-				expect(await frame.boundingBox()).toEqual(before);
-				const text = await caption.boundingBox();
-				const footage = await video.boundingBox();
-				expect(text!.y).toBeGreaterThanOrEqual(footage!.y);
-				expect(text!.y + text!.height / 2).toBeCloseTo(
-					footage!.y + Math.max(footage!.width * headerCenter, text!.height / 2),
+				// Measure the same rendered state in one browser call. The native cue
+				// and visibility assertions above still wait for the real media events.
+				const geometry = await frame.evaluate((element) => {
+					const caption = element.querySelector('.demo-captions__current');
+					const video = element.querySelector('video');
+					if (!caption || !video) throw new Error('Missing caption or demonstration video');
+					const box = (node: Element) => {
+						const { x, y, width, height } = node.getBoundingClientRect();
+						return { x, y, width, height };
+					};
+					const style = getComputedStyle(caption);
+					return {
+						frame: box(element),
+						text: box(caption),
+						footage: box(video),
+						maxHeight:
+							2 * parseFloat(style.lineHeight) +
+							parseFloat(style.paddingTop) +
+							parseFloat(style.paddingBottom)
+					};
+				});
+				expect(geometry.frame).toEqual(before);
+				const { text, footage, maxHeight } = geometry;
+				expect(text.y).toBeGreaterThanOrEqual(footage.y);
+				expect(text.y + text.height / 2).toBeCloseTo(
+					footage.y + Math.max(footage.width * headerCenter, text.height / 2),
 					0
 				);
-				const maxHeight = await caption.evaluate((element) => {
-					const style = getComputedStyle(element);
-					return (
-						2 * parseFloat(style.lineHeight) +
-						parseFloat(style.paddingTop) +
-						parseFloat(style.paddingBottom)
-					);
-				});
-				expect(text!.height).toBeLessThanOrEqual(maxHeight + 1);
-				expect(text!.x + text!.width / 2).toBeCloseTo(footage!.x + footage!.width / 2, 0);
-				expect(before!.height - footage!.height).toBeLessThan(3);
-				expect(text!.x).toBeGreaterThanOrEqual(before!.x);
-				expect(text!.x + text!.width).toBeLessThanOrEqual(before!.x + before!.width);
+				expect(text.height).toBeLessThanOrEqual(maxHeight + 1);
+				expect(text.x + text.width / 2).toBeCloseTo(footage.x + footage.width / 2, 0);
+				expect(before!.height - footage.height).toBeLessThan(3);
+				expect(text.x).toBeGreaterThanOrEqual(before!.x);
+				expect(text.x + text.width).toBeLessThanOrEqual(before!.x + before!.width);
 			}
 		}
-	}
-});
+	});
+}
 
 test('player demonstrations keep their screenshots for reduced motion', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
