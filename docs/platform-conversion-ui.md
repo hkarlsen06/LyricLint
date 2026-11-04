@@ -115,8 +115,9 @@ falling back to the Review tab after the last decision is resolved.
 
 | Control | Behavior |
 | --- | --- |
-| Type | Choose an explicit supported profile type; keep original labels as retained details |
-| Insert section | Insert an untyped boundary at a chosen line boundary; no guessed Verse/Chorus |
+| Type | Choose an explicit supported profile type; preserve the independent Genius label and performer legend exactly |
+| Genius section label | Edit the label in More section options without raw source editing; preserve the performer legend and other metadata |
+| Insert section | Require a New section type choice, then insert a boundary with that type and a matching Genius heading; select the new section and focus its editor |
 | Split here | Split at a chosen line boundary; original identity stays on the original part, new part starts untyped |
 | Move boundary | Choose another valid line boundary; preserve lyric text and display which lines change section |
 | Merge with previous | Show the affected label/voice/link consequences in the same surface, then apply the selected resolution |
@@ -142,12 +143,21 @@ silently combine their identities or invent blank lyric lines.
 
 ### Compact section editing
 
-Sections opens as ordered, unboxed summaries. Only one section has editing controls at a time.
-Its summary keeps its position when opened. Type and Show passage are the immediate controls.
-More section options discloses original labels, voice passages, boundary moves, merges and
-confirmed deletion below them. Add a section is a separate disclosure after the ordered list.
-Document settings, including content type, stays collapsed above Sections. Retained details
-stays collapsed; these are preserved records, not warnings about ordinary conversion.
+Song has one ordered section chooser and one editor for the chosen section. The chooser counts
+musical sections with singular/plural grammar; Document counts lyric stanzas separated by blank
+lines, independently of musical boundaries. Type and Show passage are the immediate controls.
+More section options grows below its trigger and exposes an editable Genius section label,
+voice passages, boundary moves, merges and confirmed deletion. Label edits change only the
+label, keeping performer legend syntax and retained annotations intact. Type changes never
+rewrite independently authored or imported Genius labels, including a literal `[Section]`.
+
+Add a section stays below the editor. Choose New section type before inserting at the cursor's
+line boundary. The existing typed insertion creates a matching Genius heading (PreChorus uses
+`Pre-Chorus`), then selects the new section and focuses its heading so the next action is
+reachable. No untyped generated placeholder or durable provenance flag is needed. The label
+can subsequently be changed explicitly through More section options; type and Genius label
+remain independent. This does not infer language-specific equivalents or resolve ambiguous
+policy mappings. Document settings and Retained details stay collapsed by default.
 
 Listening decisions show either the quantity form or the instrumental form, selected by the
 request from Review. The other form remains accessible through the named choice controls.

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ConversionFacts from './ConversionFacts.svelte';
 
+	import { parseDocument } from '#lib/core/parser.js';
 	import { tick } from 'svelte';
 	import { projectOffset, renderProfile } from '#lib/conversion/index.js';
 	import type { ContentKind, SectionRecord } from '#lib/conversion/model.js';
@@ -22,6 +23,7 @@
 	];
 
 	let addingSection = $state(false);
+	let newSectionType = $state('');
 	let addSectionSummary = $state<HTMLElement>();
 	let activeSection = $state<string>();
 	let removeId = $state<string>();
@@ -54,6 +56,34 @@
 			to: projectOffset(projection.value, to, -1)
 		});
 	}
+	async function insertSection() {
+		const type = types.find((entry) => entry === newSectionType);
+		if (!type) return;
+		const previousIds = new Set(model?.sections.map((section) => section.id));
+		if (
+			!controller.applyConversionAction({
+				kind: 'insertSection',
+				type,
+				at:
+					controller.snapshot.text.lastIndexOf(
+						'\n',
+						Math.max(0, controller.snapshot.selection.head - 1)
+					) + 1
+			})
+		)
+			return;
+		const created = controller.snapshot.conversion?.model.sections.find(
+			(section) => !previousIds.has(section.id)
+		);
+		if (created) {
+			activeSection = created.id;
+			await tick();
+			container
+				.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(created.id)}"]`)
+				?.focus();
+		}
+	}
+
 	async function backToReview() {
 		const panel = container.closest('.right-panel');
 		controller.setActiveTab('linter');
@@ -93,7 +123,9 @@
 						activeSection = event.currentTarget.value || undefined;
 						removeId = undefined;
 					}}
-					><option value="">{model.sections.length} sections · Choose to edit</option
+					><option value=""
+						>{model.sections.length} musical {model.sections.length === 1 ? 'section' : 'sections'} ·
+						Choose to edit</option
 					>{#each model.sections as section, index (section.id)}<option value={section.id}
 							>Section {index + 1} · {section.type ?? (section.name || 'Type not set')} · {model.content
 								.slice(section.at, model.sections[index + 1]?.at ?? model.content.length)
@@ -147,9 +179,25 @@
 							</label>
 							<details class="conversion-section__advanced">
 								<summary>More section options</summary>
-								{#if section.header}<p class="conversion-details__original">
-										Genius label: {section.header.trim()}
-									</p>{/if}
+								<label
+									>Genius section label
+									<input
+										value={parseDocument(section.header).sections[0]?.header?.rawNamePart ?? ''}
+										onchange={(event) => {
+											controller.applyConversionAction({
+												kind: 'setSectionLabel',
+												sectionId: section.id,
+												label: event.currentTarget.value
+											});
+											event.currentTarget.value =
+												parseDocument(
+													controller.snapshot.conversion?.model.sections.find(
+														(entry) => entry.id === section.id
+													)?.header ?? ''
+												).sections[0]?.header?.rawNamePart ?? '';
+										}}
+									/>
+								</label>
 								{#each model.voices.filter((voice) => voice.sectionId === section.id) as voice (voice.id)}
 									<p>
 										{voice.performerIds
@@ -257,18 +305,17 @@
 			{/each}
 			<details bind:open={addingSection}>
 				<summary bind:this={addSectionSummary}>Add a section</summary>
-				<button
-					type="button"
-					class="button"
-					onclick={() =>
-						controller.applyConversionAction({
-							kind: 'insertSection',
-							at:
-								controller.snapshot.text.lastIndexOf(
-									'\n',
-									Math.max(0, controller.snapshot.selection.head - 1)
-								) + 1
-						})}>Insert boundary at cursor</button
+				<label
+					>New section type
+					<select bind:value={newSectionType}>
+						<option value="" disabled>Choose a type</option>
+						{#each types as type (type)}<option value={type}
+								>{type === 'PreChorus' ? 'Pre-Chorus' : type}</option
+							>{/each}
+					</select>
+				</label>
+				<button type="button" class="button" disabled={!newSectionType} onclick={insertSection}
+					>Insert boundary at cursor</button
 				>
 				<p>Section tags stay in this draft. Apply them separately when submitting to Musixmatch.</p>
 			</details>
@@ -519,8 +566,5 @@
 	}
 	.conversion-section .button {
 		min-width: 0;
-	}
-	.conversion-details__original {
-		color: var(--color-text-muted);
 	}
 </style>

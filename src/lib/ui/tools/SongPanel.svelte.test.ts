@@ -10,6 +10,7 @@ import { importDocument } from '#lib/conversion/import.js';
 import { renderProfile } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
+import { createLyricEditor } from '#lib/editor/create-editor.js';
 import SongPanel from './SongPanel.svelte';
 import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 
@@ -106,7 +107,7 @@ describe('SongPanel document counts', () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
 		const { container } = await render(SongPanel, { controller });
 
-		expect(documentSection(container)?.textContent).toContain('1 line · 1 section');
+		expect(documentSection(container)?.textContent).toContain('1 line · 1 stanza');
 		expect(documentSection(container)?.textContent).not.toContain('1 lines');
 		expect(documentSection(container)?.textContent).not.toContain('1 sections');
 	});
@@ -121,7 +122,7 @@ describe('SongPanel document counts', () => {
 		});
 		const { container } = await render(SongPanel, { controller });
 
-		expect(documentSection(container)?.textContent).toContain('1 line · 1 section · 1 performer');
+		expect(documentSection(container)?.textContent).toContain('1 line · 1 stanza · 1 performer');
 	});
 
 	// This document has lines and sections but no performers, so the roster half
@@ -153,6 +154,17 @@ describe('SongPanel document counts', () => {
 
 		expect(documentSection(container)?.textContent).toContain('4 lines');
 	});
+
+	test.each(['\n', '\r\n'])(
+		'does not count adjacent Genius headings or empty musical sections as stanzas with %j',
+		async (newline) => {
+			const { controller } = createTestWorkbench({
+				text: ['[Verse]', 'One', '[Chorus]', 'Two', '', '[Outro]'].join(newline)
+			});
+			const { container } = await render(SongPanel, { controller });
+			expect(documentSection(container)?.textContent).toContain('2 lines · 1 stanza');
+		}
+	);
 
 	test('states no counts at all for an empty document', async () => {
 		const { controller } = createTestWorkbench({ text: '' });
@@ -485,6 +497,69 @@ describe('SongPanel conversion restraint', () => {
 		});
 		return workbench;
 	}
+
+	test.each([360, 960])(
+		'creates and immediately opens a typed musical section with distinct stanza counts at %ipx',
+		async (width) => {
+			const lyrics = 'A paper moon\nAbove the road\n\nStay beside me';
+			const { controller } = createTestWorkbench({ text: lyrics });
+			const host = document.createElement('div');
+			document.body.append(host);
+			const editor = createLyricEditor(host, {
+				initialText: lyrics,
+				context: { language: 'en', performers: [], ruleSetVersion: 'test' },
+				callbacks: {
+					onSnapshot: (snapshot) => controller.onSnapshot(snapshot),
+					onAssignRequest: vi.fn(),
+					onSectionHeaderRequest: vi.fn(),
+					onDiagnosticActivate: vi.fn(),
+					onAnnouncement: vi.fn()
+				}
+			});
+			try {
+				controller.setEditorHandle(editor.handle);
+				editor.handle.switchProfile!('musixmatch');
+				const { container } = await render(SongPanel, { controller });
+				container.style.width = `${width}px`;
+				expect(
+					screen.getByRole('option', { name: '0 musical sections · Choose to edit' })
+				).toBeTruthy();
+				expect(container.textContent).toContain('2 stanzas');
+				await fireEvent.click(screen.getByText('Add a section', { exact: true }));
+				const insert = screen.getByRole('button', { name: 'Insert boundary at cursor' });
+				expect(insert).toBeDisabled();
+				await fireEvent.change(screen.getByRole('combobox', { name: 'New section type' }), {
+					target: { value: 'Verse' }
+				});
+				await fireEvent.click(insert);
+				await waitFor(() =>
+					expect(screen.getByRole('heading', { name: 'Section 1 · Verse' })).toHaveFocus()
+				);
+				expect(
+					screen.getByRole('option', { name: '1 musical section · Choose to edit' })
+				).toBeTruthy();
+				expect(container.textContent).toContain('2 stanzas');
+				const type = screen.getByRole('combobox', { name: 'Section type' });
+				const before = type.getBoundingClientRect();
+				await fireEvent.click(screen.getByText('More section options'));
+				expect(type.getBoundingClientRect().top).toBe(before.top);
+				const label = screen.getByRole('textbox', { name: 'Genius section label' });
+				expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(
+					container.getBoundingClientRect().right
+				);
+				expect(parseFloat(getComputedStyle(label).fontSize)).toBeGreaterThanOrEqual(16);
+				await fireEvent.change(label, { target: { value: 'Verse 2' } });
+				await fireEvent.change(label, { target: { value: '[Chorus]' } });
+				expect(controller.feedback.announcement).toContain('without brackets');
+				expect(label).toHaveValue('Verse 2');
+				editor.handle.switchProfile!('genius');
+				expect(controller.snapshot.text).toBe('[Verse 2]\n' + lyrics);
+			} finally {
+				editor.destroy();
+				host.remove();
+			}
+		}
+	);
 
 	test('lists metadata without the listening tasks until Review asks', async () => {
 		const { controller } = withConversion();

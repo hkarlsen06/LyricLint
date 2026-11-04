@@ -90,6 +90,12 @@ and Musixmatch's native-script/romanization workflows.
 Formatted stanza boundaries and musical section tags remain distinct. Blank-line grouping may
 create provisional layout groups, but does not confirm a musical identity or a one-to-one
 stanza/tag relationship. Enforcing the ten-line stanza limit must not manufacture section tags.
+Song names these counts separately: musical sections in the chooser and lyric stanzas in Document.
+Explicit insertion requires a type and uses the existing typed insertion to create its Genius
+heading. Subsequent type changes preserve that independent heading exactly. An explicit label
+edit changes only its name portion, preserving performer legend bytes and retained metadata;
+it rejects structural delimiters and line breaks. These actions use the existing atomic model
+history and envelope persistence, without adding durable provenance.
 
 ### Exact syntax without stale lyric copies
 

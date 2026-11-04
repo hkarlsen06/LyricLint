@@ -46,14 +46,30 @@
 	function count(value: number, noun: string): string | undefined {
 		return value > 0 ? `${value} ${noun}${value === 1 ? '' : 's'}` : undefined;
 	}
-	let lastDocumentStats = { lines: 0, sections: 0, performers: 0 };
+	let lastDocumentStats = { lines: 0, stanzas: 0, performers: 0 };
 	const documentStats = $derived.by(() => {
 		if (!active) return lastDocumentStats;
 		const parsed = controller.snapshot.parsed;
-		const lines = parsed.sections.reduce((total, section) => total + section.lines.length, 0);
+		const lyricLines = parsed.sections.flatMap((section) => section.lines);
+		const lines = lyricLines.length;
 		lastDocumentStats = {
 			lines,
-			sections: parsed.sections.length,
+			stanzas: controller.snapshot.conversion
+				? controller.snapshot.conversion.model.content
+						.trim()
+						.split(/\n[^\S\n]*\n/u)
+						.filter((stanza) => stanza.trim()).length
+				: lyricLines.reduce(
+						(total, line, index) =>
+							total +
+							(index === 0 ||
+							/\n[^\S\n]*\n/u.test(
+								controller.snapshot.text.slice(lyricLines[index - 1]!.to, line.from)
+							)
+								? 1
+								: 0),
+						0
+					),
 			performers: controller.performers.length
 		};
 		return lastDocumentStats;
@@ -68,7 +84,7 @@
 	const documentCounts = $derived(
 		[
 			count(documentStats.lines, 'line'),
-			count(documentStats.sections, 'section'),
+			count(documentStats.stanzas, 'stanza'),
 			count(documentStats.performers, 'performer')
 		].filter((label) => label !== undefined)
 	);
