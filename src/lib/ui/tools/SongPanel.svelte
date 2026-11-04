@@ -506,7 +506,6 @@
 	.song-panel :global(select),
 	.song-panel :global(textarea) {
 		border-radius: var(--radius-control);
-		min-height: var(--control-height-md);
 		font-size: var(--font-size-editor);
 		box-sizing: border-box;
 		max-width: 100%;

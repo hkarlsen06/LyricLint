@@ -5,6 +5,10 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
 import MockEditorPane from './MockEditorPane.svelte';
 import Workspace from './Workspace.svelte';
+import SongPanel from '../tools/SongPanel.svelte';
+import { importDocument, renderProfile } from '#lib/conversion/index.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 
 const viewportDescriptor = Object.getOwnPropertyDescriptor(window, 'visualViewport');
 beforeEach(async () => {
@@ -54,6 +58,30 @@ test('phone review opens one decision, releases it on return, and retains the ed
 	expect(document.querySelector('#document-panel')).toBe(panel);
 	expect(screen.getByTestId('editor-region')).toBe(editor);
 	expect(editor.getBoundingClientRect().height).toBeGreaterThan(600);
+});
+
+test('Song fields keep touch targets outside the workspace ancestor', async () => {
+	await page.viewport(390, 844);
+	const imported = importDocument({ text: '[Verse: Mira]\nStay beside me', profile: 'genius' });
+	if (!imported.ok) throw new Error(imported.refusal.message);
+	const projection = renderProfile(imported.value, 'musixmatch');
+	if (!projection.ok) throw new Error(projection.refusal.message);
+	const { controller } = createTestWorkbench({ text: projection.value.text });
+	controller.onSnapshot({
+		...controller.snapshot,
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
+	await render(SongPanel, { controller });
+	const chooser = screen.getByRole('combobox', { name: 'Choose a section' });
+	await fireEvent.change(chooser, { target: { value: imported.value.sections[0]!.id } });
+	for (const control of [
+		chooser,
+		screen.getByRole('combobox', { name: 'Section type' }),
+		screen.getByRole('textbox', { name: 'Genius page link' })
+	]) {
+		expect(control.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+		expect(parseFloat(getComputedStyle(control).fontSize)).toBeGreaterThanOrEqual(16);
+	}
 });
 
 test('the keyboard gives its space to writing and restores navigation only after dismissal', async () => {
