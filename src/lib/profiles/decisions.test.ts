@@ -95,6 +95,29 @@ describe('typed quantity decisions', () => {
 });
 
 describe('typed instrumental interval decisions', () => {
+	it('names an end beyond the actual recording without disguising precision failures', () => {
+		expect(
+			decideInstrumentalRepresentation({
+				...interval,
+				startMs: 2000,
+				endMs: 26000,
+				recordingDurationMs: 25000
+			})
+		).toMatchObject({
+			ok: false,
+			reason: 'invalid-fact',
+			message: expect.stringContaining('recording duration of 25 seconds')
+		});
+		for (const endMs of [26000.1, Infinity, NaN, 1000])
+			expect(
+				decideInstrumentalRepresentation({
+					...interval,
+					startMs: 2000,
+					endMs,
+					recordingDurationMs: 25000
+				})
+			).toMatchObject({ ok: false, message: expect.stringContaining('whole milliseconds') });
+	});
 	it('requires strictly more than fifteen seconds and preserves the authored interval', () => {
 		expect(decideInstrumentalRepresentation({ ...interval, endMs: 16_000 }).ok).toBe(false);
 		expect(decideInstrumentalRepresentation(interval)).toMatchObject({

@@ -162,12 +162,16 @@ export function decideInstrumentalRepresentation(
 		![facts.startMs, facts.endMs, facts.recordingDurationMs].every(
 			(value) => Number.isSafeInteger(value) && value >= 0
 		) ||
-		facts.startMs >= facts.endMs ||
-		facts.endMs > facts.recordingDurationMs
+		facts.startMs >= facts.endMs
 	)
 		return review(
 			'invalid-fact',
 			'Supply ordered, finite recording boundaries in whole milliseconds.'
+		);
+	if (facts.endMs > facts.recordingDurationMs)
+		return review(
+			'invalid-fact',
+			`The interval end exceeds the recording duration of ${facts.recordingDurationMs / 1000} seconds. Choose an end inside this recording.`
 		);
 	if (facts.endMs - facts.startMs <= 15_000)
 		return review(
