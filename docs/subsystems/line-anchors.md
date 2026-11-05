@@ -9,6 +9,8 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
 
 ## The rules
 
+- Timed exports preserve line ownership while removing recognized Genius annotation wrappers and style tags; Musixmatch text remains literal. SRT and VTT cues end at the next distinct displayed timestamp, or three seconds later when none exists, so simultaneous lines remain visible. LRC keeps each anchor time.
+
 - The audio never moves the document (sync mode is the one exception); the document never
   moves the audio unless the gesture meant only that (timestamp press, anchored line-number
   press, `Ctrl-Alt-Enter`, and nothing else); typing writes no anchor at all. There is no

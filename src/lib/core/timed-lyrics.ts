@@ -1,3 +1,4 @@
+import { scanAnnotations } from './annotations.js';
 import type { LineAnchor } from './types.js';
 
 /**
@@ -57,7 +58,14 @@ export function formatTimedLyrics(
 	format: TimedLyricsFormat,
 	profile: 'genius' | 'musixmatch' = 'genius'
 ): string {
-	const lines = text.split('\n');
+	const annotations = profile === 'genius' ? scanAnnotations(text) : [];
+	let plainText = text;
+	for (const annotation of annotations.reverse()) {
+		plainText = plainText.slice(0, annotation.fragmentRange.to) + plainText.slice(annotation.to);
+		plainText =
+			plainText.slice(0, annotation.from) + plainText.slice(annotation.fragmentRange.from);
+	}
+	const lines = plainText.split('\n');
 	const cues = anchors
 		.map((anchor) => ({
 			time: anchor.time,
@@ -75,8 +83,16 @@ export function formatTimedLyrics(
 		return `${cues.map((cue) => `[${lrcTimestamp(cue.time)}]${cue.text}`).join('\n')}\n`;
 	}
 
+	let nextEnd: number | undefined;
+	const ends = cues.map(() => 0);
+	for (let index = cues.length - 1; index >= 0; index--) {
+		const cue = cues[index];
+		const next = cues[index + 1];
+		if (next && Math.round(next.time * 1000) > Math.round(cue.time * 1000)) nextEnd = next.time;
+		ends[index] = nextEnd ?? cue.time + trailingCueSeconds;
+	}
 	const blocks = cues.map((cue, index) => {
-		const end = cues[index + 1]?.time ?? cue.time + trailingCueSeconds;
+		const end = ends[index];
 		const span = `${cueTimestamp(cue.time, format)} --> ${cueTimestamp(end, format)}`;
 		return `${index + 1}\n${span}\n${cue.text}\n`;
 	});

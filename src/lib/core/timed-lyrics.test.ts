@@ -52,3 +52,61 @@ describe('formatTimedLyrics', () => {
 		expect(formatTimedLyrics('Only line\n', [{ line: 9, time: 1 }], 'lrc')).toBe('');
 	});
 });
+
+test('exports recognized Genius annotation fragments on their original lines', () => {
+	const source = '[Verse: Mira]\nThe [silver <i>compass</i>\nby the door](123456)\n[a [b](1)';
+	const stamps = [
+		{ line: 2, time: 5 },
+		{ line: 3, time: 6 },
+		{ line: 4, time: 7 }
+	];
+	for (const format of ['lrc', 'srt', 'vtt'] as const) {
+		const result = formatTimedLyrics(source, stamps, format);
+		expect(result).toContain('The silver compass');
+		expect(result).toContain('by the door');
+		expect(result).toContain('[a b');
+		expect(result).not.toContain('123456');
+		expect(result).not.toContain('](1)');
+	}
+	expect(
+		formatTimedLyrics('The [silver](123)', [{ line: 1, time: 5 }], 'lrc', 'musixmatch')
+	).toContain('[silver](123)');
+});
+
+test('simultaneous subtitle cues have positive duration and keep both voices', () => {
+	const stamps = [
+		{ line: 1, time: 5 },
+		{ line: 2, time: 5 },
+		{ line: 3, time: 8 },
+		{ line: 4, time: 8 }
+	];
+	for (const profile of ['genius', 'musixmatch'] as const) {
+		for (const format of ['srt', 'vtt'] as const) {
+			const result = formatTimedLyrics('First\nSecond\nThird\nFourth', stamps, format, profile);
+			const separator = format === 'srt' ? ',' : '.';
+			expect(
+				result.match(new RegExp(`00:00:05\\${separator}000 --> 00:00:08\\${separator}000`, 'g'))
+			).toHaveLength(2);
+			expect(
+				result.match(new RegExp(`00:00:08\\${separator}000 --> 00:00:11\\${separator}000`, 'g'))
+			).toHaveLength(2);
+			expect(result).toContain('First');
+			expect(result).toContain('Second');
+		}
+		expect(formatTimedLyrics('First\nSecond', stamps.slice(0, 2), 'lrc', profile)).toBe(
+			'[00:05.00]First\n[00:05.00]Second\n'
+		);
+	}
+});
+
+test('subtitle timestamps that round to the same millisecond retain positive duration', () => {
+	const result = formatTimedLyrics(
+		'One\nTwo',
+		[
+			{ line: 1, time: 5 },
+			{ line: 2, time: 5.0001 }
+		],
+		'vtt'
+	);
+	expect(result.match(/00:00:05\.000 --> 00:00:08\.000/g)).toHaveLength(2);
+});
