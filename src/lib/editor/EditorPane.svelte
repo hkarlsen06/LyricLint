@@ -967,11 +967,13 @@
 		background: transparent;
 	}
 
+	/* A nonzero duration transitions virtual gap heights for one frame, so
+	   CodeMirror measures stale geometry before restoring the scroll position. */
 	@media (prefers-reduced-motion: reduce) {
 		.editor-pane,
 		.editor-pane :global(*) {
 			scroll-behavior: auto !important;
-			transition-duration: 0.01ms !important;
+			transition-duration: 0s !important;
 			animation-duration: 0.01ms !important;
 			animation-iteration-count: 1 !important;
 		}
@@ -980,7 +982,7 @@
 	.reduced-motion,
 	.reduced-motion :global(*) {
 		scroll-behavior: auto !important;
-		transition-duration: 0.01ms !important;
+		transition-duration: 0s !important;
 		animation-duration: 0.01ms !important;
 		animation-iteration-count: 1 !important;
 	}

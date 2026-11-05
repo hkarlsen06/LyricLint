@@ -109,6 +109,45 @@ afterEach(() => {
 });
 
 describe('EditorPane', () => {
+	for (const preference of ['system', 'editor']) {
+		it(`applies virtual gap resizing synchronously with ${preference} reduced motion`, async () => {
+			await cdp().send('Emulation.setEmulatedMedia', {
+				features: [
+					{
+						name: 'prefers-reduced-motion',
+						value: preference === 'system' ? 'reduce' : 'no-preference'
+					}
+				]
+			});
+			try {
+				const text = Array.from(
+					{ length: 220 },
+					(_, index) => `Line ${index}: silver water carries every word home`
+				).join('\n');
+				const { handle } = await mountEditor({
+					text,
+					displayContext: context({ reducedMotion: preference === 'editor' })
+				});
+				const host = document.querySelector<HTMLElement>('.editor-pane');
+				if (!host) throw new Error('Editor pane is missing.');
+				host.style.height = '600px';
+				handle.revealRange({ from: text.indexOf('Line 140:'), to: text.indexOf('Line 141:') });
+				await new Promise<void>((resolve) =>
+					requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+				);
+				const gap = host.querySelector<HTMLElement>('.cm-gap');
+				if (!gap) throw new Error('CodeMirror did not virtualize the long document.');
+				const before = gap.getBoundingClientRect().height;
+				expect(before).toBeGreaterThan(51);
+				// Measurement must see the new height in this task, before the next frame.
+				gap.style.height = `${before - 51}px`;
+				expect(gap.getBoundingClientRect().height).toBeCloseTo(before - 51, 1);
+			} finally {
+				await cdp().send('Emulation.setEmulatedMedia', { features: [] });
+			}
+		});
+	}
+
 	it('mounts CodeMirror in the browser and preserves initial text', async () => {
 		const { handle } = await mountEditor({ text: '[Verse]\nHello' });
 
