@@ -65,6 +65,47 @@ test('phone format switching preserves multilingual lyrics and retained annotati
 	await expectLyrics(page, source);
 });
 
+test('hidden Song clear preserves format and native history after shorter projections', async ({
+	page
+}) => {
+	const errors: string[] = [];
+	page.on('pageerror', (error) => errors.push(error.message));
+	await openWorkspace(page);
+	const source = '[Verse: Åsa]\nA [café](123456) 星\n\n[Chorus: Bjørn]\nWe sing שלום';
+	const plain = 'A café 星\n\nWe sing שלום';
+	await replaceLyrics(page, source);
+	await mobileNavigation(page).getByRole('button', { name: 'Tools', exact: true }).click();
+	await page.getByRole('tab', { name: 'Song', exact: true }).click();
+	await expect(lyricsEditor(page)).not.toBeVisible();
+	for (const profile of ['Musixmatch', 'Genius', 'Musixmatch']) {
+		await page.getByRole('button', { name: `Lyric format: ${profile}` }).click();
+	}
+	await expectLyrics(page, plain);
+	await page.getByText('Clear this transcription', { exact: true }).click();
+	await page
+		.getByRole('button', { name: 'Clear lyrics and retained details…', exact: true })
+		.click();
+	await page.getByRole('button', { name: 'Delete lyrics and details', exact: true }).click();
+	await expectLyrics(page, '');
+	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	async function history(name: 'Undo' | 'Redo') {
+		await page.getByRole('button', { name: 'Document', exact: true }).click();
+		await page.locator('.document-toolbar').getByRole('button', { name, exact: true }).click();
+		await page.keyboard.press('Escape');
+	}
+	await history('Undo');
+	await expectLyrics(page, plain);
+	await history('Redo');
+	await expectLyrics(page, '');
+	await history('Undo');
+	await page.getByRole('button', { name: 'Lyric format: Genius' }).click();
+	await expectLyrics(page, source);
+	expect(errors).toEqual([]);
+});
+
 test.describe('normal-motion integration', () => {
 	test.use({ reducedMotion: 'no-preference' });
 

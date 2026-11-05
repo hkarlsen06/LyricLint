@@ -153,6 +153,12 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `contentDOM`. The affordance is an inset outline on the editor's own edge, never a box.
   `audio-drop.svelte.test.ts` asserts both halves.
 
+- Viewport continuity captures geometry only while the editor is in view and visible.
+  Phone Tools keeps the editor mounted but hidden; profile switches there preserve the
+  document and history without capturing stale layout as a new scroll target. Clearing
+  retains the explicit profile and removes lyrics and retained details in one history event.
+  `conversion.svelte.test.ts` and `e2e/mobile-workbench.spec.ts` cover clear and history.
+
 ## Decision record
 
 ### Profile history retains explicit selections and maps the visible passage
@@ -170,7 +176,9 @@ The same dispatch path maps a visible text position through the two projections 
 switches, Undo and Redo, retaining its measured text inset even when the caret is elsewhere.
 A logical line block can include a section widget or several screens of wrapped lyrics; its
 inset cannot be passed as a caret margin, which CodeMirror clamps to the viewport height.
-At the document start a native scroll snapshot preserves the first block and its widgets.
+At the visible document start a native scroll snapshot preserves the first block and its widgets.
+Hidden phone Tools has no reading position to preserve. Its stale line geometry can yield
+a snapshot beyond a shorter projection, so hidden switches skip viewport capture entirely.
 The former switch-only measurement could also read stale geometry after replacement and reset
 a long document to the top. `conversion-history.svelte.test.ts` covers both profile directions,
 repeated history, native typing and IME, multiple selections, text-identical switches, deep

@@ -297,7 +297,11 @@ export function dispatchConversionTransactions(
 	let passage: number | undefined;
 	let inset = 0;
 	let startSnapshot: ReturnType<EditorView['scrollSnapshot']> | undefined;
+	// A hidden editor can retain geometry from an earlier projection. Its viewport
+	// is not a reading position and must not become a scroll target in the new document.
 	if (
+		view.inView &&
+		view.dom.checkVisibility() &&
 		transactions.some(
 			(transaction) =>
 				profileForState(transaction.startState) !== profileForState(transaction.state)

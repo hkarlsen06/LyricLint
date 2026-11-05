@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ChangeSet } from '@codemirror/state';
 import { createLyricEditor, type LyricEditorInstance } from './create-editor.js';
 import type { EditorSnapshot, PerformerRecord } from '#lib/core/types.js';
 import type { ConversionEnvelope } from '#lib/persistence/conversion.js';
@@ -43,6 +44,37 @@ function mount(
 }
 
 describe('lossless profile transactions', () => {
+	it('clears a hidden editor after profile switches and restores its exact selection and details', async () => {
+		const { handle, view } = mount();
+		handle.setLineAnchors!([{ line: 2, time: 12.5 }]);
+		await vi.waitFor(() => expect(view.inView).toBe(true));
+		const staleSnapshot = view
+			.scrollSnapshot()
+			.map(ChangeSet.of({ from: 0, insert: 'x'.repeat(genius.length) }, genius.length));
+		if (!staleSnapshot) throw new Error('The scroll snapshot must survive its mapping.');
+		view.dom.parentElement!.style.display = 'none';
+		// The production phone reproduction captures a pending snapshot beyond the
+		// shorter projection while hidden. Keep that layout input deterministic here.
+		vi.spyOn(view, 'scrollSnapshot').mockReturnValue(staleSnapshot);
+		handle.switchProfile!('musixmatch');
+		view.dispatch({ selection: { anchor: mxm.length, head: 1 } });
+		const before = handle.getSnapshot();
+		const selection = view.state.selection.toJSON();
+		expect(handle.dispatchConversionAction!({ kind: 'clearDocument' }, before.revision)).toEqual({
+			ok: true
+		});
+		expect(handle.getSnapshot().text).toBe('');
+		expect(handle.getSnapshot().conversion?.profile).toBe('musixmatch');
+		expect(handle.getLineAnchors!()).toEqual([]);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(before.text);
+		expect(handle.getSnapshot().conversion).toEqual(before.conversion);
+		expect(view.state.selection.toJSON()).toEqual(selection);
+		handle.redo();
+		expect(handle.getSnapshot().text).toBe('');
+		expect(handle.getSnapshot().conversion?.profile).toBe('musixmatch');
+	});
+
 	it.each([
 		['[Verse]\nOne\n[Instrumental]', 0, 4, 'My new song', '[Verse]\nMy new song'],
 		['[Verse]\nOne\n[Chorus]\nTwo', 1, 5, 'by', '[Verse]\nObywo']
