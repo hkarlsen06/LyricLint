@@ -89,6 +89,27 @@ describe('DraftMenu', () => {
 		expect(screen.getByRole('heading', { name: "Saved 'scribes" })).toBeTruthy();
 	});
 
+	test.each(['Escape', 'outside press'])(
+		'closes on %s before the native toggle event arrives',
+		async (action) => {
+			const { controller } = createTestWorkbench();
+			await render(DraftMenu, { controller });
+			const trigger = screen.getByRole('button', { name: "Open saved 'scribes" });
+			const menu = trigger.closest('details')!;
+			trigger.click();
+			expect(menu.open).toBe(true);
+			if (action === 'Escape') {
+				trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+			} else {
+				document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+			}
+			await waitFor(() => expect(menu.open).toBe(false));
+			await vi.dynamicImportSettled();
+			expect(menu.open).toBe(false);
+			expect(trigger.getAttribute('aria-expanded')).toBe('false');
+		}
+	);
+
 	test('filters a large library and resets the search when the menu closes', async () => {
 		const drafts = Array.from({ length: 8 }, (_, index) => ({
 			...secondDraft(),

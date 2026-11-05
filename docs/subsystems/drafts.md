@@ -61,6 +61,8 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 - At five saved drafts the menu offers case-insensitive title/full-lyric search. Filtering never
   changes the saved records; a no-match result retains the search field, and closing the
   menu clears search and pending row actions. `DraftMenu.svelte.test.ts` pins recovery.
+  Escape and outside presses close the native menu even before its queued toggle event updates
+  the bound state. Escape returns focus to Open; an outside press retains its own focus target.
 
 - A uniquely titled draft has one identity row with its title, date and Actions disclosure.
   Only one row reveals its named Rename, Duplicate, Export Scribe and Delete controls below

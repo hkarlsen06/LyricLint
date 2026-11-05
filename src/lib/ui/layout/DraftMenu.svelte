@@ -13,17 +13,20 @@
 		if (open) initialized = true;
 	});
 	let menuTrigger = $state<HTMLElement>();
+	let menu = $state<HTMLDetailsElement>();
 	let importInput = $state<HTMLInputElement>();
 	let importing = $state(false);
 	let pendingLyrics = $state<File>();
 	let sourceProfile = $state<ProfileId>('genius');
 
 	function dismiss(): void {
+		// Native details opens before its queued toggle event updates bind:open.
+		if (menu) menu.open = false;
 		open = false;
 		pendingLyrics = undefined;
 	}
 	function handleKeydown(event: KeyboardEvent): void {
-		if (event.key !== 'Escape' || !open) return;
+		if (event.key !== 'Escape' || !menu?.open) return;
 		event.preventDefault();
 		dismiss();
 		menuTrigger?.focus();
@@ -62,7 +65,13 @@
      interactive: it hosts one handler for the surface it *is*, exactly as it
      hosts the outside-press attachment beside it. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<details class="draft-menu" bind:open onkeydown={handleKeydown} {@attach dismissOnOutside(dismiss)}>
+<details
+	class="draft-menu"
+	bind:this={menu}
+	bind:open
+	onkeydown={handleKeydown}
+	{@attach dismissOnOutside(dismiss)}
+>
 	<!-- The .button flex styling strips the summary's implicit disclosure role in
 	     Chromium, so restate the button semantics and expansion state explicitly.
 	     Svelte considers the role redundant, but real browsers expose the styled
