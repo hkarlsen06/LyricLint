@@ -313,6 +313,8 @@ The browser tests advance only `setTimeout` and `clearTimeout` for the pause cou
 after the editor's initial layout. They assert the wash is still active just before the
 deadline and rests when it arrives. Animation frames and CSS remain real; the separate
 negative-scroll tests still allow the full eased scroll to run before asserting no movement.
+They await an animation frame after the easing window, so a delayed frame cannot overwrite
+the test reader's own scroll after the wall-clock wait has ended.
 
 The transcription loop is listen, pause, type, so the band across the marked line used to be
 at its brightest exactly when the user had stopped listening and started editing: a
