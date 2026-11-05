@@ -10,7 +10,9 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
 `src/lib/ui/site/rule-search.svelte.ts`, `src/lib/ui/site/guidance-search.svelte.ts`,
 `src/lib/ui/site/guidance-reading.svelte.ts`, `src/lib/guidance/guidance-search.ts`,
 `src/routes/(site)/rules/`, `src/routes/(site)/guidelines/`, `static/_redirects`, `vite.config.ts`
-Musixmatch additions: `src/lib/profiles/reference.server.ts`, `src/lib/profiles/policy-cases.ts`.
+Musixmatch additions: `src/lib/profiles/reference.server.ts`, `src/lib/profiles/reader.server.ts`,
+`src/lib/profiles/policy-cases.ts`, `src/lib/ui/site/MusixmatchClause.svelte`,
+`src/lib/ui/site/MusixmatchCheck.svelte`, `src/lib/ui/site/MusixmatchSearchResults.svelte`.
 
 ## The rules
 
@@ -51,7 +53,11 @@ Musixmatch additions: `src/lib/profiles/reference.server.ts`, `src/lib/profiles/
   Matching spelling landmarks retain their complete tables; standalone check results expose
   their examples and detail links. Only adjacent results from the same topic share a heading,
   so topic grouping never changes search rank. Empty searches show an empty result message;
-  clearing the query restores the complete guide in catalog order. Typing keeps focus in search
+  clearing the query restores the complete Genius guide in catalog order. For Musixmatch,
+  clearing restores the directory or selected topic belonging to the current route. Its reader
+  resolves ranked hits through the shared server-derived clause and check renderers, preserving
+  language scope, source conflicts and checking limits. Dedicated check pages retain their full
+  detail view and query-bearing return links. Typing keeps focus in search
   and returns the reader to the start of the new results. `e2e/guide-search.spec.ts` pins this.
   Related matching checks group under a matching guideline in All scope; checks remain directly
   accessible. `reference/search.test.ts` pins these search tasks and grouping.
