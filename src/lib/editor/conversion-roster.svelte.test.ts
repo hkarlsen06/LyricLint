@@ -13,6 +13,43 @@ afterEach(() => {
 });
 
 describe('converted performer history', () => {
+	it('labels and announces a secondary singer without the section singer covering their words', () => {
+		const roster: PerformerRecord[] = ['Mira', 'Noor'].map((displayName, order) => ({
+			id: displayName.toLowerCase(),
+			displayName,
+			normalizedKey: displayName.toLowerCase(),
+			aliases: [],
+			colorId: 'olive',
+			order
+		}));
+		const host = document.createElement('div');
+		document.body.append(host);
+		const onAnnouncement = vi.fn();
+		const editor = createLyricEditor(host, {
+			initialText: '[Verse: Mira & <i>Noor</i>]\nMira carries the light\n<i>Noor answers</i>',
+			context: { language: 'en', performers: roster, ruleSetVersion: 'test' },
+			callbacks: {
+				onSnapshot: vi.fn(),
+				onAssignRequest: vi.fn(),
+				onSectionHeaderRequest: vi.fn(),
+				onDiagnosticActivate: vi.fn(),
+				onAnnouncement
+			}
+		});
+		editors.push(editor);
+		editor.handle.switchProfile!('musixmatch');
+		const noor = editor.view.dom.querySelector('[aria-label="Performed by Noor"]');
+		expect(noor?.textContent).toBe('Noor answers');
+		expect(noor?.parentElement?.closest('[aria-label="Performed by Mira"]')).toBeNull();
+		expect(noor?.classList.contains('ll-performer-secondary')).toBe(false);
+		const at = editor.handle.getSnapshot().text.indexOf('Noor');
+		editor.handle.setSelection({ anchor: 0, head: 0 });
+		onAnnouncement.mockClear();
+		editor.handle.setSelection({ anchor: at, head: at });
+		expect(onAnnouncement).toHaveBeenLastCalledWith('Performed by Noor');
+		expect(editor.handle.getSnapshot().text).toBe('Mira carries the light\nNoor answers');
+	});
+
 	it('publishes matching roster/model snapshots and restores only touched identities on undo and redo', () => {
 		const mira: PerformerRecord = {
 			id: 'mira',

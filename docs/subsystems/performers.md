@@ -10,6 +10,11 @@ format itself: `docs/performer-tagging.md`
 
 ## The rules
 
+- In Musixmatch, the retained plain section voice is a fallback. Projected voice ranges
+  exclude styled passages from that fallback, including unnamed wrappers and assignments
+  beyond the Genius style limit. A secondary singer's words carry only that singer's label,
+  gutter attribution and caret announcement. Projection never rewrites retained assignments.
+
 - Rich drafts retain voice assignments independently of the visible format. Musixmatch selection
   uses retained section identity and writes a metadata action; Genius markup is derived when
   representable. Anonymous voices remain anonymous, and excess Genius style groups remain
