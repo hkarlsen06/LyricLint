@@ -157,6 +157,11 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `contentDOM`. The affordance is an inset outline on the editor's own edge, never a box.
   `audio-drop.svelte.test.ts` asserts both halves.
 
+- Profile passage restoration rounds scroll movement symmetrically at the browser's native scroll
+  precision in CodeMirror's public measurement phase. It keeps no reading anchor between changes:
+  each switch captures the current passage, including after user scrolling or layout changes.
+  Known fractional widget heights can otherwise accumulate native scrollTop rounding bias;
+  `conversion-scroll.svelte.test.ts` covers that independently of widget estimation.
 - Viewport continuity captures geometry only while the editor is in view and visible.
   Phone Tools keeps the editor mounted but hidden; profile switches there preserve the
   document and history without capturing stale layout as a new scroll target. Clearing

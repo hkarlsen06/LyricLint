@@ -9,6 +9,7 @@ import {
 } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
+import { conversionScroll, scrollConversionPassage } from './conversion-scroll.js';
 import { projectedVoiceGroups } from '#lib/conversion/voices.js';
 import { setVoiceGroupsEffect } from './performer-decorations.js';
 import type { PerformerRecord, PerformerRecordDelta, TextEdit } from '#lib/core/types.js';
@@ -376,9 +377,7 @@ export function dispatchConversionTransactions(
 		projection = next;
 	}
 	const effects =
-		passage === undefined
-			? []
-			: [startSnapshot ?? EditorView.scrollIntoView(passage, { y: 'start', yMargin: inset })];
+		passage === undefined ? [] : [startSnapshot ?? scrollConversionPassage(view, passage, inset)];
 	view.update(
 		selection || effects.length
 			? [
@@ -406,6 +405,7 @@ export function conversionState(
 		if (recovery) start.recovery = recovery;
 	}
 	return [
+		conversionScroll,
 		conversionRosterHistory,
 		conversionStateField.init(() => start),
 		compositionChangesField,
