@@ -586,6 +586,9 @@ describe('SongPanel conversion restraint', () => {
 					expect(control.getBoundingClientRect().right).toBeLessThanOrEqual(
 						run.view.container.getBoundingClientRect().right
 					);
+				expect(classification.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+					picker.getBoundingClientRect().bottom
+				);
 				const text = run.controller.snapshot.text;
 				await fireEvent.click(picker);
 				await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'Spanish' } });

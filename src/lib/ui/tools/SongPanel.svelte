@@ -201,31 +201,36 @@
 		</p>
 		<details>
 			<summary>Language and content type</summary>
-			<LanguagePicker
-				language={controller.language}
-				recentLanguages={controller.recentLanguages}
-				label="Document language"
-				expandedLabel
-				disabled={!settingsEnabled}
-				onchoose={(tag) => controller.setLanguage(tag)}
-			/>
-			<label
-				>Content type
-				<select
+			<div class="document-settings">
+				<LanguagePicker
+					language={controller.language}
+					recentLanguages={controller.recentLanguages}
+					label="Document language"
+					expandedLabel
 					disabled={!settingsEnabled}
-					value={controller.snapshot.conversion?.model.contentKind ?? 'unknown'}
-					onchange={(event) => {
-						const value = event.currentTarget.value;
-						const kind = contentKinds.find((entry) => entry.value === value);
-						if (kind)
-							controller.applyConversionAction({ kind: 'setContentKind', contentKind: kind.value });
-					}}
-				>
-					{#each contentKinds as kind (kind.value)}
-						<option value={kind.value}>{kind.label}</option>
-					{/each}
-				</select>
-			</label>
+					onchoose={(tag) => controller.setLanguage(tag)}
+				/>
+				<label
+					>Content type
+					<select
+						disabled={!settingsEnabled}
+						value={controller.snapshot.conversion?.model.contentKind ?? 'unknown'}
+						onchange={(event) => {
+							const value = event.currentTarget.value;
+							const kind = contentKinds.find((entry) => entry.value === value);
+							if (kind)
+								controller.applyConversionAction({
+									kind: 'setContentKind',
+									contentKind: kind.value
+								});
+						}}
+					>
+						{#each contentKinds as kind (kind.value)}
+							<option value={kind.value}>{kind.label}</option>
+						{/each}
+					</select>
+				</label>
+			</div>
 		</details>
 		<!--
 			The document-scoped delete lives in the section about the document it
@@ -526,6 +531,15 @@
 		align-content: center;
 		cursor: pointer;
 		color: var(--color-text-muted);
+	}
+	.document-settings {
+		display: grid;
+		gap: var(--space-3);
+		margin-top: var(--space-2);
+	}
+	.document-settings > label {
+		display: grid;
+		gap: var(--space-1);
 	}
 	.song-panel :global(input:not([type='checkbox'])),
 	.song-panel :global(select),
