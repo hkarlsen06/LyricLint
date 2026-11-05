@@ -172,9 +172,8 @@ can subsequently be changed explicitly through More section options; type and Ge
 remain independent. This does not infer language-specific equivalents or resolve ambiguous
 policy mappings. Document settings and Retained details stay collapsed by default.
 
-Listening decisions show either the quantity form or the instrumental form, selected by the
-request from Review. The other form remains accessible through the named choice controls.
-Saved decisions stay collapsed. Lyric findings precede retained-detail Review. Retained details
+Listening diagnostics open only their requested quantity or instrumental task in Review.
+Song exposes saved decisions in a separate collapsed disclosure. Lyric findings precede retained-detail Review. Retained details
 show one finding at a time, with Previous detail and Next detail only when several remain.
 Linking keeps per-section operations in Section options.
 
@@ -432,8 +431,8 @@ Ordinary untyped labels keep the inline type selector and deliberate Save. Hidde
 never receive invented lyric ranges. Format switches and subsequent edits keep normal Undo.
 Focused quantity tasks ask “How is this number used?” and “How is it sung?” independently.
 A selected canonical ASCII integer supplies its already-proven exact value without a duplicate
-input. Word forms, noncanonical numbers and non-Latin digits retain the exact-value input,
-and the unfocused listening tool retains all expert fields. “Use custom exact wording” discloses
+input. Word forms, noncanonical numbers and non-Latin digits retain the exact-value input.
+“Use custom exact wording” discloses
 optional exact sung words and digit forms; the shared policy and source-match validators still
 refuse unsupported or mismatched facts. Invalid values explain the refusal before preview.
 Censorship requires the heard prefix and an explicit confirmation that the word is censored

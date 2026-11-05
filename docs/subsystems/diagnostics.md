@@ -9,7 +9,7 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 - Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
 
-- Text findings precede retained-detail Review, so a section-tag decision never obstructs a lyric finding. Retained-detail Review presents one finding with Previous detail and Next detail when several remain; a lone detail has no redundant navigation. Listening requests select the relevant quantity or instrumental form; its alternative and saved decisions remain explicitly accessible.
+- Text findings precede retained-detail Review, so a section-tag decision never obstructs a lyric finding. Retained-detail Review presents one finding with Previous detail and Next detail when several remain; a lone detail has no redundant navigation. Listening requests open only the relevant quantity or instrumental form. Song keeps saved decisions in a separate disclosure.
 	Section-type findings offer a named selector and explicit Save in Review without opening Song. Other retained section requests reopen and focus their section even when requested repeatedly;
 	missing boundaries open Add a section. Back to Review restores focus to the next retained
 	decision, or the Review tab when none remain. `e2e/profile-workbench.spec.ts` pins desktop
