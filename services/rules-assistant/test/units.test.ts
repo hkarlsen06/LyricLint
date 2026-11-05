@@ -1413,6 +1413,50 @@ describe('Turnstile verification', () => {
 			turnstileVerifier('secret', true, response('127.0.0.1'))('token', undefined)
 		).resolves.toBe(true);
 	});
+
+	it('accepts the official dummy response only with the explicit local test setup', async () => {
+		await expect(
+			turnstileVerifier(
+				'1x0000000000000000000000000000000AA',
+				true,
+				response('example.com')
+			)('XXXX.DUMMY.TOKEN.XXXX', undefined)
+		).resolves.toBe(true);
+	});
+
+	it.each([
+		{
+			secret: '1x0000000000000000000000000000000AA',
+			local: false,
+			token: 'XXXX.DUMMY.TOKEN.XXXX',
+			hostname: 'example.com'
+		},
+		{
+			secret: 'production-secret',
+			local: true,
+			token: 'XXXX.DUMMY.TOKEN.XXXX',
+			hostname: 'example.com'
+		},
+		{
+			secret: '1x0000000000000000000000000000000AA',
+			local: true,
+			token: 'ordinary-token',
+			hostname: 'example.com'
+		},
+		{
+			secret: '1x0000000000000000000000000000000AA',
+			local: true,
+			token: 'XXXX.DUMMY.TOKEN.XXXX',
+			hostname: 'attacker.example'
+		}
+	])(
+		'rejects a dummy response outside the local test setup ($secret, $local, $hostname)',
+		async ({ secret, local, token, hostname }) => {
+			await expect(
+				turnstileVerifier(secret, local, response(hostname))(token, undefined)
+			).rejects.toMatchObject({ code: 'challenge_required' });
+		}
+	);
 });
 
 describe('QuotaCounter', () => {

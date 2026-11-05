@@ -159,6 +159,11 @@ export function turnstileVerifier(
 		if (allowLocalhost) {
 			allowed.add('localhost');
 			allowed.add('127.0.0.1');
+			// Siteverify reports example.com for the official dummy pair. Keep
+			// that response confined to explicit local testing with that pair.
+			if (secret === '1x0000000000000000000000000000000AA' && token === 'XXXX.DUMMY.TOKEN.XXXX') {
+				allowed.add('example.com');
+			}
 		}
 		if (!result.hostname || !allowed.has(result.hostname)) {
 			throw new ApiError('challenge_required', 'Complete the challenge and try again.');

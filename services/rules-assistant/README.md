@@ -325,6 +325,12 @@ a replayed cookie cannot move. `src/identity.ts` states the trade in full.
    repository root. Use `http://127.0.0.1:5173`, which matches `ALLOWED_ORIGIN`.
 4. Check `http://127.0.0.1:8787/health`, then ask a question in `/rules/`.
 
+The test widget supplies Cloudflare's official dummy token. Direct local requests
+must use `XXXX.DUMMY.TOKEN.XXXX` too. Siteverify can report `example.com` for this
+test pair; the verifier accepts it only with the official always-passing test
+secret, that exact dummy token and `TURNSTILE_ALLOW_LOCALHOST=true`. Other tokens,
+secrets and hostnames keep the normal hostname checks.
+
 ## Cloudflare setup and deployment
 
 1. Create production and staging AI Gateways and enable Gateway authentication.
