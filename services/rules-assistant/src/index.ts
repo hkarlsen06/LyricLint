@@ -48,6 +48,7 @@ import {
 	type StructuredAnswer
 } from './schema';
 import { IncrementalAnswerStream, type AnswerStreamEvent } from './stream';
+import { FINAL_ROUND_INSTRUCTION } from './prompt';
 
 export { QuotaCounter } from './quota-do';
 
@@ -81,18 +82,6 @@ type StreamEvent =
 	| { type: 'tool_calls'; calls: ProviderToolCall[]; providerItems: string }
 	| { type: 'done'; quota: QuotaSnapshot }
 	| { type: 'error'; requestId: string; error: ErrorBody['error'] };
-
-/**
- * What the model is told on the call that follows its last tool round. It is
- * appended as a visitor-role message for the reason `repairMessages` appends
- * one: the developer instructions are byte-identical per corpus so the prompt
- * cache hits, and a per-request fact belongs after the cache breakpoint.
- */
-export const FINAL_ROUND_INSTRUCTION =
-	`You have now used all ${MAX_TOOL_ROUNDS} 'scribe tool rounds for this turn, so no tools ` +
-	`are available on this reply. Answer with what you have: say what you did, what is still ` +
-	`outstanding and why, and that they can ask again to carry on. Do not claim work you did not ` +
-	`complete.`;
 
 const REPAIR_INSTRUCTION = (message: string): string =>
 	`Your previous answer failed validation: ${message}. It was not shown to the visitor. Answer the question again, corrected, as a complete structured answer.`;

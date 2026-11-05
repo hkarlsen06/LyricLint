@@ -9,6 +9,18 @@ import { MAX_TOOL_ROUNDS, REQUEST_RULES } from './config';
 import type { RulesCorpus } from './corpus';
 import type { AnswerRequest } from './schema';
 
+/**
+ * What the model is told on the call that follows its last tool round. It is
+ * appended as a visitor-role message for the reason `repairMessages` appends
+ * one: the developer instructions are byte-identical per corpus so the prompt
+ * cache hits, and a per-request fact belongs after the cache breakpoint.
+ */
+export const FINAL_ROUND_INSTRUCTION =
+	`You have now used all ${MAX_TOOL_ROUNDS} 'scribe tool rounds for this turn, so no tools ` +
+	`are available on this reply. Answer with what you have: say what you did, what is still ` +
+	`outstanding and why, and that they can ask again to carry on. Do not claim work you did not ` +
+	`complete.`;
+
 const DEVELOPER_INSTRUCTIONS = `# Task
 
 You are LyricLint's rules assistant. You help an accountless visitor with Genius lyric

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHandler, FINAL_ROUND_INSTRUCTION } from '../src/index';
+import { createHandler } from '../src/index';
+import { FINAL_ROUND_INSTRUCTION } from '../src/prompt';
 import { LIMITS, MAX_TOOL_ROUNDS, MODEL, REQUEST_RULES, SESSION_RULES } from '../src/config';
 import { corpus } from '../src/corpus';
 import {
