@@ -282,6 +282,38 @@ describe('Workspace and toolbar', () => {
 		expect(select).not.toHaveBeenCalled();
 	});
 
+	test.each([1280, 1440])('keeps a long title clear of desktop commands at %ipx', async (width) => {
+		await page.viewport(width, 900);
+		const { controller } = createTestWorkbench({ text: '[Verse]\nA line to review' });
+		await renderWorkspace(controller);
+		const title = screen.getByLabelText("'Scribe title") as HTMLInputElement;
+		const open = screen.getByRole('button', { name: "Open saved 'scribes" });
+		const create = screen.getByRole('button', { name: "New 'scribe" });
+		const genius = screen.getByRole('button', { name: 'Lyric format: Genius' });
+		const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+		const commandPosition = copy.getBoundingClientRect().toJSON();
+		const longTitle =
+			'A very long song title that should stay readable beside the document controls '.repeat(3);
+
+		await userEvent.fill(title, longTitle);
+		await userEvent.tab();
+		await waitFor(() => expect(controller.title).toBe(longTitle.trim()));
+
+		function expectSeparated() {
+			const controls = [title, open, create, genius];
+			for (let index = 1; index < controls.length; index++) {
+				expect(controls[index - 1].getBoundingClientRect().right).toBeLessThanOrEqual(
+					controls[index].getBoundingClientRect().left
+				);
+			}
+			expect(copy.getBoundingClientRect().toJSON()).toEqual(commandPosition);
+			expect(title.value).toBe(longTitle.trim());
+		}
+		await waitFor(expectSeparated);
+		controller.setSaveStatus('failed');
+		await waitFor(expectSeparated);
+	});
+
 	test('draws nothing while saving is going well, then spells the failure out', async () => {
 		const { controller } = createTestWorkbench();
 		await render(DocumentToolbar, { controller });

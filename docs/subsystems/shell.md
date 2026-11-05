@@ -106,6 +106,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 - The toolbar spans the whole window and splits on what a control acts on, not on how loud it
   is; the save readout draws nothing while saving is going well (`sr-only` otherwise).
+  The draft-title group shrinks within the identity strip, truncating a long title before
+  it can overlap Open, New or the document commands. The complete title remains editable.
 - When Undo or Redo exhausts its history while holding focus, focus moves to the available
   opposite command. The phone Document menu stays open; history never opens the editor keyboard.
 - Diagnostics are inset rows separated by space, without hairlines. Resting rows are

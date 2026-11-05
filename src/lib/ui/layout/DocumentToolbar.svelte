@@ -414,6 +414,7 @@
 	.draft-switcher {
 		position: relative;
 		display: flex;
+		min-width: 0;
 		border: var(--border-width) solid transparent;
 		border-radius: var(--radius-control);
 		align-items: center;
