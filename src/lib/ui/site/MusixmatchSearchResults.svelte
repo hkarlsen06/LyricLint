@@ -3,7 +3,7 @@
 </script>
 
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { createReferenceResults, referenceSearchQuery } from './reference-search.svelte.js';
 	import { safeDecodeHash } from './hash.js';
@@ -44,6 +44,7 @@
 		return groups;
 	});
 	let article = $state<HTMLElement>();
+	onDestroy(() => setReadingAnchor(''));
 	let previousQuery: string | undefined;
 	$effect(() => {
 		const query = referenceSearchQuery();

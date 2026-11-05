@@ -189,3 +189,18 @@ test('standalone Musixmatch check search keeps examples, sources and detail link
 		check.getByRole('link', { name: 'A number without established context', exact: true })
 	).toHaveAttribute('href', /q=numbers&scope=rules/u);
 });
+
+test('leaving a searched clause restores the Musixmatch topic directory', async ({ page }) => {
+	await page.goto('/guidelines/musixmatch/?q=numbers');
+	const index = page.locator('.site-split__index');
+	await index.locator('a[href$="#mx-f06"]').click();
+	await expect(page.locator('.site-split__detail #mx-f06')).toBeInViewport();
+	const search = index.getByRole('searchbox');
+	await search.focus();
+	await search.press('Escape');
+	await expect(search).toHaveValue('');
+	await index.getByRole('link', { name: 'Musixmatch', exact: true }).click();
+	await expect(page).toHaveURL(/\/guidelines\/musixmatch\/$/u);
+	await expect(index.locator('.reference-topics')).toBeVisible();
+	await expect(index.locator('.reference-results')).toHaveCount(0);
+});
