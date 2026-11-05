@@ -51,6 +51,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   changing lyrics, recording listening facts or ignoring the finding.
 
 - Song uses one section chooser and one editor. Type and Show passage precede More section options; Add a section follows the editor. Selected passage tools, Document settings and retained details open deliberately. Clear this transcription is separate from export actions. Preferences exposes workspace backup actions directly; Local data and Reviewed rules remain secondary disclosures.
+  Local data explains reset consequences before its action. The warning and reset target stay
+  in place through confirmation and cancellation.
 
 - The document toolbar exposes a per-draft Genius and Musixmatch buttons that select a destination in one click
   or Enter/Space. A check and pressed state mark the committed format, and both buttons reserve
@@ -383,18 +385,19 @@ cover command order, copying, expansion, and narrow-screen bounds.
 
 Preferences is a compact list of settings rows on chrome. Headings use the ordinary UI
 size and medium weight; each disclosure pairs its name with one short description.
-Grammar checking stays directly operable. Workspace backup, Local data, and Reviewed rules
-open inline, with no nested disclosures, cards, or decorative separators. Their explanations
-and actions appear where the user has chosen to work; reset has no red resting treatment
-and its warning appears only after the user selects it. The About link closes the list.
+Grammar checking stays directly operable. Workspace backup actions are directly available;
+Local data and Reviewed rules open inline, with no nested disclosures, cards, or decorative
+separators. Their explanations and actions appear where the user has chosen to work. Reset has
+no red resting treatment, and its consequences precede the action inside Local data. The About
+link closes the list.
 
-Backup failures stay visible and announced even when the backup disclosure is closed.
+Backup failures stay visible and announced beside the available backup actions.
 Routine saving draws nothing. Export and import retain their contents and reconnection
-explanations beside the actions inside the disclosure.
+explanations beside the actions.
 
 Reset keeps its button mounted and fixed in position, changes to the contrast tier, and
-places Cancel immediately after it. Its warning appears below the row, with a hidden live
-announcement. Protect storage becomes invisible and inert during confirmation, preserving
+places Cancel immediately after it. Its consequence text remains above the row, with a hidden live
+announcement for confirmation. Protect storage becomes invisible and inert during confirmation, preserving
 its space. Cancel and Escape return focus; an outside press or closing Local data abandons
 the confirmation. `PreferencesPanel.svelte.test.ts` pins disclosure, reset, and backup paths.
 

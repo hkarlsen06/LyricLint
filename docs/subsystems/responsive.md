@@ -48,7 +48,9 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   voice-group predicate. `MobileCommands.svelte.test.ts` pins bounds, dismissal, and selection.
 - Frequent buttons, icon controls, severity filters and text fields use `--control-height-touch` (44px)
   on touch screens at every width. Shared size floors outrank compact route styles even
-  when those sheets load later. Nothing a finger types into is smaller than 16px. Preserve pinch zoom:
+  when those sheets load later. Switches keep their compact tracks with a shared hit area of at least
+  44px in both dimensions; hit testing covers the target beyond its painted bounds.
+  Nothing a finger types into is smaller than 16px. Preserve pinch zoom:
   `src/app.html` stays `width=device-width, initial-scale=1`. The reference search field
   has an explicit override because its class otherwise outranks the input selector. Workbench
   fields share a height floor on every surface, including panels outside the workspace. They

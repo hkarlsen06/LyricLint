@@ -194,6 +194,10 @@
 					{/if}
 				</div>
 				<div class="preferences-panel__reset">
+					<p id="reset-description">
+						Every local 'scribe and chat will be deleted and all settings reset. Backup files stay
+						on disk. This cannot be undone.
+					</p>
 					<div class="tool-actions tool-actions--flush">
 						<button
 							bind:this={resetButton}
@@ -207,7 +211,11 @@
 								}
 								await controller.deleteAllDrafts();
 								confirmDeleteAll = false;
-							}}>{confirmDeleteAll ? 'Reset LyricLint' : 'Reset LyricLint…'}</button
+							}}
+							><span
+								>Reset LyricLint<span class:preferences-panel__inactive={confirmDeleteAll}>…</span
+								></span
+							></button
 						>
 						{#if confirmDeleteAll}
 							<button
@@ -220,12 +228,6 @@
 							>
 						{/if}
 					</div>
-					<p id="reset-description" class:sr-only={!confirmDeleteAll}>
-						{#if confirmDeleteAll}
-							Reset LyricLint to a fresh install? Every local 'scribe and chat will be deleted and
-							all settings reset. This cannot be undone. Backup files stay on disk.
-						{/if}
-					</p>
 					<p class="sr-only" aria-live="polite">
 						{confirmDeleteAll ? 'Confirm reset or cancel. This cannot be undone.' : ''}
 					</p>
@@ -392,13 +394,6 @@
 
 	.preferences-panel__heading label {
 		cursor: pointer;
-	}
-
-	/* The switch is Bits UI's own element, so it is reached globally. */
-	.preferences-panel :global(.switch::after) {
-		position: absolute;
-		inset: calc(-1 * var(--space-2)) 0;
-		content: '';
 	}
 
 	.preferences-panel__disclosure > summary {

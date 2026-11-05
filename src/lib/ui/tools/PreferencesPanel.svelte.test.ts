@@ -226,6 +226,39 @@ describe('PreferencesPanel grammar toggle', () => {
 describe('PreferencesPanel destructive confirm', () => {
 	afterEach(cleanup);
 
+	test('explains the reset before its action and keeps both in place during confirmation', async () => {
+		const { controller } = createTestWorkbench();
+		await renderExpanded(controller);
+		const warning = screen.getByText(/Every local 'scribe and chat will be deleted/u);
+		const trigger = screen.getByRole('button', { name: 'Reset LyricLint…' });
+		expect(warning).toBeVisible();
+		expect(
+			warning.compareDocumentPosition(trigger) & Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+		await document.fonts.ready;
+		const before = trigger.getBoundingClientRect().toJSON();
+		const warningBefore = warning.getBoundingClientRect().toJSON();
+		await userEvent.click(trigger);
+		expect(trigger.getBoundingClientRect().toJSON()).toEqual(before);
+		expect(warning.getBoundingClientRect().toJSON()).toEqual(warningBefore);
+		await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		expect(trigger.getBoundingClientRect().toJSON()).toEqual(before);
+		expect(trigger).toHaveFocus();
+	});
+
+	test('accepts presses throughout a 44-pixel target around the grammar switch', async () => {
+		const { controller } = createTestWorkbench();
+		await render(PreferencesPanel, { controller });
+		const toggle = screen.getByRole('switch', { name: 'Grammar checking' });
+		const box = toggle.getBoundingClientRect();
+		for (const x of [box.left + box.width / 2 - 21.5, box.left + box.width / 2 + 21.5]) {
+			for (const y of [box.top + box.height / 2 - 21.5, box.top + box.height / 2 + 21.5]) {
+				const hit = document.elementFromPoint(x, y);
+				expect(hit === toggle || (hit !== null && toggle.contains(hit))).toBe(true);
+			}
+		}
+	});
+
 	test('confirms in place instead of opening a box inside the panel section', async () => {
 		const { controller, repository } = createTestWorkbench();
 		await controller.refreshDrafts();
@@ -234,7 +267,7 @@ describe('PreferencesPanel destructive confirm', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Reset LyricLint…' }));
 
 		expect(container.querySelector('.confirm-block')).toBeNull();
-		expect(screen.getByText(/Reset LyricLint to a fresh install\?/u)).toBeTruthy();
+		expect(screen.getByText(/Every local 'scribe and chat will be deleted/u)).toBeVisible();
 		expect(screen.queryByRole('button', { name: 'Reset LyricLint…' })).toBeNull();
 		expect(screen.getByRole('button', { name: 'Reset LyricLint' })).toBeTruthy();
 
