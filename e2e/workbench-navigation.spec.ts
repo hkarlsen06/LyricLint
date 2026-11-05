@@ -339,26 +339,30 @@ test('moving between docs pages never starts a splash', async ({ page }) => {
 });
 
 test('history navigation transitions while query and fragment changes do not', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'no-preference' });
 	await trackViewTransitions(page);
 	await page.goto('/about/');
 	await page.waitForLoadState('networkidle');
 	await page.getByRole('link', { name: 'Guide', exact: true }).click();
 	await expect(page).toHaveURL(/\/guidelines\/$/);
-	await expect(page.locator('.navigation-splash')).toHaveCount(0);
-	await expect(page.locator('html')).not.toHaveAttribute('data-navigation-transition');
 	const transitions = () =>
 		page.locator('html').getAttribute('data-transitions-started').then(Number);
-	let previous = await transitions();
-	expect(previous).toBeGreaterThan(0);
+	const expectCompletedNavigation = async (count: number) => {
+		// Entry can finish before the cover's spring and reveal start its exit.
+		// Wait for both native transitions before checking that the cycle is idle.
+		await expect.poll(transitions).toBe(count);
+		await expect(page.locator('.navigation-splash')).toHaveCount(0);
+		await expect(page.locator('html')).not.toHaveAttribute('data-navigation-transition');
+	};
+	let previous = 2;
+	await expectCompletedNavigation(previous);
 
 	for (const direction of ['back', 'forward'] as const) {
 		if (direction === 'back') await page.goBack();
 		else await page.goForward();
 		await expect(page).toHaveURL(direction === 'back' ? /\/about\/$/ : /\/guidelines\/$/);
-		await expect.poll(transitions).toBeGreaterThan(previous);
-		await expect(page.locator('.navigation-splash')).toHaveCount(0);
-		await expect(page.locator('html')).not.toHaveAttribute('data-navigation-transition');
-		previous = await transitions();
+		previous += 2;
+		await expectCompletedNavigation(previous);
 	}
 
 	for (const href of ['/guidelines/?q=voice', '/guidelines/?q=voice#navigation-test']) {
