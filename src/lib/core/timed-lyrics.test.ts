@@ -110,3 +110,10 @@ test('subtitle timestamps that round to the same millisecond retain positive dur
 	);
 	expect(result.match(/00:00:05\.000 --> 00:00:08\.000/g)).toHaveLength(2);
 });
+
+test('exports annotation-dense accepted lyrics without losing any sung fragments', () => {
+	const text = '[a](1)'.repeat(40_000);
+	expect(formatTimedLyrics(text, [{ line: 1, time: 5 }], 'lrc')).toBe(
+		`[00:05.00]${'a'.repeat(40_000)}\n`
+	);
+});

@@ -59,13 +59,17 @@ export function formatTimedLyrics(
 	profile: 'genius' | 'musixmatch' = 'genius'
 ): string {
 	const annotations = profile === 'genius' ? scanAnnotations(text) : [];
-	let plainText = text;
-	for (const annotation of annotations.reverse()) {
-		plainText = plainText.slice(0, annotation.fragmentRange.to) + plainText.slice(annotation.to);
-		plainText =
-			plainText.slice(0, annotation.from) + plainText.slice(annotation.fragmentRange.from);
+	const pieces: string[] = [];
+	let cursor = 0;
+	for (const annotation of annotations) {
+		pieces.push(
+			text.slice(cursor, annotation.from),
+			text.slice(annotation.fragmentRange.from, annotation.fragmentRange.to)
+		);
+		cursor = annotation.to;
 	}
-	const lines = plainText.split('\n');
+	pieces.push(text.slice(cursor));
+	const lines = pieces.join('').split('\n');
 	const cues = anchors
 		.map((anchor) => ({
 			time: anchor.time,
