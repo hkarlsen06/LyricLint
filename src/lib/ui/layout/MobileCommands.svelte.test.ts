@@ -96,6 +96,39 @@ test('leaves Escape to the active modal even when its focused content has disapp
 	expect(documentControl.getAttribute('aria-expanded')).toBe('true');
 });
 
+test.each([
+	{ width: 360, command: 'Compare' },
+	{ width: 390, command: 'Lyric language: English' }
+])('keeps the Document menu out of an active $command dialog', async ({ width, command }) => {
+	await page.viewport(width, 844);
+	const { controller } = createTestWorkbench({ text: '[Verse]\nThe words' });
+	controller.setCompareBaseline('[Verse]\nOther words');
+	await render(DocumentToolbar, { controller });
+	const documentControl = await screen.findByRole('button', { name: 'Document' });
+	await userEvent.click(documentControl);
+	const menu = document.querySelector<HTMLElement>('#document-commands')!;
+	const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+	const copyBox = copy.getBoundingClientRect().toJSON();
+	await userEvent.click(screen.getByRole('button', { name: command }));
+	const dialog = screen.getByRole('dialog');
+	await waitFor(() => expect(getComputedStyle(menu).visibility).toBe('hidden'));
+	expect(getComputedStyle(dialog).visibility).toBe('visible');
+	expect(dialog.getBoundingClientRect().width).toBeGreaterThan(0);
+	expect(dialog.matches(':modal')).toBe(true);
+	expect(copy.getBoundingClientRect().toJSON()).toEqual(copyBox);
+	await userEvent.keyboard('{Escape}');
+	await waitFor(() => expect(document.querySelector('dialog:modal')).toBeNull());
+	if (command === 'Compare') {
+		expect(documentControl.getAttribute('aria-expanded')).toBe('false');
+		expect(document.activeElement).toBe(documentControl);
+	} else {
+		expect(getComputedStyle(menu).visibility).toBe('visible');
+		expect(document.activeElement).toBe(
+			screen.getByRole('button', { name: 'Lyric language: English' })
+		);
+	}
+});
+
 test('names touch editing actions and preserves the selection before opening assignment', async () => {
 	await page.viewport(390, 844);
 	const { controller, calls } = createTestWorkbench({

@@ -38,6 +38,7 @@ for (const { width, profile, origin } of [
 				await documentControl.tap();
 				await page.getByRole('button', { name: 'Compare', exact: true }).tap();
 				await expect(dialog).toBeVisible();
+				await expect(page.locator('#document-commands')).toBeHidden();
 				if (dismissal === 'Cancel then Escape') {
 					await dialog.getByRole('button', { name: 'Change baseline' }).tap();
 					await dialog.getByRole('button', { name: 'Cancel', exact: true }).tap();

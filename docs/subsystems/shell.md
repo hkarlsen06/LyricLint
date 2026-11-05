@@ -354,6 +354,9 @@ On the phone workspace query, the toolbar keeps the draft title/switcher and Doc
 row, with both format buttons and Copy/Paste on its command row. The named Document disclosure owns New, Undo, Redo, language, and Compare;
 it dismisses on its trigger, Escape, and `dismissOnOutside`. Its existing dialog triggers
 remain mounted so closing a language or comparison dialog returns to a real control.
+While either native modal is active, the phone command menu's background and controls are
+hidden without hiding the dialog or changing the toolbar geometry. The menu remains mounted
+for native modal ownership and focus restoration.
 The phone disclosure uses full-width named rows, including Undo, Redo and the full
 language name. Icon-only desktop geometry must not constrain these rows. Its toolbar owns
 `--layer-menu`, above the editor tray, and the dropdown is bounded by the toolbar edges.

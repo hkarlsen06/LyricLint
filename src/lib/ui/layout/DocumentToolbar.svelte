@@ -601,6 +601,13 @@
 		flex-direction: column;
 		align-items: stretch;
 	}
+	.document-toolbar__secondary--phone
+		.document-toolbar__secondary-actions:has(:global(dialog:modal)) {
+		visibility: hidden;
+	}
+	.document-toolbar__secondary--phone .document-toolbar__secondary-actions :global(dialog:modal) {
+		visibility: visible;
+	}
 	.document-toolbar--phone {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
