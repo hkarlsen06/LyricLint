@@ -1,3 +1,7 @@
+import { parseScribe } from '#lib/scribe/format.js';
+import { importDocument } from '#lib/conversion/index.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { runRules as computeDiagnostics } from '#lib/rules/engine.js';
 import { copySectionLinks } from '#lib/persistence/copy.js';
 import { parseDocument } from '#lib/core/parser.js';
@@ -1291,6 +1295,177 @@ describe('workbench diagnostic navigation', () => {
 });
 
 describe('workbench performer imports', () => {
+	test('an earlier roster Undo preserves performers added later', () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1);
+		controller.addPerformer('Noor');
+
+		controller.feedback.runToastAction(undo?.id ?? '');
+
+		expect(controller.performers.map((entry) => entry.displayName)).toEqual(['Noor']);
+	});
+
+	test('a roster Undo cannot replace another draft roster', async () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1);
+		await controller.createDraft();
+		controller.addPerformer('Noor');
+		const expected = controller.performers.map((entry) => ({ ...entry }));
+
+		controller.feedback.runToastAction(undo?.id ?? '');
+
+		expect(controller.performers).toEqual(expected);
+	});
+
+	test.each([false, true])(
+		'independent roster Undo works in either order (reverse %s)',
+		(reverse) => {
+			const { controller } = setup({ initial: draft('draft-a', '') });
+			controller.addPerformer('Mira');
+			const first = controller.feedback.toasts.at(-1)!.id;
+			controller.addPerformer('Noor');
+			const second = controller.feedback.toasts.at(-1)!.id;
+			for (const id of reverse ? [second, first] : [first, second])
+				controller.feedback.runToastAction(id);
+			expect(controller.performers).toEqual([]);
+		}
+	);
+
+	test('coalesced identical additions undo their identities without removing an edited neighbour', () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Noor');
+		const noor = controller.performers[0]!;
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		controller.addPerformer('Mira');
+		expect(controller.feedback.toasts.find((toast) => toast.id === undo)?.count).toBe(2);
+		controller.renamePerformer(noor.id, 'Nora');
+		const retained = controller.performers.find((entry) => entry.id === noor.id);
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual([retained]);
+	});
+
+	test('refuses changed affected records visibly and announces the refusal', () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		controller.renamePerformer(controller.performers[0]!.id, 'Luna');
+		const expected = controller.performers.map((entry) => ({ ...entry }));
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual(expected);
+		expect(controller.feedback.announcement).toContain('affected performer has changed');
+		expect(controller.feedback.toasts.at(-1)?.message).toBe(controller.feedback.announcement);
+	});
+
+	test('refuses old actions after switching away and back', async () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		await controller.createDraft();
+		await controller.openDraft('draft-a');
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers.map((entry) => entry.displayName)).toEqual(['Mira']);
+		expect(controller.feedback.announcement).toContain('switching drafts');
+	});
+
+	test('coalesced actions across duplicate drafts only undo the active draft addition', async () => {
+		const { controller, repository } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		const mira = controller.performers[0]!;
+		await controller.duplicateDraft('draft-a');
+		await controller.openDraft(
+			(await repository.list()).find((entry) => entry.id !== 'draft-a')!.id
+		);
+		expect(controller.performers[0]).toEqual(mira);
+		controller.addPerformer('Mira');
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual([mira]);
+	});
+
+	test('legacy header rename Undo cannot rename a duplicate with the same performer IDs', async () => {
+		const { controller, repository } = setup({ initial: draft('draft-a', '[Verse: Mira]\nMoon') });
+		controller.renamePerformer(controller.performers[0]!.id, 'Luna');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		await controller.duplicateDraft('draft-a');
+		await controller.openDraft(
+			(await repository.list()).find((entry) => entry.id !== 'draft-a')!.id
+		);
+		const expected = controller.performers.map((entry) => ({ ...entry }));
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual(expected);
+		expect(controller.feedback.announcement).toContain('switching drafts');
+	});
+
+	test.each(['add', 'import'])(
+		'pending %s Undo cannot orphan retained rich legend and voice identities',
+		async (kind) => {
+			let exported = '';
+			const initial = draft('draft-a', '');
+			const { controller } = setup({
+				initial,
+				exportText: (text) => {
+					exported = text;
+				}
+			});
+			if (kind === 'add') controller.addPerformer('Mira');
+			else
+				controller.onSnapshot(
+					snapshot(initial, 1, '[Verse: Mira]\nA long enough line to trigger imported performers')
+				);
+			const undo = controller.feedback.toasts.at(-1)!.id;
+			const text = '[Verse: Mira]\nMoon';
+			const model = importDocument({ text, profile: 'genius', performers: controller.performers });
+			expect(model.ok).toBe(true);
+			if (!model.ok) return;
+			expect(model.value.voices.flatMap((voice) => voice.performerIds)).toContain(
+				controller.performers[0]!.id
+			);
+			const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+			controller.onSnapshot({ ...snapshot(initial, 2, conversion.projectionText), conversion });
+			const expected = controller.performers.map((entry) => ({ ...entry }));
+			controller.feedback.runToastAction(undo);
+			expect(controller.performers).toEqual(expected);
+			expect(controller.feedback.announcement).toContain('retained voices or legends');
+			expect(controller.feedback.toasts.at(-1)?.message).toBe(controller.feedback.announcement);
+			await controller.exportScribe();
+			expect(parseScribe(exported).performers).toEqual(expected);
+		}
+	);
+
+	test('an unreferenced addition still undoes after a rich format switch', () => {
+		const initial = draft('draft-a', 'Moon');
+		const { controller } = setup({ initial });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		const model = importDocument({
+			text: 'Moon',
+			profile: 'genius',
+			performers: controller.performers
+		});
+		if (!model.ok) throw new Error(model.refusal.message);
+		const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+		controller.onSnapshot({ ...snapshot(initial, 1, conversion.projectionText), conversion });
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual([]);
+	});
+
+	test('removal Undo restores exact identity and position without replacing later edits', () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		controller.addPerformer('Noor');
+		const mira = { ...controller.performers[0]! };
+		const noor = controller.performers[1]!;
+		controller.removePerformer(mira.id);
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		controller.renamePerformer(noor.id, 'Nora');
+		const nora = { ...controller.performers[0]! };
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual([mira, nora]);
+	});
+
 	test('adds exact pasted names through roster undo and exposes case suggestions', () => {
 		const initial = draft('draft-a', '');
 		const repository = createInMemoryDraftRepository([initial]);

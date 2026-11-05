@@ -15,6 +15,14 @@ format itself: `docs/performer-tagging.md`
   beyond the Genius style limit. A secondary singer's words carry only that singer's label,
   gutter attribution and caret announcement. Projection never rewrites retained assignments.
 
+- Roster toast Undo applies only its affected identities and keeps independent additions and
+  edits. It refuses visibly and announces if an affected record changed, or removal would
+  orphan a retained rich voice or legend. Record ordering stays stable across independent Undo.
+  Toasts, including legacy header rename inverses, belong to the draft load session that
+  created them. Switching drafts invalidates them even when returning or opening a duplicate
+  with identical performer IDs. Rich editor model/roster history remains atomic and independent.
+  Pins: `workbench.test.ts` (performer imports and renames).
+
 - Rich drafts retain voice assignments independently of the visible format. Musixmatch selection
   uses retained section identity and writes a metadata action; Genius markup is derived when
   representable. Anonymous voices remain anonymous, and excess Genius style groups remain

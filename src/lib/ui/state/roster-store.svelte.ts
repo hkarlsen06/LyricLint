@@ -1,12 +1,21 @@
-import type { EditorSnapshot, ImportSuggestion, PerformerRecord } from '#lib/core/types.js';
+import type {
+	EditorSnapshot,
+	ImportSuggestion,
+	PerformerRecord,
+	PerformerRecordDelta
+} from '#lib/core/types.js';
 import {
 	allocatePerformerColor,
 	extractPerformers,
 	isRetiredUnresolvedVoiceName,
 	normalizePerformerKey
 } from '#lib/performers/index.js';
+import {
+	applyPerformerRecordDelta,
+	validPerformerRecordDelta
+} from '#lib/editor/extensions/conversion-roster.js';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { FeedbackState } from './feedback.svelte.js';
+import { NOTICE_TOAST_DURATION, type FeedbackState } from './feedback.svelte.js';
 
 export interface RosterMergeSuggestion {
 	sourceId: string;
@@ -25,10 +34,13 @@ interface RosterStoreDependencies {
 	feedback: FeedbackState;
 	idFactory: () => string;
 	scheduleSave: () => void;
+	undoScope: () => string;
+	snapshot: () => EditorSnapshot;
 }
 
 interface RosterStore {
 	readonly performers: readonly PerformerRecord[];
+	guardUndo(delta: PerformerRecordDelta, action: () => void): () => void;
 	readonly suggestions: readonly RosterMergeSuggestion[];
 	/** Adopt a stored roster without marking the draft dirty. */
 	reset(roster: readonly PerformerRecord[]): void;
@@ -58,27 +70,73 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 	const feedback = deps.feedback;
 
 	function setRoster(next: readonly PerformerRecord[]): void {
-		performers = next
-			.map((performer, index) => ({ ...performer, aliases: [...performer.aliases], order: index }))
-			.sort((left, right) => left.order - right.order);
+		// Keep record order stable so an independent Undo does not edit other identities.
+		performers = cloneRoster(next).sort((left, right) => left.order - right.order);
 		deps.scheduleSave();
+	}
+
+	function guardUndo(delta: PerformerRecordDelta, action: () => void): () => void {
+		const scope = deps.undoScope();
+		return () => {
+			let refusal: string | undefined;
+			if (scope !== deps.undoScope()) {
+				refusal = 'Cannot undo this roster change after switching drafts.';
+			} else if (!validPerformerRecordDelta(performers, delta)) {
+				refusal = 'Cannot undo this roster change because an affected performer has changed.';
+			} else {
+				const removed = new SvelteSet(
+					delta.before
+						.filter((record) => !delta.after.some((entry) => entry.id === record.id))
+						.map((record) => record.id)
+				);
+				if (
+					deps
+						.snapshot()
+						.conversion?.model.voices.some((voice) =>
+							voice.performerIds.some((id) => removed.has(id))
+						)
+				)
+					refusal =
+						'Cannot undo this roster change while a performer is used in retained voices or legends.';
+			}
+			if (refusal) {
+				feedback.announce(refusal);
+				feedback.addToast({ message: refusal, duration: NOTICE_TOAST_DURATION });
+				return;
+			}
+			action();
+		};
 	}
 
 	function commitRoster(next: readonly PerformerRecord[], message: string): void {
 		const previous = cloneRoster(performers);
+		const affected = new SvelteSet(
+			[...previous, ...next]
+				.filter(
+					(record) =>
+						JSON.stringify(previous.find((entry) => entry.id === record.id)) !==
+						JSON.stringify(next.find((entry) => entry.id === record.id))
+				)
+				.map((record) => record.id)
+		);
+		const inverse = {
+			before: cloneRoster(next.filter((record) => affected.has(record.id))),
+			after: previous.filter((record) => affected.has(record.id))
+		};
 		setRoster(next);
 		feedback.announce(message);
 		feedback.addToast({
 			message,
 			actionLabel: 'Undo',
-			action: () => {
-				setRoster(previous);
+			action: guardUndo(inverse, () => {
+				setRoster(applyPerformerRecordDelta(performers, inverse));
 				feedback.announce('Roster change undone.');
-			}
+			})
 		});
 	}
 
 	return {
+		guardUndo,
 		get performers() {
 			return performers;
 		},
@@ -159,7 +217,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			const additions = extraction.rosterAdditions.map((performer, index) => ({
 				...performer,
 				aliases: [...performer.aliases],
-				order: performers.length + index
+				order: Math.max(-1, ...performers.map((entry) => entry.order)) + 1 + index
 			}));
 			const names = additions.map((performer) => performer.displayName);
 			const message =
@@ -177,7 +235,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 				normalizedKey: normalizePerformerKey(trimmed),
 				aliases: [],
 				colorId: allocatePerformerColor(trimmed, performers),
-				order: performers.length
+				order: Math.max(-1, ...performers.map((entry) => entry.order)) + 1
 			};
 			commitRoster([...performers, next], `Added ${trimmed} to the roster.`);
 		},

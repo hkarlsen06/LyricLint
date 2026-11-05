@@ -6,6 +6,11 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 
 ## The rules
 
+- A deliberate roster edit keeps a metadata-only draft through the normal guarded save path,
+  including its Undo. An empty lyric document does not discard named performers on switching
+  drafts or reload. Roster toast actions are scoped to their originating draft load session;
+  a stale action never writes to a different draft, including a duplicate with shared IDs.
+
 - In-app navigation checkpoints pending drafts before leaving the workbench. A failed
   synchronous checkpoint cancels that navigation and keeps the editor available for saving
   or export. Teardown also captures a checkpoint before its asynchronous flush. When a

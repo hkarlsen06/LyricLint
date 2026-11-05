@@ -35,7 +35,7 @@ import type { BulkFixPlan } from '#lib/rules/bulk-fix.js';
 import type { RightPanelTab } from './panel-view.svelte.js';
 import { createPanelView } from './panel-view.svelte.js';
 import type { RosterMergeSuggestion } from './roster-store.svelte.js';
-import { createRosterStore } from './roster-store.svelte.js';
+import { cloneRoster, createRosterStore } from './roster-store.svelte.js';
 import type { MediaRepository } from '#lib/persistence/media-repository.js';
 import type { MediaPlayer } from './media-player.svelte.js';
 import type { MediaStore } from './media-store.svelte.js';
@@ -338,6 +338,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	let knownSectionLinks = $state<readonly SectionLink[]>(deps.initialDraft.sectionLinks ?? []);
 	let pendingProfile = $state<ProfileId | undefined>();
 	let profileSession = $state(0);
+	let rosterSession = 0;
 	let conversionScopeRevision = $state(0);
 	let requestedSection = $state<WorkbenchController['requestedSection']>();
 	let requestedConversionReview = $state<ConversionReviewRequest>();
@@ -411,6 +412,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				return editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
 			},
 			onDraftLoaded(nextDraft) {
+				rosterSession += 1;
 				pendingProfile = undefined;
 				resetLinking();
 				roster.reset(nextDraft.performers);
@@ -441,7 +443,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		initialPerformers: deps.initialDraft.performers,
 		feedback,
 		idFactory,
-		scheduleSave: draft.scheduleSave
+		scheduleSave: draft.keepDraft,
+		undoScope: () => `${draft.draftId}:${rosterSession}`,
+		snapshot: () => editorSession.snapshot
 	});
 
 	// Grammar checking is on by default: the feedback that prompted the toggle
@@ -607,7 +611,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			feedback.addToast({
 				message,
 				actionLabel: 'Undo',
-				action: () => renamePerformer(id, previousName)
+				action: roster.guardUndo(
+					{
+						before: cloneRoster(roster.performers.filter((entry) => entry.id === id)),
+						after: cloneRoster(roster.performers.filter((entry) => entry.id === id))
+					},
+					() => renamePerformer(id, previousName)
+				)
 			});
 			return;
 		}
@@ -623,7 +633,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		feedback.addToast({
 			message,
 			actionLabel: 'Undo',
-			action: () => renamePerformer(id, previousName)
+			action: roster.guardUndo(
+				{
+					before: cloneRoster(roster.performers.filter((entry) => entry.id === id)),
+					after: cloneRoster(roster.performers.filter((entry) => entry.id === id))
+				},
+				() => renamePerformer(id, previousName)
+			)
 		});
 	}
 
