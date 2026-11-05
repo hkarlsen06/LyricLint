@@ -1,6 +1,6 @@
 <script lang="ts">
 	import InlineDiffText from '../primitives/InlineDiffText.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { retainedFindings } from '#lib/conversion/review.js';
 	import { renderProfile, mapSelection } from '#lib/conversion/index.js';
 	import { diffDocuments, type DiffRow } from '#lib/core/document-diff.js';
@@ -9,6 +9,7 @@
 
 	let { controller, close }: { controller: WorkbenchController; close: () => void } = $props();
 	let pasteArea = $state<HTMLTextAreaElement>();
+	let baselineButton = $state<HTMLButtonElement>();
 	let pasted = $state('');
 	/** The paste step is showing over a baseline that already exists. */
 	let replacing = $state(false);
@@ -59,13 +60,20 @@
 	function adoptBaseline(): void {
 		const normalized = pasted.replace(/\r\n?/g, '\n').replace(/\n$/, '');
 		controller.setCompareBaseline(normalized);
-		pasted = '';
-		replacing = false;
+		void showComparison();
 	}
 
-	function cancelReplacing(): void {
+	async function changeBaseline(): Promise<void> {
+		replacing = true;
+		await tick();
+		pasteArea?.focus();
+	}
+
+	async function showComparison(): Promise<void> {
 		pasted = '';
 		replacing = false;
+		await tick();
+		baselineButton?.focus();
 	}
 
 	/** Map the Genius difference to the active format; the shell reveals and focuses its passage. */
@@ -171,7 +179,7 @@
 				Show changes
 			</button>
 			{#if replacing}
-				<button type="button" class="button" onclick={cancelReplacing}>Cancel</button>
+				<button type="button" class="button" onclick={showComparison}>Cancel</button>
 			{/if}
 		</div>
 	</div>
@@ -187,7 +195,7 @@
 				{/if}
 			</p>
 			<div class="compare-dialog__ask-actions">
-				<button type="button" class="button" onclick={() => (replacing = true)}>
+				<button bind:this={baselineButton} type="button" class="button" onclick={changeBaseline}>
 					Change baseline
 				</button>
 			</div>
@@ -209,7 +217,7 @@
 					{/if}
 				</p>
 			</div>
-			<button type="button" class="button" onclick={() => (replacing = true)}>
+			<button bind:this={baselineButton} type="button" class="button" onclick={changeBaseline}>
 				Change baseline
 			</button>
 		</div>

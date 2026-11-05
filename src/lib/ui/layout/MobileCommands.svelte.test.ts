@@ -71,6 +71,31 @@ test.each([360, 390])('keeps history focus on the usable command at %ipx', async
 	expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Document' }));
 });
 
+test('leaves Escape to the active modal even when its focused content has disappeared', async () => {
+	await page.viewport(360, 844);
+	const { controller } = createTestWorkbench({ text: '[Verse]\nThe words' });
+	controller.setCompareBaseline('[Verse]\nOther words');
+	await render(DocumentToolbar, { controller });
+	const documentControl = await screen.findByRole('button', { name: 'Document' });
+	await userEvent.click(documentControl);
+	await userEvent.click(screen.getByRole('button', { name: 'Compare' }));
+	const dialog = screen.getByRole('dialog', { name: /^Compare with/ }) as HTMLDialogElement;
+	const change = await screen.findByRole('button', { name: 'Change baseline' });
+	change.focus();
+	change.blur();
+	expect(document.activeElement).toBe(document.body);
+	const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+	document.body.dispatchEvent(escape);
+	expect(escape.defaultPrevented).toBe(false);
+	expect(documentControl.getAttribute('aria-expanded')).toBe('true');
+	expect(dialog.matches(':modal')).toBe(true);
+	dialog.close();
+	await waitFor(() => expect(documentControl.getAttribute('aria-expanded')).toBe('false'));
+	expect(document.activeElement).toBe(documentControl);
+	await userEvent.click(documentControl);
+	expect(documentControl.getAttribute('aria-expanded')).toBe('true');
+});
+
 test('names touch editing actions and preserves the selection before opening assignment', async () => {
 	await page.viewport(390, 844);
 	const { controller, calls } = createTestWorkbench({

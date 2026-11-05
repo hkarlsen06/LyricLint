@@ -44,8 +44,10 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
   catalogue attribution keeps the full badge.
 - Keys: `F7/F8/F9` and platform-modifier `J/K/L` (`Ctrl-` on macOS, `Alt-` elsewhere,
   `Ctrl-Alt-` universal); the reach-for keys are the `Escape` family (bare toggles,
-  `Shift+Esc` back, `Alt+Esc` forward): bubble phase, standing down on `defaultPrevented`
-  and on presses targeted inside an open dialog. `Edit this section only` stays active while
+  `Shift+Esc` back, `Alt+Esc` forward): bubble phase, standing down on `defaultPrevented`,
+  while a native modal is active, or on presses targeted inside other dialogs.
+  The toolbar and transport share `modalOwnsEscape`, including after modal content loses focus.
+  `Edit this section only` stays active while
   attached audio takes Escape; without audio, that mode can claim Escape to exit.
   A control tooltip hides without consuming Escape, including when its owner has focus.
   Pointer interaction with YouTube returns focus to its video group; Tab entry and fullscreen
@@ -357,8 +359,9 @@ draft's name), and each claims the event by preventing its default or stopping i
 the transport's `Escape` listener is the one place the triad's rule reverses: it is in the **bubble
 phase**, not capture, so every surface-level handler in the window has already run, and it stands
 down on a press already `defaultPrevented`. A native `<dialog>` closes on `Escape` without reliably
-marking the keydown, so deferral to an open modal is read off the press's **target** (trapped inside
-the dialog) rather than off the flag. What reaches the transport is an `Escape` nobody else wanted
+marking the keydown. The shared modal predicate therefore checks actual native modal state as well
+as dialog target ancestry: removing focused content can leave focus on the body while the modal
+remains active. What reaches the transport is an `Escape` nobody else wanted
 (the caret sitting in the document), which is exactly the press that means "stop the tape". A held
 `Escape` does not repeat the pause, exactly as the triad's toggle does not; a held `Shift+Escape` or
 `Alt+Escape` is a scrub and does. `Ctrl-L` is deliberately not a forward alias on Linux for the

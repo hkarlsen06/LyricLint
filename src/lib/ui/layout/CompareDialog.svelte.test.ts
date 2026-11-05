@@ -249,10 +249,19 @@ describe('CompareDialog', () => {
 		await pasteBaseline('[Verse]\nLyne');
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Change baseline' }));
-		expect(screen.getByRole('textbox', { name: 'The lyrics as the page has them' })).toBeTruthy();
-		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				screen.getByRole('textbox', { name: 'The lyrics as the page has them' })
+			)
+		);
+		const cancel = screen.getByRole('button', { name: 'Cancel' });
+		cancel.focus();
+		await fireEvent.click(cancel);
 		expect(screen.queryByRole('textbox', { name: 'The lyrics as the page has them' })).toBeNull();
 		expect(openDialog().querySelector('del')?.textContent).toBe('y');
+		await waitFor(() =>
+			expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Change baseline' }))
+		);
 	});
 
 	test('an invisible-only change is carried by a sentence, not by the rows alone', async () => {

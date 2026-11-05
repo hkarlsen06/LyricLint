@@ -34,16 +34,25 @@ for (const { width, profile, origin } of [
 			await expect(format).toHaveAttribute('aria-pressed', 'true');
 			await expect(documentControl).toHaveAttribute('aria-expanded', 'false');
 
-			for (const dismissal of ['Escape', 'Close', 'outside']) {
+			for (const dismissal of ['Escape', 'Close', 'outside', 'Cancel then Escape']) {
 				await documentControl.tap();
 				await page.getByRole('button', { name: 'Compare', exact: true }).tap();
 				await expect(dialog).toBeVisible();
-				if (dismissal === 'Escape') await page.keyboard.press('Escape');
+				if (dismissal === 'Cancel then Escape') {
+					await dialog.getByRole('button', { name: 'Change baseline' }).tap();
+					await dialog.getByRole('button', { name: 'Cancel', exact: true }).tap();
+					await expect(dialog.getByRole('button', { name: 'Change baseline' })).toBeFocused();
+					await page.keyboard.press('Escape');
+				} else if (dismissal === 'Escape') await page.keyboard.press('Escape');
 				else if (dismissal === 'Close') await dialog.getByRole('button', { name: 'Close' }).tap();
 				else await page.touchscreen.tap(1, 1);
 				await expect(dialog).not.toBeVisible();
+				await expect(page.locator('dialog:modal')).toHaveCount(0);
 				await expect(documentControl).toHaveAttribute('aria-expanded', 'false');
 				await expect(documentControl).toBeFocused();
+				await documentControl.tap();
+				await expect(documentControl).toHaveAttribute('aria-expanded', 'true');
+				await documentControl.tap();
 			}
 		});
 	});

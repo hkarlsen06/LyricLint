@@ -11,7 +11,7 @@
 	import { onMount, tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
-	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import { dismissOnOutside, modalOwnsEscape } from '#lib/interaction/dismiss.js';
 	import AppWordmark from './AppWordmark.svelte';
 	import CompareDialog from './CompareDialog.svelte';
 	import DraftMenu from './DraftMenu.svelte';
@@ -54,7 +54,7 @@
 
 	function closeCommands(event: KeyboardEvent) {
 		if (event.key !== 'Escape' || !commandsOpen || event.defaultPrevented) return;
-		if (event.target instanceof Element && event.target.closest('dialog[open]')) return;
+		if (modalOwnsEscape(event.target)) return;
 		event.preventDefault();
 		commandsOpen = false;
 		commandsTrigger?.focus();

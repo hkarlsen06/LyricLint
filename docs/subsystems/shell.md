@@ -74,6 +74,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   Comparison rows use the shared passage handoff: phones reveal Write and focus its control,
   while desktop restores editor focus after the modal closes. Closing Compare retires the phone
   Document menu; cancellation and Escape restore its visible Document trigger.
+  The active native modal owns Escape even when its focused content has just disappeared.
+  Baseline replacement focuses its input; applying or cancelling it returns focus to Change baseline.
 
 - The workspace reveals its initial viewport's lyric lines and diagnostic rows on load and
   each ’scribe identity change, top-to-bottom, using only temporary opacity. A prepaint mask prevents a flash;

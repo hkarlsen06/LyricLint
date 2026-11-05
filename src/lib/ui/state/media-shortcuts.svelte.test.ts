@@ -402,6 +402,30 @@ describe('bindTransportShortcuts', () => {
 		expect(transport).not.toHaveBeenCalled();
 	});
 
+	it('leaves Escape to a native modal after its focused control disappears', () => {
+		const dialog = document.createElement('dialog');
+		const field = document.createElement('input');
+		dialog.append(field);
+		document.body.append(dialog);
+		dialog.showModal();
+		field.focus();
+		field.remove();
+		const transport = vi.fn(() => true);
+		const load = vi.fn(() => true);
+		const unbind = bindTransportShortcuts({ transport, load, mediaSession: null });
+		try {
+			expect(document.activeElement).toBe(document.body);
+			const escape = press(document.body, { key: 'Escape' });
+			expect(transport).not.toHaveBeenCalled();
+			expect(load).not.toHaveBeenCalled();
+			expect(escape.defaultPrevented).toBe(false);
+		} finally {
+			unbind();
+			dialog.close();
+			dialog.remove();
+		}
+	});
+
 	// Held down, the pause would start and stop the track dozens of times a
 	// second; a held nudge is a scrub worth having, exactly as the triad splits.
 	it('does not repeat the Escape pause but repeats the nudges', () => {
