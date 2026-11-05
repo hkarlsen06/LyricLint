@@ -363,7 +363,8 @@ function retainOtherRecords(
 	after: ConversionDocument,
 	map: (at: number, affinity: -1 | 1) => number,
 	changes: readonly TextEdit[],
-	transfers: MirrorPlan['transfers']
+	transfers: MirrorPlan['transfers'],
+	mapEmpty?: (member: PassageMember) => PassageMember
 ): void {
 	const owners = new Map(after.owners.map((owner) => [owner.id, owner]));
 	after.forms = before.forms.flatMap((form) => {
@@ -553,7 +554,8 @@ function retainOtherRecords(
 			mapping,
 			changes,
 			before.content,
-			after.content
+			after.content,
+			mapEmpty
 		);
 		for (const transfer of transfers)
 			if (transfer.linkId === link.id)
@@ -620,6 +622,43 @@ function reconcilePlain(
 	projection: Projection,
 	input: CommittedEdit
 ): EngineResult<ReconciledDocument> {
+	if (input.changes.length && input.sectionFills?.length) {
+		// Correct existing words before inserting independent copies, retaining their owners.
+		const corrected = reconcilePlain(document, projection, { ...input, sectionFills: undefined });
+		if (!corrected.ok) return corrected;
+		const filled = reconcilePlain(corrected.value.document, corrected.value.projection, {
+			...input,
+			changes: []
+		});
+		if (!filled.ok) return filled;
+		const combined = corrected.value.changes.map((edit) => ({ ...edit }));
+		for (const fill of filled.value.changes) {
+			let delta = 0;
+			let at = fill.from;
+			for (const edit of corrected.value.changes) {
+				const start = edit.from + delta;
+				if (fill.from <= start) break;
+				if (fill.from < start + edit.insert.length)
+					return refuse('invariant-failure', 'A section copy crossed corrected wording.');
+				delta += edit.insert.length - edit.to + edit.from;
+				at = fill.from - delta;
+			}
+			const coincident = combined.find((edit) => edit.from === at);
+			if (coincident) coincident.insert = fill.insert + coincident.insert;
+			else combined.push({ from: at, to: at, insert: fill.insert });
+		}
+		combined.sort((a, b) => a.from - b.from);
+		if (
+			!validEdits(projection.text, combined) ||
+			combined.length > CONVERSION_LIMITS.edits ||
+			applyTextEdits(projection.text, combined) !== filled.value.projection.text
+		)
+			return refuse(
+				'invariant-failure',
+				'The complete section operation could not be mapped exactly.'
+			);
+		return { ok: true, value: { ...filled.value, changes: combined } };
+	}
 	const sourceChanges = sharedChanges(projection, input.changes);
 	if (
 		input.sectionFills &&
@@ -703,51 +742,35 @@ function reconcilePlain(
 				sectionContainsWrapper(section, document.sections[index + 1], old)
 			);
 			if (owner)
-				wrapper.from = wrapper.to = next.sections.find((section) => section.id === owner.id)!.at;
+				wrapper.from = wrapper.to =
+					old.from === owner.at
+						? next.sections.find((section) => section.id === owner.id)!.at
+						: map(old.from, -1);
 		}
 	}
 
 	retainLinesAndOwners(document, next, map, changes, projection.profile);
-	retainOtherRecords(document, next, map, changes, transfers);
+	retainOtherRecords(document, next, map, changes, transfers, (member) => {
+		if (!inserted.has(member.from))
+			return { ...member, from: map(member.from, -1), to: map(member.to, 1) };
+		const section = document.sections[-member.header - 1]!;
+		const at =
+			member.from === section.at
+				? next.sections.find((entry) => entry.id === section.id)!.at
+				: map(member.from, -1);
+		return { ...member, from: at, to: at };
+	});
 	if (inserted.size) {
 		for (const voice of document.voices) {
 			if (voice.from !== voice.to || !inserted.has(voice.from)) continue;
-			const at = next.sections.find((section) => section.id === voice.sectionId)!.at;
+			const owner = document.sections.find((section) => section.id === voice.sectionId)!;
+			const at =
+				voice.from === owner.at
+					? next.sections.find((section) => section.id === voice.sectionId)!.at
+					: map(voice.from, -1);
 			const retained = next.voices.find((entry) => entry.id === voice.id);
 			if (retained) retained.from = retained.to = at;
 			else next.voices.push({ ...voice, from: at, to: at });
-		}
-		// Collocated empty passages retain their section's insertion point, not the whole new block.
-		for (const link of next.links) {
-			const original = document.links.find((entry) => entry.id === link.id)!;
-			for (const passage of link.passages ?? []) {
-				for (const member of passage.members) {
-					const old = original.passages
-						?.flatMap((entry) => entry.members)
-						.find(
-							(entry) =>
-								entry.sectionId === member.sectionId &&
-								entry.from === entry.to &&
-								inserted.has(entry.from)
-						);
-					if (old)
-						member.from = member.to = next.sections.find(
-							(section) => section.id === member.sectionId
-						)!.at;
-				}
-			}
-			for (const member of link.detached ?? []) {
-				const old = original.detached?.find(
-					(entry) =>
-						entry.sectionId === member.sectionId &&
-						entry.from === entry.to &&
-						inserted.has(entry.from)
-				);
-				if (old)
-					member.from = member.to = next.sections.find(
-						(section) => section.id === member.sectionId
-					)!.at;
-			}
 		}
 	}
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { importDocument } from './import.js';
-import { renderProfile } from './projection.js';
+import { createConversionEnvelope } from '../persistence/conversion.js';
+import { profilePolicyVersions } from '../profiles/versions.js';
+import { reconcileEdit, applyTextEdits } from './reconcile.js';
+import { parseScribe, serializeScribe } from '../scribe/format.js';
+import { projectOffset, renderProfile } from './projection.js';
 import { resolveDecision } from './index.js';
 import { conversionLinkDifferences, resolveLinkDecision } from './links.js';
 import type { ConversionDocument, EngineResult } from './model.js';
@@ -277,4 +281,143 @@ it('fills a final empty section with an unterminated retained heading', () => {
 	expect(value(renderProfile(next.document, 'genius')).text).toBe(
 		'[Chorus]\nWe stay here\n\n[Chorus 2]\nWe stay here\n\n[Chorus 3]\nWe stay here'
 	);
+});
+
+it.each([
+	[
+		'[Chorus]\n[Chorus 2]\nGo home\n\n[Chorus 3]\nStay home',
+		'',
+		'Stay home\n\nStay home\n\nStay home'
+	],
+	['[Chorus]\n[Chorus 2]\nWe X\n\n[Chorus 3]\nWe X', 'We ', 'X\n\nX\n\nX'],
+	['[Chorus]\nWe stay here\n\n[Chorus 2]\nWe stay here (Oh)', 'We stay here', ' (Oh)\n\n (Oh)']
+])(
+	'atomically corrects and fills while preserving exact old empty occurrences: %s',
+	(source, deletion, expected) => {
+		let document = song(source);
+		const ids = document.sections.map((s) => s.id);
+		document = link(document, ids);
+		if (deletion) {
+			const projection = value(renderProfile(document, 'musixmatch'));
+			const from = projection.text.indexOf(deletion);
+			document = value(
+				reconcileEdit(document, projection, {
+					changes: [{ from, to: from + deletion.length, insert: '' }]
+				})
+			).document;
+		}
+		const snapshot = structuredClone(document);
+		const before = value(renderProfile(document, 'musixmatch'));
+		const next = chooseLast(document, ids);
+		expect(document).toEqual(snapshot);
+		expect(next.projection.text).toBe(expected);
+		expect(applyTextEdits(before.text, next.changes)).toBe(expected);
+		const oldEmpty =
+			document.links[0].passages?.filter((p) => p.members.every((m) => m.from === m.to)) ?? [];
+		const empty =
+			next.document.links[0].passages?.filter((p) => p.members.every((m) => m.from === m.to)) ?? [];
+		expect(empty.map((p) => p.members.map((m) => m.sectionId))).toEqual(
+			oldEmpty.map((p) => p.members.map((m) => m.sectionId))
+		);
+		const roundTrip = parseScribe(
+			serializeScribe({
+				title: 'Comparison',
+				performers: [],
+				sectionLinks: [],
+				lineAnchors: [],
+				ignoredDiagnostics: [],
+				language: 'en',
+				lyrics: next.projection.text,
+				conversion: createConversionEnvelope(next.document, 'musixmatch', profilePolicyVersions)
+			})
+		);
+		expect(roundTrip.document.conversion?.model).toEqual(next.document);
+		if (empty.length) {
+			const anchor = empty[0].members[0];
+			const projection = value(renderProfile(next.document, 'musixmatch'));
+			const from = projectOffset(projection, anchor.from, 1);
+			const typed = value(
+				reconcileEdit(next.document, projection, { changes: [{ from, to: from, insert: 'New' }] })
+			);
+			expect(typed.projection.text.split('New')).toHaveLength(3);
+			expect(next.document).toEqual(roundTrip.document.conversion?.model);
+		}
+		// Copied wording has no implicit passage membership.
+		if (ids.length === 3) {
+			expect(
+				next.document.links[0].passages?.every((p) =>
+					p.members.every((m) => m.sectionId !== ids[0])
+				)
+			).toBe(true);
+			const typed = value(
+				reconcileEdit(next.document, next.projection, {
+					changes: [{ from: 0, to: 1, insert: 'Z' }]
+				})
+			);
+			expect(typed.projection.text).toBe('Z' + expected.slice(1));
+		}
+	}
+);
+
+it('keeps original annotated voiced timed words through simultaneous correction and multiple fills', () => {
+	const document = song(
+		'[Chorus]\n[Chorus 2]\n[Chorus 3: Mira]\n[Go](123) home\n\n[Chorus 4]\nStay home'
+	);
+	document.lines.forEach((line, i) => {
+		line.time = i + 1;
+	});
+	const ids = document.sections.map((s) => s.id);
+	const linked = link(document, ids);
+	const snapshot = structuredClone(linked);
+	const next = chooseLast(linked, ids);
+	expect(linked).toEqual(snapshot);
+	expect(value(renderProfile(next.document, 'genius')).text).toBe(
+		'[Chorus]\nStay home\n\n[Chorus 2]\nStay home\n\n[Chorus 3: Mira]\n[Stay](123) home\n\n[Chorus 4]\nStay home'
+	);
+	expect(next.document.wrappers.map((w) => w.id)).toEqual(linked.wrappers.map((w) => w.id));
+	expect(next.document.voices.map((v) => v.id)).toEqual(linked.voices.map((v) => v.id));
+	for (const line of linked.lines)
+		expect(next.document.lines.find((l) => l.id === line.id)?.time).toBe(line.time);
+	expect(
+		next.document.lines
+			.filter((l) => !linked.lines.some((old) => old.id === l.id))
+			.every((l) => l.time === undefined)
+	).toBe(true);
+});
+
+it('maps a preceding section end empty anchor before a collocated fill', () => {
+	let document = song(
+		'[Chorus]\nLocal We stay here\n\n[Chorus 2]\nWe stay here\n\n[Chorus 3]\nFresh'
+	);
+	const ids = document.sections.map((s) => s.id);
+	document = link(document, ids);
+	let projection = value(renderProfile(document, 'musixmatch'));
+	let from = projection.text.indexOf('We stay here');
+	document = value(
+		reconcileEdit(document, projection, { changes: [{ from, to: from + 12, insert: '' }] })
+	).document;
+	projection = value(renderProfile(document, 'musixmatch'));
+	from = projection.text.indexOf('\n\n');
+	document = value(
+		reconcileEdit(document, projection, {
+			changes: [{ from, to: from + 2, insert: '' }],
+			mirror: false
+		})
+	).document;
+	const old = document.links[0].passages!.find((p) => p.members.every((m) => m.from === m.to))!;
+	expect(old).toBeDefined();
+	const own = old.members.find((m) => m.sectionId === ids[0])!;
+	expect(own.from).toBe(document.sections[1].at);
+	expect(own.from).toBeGreaterThan(document.sections[0].at);
+	const next = value(
+		reconcileEdit(document, value(renderProfile(document, 'musixmatch')), {
+			changes: [],
+			sectionFills: [{ sectionId: ids[1], text: 'Fresh' }],
+			mirror: false
+		})
+	);
+	const empty = next.document.links[0].passages!.find((p) =>
+		p.members.every((m) => m.from === m.to)
+	)!;
+	expect(empty.members.find((m) => m.sectionId === ids[0])!.from).toBe(own.from);
 });

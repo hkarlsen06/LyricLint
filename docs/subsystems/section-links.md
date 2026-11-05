@@ -22,13 +22,19 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   stays in Musixmatch. Membership stays fixed during wording review; the overview owns linking
   and each section's Unlink action. `conversionLinkDifferences` supplies projected bounds from
   retained IDs to the existing alignment and comparison formatter. An explicit wording choice
-  uses `reconcileEdit` once with preplanned edits, preserving unchosen variations, exclusions
+  uses one atomic `reconcileEdit` action with preplanned edits, preserving unchosen variations, exclusions
   and retained markup. Equal corrected words do not acquire an implicit connection. The task
   captures draft, revision, profile and model; Apply and both section and lyric navigation refuse
   changes to that basis, including after an asynchronous editor handoff. The refusal asks the
   writer to open Manage again. Corrections narrow unchanged prefixes and suffixes through
   `narrowEdit`, retaining complete transformed wording units. Explicit empty fills carry section
-  IDs into reconciliation, which owns separators and collocated boundaries. Comparison gutters
+  IDs into reconciliation, which owns separators and collocated boundaries. When a choice
+  corrects existing words and fills empty copies together, pure correction reconciliation
+  precedes pure filling, and the returned editor changes address the original projection.
+  Metadata follows each phase's actual words rather than a merged replacement span.
+  Stored empty occurrences map by their exact identity and section-owned boundary before
+  equality grouping or coalescing. A preceding section's end stays at that end; a section
+  start follows its own insertion slot. No section-only lookup repairs passages afterward. Comparison gutters
   retain separate controls for collocated empty sections rather than keying them by offset. Each filled copy
   receives fresh untimed lyric records; source annotations and voices stay on the source. Genius keeps its existing comparison and edit path.
 - A section group records which performances belong together. Each stored **passage** names

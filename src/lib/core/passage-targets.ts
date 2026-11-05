@@ -129,7 +129,8 @@ export function mapPassageState(
 	changes: ChangeMapping,
 	edits: readonly TextEdit[],
 	before: string,
-	after: string
+	after: string,
+	mapEmpty?: (member: PassageMember) => PassageMember
 ): PassageState {
 	const passages: SharedPassage[] = [];
 	const groupEqual = (members: PassageMember[]) => {
@@ -193,6 +194,7 @@ export function mapPassageState(
 			groupEqual(
 				passage.members.map((member) => {
 					const at = member.from + offset;
+					if (length === 0 && mapEmpty) return mapEmpty(member);
 					return {
 						header: changes.mapPos(member.header, 1),
 						from: changes.mapPos(at, -1),
@@ -202,11 +204,15 @@ export function mapPassageState(
 			);
 		}
 	}
-	const detached = value.detached.map((member) => ({
-		header: changes.mapPos(member.header, 1),
-		from: changes.mapPos(member.from, -1),
-		to: changes.mapPos(member.to, 1)
-	}));
+	const detached = value.detached.map((member) =>
+		member.from === member.to && mapEmpty
+			? mapEmpty(member)
+			: {
+					header: changes.mapPos(member.header, 1),
+					from: changes.mapPos(member.from, -1),
+					to: changes.mapPos(member.to, 1)
+				}
+	);
 	return {
 		passages: excludeDetachedPoints(coalescePassages(passages, detached), detached),
 		detached
