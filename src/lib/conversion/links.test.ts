@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { importDocument } from './import.js';
 import { renderProfile } from './projection.js';
-import { resolveLinkDecision } from './links.js';
+import { conversionLinkDifferences, resolveLinkDecision } from './links.js';
 import type { ConversionDocument, EngineResult } from './model.js';
 
 function value<T>(result: EngineResult<T>): T {
@@ -113,4 +113,45 @@ describe('stable section link decisions', () => {
 		expect(next.links[0].sectionIds).toHaveLength(2);
 		expect(next.content).toBe(original.content);
 	});
+});
+
+it('corrects only an explicit wording choice and refuses a changed group without retargeting', () => {
+	const source =
+		'[Chorus 1: Mira]\nHold on [tight](123456)\nCarry me home\n\n[Verse]\nWalk with me\n\n[Chorus 2: Mira]\nHold on tighht\nCarry me home (Oh)';
+	const original = song(source);
+	const sectionIds = [original.sections[0].id, original.sections[2].id];
+	const document = link(original, sectionIds);
+	const projection = value(renderProfile(document, 'musixmatch'));
+	const differences = conversionLinkDifferences(document, projection, sectionIds);
+	expect(differences.map((item) => item.wordings.map((wording) => wording.text))).toEqual([
+		['tight', 'tighht'],
+		['', ' (Oh)']
+	]);
+	const action = {
+		kind: 'reviewLinkDifferences',
+		sectionIds,
+		choice: {
+			headers: [0, 1],
+			keepDifferent: [false, true],
+			replaceFromByDifference: [0, undefined]
+		}
+	} as const;
+	const corrected = value(resolveLinkDecision(document, projection, { ...action, sectionIds }));
+	expect(corrected.projection.text).toBe(projection.text.replace('tighht', 'tight'));
+	expect(value(renderProfile(corrected.document, 'genius')).text).toBe(
+		source.replace('tighht', 'tight')
+	);
+	expect(corrected.document.sections.map((section) => section.id)).toEqual(
+		document.sections.map((section) => section.id)
+	);
+	expect(corrected.document.voices.map((voice) => voice.id)).toEqual(
+		document.voices.map((voice) => voice.id)
+	);
+	expect(corrected.document.links[0].id).toBe(document.links[0].id);
+	expect(resolveLinkDecision(corrected.document, projection, { ...action, sectionIds }).ok).toBe(
+		false
+	);
+	expect(
+		resolveLinkDecision({ ...document, links: [] }, projection, { ...action, sectionIds }).ok
+	).toBe(false);
 });

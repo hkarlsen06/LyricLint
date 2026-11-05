@@ -43,6 +43,60 @@ afterEach(async () => {
 });
 
 describe('Musixmatch stable section linking', () => {
+	it('reviews one typo in Musixmatch without changing the ad-lib, and retains exact Genius source through history', async () => {
+		const source =
+			'[Chorus 1]\nHold on tight\nCarry me home\n\n[Verse]\nWalk with me\n\n[Chorus 2]\nHold on tighht\nCarry me home (Oh)';
+		const { panel, handle, controller } = await setup(source);
+		const ids = controller.snapshot.conversion!.model.sections.map((section) => section.id);
+		await fireEvent.click(panel.getAllByRole('checkbox')[0]);
+		await fireEvent.click(panel.getAllByRole('checkbox')[2]);
+		await fireEvent.click(panel.getByRole('button', { name: 'Set up link' }));
+		const original = handle.getSnapshot().text;
+		const model = JSON.parse(JSON.stringify(controller.snapshot.conversion!.model));
+		await fireEvent.click(panel.getByRole('button', { name: /^Manage /u }));
+		await fireEvent.click(panel.getByRole('button', { name: 'Review differences' }));
+		await fireEvent.click(panel.getByRole('button', { name: 'Choose wording per difference' }));
+		const choice = panel.getByRole('checkbox', { name: /Use Chorus .*section 1.*difference 1/u });
+		const before = choice.getBoundingClientRect();
+		await fireEvent.click(choice);
+		expect(choice.getBoundingClientRect().top).toBe(before.top);
+		expect(handle.getSnapshot().text).toBe(original);
+		expect(controller.profile).toBe('musixmatch');
+		await fireEvent.click(panel.getAllByRole('button', { name: 'Apply 1 change' })[0]);
+		expect(handle.getSnapshot().text).toBe(original.replace('tighht', 'tight'));
+		expect(controller.snapshot.conversion!.model.sections.map((section) => section.id)).toEqual(
+			ids
+		);
+		expect(controller.snapshot.conversion!.model.links[0].id).toBe(model.links[0].id);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(original);
+		handle.redo();
+		expect(handle.getSnapshot().text).toBe(original.replace('tighht', 'tight'));
+		controller.switchProfile('genius');
+		await waitFor(() => expect(handle.getSnapshot().text).toBe(source.replace('tighht', 'tight')));
+	});
+
+	it('refuses a pending correction after the underlying passage changes', async () => {
+		const { panel, handle, controller } = await setup();
+		for (const checkbox of panel.getAllByRole('checkbox')) await fireEvent.click(checkbox);
+		await fireEvent.click(panel.getByRole('button', { name: 'Set up link' }));
+		await fireEvent.click(panel.getByRole('button', { name: /^Manage /u }));
+		await fireEvent.click(panel.getByRole('button', { name: 'Review differences' }));
+		await fireEvent.click(panel.getByRole('button', { name: 'Choose wording per difference' }));
+		await fireEvent.click(panel.getAllByRole('checkbox', { name: /^Use /u })[0]);
+		const snapshot = handle.getSnapshot();
+		const at = snapshot.text.indexOf('tonight');
+		handle.dispatchAtomic({
+			baseRevision: snapshot.revision,
+			edits: [{ from: at, to: at + 7, insert: 'tomorrow' }]
+		});
+		const changed = handle.getSnapshot().text;
+		await fireEvent.click(panel.getAllByRole('button', { name: 'Apply 1 change' })[0]);
+		expect(handle.getSnapshot().text).toBe(changed);
+		expect(controller.profile).toBe('musixmatch');
+		expect(controller.feedback.announcement).toContain('Open Manage again');
+		expect(panel.getAllByRole('button', { name: 'Apply 1 change' })).not.toHaveLength(0);
+	});
 	it('links hidden-header sections explicitly, mirrors shared lyrics, and preserves independent endings and undo', async () => {
 		const { panel, handle, controller } = await setup();
 		const exact = handle.getSnapshot().text;

@@ -18,6 +18,14 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   lyrics or the remaining peers. Rendering the panel or switching profiles discovers nothing.
   `RichLinking.svelte.test.ts` and `conversion/links.test.ts` cover projected navigation,
   explicit membership, mirroring, retained variations, exact projections and undo.
+  Manage opens one retained group in the shared `LinkingDetail` comparison while the writer
+  stays in Musixmatch. Membership stays fixed during wording review; the overview owns linking
+  and each section's Unlink action. `conversionLinkDifferences` supplies projected bounds from
+  retained IDs to the existing alignment and comparison formatter. An explicit wording choice
+  uses `reconcileEdit` once with preplanned edits, preserving unchosen variations, exclusions
+  and retained markup. Equal corrected words do not acquire an implicit connection. The task
+  captures draft, revision, profile and model; Apply refuses changes to that basis rather than
+  selecting a new group or passage. Genius keeps its existing comparison and edit path.
 - A section group records which performances belong together. Each stored **passage** names
   the actual subset sharing exact text; a chorus-only passage remains connected when an intro
   joins the group. Occurrences have non-overlapping absolute ranges and at most one occurrence

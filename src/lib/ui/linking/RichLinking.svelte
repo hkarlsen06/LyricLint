@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import LinkingDetail from './LinkingDetail.svelte';
+	import { tick, untrack } from 'svelte';
 	import { lineNumberAt } from '#lib/core/line-numbers.js';
 	import { projectOffset, renderProfile } from '#lib/conversion/index.js';
-	import { conversionSectionRanges } from '#lib/conversion/links.js';
-	import type { TextRange } from '#lib/core/types.js';
+	import { conversionLinkDifferences, conversionSectionRanges } from '#lib/conversion/links.js';
+	import type { SectionLinkChoice, TextRange } from '#lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
 	let {
@@ -53,6 +54,62 @@
 				: 'Set up link'
 	);
 
+	let management = $state<{
+		groupId: string;
+		sectionIds: string[];
+		draftId: string;
+		revision: number;
+		model: NonNullable<typeof model>;
+		projection: NonNullable<typeof projection>;
+	}>();
+	let root: HTMLDivElement;
+	async function manage(groupId: string): Promise<void> {
+		const group = model?.links.find((link) => link.id === groupId);
+		if (!group || !model || !projection) return;
+		management = {
+			groupId,
+			sectionIds: [...group.sectionIds],
+			draftId: controller.draftId,
+			revision: controller.snapshot.revision,
+			model,
+			projection
+		};
+		await tick();
+		root.querySelector<HTMLElement>('[data-linking-heading]')?.focus();
+	}
+	async function closeManagement(): Promise<void> {
+		const groupId = management?.groupId;
+		management = undefined;
+		await tick();
+		root.querySelector<HTMLButtonElement>(`[data-manage="${groupId}"]`)?.focus();
+	}
+	function correct(choice: SectionLinkChoice): void {
+		const baseline = management;
+		if (!baseline) return;
+		if (
+			controller.draftId !== baseline.draftId ||
+			controller.snapshot.revision !== baseline.revision ||
+			controller.profile !== 'musixmatch' ||
+			JSON.stringify(controller.snapshot.conversion?.model) !== JSON.stringify(baseline.model)
+		) {
+			controller.feedback.announce(
+				'The lyrics, draft or format changed. Open Manage again before applying.'
+			);
+			controller.feedback.addToast({
+				message: 'The lyrics, draft or format changed. Open Manage again before applying.'
+			});
+			return;
+		}
+		if (
+			controller.applyConversionAction({
+				kind: 'reviewLinkDifferences',
+				sectionIds: baseline.sectionIds,
+				choice
+			})
+		)
+			void closeManagement();
+	}
+
 	function select(ids: string[], checked: boolean): void {
 		selected = checked
 			? [...new Set([...selected, ...ids])]
@@ -97,134 +154,172 @@
 	}
 </script>
 
-<div class="panel-content rich-linking">
-	<h2 tabindex="-1" data-linking-heading>Link repeated sections</h2>
-	<p>Matching passages stay in sync. Each section keeps its own variations.</p>
-	{#if model && model.sections.length > 0}
-		{#if model.links.length > 0}
-			<section aria-label="Linked sections">
-				<h3>Linked sections</h3>
-				{#each model.links as group (group.id)}
-					<div class="rich-linking__group">
-						<label class="rich-linking__choice">
-							<input
-								type="checkbox"
-								checked={group.sectionIds.some((id) => selected.includes(id))}
-								onchange={(event) => select(group.sectionIds, event.currentTarget.checked)}
-							/>
-							<span
-								>Include linked group: {group.sectionIds
-									.map((id) => names.get(id))
-									.join(', ')}</span
-							>
-						</label>
-						<ul aria-label="Sections in this group">
-							{#each group.sectionIds as id (id)}
-								<li>
-									<strong>{names.get(id)}</strong>
-									<details>
-										<summary>Section options</summary>
-										<div class="rich-linking__actions">
-											<button
-												type="button"
-												class="button button--quiet"
-												onclick={() => show(ranges.get(id))}>Show line {line(id)}</button
-											>
-											<button
-												type="button"
-												class="button button--quiet"
-												aria-label={`Unlink ${names.get(id)}`}
-												onclick={() =>
-													controller.applyConversionAction({
-														kind: 'unlinkSection',
-														sectionId: id
-													})}>Unlink section</button
-											>
-										</div>
-										<button
-											type="button"
-											class="button button--quiet"
-											role="switch"
-											aria-checked={controller.isConversionSectionLocal(id)}
-											onclick={() => controller.toggleConversionSectionLocal(id)}
-											aria-label={`Edit ${names.get(id)} only`}
-										>
-											{controller.isConversionSectionLocal(id)
-												? 'Editing this section only'
-												: 'Edit this section only'}
-										</button>
-									</details>
-								</li>
-							{/each}
-						</ul>
-						{#if group.passages?.length}
-							<details>
-								<summary>Connected lyrics</summary>
-								<ul class="rich-linking__passages">
-									{#each group.passages as passage, index (index)}
-										<li>
-											<p class="rich-linking__lyrics">
-												{model.content.slice(passage.members[0].from, passage.members[0].to) ||
-													'Shared insertion point'}
-											</p>
-											<div class="rich-linking__actions">
-												{#each passage.members as member (member.sectionId)}
-													<button
-														type="button"
-														class="button button--quiet"
-														onclick={() => show(member)}
-														>Show in {names.get(member.sectionId)}</button
-													>
-												{/each}
-											</div>
-										</li>
-									{/each}
-								</ul>
-							</details>
-						{:else}
-							<p>No exact passage is currently connected. Each section keeps its wording.</p>
-						{/if}
-					</div>
-				{/each}
-			</section>
-		{/if}
-		{#if model.sections.some((section) => !linked.has(section.id))}
-			<section aria-label="Available to link">
-				<h3>Available to link</h3>
-				{#each model.sections.filter((section) => !linked.has(section.id)) as section (section.id)}
-					<div class="rich-linking__section">
-						<label class="rich-linking__choice">
-							<input
-								type="checkbox"
-								checked={selected.includes(section.id)}
-								onchange={(event) => select([section.id], event.currentTarget.checked)}
-							/>
-							<span>{names.get(section.id)}</span>
-						</label>
-						<details>
-							<summary>Lyrics in {names.get(section.id)}</summary>
-							<p class="rich-linking__lyrics">{lyrics(section.id) || 'Empty section'}</p>
+<div class="panel-content rich-linking" bind:this={root}>
+	{#if management}
+		{@const baseline = management}
+		<LinkingDetail
+			membershipLocked
+			occurrences={baseline.sectionIds.map((id, index) => ({
+				headerFrom: index,
+				line: line(id),
+				label: names.get(id) ?? 'Section',
+				ordinal: index + 1,
+				sameKind: false,
+				comparison: lyrics(id) ? 'different' : 'empty'
+			}))}
+			sectionNames={new Map(
+				baseline.sectionIds.map((id, index) => [index, names.get(id) ?? 'Section'])
+			)}
+			currentHeaderFrom={0}
+			initialSelected={baseline.sectionIds.map((_, index) => index).slice(1)}
+			fromOverview
+			documentText={baseline.projection.text}
+			differencesFor={() =>
+				conversionLinkDifferences(baseline.model, baseline.projection, baseline.sectionIds)}
+			onApply={correct}
+			onBack={closeManagement}
+			onNavigate={(index) => show(ranges.get(baseline.sectionIds[index]))}
+			onNavigateLyric={async (from) => {
+				await onShowEditor?.();
+				controller.showConversionPassage({ from, to: from });
+			}}
+		/>
+	{:else}
+		<h2 tabindex="-1" data-linking-heading>Link repeated sections</h2>
+		<p>Matching passages stay in sync. Each section keeps its own variations.</p>
+		{#if model && model.sections.length > 0}
+			{#if model.links.length > 0}
+				<section aria-label="Linked sections">
+					<h3>Linked sections</h3>
+					{#each model.links as group (group.id)}
+						<div class="rich-linking__group">
+							<label class="rich-linking__choice">
+								<input
+									type="checkbox"
+									checked={group.sectionIds.some((id) => selected.includes(id))}
+									onchange={(event) => select(group.sectionIds, event.currentTarget.checked)}
+								/>
+								<span
+									>Include linked group: {group.sectionIds
+										.map((id) => names.get(id))
+										.join(', ')}</span
+								>
+							</label>
 							<button
 								type="button"
-								class="button button--quiet"
-								onclick={() => show(ranges.get(section.id))}>Show line {line(section.id)}</button
+								class="button"
+								data-manage={group.id}
+								aria-label={`Manage ${group.sectionIds.map((id) => names.get(id)).join(', ')}`}
+								onclick={() => manage(group.id)}>Manage</button
 							>
-						</details>
-					</div>
-				{/each}
-			</section>
+							<ul aria-label="Sections in this group">
+								{#each group.sectionIds as id (id)}
+									<li>
+										<strong>{names.get(id)}</strong>
+										<details>
+											<summary>Section options</summary>
+											<div class="rich-linking__actions">
+												<button
+													type="button"
+													class="button button--quiet"
+													onclick={() => show(ranges.get(id))}>Show line {line(id)}</button
+												>
+												<button
+													type="button"
+													class="button button--quiet"
+													aria-label={`Unlink ${names.get(id)}`}
+													onclick={() =>
+														controller.applyConversionAction({
+															kind: 'unlinkSection',
+															sectionId: id
+														})}>Unlink section</button
+												>
+											</div>
+											<button
+												type="button"
+												class="button button--quiet"
+												role="switch"
+												aria-checked={controller.isConversionSectionLocal(id)}
+												onclick={() => controller.toggleConversionSectionLocal(id)}
+												aria-label={`Edit ${names.get(id)} only`}
+											>
+												{controller.isConversionSectionLocal(id)
+													? 'Editing this section only'
+													: 'Edit this section only'}
+											</button>
+										</details>
+									</li>
+								{/each}
+							</ul>
+							{#if group.passages?.length}
+								<details>
+									<summary>Connected lyrics</summary>
+									<ul class="rich-linking__passages">
+										{#each group.passages as passage, index (index)}
+											<li>
+												<p class="rich-linking__lyrics">
+													{model.content.slice(passage.members[0].from, passage.members[0].to) ||
+														'Shared insertion point'}
+												</p>
+												<div class="rich-linking__actions">
+													{#each passage.members as member (member.sectionId)}
+														<button
+															type="button"
+															class="button button--quiet"
+															onclick={() => show(member)}
+															>Show in {names.get(member.sectionId)}</button
+														>
+													{/each}
+												</div>
+											</li>
+										{/each}
+									</ul>
+								</details>
+							{:else}
+								<p>No exact passage is currently connected. Each section keeps its wording.</p>
+							{/if}
+						</div>
+					{/each}
+				</section>
+			{/if}
+			{#if model.sections.some((section) => !linked.has(section.id))}
+				<section aria-label="Available to link">
+					<h3>Available to link</h3>
+					{#each model.sections.filter((section) => !linked.has(section.id)) as section (section.id)}
+						<div class="rich-linking__section">
+							<label class="rich-linking__choice">
+								<input
+									type="checkbox"
+									checked={selected.includes(section.id)}
+									onchange={(event) => select([section.id], event.currentTarget.checked)}
+								/>
+								<span>{names.get(section.id)}</span>
+							</label>
+							<details>
+								<summary>Lyrics in {names.get(section.id)}</summary>
+								<p class="rich-linking__lyrics">{lyrics(section.id) || 'Empty section'}</p>
+								<button
+									type="button"
+									class="button button--quiet"
+									onclick={() => show(ranges.get(section.id))}>Show line {line(section.id)}</button
+								>
+							</details>
+						</div>
+					{/each}
+				</section>
+			{/if}
+			<div class="rich-linking__submit">
+				<p>
+					Choose sections or existing groups. Linking keeps their current lyrics and connects only
+					unambiguous matching passages.
+				</p>
+				<button type="button" class="button button--contrast" disabled={!canLink} onclick={apply}
+					>{actionLabel}</button
+				>
+			</div>
+		{:else}
+			<p>Add section boundaries in Song details to choose the performances you want to link.</p>
 		{/if}
-		<div class="rich-linking__submit">
-			<p>
-				Choose sections or existing groups. Linking keeps their current lyrics and connects only
-				unambiguous matching passages.
-			</p>
-			<button type="button" class="button button--contrast" disabled={!canLink} onclick={apply}
-				>{actionLabel}</button
-			>
-		</div>
-	{:else}
-		<p>Add section boundaries in Song details to choose the performances you want to link.</p>
 	{/if}
 </div>
 

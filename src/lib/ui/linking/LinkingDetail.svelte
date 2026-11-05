@@ -12,6 +12,7 @@
 	import { describeControl } from '#lib/ui/state/control-tooltip.svelte.js';
 
 	interface Props {
+		membershipLocked?: boolean;
 		occurrences: readonly LinkOccurrence[];
 		currentHeaderFrom: number;
 		sectionNames?: ReadonlyMap<number, string>;
@@ -30,6 +31,7 @@
 		onTypeOnlyHere?: () => void;
 	}
 	let {
+		membershipLocked = false,
 		occurrences,
 		currentHeaderFrom,
 		sectionNames,
@@ -331,7 +333,7 @@
 			: `${wasLinked ? 'Manage' : 'Link'} ${current ? sectionName(current) : 'sections'}`}
 	</h2>
 	<fieldset class="members">
-		<legend>Sections to link</legend>
+		<legend>{membershipLocked ? 'Linked sections' : 'Sections to link'}</legend>
 		{#each occurrences as item (item.headerFrom)}
 			{@const isSource = !fromOverview && item.headerFrom === currentHeaderFrom}
 			<div class="member">
@@ -343,7 +345,7 @@
 							? `${id}-comparison-${item.headerFrom}`
 							: undefined}
 						checked={selected.includes(item.headerFrom)}
-						disabled={isSource}
+						disabled={isSource || membershipLocked}
 						onchange={() => toggle(item.headerFrom)}
 					/>
 					<span id={`${id}-member-${item.headerFrom}`} class="member__identity"

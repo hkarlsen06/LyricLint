@@ -1,3 +1,8 @@
+import { alignBodies } from '#lib/core/link-shape.js';
+import { describeLinkDifferences } from '#lib/core/link-differences.js';
+import type { SectionLinkChoice, LinkDifference, TextEdit } from '#lib/core/types.js';
+import { projectOffset } from './projection.js';
+import { reconcileEdit } from './reconcile.js';
 import { alignPassages, type PassageMember, type SharedPassage } from '#lib/core/link-passages.js';
 import { extendPassages } from '#lib/core/link-passage-extension.js';
 import { detachPassageRange, type PassageState } from '#lib/core/passage-targets.js';
@@ -14,7 +19,9 @@ import {
 import { renderProfile } from './projection.js';
 
 export type LinkDecision =
-	{ kind: 'linkSections'; sectionIds: string[] } | { kind: 'unlinkSection'; sectionId: string };
+	| { kind: 'linkSections'; sectionIds: string[] }
+	| { kind: 'unlinkSection'; sectionId: string }
+	| { kind: 'reviewLinkDifferences'; sectionIds: string[]; choice: SectionLinkChoice };
 
 /** Shared lyric bounds, including blank separators but excluding a retained literal header. */
 export function conversionSectionRanges(
@@ -31,6 +38,30 @@ export function conversionSectionRanges(
 	);
 }
 
+/** Retained section identity supplies comparison bounds, never hidden header parsing. */
+export function conversionLinkDifferences(
+	document: ConversionDocument,
+	projection: Projection,
+	sectionIds: readonly string[]
+): LinkDifference[] {
+	const ranges = conversionSectionRanges(document);
+	const members = sectionIds.flatMap((id, header) => {
+		const range = ranges.get(id);
+		if (!range) return [];
+		const from = projectOffset(projection, range.from, 1);
+		const end = projectOffset(projection, range.to, -1);
+		const body = { from, to: from + projection.text.slice(from, end).trimEnd().length };
+		return [{ header, body, holes: [] }];
+	});
+	const holes = alignBodies(
+		members.map((member) => projection.text.slice(member.body.from, member.body.to))
+	);
+	return describeLinkDifferences(
+		projection.text,
+		members.map((member, index) => ({ ...member, holes: holes[index] ?? [] }))
+	);
+}
+
 /** Explicit membership changes discover correspondence once; rendering never calls the aligner. */
 export function resolveLinkDecision(
 	document: ConversionDocument,
@@ -41,6 +72,43 @@ export function resolveLinkDecision(
 	if (!current.ok) return current;
 	if (current.value.text !== projection.text)
 		return refuse('stale-basis', 'The lyrics changed. Review the current sections before linking.');
+	if (action.kind === 'reviewLinkDifferences') {
+		const group = document.links.find(
+			(link) =>
+				link.sectionIds.length === action.sectionIds.length &&
+				link.sectionIds.every((id, index) => id === action.sectionIds[index])
+		);
+		if (
+			!group ||
+			action.choice.headers.length !== group.sectionIds.length ||
+			action.choice.headers.some((header, index) => header !== index)
+		)
+			return refuse('stale-basis', 'This linked group changed. Open Manage again.');
+		const differences = conversionLinkDifferences(document, projection, group.sectionIds);
+		const changes: TextEdit[] = [];
+		for (const difference of differences) {
+			if (action.choice.keepDifferent?.[difference.index] !== false) continue;
+			const winner = action.choice.replaceFromByDifference?.[difference.index];
+			const source = difference.wordings.find((wording) => wording.headerFrom === winner);
+			if (!source) return refuse('invalid-input', 'Choose a current wording for each correction.');
+			// An empty section cannot erase a populated performance.
+			const range = conversionSectionRanges(document).get(group.sectionIds[source.headerFrom]);
+			if (!range || !document.content.slice(range.from, range.to).trim())
+				return refuse('invalid-input', 'An empty section cannot replace populated lyrics.');
+			for (const wording of difference.wordings) {
+				if (wording.text !== source.text)
+					changes.push({
+						from: wording.from,
+						to: wording.from + wording.text.length,
+						insert: source.text
+					});
+			}
+		}
+		return reconcileEdit(document, projection, {
+			changes: changes.sort((a, b) => a.from - b.from),
+			mirror: false
+		});
+	}
 	const byId = new Map(document.sections.map((section, index) => [section.id, index]));
 	const ranges = conversionSectionRanges(document);
 	const next = { ...document };

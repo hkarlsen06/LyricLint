@@ -1,3 +1,4 @@
+import { describeLinkDifferences } from '#lib/core/link-differences.js';
 import { profileProjection } from './conversion-effects.js';
 import { profileForState } from './conversion-state.js';
 // Decision record: docs/subsystems/section-links.md, read it before changing this file, and update it with any behavior change.
@@ -1225,34 +1226,7 @@ export function linkDifferencesFor(
 	if (!members || members.length < 2) {
 		return [];
 	}
-	const count = members[0]?.holes.length ?? 0;
-	return Array.from({ length: count }, (_, index) => ({
-		index,
-		wordings: members.map((member) => {
-			const hole = member.holes[index];
-			const from = member.body.from + (hole?.from ?? 0);
-			const to = member.body.from + (hole?.to ?? 0);
-			// The **shared runs** either side, not the rest of the line.
-			//
-			// Clipped to the line, the context stopped at whatever line boundary each
-			// copy happened to have, and a run that spans lines ends on a different
-			// line in each copy, so the text drawn beside it was different text. On
-			// screen that put a word inside one copy's run and in another copy's
-			// context, with the insertion caret sitting in front of a word the other
-			// copy was showing as shared. A shared run is identical in every member
-			// by construction, which is the only thing that makes the versions line
-			// up under one another.
-			const previous = index === 0 ? 0 : (member.holes[index - 1]?.to ?? 0);
-			const next = member.holes[index + 1]?.from ?? member.body.to - member.body.from;
-			return {
-				headerFrom: member.header,
-				from,
-				text: hole ? state.doc.sliceString(from, to) : '',
-				before: state.doc.sliceString(member.body.from + previous, from),
-				after: state.doc.sliceString(to, member.body.from + next)
-			};
-		})
-	}));
+	return describeLinkDifferences(state.doc.toString(), members);
 }
 
 /**

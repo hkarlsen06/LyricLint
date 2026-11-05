@@ -257,6 +257,7 @@ export function resolveDecision(
 		case 'expandRepeat':
 			return expandRepeat(document, projection, action);
 		case 'linkSections':
+		case 'reviewLinkDifferences':
 		case 'unlinkSection':
 			return resolveLinkDecision(document, projection, action);
 		case 'confirmQuantity':
