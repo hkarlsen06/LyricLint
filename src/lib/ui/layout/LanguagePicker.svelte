@@ -258,6 +258,8 @@
 		max-width: 100%;
 		white-space: normal;
 		overflow-wrap: anywhere;
+		/* The native tap flash can outlive this trigger beneath its opened modal. */
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.language-trigger :global(svg) {
