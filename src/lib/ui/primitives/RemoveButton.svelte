@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import { tick } from 'svelte';
 	/**
 	 * Taking a row out of a list, in one place, in two presses.
 	 *
@@ -41,6 +42,13 @@
 	}: Props = $props();
 
 	let confirmButton = $state<HTMLButtonElement | undefined>();
+	let triggerButton = $state<HTMLButtonElement | undefined>();
+
+	async function cancel(): Promise<void> {
+		onCancel();
+		await tick();
+		triggerButton?.focus();
+	}
 
 	// The confirm replaces the trigger, so the press that armed it has to carry
 	// focus across the swap, or a keyboard user is dropped on the body
@@ -60,11 +68,7 @@
 	{#if showLabel}
 		<span class="remove-button__question" aria-hidden="true">{label} {subject}?</span>
 	{/if}
-	<button
-		type="button"
-		class="button button--quiet remove-button__cancel"
-		onclick={() => onCancel()}
-	>
+	<button type="button" class="button button--quiet remove-button__cancel" onclick={cancel}>
 		Cancel
 	</button>
 	<!-- The visible label is the verb alone, because the row it sits in is the
@@ -90,6 +94,7 @@
 			: 'button--quiet icon-button remove-button'}
 		aria-label="{label} {subject}"
 		title={showLabel ? undefined : label}
+		bind:this={triggerButton}
 		onclick={() => onRequest()}
 	>
 		{#if showLabel}{label}{:else}<TrashIcon aria-hidden="true" size={14} weight="bold" />{/if}

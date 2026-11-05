@@ -68,6 +68,7 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   The confirm takes the trigger's own slot
   (`RemoveButton`, shared by every list that offers a way out of a row) and moves focus onto
   itself; the armed row is the list's state, one question open at a time.
+  Cancel returns focus to the restored Delete control, keeping Escape within the menu.
 - An untouched new blank draft is transient. A deliberate clear of saved work is a guarded
   save, including an empty conflict copy, and survives reload. `recoverStartupDraft` sweeps
   historical blanks without a storage generation only after rechecking that generation in the

@@ -14,7 +14,7 @@ async function openDrafts(page: Page, touch: boolean): Promise<void> {
 
 function draftRow(page: Page, title: string): Locator {
 	return page.locator('.draft-list > li').filter({
-		has: page.getByRole('button', { name: `Actions for ${title}`, exact: true })
+		has: page.getByText(title, { exact: true })
 	});
 }
 
@@ -53,7 +53,9 @@ for (const width of [1280, 360, 390]) {
 			isMobile: touch,
 			reducedMotion: 'reduce'
 		});
-		test('opens the copy for editing and keeps named confirmations in place', async ({ page }) => {
+		test('opens the copy for editing and keeps named confirmations in place', async ({
+			page
+		}, testInfo) => {
 			const errors: string[] = [];
 			page.on('pageerror', (error) => errors.push(error.message));
 			await page.goto('/workbench/');
@@ -111,6 +113,16 @@ for (const width of [1280, 360, 390]) {
 			);
 			await exportedLyrics(page, title, source, touch);
 			const row = draftRow(page, title);
+			if (touch) {
+				for (const control of await row.getByRole('button').all()) {
+					const bounds = await control.boundingBox();
+					if (!bounds) throw new Error('A visible draft action has no geometry.');
+					expect(bounds.height, await control.getAttribute('aria-label')).toBeGreaterThanOrEqual(
+						44
+					);
+				}
+			}
+			await page.screenshot({ path: testInfo.outputPath('draft-actions.png') });
 			const remove = row.getByRole('button', { name: `Delete ${title}`, exact: true });
 			const before = await remove.boundingBox();
 			await activate(remove, touch);
@@ -121,6 +133,7 @@ for (const width of [1280, 360, 390]) {
 			expect(after.y).toBeCloseTo(before.y, 0);
 			expect(after.width).toBeCloseTo(before.width, 0);
 			await expect(confirm).toBeFocused();
+			await page.screenshot({ path: testInfo.outputPath('draft-delete-confirmation.png') });
 			await activate(row.getByRole('button', { name: 'Cancel', exact: true }), touch);
 			await page.keyboard.press('Escape');
 			await expect(

@@ -196,6 +196,17 @@ describe('DraftMenu', () => {
 				expect(document.activeElement).toBe(confirm);
 				expect(row.querySelector('[aria-live]')?.textContent).toContain(title);
 				expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+				await userEvent.click(within(row).getByRole('button', { name: 'Cancel' }));
+				await waitFor(() =>
+					expect(document.activeElement).toBe(
+						within(row).getByRole('button', { name: `Delete ${title}` })
+					)
+				);
+				await userEvent.keyboard('{Escape}');
+				expect(document.querySelector('details')?.open).toBe(false);
+				expect(document.activeElement).toBe(
+					screen.getByRole('button', { name: "Open saved 'scribes" })
+				);
 			} finally {
 				await page.viewport(800, 600);
 			}
