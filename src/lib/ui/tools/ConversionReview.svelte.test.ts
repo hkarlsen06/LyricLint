@@ -92,6 +92,19 @@ test('explains an uninitialized unsupported quantity before a preview can be req
 	expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
 });
 
+test('leaves an uncertain censorship decision without changing lyrics or retained facts', async () => {
+	const { panel, controller } = await focusedTask(
+		'[Verse: Mira]\nI said [****](123456) tonight',
+		'****',
+		'mxm.transcription.censor-mask'
+	);
+	const before = JSON.stringify(controller.snapshot);
+	await fireEvent.input(panel.getByLabelText('Audible prefix'), { target: { value: 'f' } });
+	await fireEvent.click(panel.getByRole('button', { name: 'Decide later' }));
+	expect(controller.requestedConversionReview).toBeUndefined();
+	expect(JSON.stringify(controller.snapshot)).toBe(before);
+});
+
 test('previews a censored prefix in its lyric line and retires it when the confirmation changes', async () => {
 	const { panel, controller } = await focusedTask(
 		'[Verse]\nI said **** tonight',

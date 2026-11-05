@@ -47,6 +47,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   Quantity and censorship previews show the resulting lyric line below their Preview control,
   with the replacement emphasized. The original target stays visible for comparison. Invalid
   quantity values get the shared policy guidance beside the field before Preview is available.
+  Censorship offers Decide later beside Preview. It returns to the same Review finding without
+  changing lyrics, recording listening facts or ignoring the finding.
 
 - Song uses one section chooser and one editor. Type and Show passage precede More section options; Add a section follows the editor. Selected passage tools, Document settings and retained details open deliberately. Clear this transcription is separate from export actions. Preferences exposes workspace backup actions directly; Local data and Reviewed rules remain secondary disclosures.
 

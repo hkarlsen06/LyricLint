@@ -213,14 +213,23 @@
 					><input type="checkbox" bind:checked={listened} />I listened: the recording censors this
 					word immediately after that prefix</label
 				>
-				<p>If you are unsure, return to Review without applying.</p>
 			{/if}
-			<button
-				class="button"
-				type="button"
-				disabled={request.kind === 'repeat' ? !source : !listened}
-				onclick={prepare}>Preview replacement</button
+			<div
+				class="conversion-review__actions"
+				class:conversion-review__actions--choice={request.kind === 'censor'}
 			>
+				<button
+					class="button"
+					type="button"
+					disabled={request.kind === 'repeat' ? !source : !listened}
+					onclick={prepare}>Preview replacement</button
+				>
+				{#if request.kind === 'censor'}<button
+						class="button button--quiet"
+						type="button"
+						onclick={back}>Decide later</button
+					>{/if}
+			</div>
 			<div aria-live="polite">
 				{#if shown}
 					{#if shown.ok && request.kind === 'censor'}{@render replacementPassage(shown.lyrics)}{/if}
@@ -263,6 +272,13 @@
 		display: grid;
 		gap: var(--space-2);
 		margin-block: var(--space-2);
+	}
+	.conversion-review__actions {
+		display: grid;
+		gap: var(--space-2);
+	}
+	.conversion-review__actions--choice {
+		grid-template-columns: minmax(0, 1fr) auto;
 	}
 	label {
 		display: grid;
