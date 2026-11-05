@@ -197,15 +197,14 @@ const COALESCE_GAP = 2;
 interface ChangeRowInfo {
 	row: Exclude<DiffRow, { kind: 'context' } | { kind: 'gap' }>;
 	line: number;
+	notes: readonly string[];
 }
 
 /**
  * Fold the flat character diff into display rows, keeping only the rows that
- * carry a change. Rows break at every newline whichever side it came from (a
- * deleted newline ends a struck row without advancing the current document,
- * which is how wholly removed lines fall out of a flat stream), and a row's
- * segments carry the shared text of its own line, so a changed row is
- * self-contained for the dialog.
+ * carry a change. Wholly removed lines end struck rows without advancing the
+ * current document. Removing only a line break keeps its surviving words in
+ * one current row, with a note for the structural change.
  */
 function buildChangeRows(
 	segments: readonly DiffSegment[],
@@ -235,6 +234,7 @@ function buildChangeRows(
 	let hasShared = false;
 	let hasDeleted = false;
 	let hasInserted = false;
+	let lineBreakNotes: string[] = [];
 
 	const pushShared = (text: string): void => {
 		const previous = rowSegments[rowSegments.length - 1];
@@ -259,28 +259,42 @@ function buildChangeRows(
 			// An empty row exists only because a newline alone was deleted or
 			// inserted here: a blank line removed or added.
 			if (cause === 'deleted') {
-				rows.push({ row: { kind: 'removed', text: '', at: rowAt }, line: removedLine(rowAt) });
+				rows.push({
+					row: { kind: 'removed', text: '', at: rowAt },
+					line: removedLine(rowAt),
+					notes: []
+				});
 			} else if (cause === 'inserted') {
 				rows.push({
 					row: { kind: 'added', text: '', line: rowLine + 1, at: rowAt },
-					line: rowLine
+					line: rowLine,
+					notes: []
 				});
 			}
-		} else if (hasDeleted || hasInserted) {
+		} else if (hasDeleted || hasInserted || lineBreakNotes.length > 0) {
 			if (hasDeleted && !hasInserted && !hasShared) {
 				const text = rowSegments
 					.map((segment) => (segment.kind === 'change' ? segment.deleted : ''))
 					.join('');
-				rows.push({ row: { kind: 'removed', text, at: rowAt }, line: removedLine(rowAt) });
+				rows.push({
+					row: { kind: 'removed', text, at: rowAt },
+					line: removedLine(rowAt),
+					notes: []
+				});
 			} else if (hasInserted && !hasDeleted && !hasShared) {
 				const text = rowSegments
 					.map((segment) => (segment.kind === 'change' ? segment.inserted : ''))
 					.join('');
-				rows.push({ row: { kind: 'added', text, line: rowLine + 1, at: rowAt }, line: rowLine });
+				rows.push({
+					row: { kind: 'added', text, line: rowLine + 1, at: rowAt },
+					line: rowLine,
+					notes: []
+				});
 			} else {
 				rows.push({
 					row: { kind: 'changed', segments: rowSegments, line: rowLine + 1, at: rowAt },
-					line: rowLine
+					line: rowLine,
+					notes: lineBreakNotes
 				});
 			}
 		}
@@ -288,6 +302,7 @@ function buildChangeRows(
 		hasShared = false;
 		hasDeleted = false;
 		hasInserted = false;
+		lineBreakNotes = [];
 	};
 
 	for (const segment of segments) {
@@ -310,17 +325,24 @@ function buildChangeRows(
 		}
 		// A change reads deletion first, then insertion.
 		const deletedParts = segment.deleted.split('\n');
+		const removesOnlyBreaks = !/[^\n]/u.test(segment.deleted) && segment.inserted.length === 0;
 		for (let index = 0; index < deletedParts.length; index += 1) {
 			if (index > 0) {
-				closeRow('deleted');
-				rowAt = at;
-				rowLine = line;
+				if (hasShared && removesOnlyBreaks) {
+					// A removed break joins the surviving words in this current line.
+					lineBreakNotes.push('Line break removed');
+				} else {
+					closeRow('deleted');
+					rowAt = at;
+					rowLine = line;
+				}
 			}
 			if (deletedParts[index].length > 0) pushChange(deletedParts[index], '');
 		}
 		const insertedParts = segment.inserted.split('\n');
 		for (let index = 0; index < insertedParts.length; index += 1) {
 			if (index > 0) {
+				if (hasShared) lineBreakNotes.push('Line break added');
 				closeRow('inserted');
 				at += 1;
 				line += 1;
@@ -441,6 +463,7 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 				if (!isBlank(lineIndex)) rows.push(contextRow(lineIndex));
 			}
 			rows.push(info.row);
+			notes.push(...info.notes);
 			if (info.row.kind === 'changed') notes.push(...describeRow(info.row.segments));
 			previousNext = Math.max(
 				previousNext,

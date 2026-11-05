@@ -276,6 +276,24 @@ describe('CompareDialog', () => {
 		expect(openDialog().querySelector('del')).toBeNull();
 	});
 
+	test.each([1280, 360, 390])(
+		'shows a current trailing line break instead of an empty result at %ipx',
+		async (width) => {
+			await page.viewport(width, 844);
+			const { controller, calls } = createTestWorkbench({ text: '[Verse]\nLine\n' });
+			await render(CompareDialog, { controller });
+			await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+			await pasteBaseline('[Verse]\nLine');
+			expect(screen.getByText(/1 line changed/)).toBeTruthy();
+			expect(screen.getByText('Line break added')).toBeTruthy();
+			expect(screen.queryByText(/matches the page exactly/)).toBeNull();
+			const row = screen.getByRole('button', { name: '2 Line' });
+			await fireEvent.click(row);
+			await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 }));
+			expect(controller.snapshot.text).toBe('[Verse]\nLine\n');
+		}
+	);
+
 	test('Change baseline swaps to the ask in place, and Cancel returns to the diff', async () => {
 		const { controller } = createTestWorkbench();
 		await render(CompareDialog, { controller });

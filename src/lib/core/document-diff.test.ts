@@ -2,6 +2,23 @@ import { describe, expect, test } from 'vitest';
 import { diffDocuments } from './document-diff.js';
 
 describe('diffDocuments', () => {
+	test.each([
+		['One', 'One\n', 'Line break added'],
+		['One\n', 'One', 'Line break removed'],
+		['OneTwo', 'One\nTwo', 'Line break added'],
+		['One\nTwo', 'OneTwo', 'Line break removed']
+	])('shows a newline-only change from %j to %j', (baseline, current, note) => {
+		const diff = diffDocuments(baseline, current);
+		expect(diff.identical).toBe(false);
+		expect(diff.changedLines).toBe(1);
+		expect(diff.hunks).toHaveLength(1);
+		expect(diff.hunks[0].notes).toContain(note);
+		const changed = diff.hunks[0].rows.find((row) => row.kind === 'changed');
+		expect(changed).toMatchObject({ kind: 'changed', at: 0, line: 1 });
+		if (changed?.kind !== 'changed') throw new Error('expected a changed line');
+		expect(changed.segments).toEqual([{ kind: 'shared', text: current.split('\n')[0] }]);
+	});
+
 	test('byte-identical texts report identical and no hunks', () => {
 		const text = '[Verse 1]\nHello world';
 		const diff = diffDocuments(text, text);

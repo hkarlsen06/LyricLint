@@ -73,6 +73,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   that listening, attribution or external Musixmatch tagging have been completed.
   Comparison lyrics use the reading face at the normal body size; each desktop line target
   keeps at least the compact control height, and phone targets retain their touch floor.
+  Line-break-only changes have a visible count, a named added or removed break, and a
+  current-document line target; a different comparison never displays an empty result.
   Comparison rows use the shared passage handoff: phones reveal Write and focus its control,
   while desktop restores editor focus after the modal closes. Closing Compare retires the phone
   Document menu; cancellation and Escape restore its visible Document trigger.
