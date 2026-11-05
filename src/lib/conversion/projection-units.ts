@@ -16,18 +16,27 @@ export function retainProjectionUnits(
 	const rendered = renderProfile(document, profile);
 	if (!rendered.ok) return rendered;
 	const formCount = document.forms.length;
-	for (const { from, to, text } of units) {
+	const authored = document.forms
+		.filter((form) => form.profile === profile)
+		.sort((a, b) => a.from - b.from);
+	let formIndex = 0;
+	let ownerIndex = 0;
+	let retainedEnd = -1;
+	for (const { from, to, text } of [...units].sort((a, b) => a.from - b.from)) {
 		if (
 			from >= to ||
+			from < retainedEnd ||
 			rendered.value.text.slice(
 				projectOffset(rendered.value, from, 1),
 				projectOffset(rendered.value, to, -1)
-			) === text ||
-			document.forms.some((form) => form.profile === profile && form.from < to && from < form.to)
+			) === text
 		)
 			continue;
-		const owner = document.owners.find((entry) => entry.from <= from && to <= entry.to);
-		if (!owner) continue;
+		while (authored[formIndex] && authored[formIndex]!.to <= from) formIndex++;
+		if (authored[formIndex] && authored[formIndex]!.from < to) continue;
+		while (document.owners[ownerIndex] && document.owners[ownerIndex]!.to <= from) ownerIndex++;
+		const owner = document.owners[ownerIndex];
+		if (!owner || from < owner.from || owner.to < to) continue;
 		document.forms.push({
 			id: allocateId(document, 'form'),
 			from,
@@ -37,6 +46,7 @@ export function retainProjectionUnits(
 			ownerId: owner.id,
 			ownerRevision: owner.revision
 		});
+		retainedEnd = to;
 	}
 	return document.forms.length === formCount ? rendered : renderProfile(document, profile);
 }

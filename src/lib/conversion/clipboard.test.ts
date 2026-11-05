@@ -22,6 +22,29 @@ function copied(document: ConversionDocument, projection: Projection, from: numb
 }
 
 describe('owned conversion clipboard fragments', () => {
+	it('carries dense omitted spacing without changing either profile', () => {
+		const text = 'a ?'.repeat(40_000);
+		const source = importDocument({ text, profile: 'genius', language: 'fr' });
+		if (!source.ok) throw new Error(source.refusal.message);
+		const projection = rendered(source.value, 'musixmatch');
+		const fragment = copied(source.value, projection, 0, projection.text.length);
+		const target = imported('Left Right', 'musixmatch');
+		const pasted = pasteDocument(
+			target,
+			rendered(target, 'musixmatch'),
+			{ from: 5, to: 5 },
+			fragment,
+			'musixmatch'
+		);
+		expect(pasted.ok).toBe(true);
+		if (!pasted.ok) return;
+		expect(pasted.value.projection.text).toBe(`Left ${'a?'.repeat(40_000)}Right`);
+		expect(rendered(pasted.value.document, 'genius').text).toBe(`Left ${text}Right`);
+		expect(pasted.value.document.languageRanges).toEqual([
+			expect.objectContaining({ from: 5, to: 5 + text.length, language: 'fr' })
+		]);
+	});
+
 	it.each([
 		['fr', 'Pourquoi ?'],
 		['ja', '月?'],
