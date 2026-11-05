@@ -222,6 +222,7 @@ interface MirrorPlan {
 }
 function expandMirrors(
 	document: ConversionDocument,
+	projection: Projection,
 	changes: TextEdit[],
 	onlySectionId?: string
 ): EngineResult<MirrorPlan> {
@@ -242,6 +243,23 @@ function expandMirrors(
 			if (!targets.length) continue;
 			const recipients: PassageMember[] = [{ header, from: change.from, to: change.to }];
 			for (const target of targets) {
+				// A peer's alternate wording is indivisible. Interior shared offsets
+				// cannot identify characters in its visible spelling.
+				if (
+					projection.segments.some(
+						(segment) =>
+							segment.kind === 'transformed' &&
+							((segment.contentFrom < target.from && target.from < segment.contentTo) ||
+								(segment.contentFrom < target.to && target.to < segment.contentTo))
+					) ||
+					projection.hidden.some(
+						(entry) =>
+							entry.contentTo !== undefined &&
+							((entry.contentAt < target.from && target.from < entry.contentTo) ||
+								(entry.contentAt < target.to && target.to < entry.contentTo))
+					)
+				)
+					continue;
 				const identical = added.find(
 					(entry) =>
 						entry.from === target.from && entry.to === target.to && entry.insert === change.insert
@@ -707,7 +725,7 @@ function reconcilePlain(
 	const mirrored =
 		input.mirror === false
 			? { ok: true as const, value: { changes: sourceChanges, transfers: [] } }
-			: expandMirrors(document, sourceChanges, input.onlySectionId);
+			: expandMirrors(document, projection, sourceChanges, input.onlySectionId);
 	if (!mirrored.ok) return mirrored;
 	const { changes, transfers } = mirrored.value;
 	if (!validEdits(document.content, changes))
@@ -777,7 +795,42 @@ function reconcilePlain(
 	captureAuthoredEdits(next, projection.profile, changes, map);
 	updateEmptySections(next);
 	retainSectionPlacement(next);
-	const result = renderProfile(next, projection.profile);
+	let result = renderProfile(next, projection.profile);
+	if (!result.ok) return result;
+	const formCount = next.forms.length;
+	// Neighboring edits can remove a derived spelling's policy context. Keep
+	// the untouched visible unit as a local form, without changing its source.
+	for (const segment of projection.segments) {
+		if (segment.kind !== 'transformed') continue;
+		const range = { from: segment.contentFrom, to: segment.contentTo };
+		if (changes.some((change) => overlaps(range, change))) continue;
+		const from = map(range.from, 1);
+		const to = map(range.to, -1);
+		const text = projection.text.slice(segment.from, segment.to);
+		if (
+			from >= to ||
+			result.value.text.slice(
+				projectOffset(result.value, from, 1),
+				projectOffset(result.value, to, -1)
+			) === text ||
+			next.forms.some(
+				(form) => form.profile === projection.profile && form.from < to && from < form.to
+			)
+		)
+			continue;
+		const owner = next.owners.find((entry) => entry.from <= from && to <= entry.to);
+		if (!owner) continue;
+		next.forms.push({
+			id: allocateId(next, 'form'),
+			from,
+			to,
+			text,
+			profile: projection.profile,
+			ownerId: owner.id,
+			ownerRevision: owner.revision
+		});
+	}
+	if (next.forms.length !== formCount) result = renderProfile(next, projection.profile);
 	if (!result.ok) return result;
 	const visibleChanges = changes.map((change) => ({
 		from: projectOffset(projection, change.from, 1),
@@ -1011,12 +1064,11 @@ function reconcileGenius(
 				return assignments;
 			}
 		}
-		const index = document.sections.findIndex((section) => section.id === voice.sectionId);
-		const nextSection = document.sections[index + 1];
+		const index = next.sections.findIndex((section) => section.id === voice.sectionId);
+		const nextSection = next.sections[index + 1];
 		const retainedBoundary =
 			nextSection !== undefined &&
-			nextSection.headerVisible !== false &&
-			!canRenderSection(document, nextSection);
+			(nextSection.headerVisible === false || !canRenderSection(next, nextSection));
 		const old = retainedVoices.find(
 			(entry) =>
 				!usedVoices.has(entry.id) &&
