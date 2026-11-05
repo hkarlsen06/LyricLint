@@ -60,7 +60,8 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   format and shows the exact receiving-format text; Apply commits text and details together, while
   Keep current text discards the pending metadata. A deliberate Interpret as Genius/Musixmatch
   action uses this same preview and commit path for selected ordinary text. Pending reviews map
-  through outside edits and invalidate when the passage is touched or the profile changes; undo
+  through outside edits, including insertions and deletions adjacent to its boundaries, and
+  invalidate when the passage is touched or the profile changes; undo
   restores the previous reviewed basis. Rich attachment that cannot preserve
   the exact projection uses the ordinary text paste and reports that its details were withheld.
 

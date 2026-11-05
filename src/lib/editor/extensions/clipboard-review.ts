@@ -23,7 +23,7 @@ export const clipboardReviewField = StateField.define<PendingClipboardReview | u
 			let touched = false;
 			const previous = value;
 			transaction.changes.iterChangedRanges((from, to) => {
-				if (from <= previous.to && previous.from <= to) touched = true;
+				if (from < previous.to && previous.from < to) touched = true;
 			});
 			value = touched
 				? undefined
@@ -41,11 +41,11 @@ export const clipboardReviewField = StateField.define<PendingClipboardReview | u
 	}
 });
 
-export const clipboardReviewHistory = invertedEffects.of((transaction) =>
-	transaction.effects.some((effect) => effect.is(setClipboardReviewEffect))
-		? [setClipboardReviewEffect.of(transaction.startState.field(clipboardReviewField, false))]
-		: []
-);
+export const clipboardReviewHistory = invertedEffects.of((transaction) => {
+	const before = transaction.startState.field(clipboardReviewField, false);
+	const after = transaction.state.field(clipboardReviewField, false);
+	return before !== after ? [setClipboardReviewEffect.of(before)] : [];
+});
 
 export function clipboardReviewFor(state: EditorState): PendingClipboardReview | undefined {
 	return state.field(clipboardReviewField, false);

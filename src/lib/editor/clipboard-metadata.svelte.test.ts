@@ -372,7 +372,61 @@ describe('paste', () => {
 		expect(text()).toBe('A sun');
 		expect(handle.getSnapshot().clipboardReview).toBeUndefined();
 		expect(handle.applyClipboardReview?.()).toMatchObject({ ok: false });
+		handle.undo();
+		expect(text()).toBe('A moon');
+		expect(handle.getSnapshot().clipboardReview?.sourceProfile).toBe('musixmatch');
+		handle.redo();
+		expect(text()).toBe('A sun');
+		expect(handle.getSnapshot().clipboardReview).toBeUndefined();
+		handle.undo();
+		expect(handle.applyClipboardReview?.()).toEqual({ ok: true });
+		expect(text()).toBe('[Verse]\nA [moon](123)');
 	});
+
+	it.each([
+		[14, 14, '\nNew line', 'Before\n\n[Verse]\nA [moon](123)\nNew line'],
+		[8, 8, 'Earlier\n', 'Before\n\nEarlier\n[Verse]\nA [moon](123)'],
+		[0, 8, '', '[Verse]\nA [moon](123)']
+	] as const)(
+		'keeps copied details through adjacent edit %i..%i',
+		async (from, to, insert, expected) => {
+			const imported = importDocument({
+				text: '[Verse]\nA [moon](123)',
+				profile: 'genius',
+				language: 'en'
+			});
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const conversion = createConversionEnvelope(
+				imported.value,
+				'musixmatch',
+				profilePolicyVersions
+			);
+			const { handle, text } = await mount({
+				text: 'Before\n\n',
+				selection: { anchor: 8, head: 8 }
+			});
+			const transfer = new DataTransfer();
+			transfer.setData('text/plain', conversion.projectionText);
+			transfer.setData(
+				'text/html',
+				clipboardHtml(conversion.projectionText, {
+					lines: 1,
+					anchors: [],
+					links: [],
+					conversion,
+					performers: []
+				})
+			);
+			clipboard('paste', transfer);
+			handle.dispatchAtomic({
+				baseRevision: handle.getSnapshot().revision,
+				edits: [{ from, to, insert }]
+			});
+			expect(handle.getSnapshot().clipboardReview?.previewText).toBe('[Verse]\nA [moon](123)');
+			expect(handle.applyClipboardReview?.()).toEqual({ ok: true });
+			expect(text()).toBe(expected);
+		}
+	);
 
 	it('maps copied detail review through outside edits and clears it on a profile change', async () => {
 		const imported = importDocument({
