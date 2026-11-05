@@ -177,7 +177,8 @@ line boundary. The existing typed insertion creates a matching Genius heading (P
 reachable. No untyped generated placeholder or durable provenance flag is needed. The label
 can subsequently be changed explicitly through More section options; type and Genius label
 remain independent. This does not infer language-specific equivalents or resolve ambiguous
-policy mappings. Document settings and Retained details stay collapsed by default.
+policy mappings. Language and content type stay collapsed beside the document exports;
+Retained details stay collapsed in the metadata tools.
 
 Listening diagnostics open only their requested quantity or instrumental task in Review.
 Song exposes saved decisions in a separate collapsed disclosure. Lyric findings precede retained-detail Review. Retained details

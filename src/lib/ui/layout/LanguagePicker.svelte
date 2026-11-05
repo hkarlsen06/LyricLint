@@ -93,6 +93,12 @@
 	}
 
 	function handleSearchKeydown(event: KeyboardEvent): void {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			event.stopPropagation();
+			close();
+			return;
+		}
 		if (event.key !== 'ArrowDown') return;
 		const firstResult = dialog.querySelector<HTMLButtonElement>('.language-option');
 		if (!firstResult) return;

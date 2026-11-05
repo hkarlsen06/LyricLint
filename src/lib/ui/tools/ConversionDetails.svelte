@@ -6,7 +6,7 @@
 	import { tick, untrack } from 'svelte';
 	import { sectionTypeChoices as types } from '#lib/conversion/section-types.js';
 	import { contentOffset, projectOffset, renderProfile } from '#lib/conversion/index.js';
-	import type { ContentKind, SectionRecord } from '#lib/conversion/model.js';
+	import type { SectionRecord } from '#lib/conversion/model.js';
 	import type { ConversionAction } from '#lib/conversion/index.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	let { controller }: { controller: WorkbenchController } = $props();
@@ -443,27 +443,6 @@
 			</details>
 		{/if}
 	{/if}
-	<details>
-		<summary>Document settings</summary>
-		<label
-			>Content type
-			<select
-				disabled={!enabled}
-				value={model?.contentKind ?? 'unknown'}
-				onchange={(event) =>
-					controller.applyConversionAction({
-						kind: 'setContentKind',
-						contentKind: event.currentTarget.value as ContentKind
-					})}
-			>
-				<option value="unknown">Not specified</option><option value="original"
-					>Original lyrics</option
-				><option value="translation">Translation</option><option value="romanization"
-					>Romanization</option
-				>
-			</select>
-		</label>
-	</details>
 	{#if showDecisions}
 		<ConversionFacts {controller} savedOnly />
 	{/if}

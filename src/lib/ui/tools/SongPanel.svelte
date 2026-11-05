@@ -4,6 +4,7 @@
 	import youtubeIcon from '#lib/assets/youtube-icon.svg';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import type { TimedLyricsFormat } from '#lib/core/timed-lyrics.js';
+	import type { ContentKind } from '#lib/conversion/model.js';
 	import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 	import { copyText } from '../clipboard.js';
 	import ArtworkActions from '../media/ArtworkActions.svelte';
@@ -13,6 +14,14 @@
 	import PassageLanguage from './PassageLanguage.svelte';
 	import ConversionDetails from './ConversionDetails.svelte';
 	import ClipboardReview from './ClipboardReview.svelte';
+	import LanguagePicker from '../layout/LanguagePicker.svelte';
+
+	const contentKinds = [
+		{ value: 'unknown', label: 'Not specified' },
+		{ value: 'original', label: 'Original lyrics' },
+		{ value: 'translation', label: 'Translation' },
+		{ value: 'romanization', label: 'Romanization' }
+	] satisfies readonly { value: ContentKind; label: string }[];
 
 	let { controller, active = true }: { controller: WorkbenchController; active?: boolean } =
 		$props();
@@ -20,6 +29,9 @@
 	let confirmClearDocument = $state(false);
 	let clearButton = $state<HTMLButtonElement>();
 	let timedLyricsFormat = $state<TimedLyricsFormat>('lrc');
+	const settingsEnabled = $derived(
+		!controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery
+	);
 	let lastTiming: WorkbenchController['currentLineTiming'];
 	const timing = $derived.by(() => {
 		if (active) lastTiming = controller.currentLineTiming;
@@ -187,6 +199,34 @@
 			.txt: {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics. Scribe: both formats
 			and all editable details.
 		</p>
+		<details>
+			<summary>Language and content type</summary>
+			<LanguagePicker
+				language={controller.language}
+				recentLanguages={controller.recentLanguages}
+				label="Document language"
+				expandedLabel
+				disabled={!settingsEnabled}
+				onchoose={(tag) => controller.setLanguage(tag)}
+			/>
+			<label
+				>Content type
+				<select
+					disabled={!settingsEnabled}
+					value={controller.snapshot.conversion?.model.contentKind ?? 'unknown'}
+					onchange={(event) => {
+						const value = event.currentTarget.value;
+						const kind = contentKinds.find((entry) => entry.value === value);
+						if (kind)
+							controller.applyConversionAction({ kind: 'setContentKind', contentKind: kind.value });
+					}}
+				>
+					{#each contentKinds as kind (kind.value)}
+						<option value={kind.value}>{kind.label}</option>
+					{/each}
+				</select>
+			</label>
+		</details>
 		<!--
 			The document-scoped delete lives in the section about the document it
 			clears, disclosed separately from the exports. The toolbar carries only
@@ -238,6 +278,8 @@
 			</details>
 		{/if}
 	</section>
+
+	<PassageLanguage {controller} />
 
 	{#if controller.lineAnchorCount > 0}
 		<section>
@@ -295,8 +337,6 @@
 			</div>
 		</section>
 	{/if}
-
-	<PassageLanguage {controller} />
 
 	<!--
 		What the attached song is, in the forms somebody filling in a song page

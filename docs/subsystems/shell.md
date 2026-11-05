@@ -50,9 +50,10 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   Censorship offers Decide later beside Preview. It returns to the same Review finding without
   changing lyrics, recording listening facts or ignoring the finding.
 
-- Song uses one section chooser and one editor. Type and Show passage precede More section options; Add a section follows the editor. Passage language is direct in Song and uses the shared searchable language dialog with an explicit custom-code path. Other selected passage tools, Document settings and retained details open deliberately. Clear this transcription is separate from export actions. Preferences exposes workspace backup actions directly; Local data and Reviewed rules remain secondary disclosures.
+- Song uses one section chooser and one editor. Type and Show passage precede More section options; Add a section follows the editor. Document language and content type share the named disclosure beside document exports. Passage language is direct immediately afterward and uses the shared searchable language dialog with an explicit custom-code path. Other selected passage tools and retained details open deliberately. Clear this transcription is separate from export actions. Preferences exposes workspace backup actions directly; Local data and Reviewed rules remain secondary disclosures.
   Local data explains reset consequences before its action. The warning and reset target stay
   in place through confirmation and cancellation.
+  Escape closes a language picker even when its search has text, returning focus to its trigger.
 
 - The document toolbar exposes a per-draft Genius and Musixmatch buttons that select a destination in one click
   or Enter/Space. A check and pressed state mark the committed format, and both buttons reserve

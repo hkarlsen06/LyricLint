@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { createTestWorkbench } from '../test-utils.js';
 import LanguagePicker from './LanguagePicker.svelte';
 
@@ -22,6 +23,23 @@ function status(): HTMLElement {
 
 describe('LanguagePicker', () => {
 	afterEach(cleanup);
+
+	test('Escape closes a searched picker and returns focus without changing language', async () => {
+		const { controller } = createTestWorkbench();
+		await render(LanguagePicker, {
+			language: controller.language,
+			onchoose: (tag) => controller.setLanguage(tag)
+		});
+		const trigger = screen.getByRole('button', { name: /^Lyric language:/ });
+		await openPicker();
+		await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'French' } });
+		await userEvent.keyboard('{Escape}');
+		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+		expect(document.activeElement).toBe(trigger);
+		expect(controller.language).toBe('en');
+		await openPicker();
+		expect(screen.getByRole('searchbox')).toHaveValue('');
+	});
 
 	test('builds language options only while open and resets search with focus on reopening', async () => {
 		const { controller } = createTestWorkbench();

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/dom';
+import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import youtubeIcon from '#lib/assets/youtube-icon.svg';
@@ -558,6 +558,60 @@ describe('SongPanel conversion restraint', () => {
 			}
 		};
 	}
+
+	test.each([300, 600])(
+		'groups document language and classification without changing lyrics at %ipx',
+		async (width) => {
+			const run = await withLiveConversion('[Verse: Mira]\nHéllo 🌙\nOther words stay exact');
+			try {
+				run.view.container.style.width = `${width}px`;
+				const documentSection = screen
+					.getByRole('heading', { name: 'Document' })
+					.closest('section');
+				if (!documentSection) throw new Error('Document section missing');
+				const documentControls = within(documentSection);
+				const summary = documentControls.getByText('Language and content type', { exact: true });
+				const settings = summary.closest('details');
+				expect(settings?.open).toBe(false);
+				await fireEvent.click(summary);
+				const picker = documentControls.getByRole('button', {
+					name: 'Document language: English'
+				});
+				const classification = documentControls.getByRole('combobox', {
+					name: 'Content type'
+				});
+				expect(screen.getAllByRole('combobox', { name: 'Content type' })).toHaveLength(1);
+				expect(screen.queryByText('Document settings', { exact: true })).toBeNull();
+				for (const control of [picker, classification])
+					expect(control.getBoundingClientRect().right).toBeLessThanOrEqual(
+						run.view.container.getBoundingClientRect().right
+					);
+				const text = run.controller.snapshot.text;
+				await fireEvent.click(picker);
+				await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'Spanish' } });
+				await fireEvent.click(screen.getByRole('button', { name: 'Spanish' }));
+				expect(run.controller.language).toBe('es');
+				const model = structuredClone(run.controller.snapshot.conversion?.model);
+				await fireEvent.change(classification, { target: { value: 'translation' } });
+				expect(run.controller.snapshot.conversion?.model).toEqual({
+					...model,
+					contentKind: 'translation'
+				});
+				expect(run.controller.snapshot.text).toBe(text);
+				run.controller.undo();
+				expect(run.controller.snapshot.conversion?.model).toEqual(model);
+				run.controller.undo();
+				expect(run.controller.language).toBe('en');
+				run.controller.redo();
+				run.controller.redo();
+				expect(run.controller.language).toBe('es');
+				expect(run.controller.snapshot.conversion?.model.contentKind).toBe('translation');
+				expect(run.controller.snapshot.text).toBe(text);
+			} finally {
+				run.dispose();
+			}
+		}
+	);
 
 	test.each(['previous', 'next'] as const)(
 		'keeps the surviving section selected and focused after merging into %s, with exact Undo',

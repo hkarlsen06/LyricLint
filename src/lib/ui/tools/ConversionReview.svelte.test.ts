@@ -173,7 +173,7 @@ for (const [rule, title, sourceControl] of [
 		expect(controller.activeTab).toBe('linter');
 		expect(panel.queryByLabelText('Earlier source section') !== null).toBe(sourceControl);
 		for (const name of [
-			'Document settings',
+			'Language and content type',
 			'Retained details',
 			'Selected passage',
 			'Wording and retained annotations',
