@@ -506,6 +506,13 @@ export function conversionState(
 			let next = previous;
 			let additionalChanges: TextEdit[] = [];
 			if (edits.length) {
+				const performers = transaction.effects.reduce<readonly PerformerRecord[]>(
+					(records, effect) =>
+						effect.is(conversionRosterEffect)
+							? applyPerformerRecordDelta(records, effect.value)
+							: records,
+					transaction.startState.field(editorContextField)?.performers ?? []
+				);
 				const model = {
 					...previous.envelope.model,
 					nextId: Math.max(
@@ -517,7 +524,7 @@ export function conversionState(
 					changes: edits,
 					onlySectionId,
 					mirror: previous.envelope.profile === 'musixmatch',
-					performers: transaction.startState.field(editorContextField)?.performers
+					performers
 				});
 				if (!reconciled.ok) return recover(reconciled.refusal.message);
 				additionalChanges = reconciled.value.changes

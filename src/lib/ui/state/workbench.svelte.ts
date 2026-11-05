@@ -49,7 +49,7 @@ import type { ScribeProjectInput } from '#lib/scribe/format.js';
 import { profileSources } from '#lib/profiles/sources.js';
 import type { ProfileId } from '#lib/profiles/types.js';
 import { applyPerformerRecordDelta } from '#lib/editor/extensions/conversion-roster.js';
-import { normalizePerformerKey, allocatePerformerColor } from '#lib/performers/index.js';
+import { renamedPerformer, allocatePerformerColor } from '#lib/performers/index.js';
 import { renderProfile } from '#lib/conversion/index.js';
 
 interface WorkbenchDependencies {
@@ -578,12 +578,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		const snapshot = editorSession.snapshot;
 		if (snapshot.conversion) {
 			const next = {
-				...current,
-				displayName: trimmed,
-				normalizedKey: normalizePerformerKey(trimmed),
-				aliases: [...new SvelteSet([...current.aliases, previousName])].filter(
-					(name) => name !== trimmed
-				),
+				...renamedPerformer(current, previousName, trimmed),
 				colorId: allocatePerformerColor(
 					trimmed,
 					roster.performers.filter((entry) => entry.id !== id)
@@ -628,12 +623,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			return;
 		}
 		const next = {
-			...current,
-			displayName: trimmed,
-			normalizedKey: normalizePerformerKey(trimmed),
-			aliases: [...new SvelteSet([...current.aliases, previousName])].filter(
-				(name) => name !== trimmed
-			),
+			...renamedPerformer(current, previousName, trimmed),
 			colorId: allocatePerformerColor(
 				trimmed,
 				roster.performers.filter((entry) => entry.id !== id)

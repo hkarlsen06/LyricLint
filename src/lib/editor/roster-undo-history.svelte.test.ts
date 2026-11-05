@@ -19,88 +19,133 @@ afterEach(() => {
 });
 
 describe('roster toast and editor history', () => {
-	it('keeps legacy Genius source and roster atomic through rename, undo and redo', () => {
-		const text =
-			'[Verse: Mira & <i>Noor</i>]\nMira carries the light\n<i>Noor answers</i>\n\n[Chorus: Mira & Noor]\nBoth hold the line';
-		const initial: DraftRecord = {
-			id: 'legacy',
-			title: 'Legacy',
-			text,
-			language: 'en',
-			performers: [],
-			createdAt: '2026-11-05T00:00:00.000Z',
-			updatedAt: '2026-11-05T00:00:00.000Z',
-			ruleSetVersion: 'test'
-		};
-		const repository = createInMemoryDraftRepository([initial]);
-		const host = document.createElement('div');
-		document.body.append(host);
-		const editor = createLyricEditor(host, {
-			initialText: text,
-			context: { language: 'en', performers: [], ruleSetVersion: 'test' },
-			callbacks: {
-				onSnapshot: vi.fn(),
+	it.each([
+		{ mode: 'roster', rich: false },
+		{ mode: 'header', rich: false },
+		{ mode: 'roster', rich: true },
+		{ mode: 'header', rich: true }
+	])(
+		'keeps source and roster atomic through $mode rename, undo and redo (rich=$rich)',
+		({ mode, rich }) => {
+			const text =
+				'[Verse: Mira & <i>Noor</i>]\nMira carries the light\n<i>Noor answers</i>\n\n[Chorus: Mira & Noor]\nBoth hold the line';
+			const initial: DraftRecord = {
+				id: 'legacy',
+				title: 'Legacy',
+				text,
+				language: 'en',
+				performers: [],
+				createdAt: '2026-11-05T00:00:00.000Z',
+				updatedAt: '2026-11-05T00:00:00.000Z',
+				ruleSetVersion: 'test'
+			};
+			const repository = createInMemoryDraftRepository([initial]);
+			const host = document.createElement('div');
+			document.body.append(host);
+			const editor = createLyricEditor(host, {
+				initialText: text,
+				context: { language: 'en', performers: [], ruleSetVersion: 'test' },
+				callbacks: {
+					onSnapshot: vi.fn(),
+					onAssignRequest: vi.fn(),
+					onSectionHeaderRequest: vi.fn(),
+					onDiagnosticActivate: vi.fn(),
+					onAnnouncement: vi.fn()
+				}
+			});
+			editors.push(editor);
+			const controller = createWorkbenchController({
+				editor: editor.handle,
+				initialSnapshot: editor.handle.getSnapshot(),
+				initialDraft: initial,
+				repository,
+				autosave: createAutosaveController(repository),
+				ignoreStore: createContractIgnoreStore(createMemorySessionStorage())
+			});
+			editor.updateCallbacks({
+				onSnapshot: (value) => controller.onSnapshot(value),
+				onPerformerRecordsChanged: (delta) => controller.adoptPerformerRecords(delta),
+				onPerformerRenamed: ({ performerId, previousName, displayName }) =>
+					controller.adoptHeaderRename(performerId, previousName, displayName),
 				onAssignRequest: vi.fn(),
 				onSectionHeaderRequest: vi.fn(),
 				onDiagnosticActivate: vi.fn(),
 				onAnnouncement: vi.fn()
-			}
-		});
-		editors.push(editor);
-		const controller = createWorkbenchController({
-			editor: editor.handle,
-			initialSnapshot: editor.handle.getSnapshot(),
-			initialDraft: initial,
-			repository,
-			autosave: createAutosaveController(repository),
-			ignoreStore: createContractIgnoreStore(createMemorySessionStorage())
-		});
-		editor.updateCallbacks({
-			onSnapshot: (value) => controller.onSnapshot(value),
-			onPerformerRecordsChanged: (delta) => controller.adoptPerformerRecords(delta),
-			onAssignRequest: vi.fn(),
-			onSectionHeaderRequest: vi.fn(),
-			onDiagnosticActivate: vi.fn(),
-			onAnnouncement: vi.fn()
-		});
-		const refresh = () =>
-			editor.updateContext({
-				language: 'en',
-				performers: controller.performers,
-				ruleSetVersion: 'test'
 			});
-		const noor = controller.performers.find((record) => record.displayName === 'Noor')!;
-		expect(noor).toBeDefined();
-		refresh();
-		controller.renamePerformer(noor.id, 'Nora');
-		refresh();
-		const renamed = text
-			.replace('<i>Noor</i>', '<i>Nora</i>')
-			.replace('Mira & Noor]', 'Mira & Nora]');
-		expect(editor.handle.getSnapshot().text).toBe(renamed);
-		controller.addPerformer('Independent');
-		refresh();
-		editor.handle.undo();
-		refresh();
-		expect(editor.handle.getSnapshot().text).toBe(text);
-		expect(controller.performers.find((record) => record.id === noor.id)).toEqual(noor);
-		expect(controller.performers.map((record) => record.displayName)).toContain('Independent');
-		editor.handle.redo();
-		refresh();
-		expect(editor.handle.getSnapshot().text).toBe(renamed);
-		expect(controller.performers.find((record) => record.id === noor.id)?.displayName).toBe('Nora');
-		expect(controller.performers.find((record) => record.id === noor.id)?.aliases).toContain(
-			'Noor'
-		);
-		expect(editor.handle.getSnapshot().conversion).toBeUndefined();
-		editor.handle.switchProfile!('musixmatch');
-		expect(editor.handle.getSnapshot().text).toBe(
-			'Mira carries the light\nNoor answers\n\nBoth hold the line'
-		);
-		editor.handle.switchProfile!('genius');
-		expect(editor.handle.getSnapshot().text).toBe(renamed);
-		expect(controller.performers.filter((record) => record.displayName === 'Nora')).toHaveLength(1);
-	});
+			const refresh = () =>
+				editor.updateContext({
+					language: 'en',
+					performers: controller.performers,
+					ruleSetVersion: 'test'
+				});
+			const noor = controller.performers.find((record) => record.displayName === 'Noor')!;
+			expect(noor).toBeDefined();
+			refresh();
+			if (rich) {
+				editor.handle.switchProfile!('musixmatch');
+				editor.handle.switchProfile!('genius');
+				refresh();
+			}
+			const voices = editor.handle.getSnapshot().conversion?.model.voices.map((voice) => ({
+				id: voice.id,
+				performerIds: voice.performerIds
+			}));
+			if (mode === 'roster') controller.renamePerformer(noor.id, 'Nora');
+			else {
+				const from = text.indexOf('Noor');
+				editor.view.dispatch({ selection: { anchor: from, head: from + 4 } });
+				for (const [index, letter] of [...'Nora'].entries()) {
+					editor.view.dispatch({
+						changes: {
+							from: from + index,
+							to: index === 0 ? from + 4 : from + index,
+							insert: letter
+						},
+						selection: { anchor: from + index + 1 },
+						userEvent: 'input.type'
+					});
+					refresh();
+				}
+			}
+			refresh();
+			const renamed = text
+				.replace('<i>Noor</i>', '<i>Nora</i>')
+				.replace('Mira & Noor]', 'Mira & Nora]');
+			expect(editor.handle.getSnapshot().text).toBe(renamed);
+			controller.addPerformer('Independent');
+			refresh();
+			editor.handle.undo();
+			refresh();
+			expect(editor.handle.getSnapshot().text).toBe(text);
+			expect(controller.performers.find((record) => record.id === noor.id)).toEqual(noor);
+			expect(controller.performers.map((record) => record.displayName)).toContain('Independent');
+			editor.handle.redo();
+			refresh();
+			expect(editor.handle.getSnapshot().text).toBe(renamed);
+			expect(controller.performers.find((record) => record.id === noor.id)?.displayName).toBe(
+				'Nora'
+			);
+			expect(controller.performers.find((record) => record.id === noor.id)?.aliases).toContain(
+				'Noor'
+			);
+			expect(Boolean(editor.handle.getSnapshot().conversion)).toBe(rich);
+			expect(
+				editor.handle.getSnapshot().conversion?.model.voices.map((voice) => ({
+					id: voice.id,
+					performerIds: voice.performerIds
+				}))
+			).toEqual(voices);
+			editor.handle.switchProfile!('musixmatch');
+			expect(editor.handle.getSnapshot().text).toBe(
+				'Mira carries the light\nNoor answers\n\nBoth hold the line'
+			);
+			editor.handle.switchProfile!('genius');
+			expect(editor.handle.getSnapshot().text).toBe(renamed);
+			expect(controller.performers.filter((record) => record.displayName === 'Nora')).toHaveLength(
+				1
+			);
+		}
+	);
 	it.each(['undone', 'cleared'])(
 		'cannot resurrect an orphaned performer after an assignment is %s',
 		(operation) => {

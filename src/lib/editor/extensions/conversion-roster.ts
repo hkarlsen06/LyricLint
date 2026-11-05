@@ -98,11 +98,13 @@ export function validPerformerRecordDelta(
 
 export const conversionRosterHistory: Extension = [
 	invertedEffects.of((transaction) =>
-		transaction.effects.flatMap((effect) =>
-			effect.is(conversionRosterEffect)
-				? [conversionRosterEffect.of({ before: effect.value.after, after: effect.value.before })]
-				: []
-		)
+		transaction.effects
+			.toReversed()
+			.flatMap((effect) =>
+				effect.is(conversionRosterEffect)
+					? [conversionRosterEffect.of({ before: effect.value.after, after: effect.value.before })]
+					: []
+			)
 	),
 	// Snapshot listeners have normal precedence. The roster must be in the same
 	// committed state before their save callbacks observe the converted model.

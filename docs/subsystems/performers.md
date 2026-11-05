@@ -49,12 +49,16 @@ format itself: `docs/performer-tagging.md`
   exact spelling before publishing the editor snapshot, without replacing unrelated additions.
   `conversion-roster.svelte.test.ts` pins those atomic transitions.
 
-- A rename runs in both directions: `headerRenameFilter` mirrors header edits into the roster
-  (`adoptHeaderRename`, alias kept), and `renamePerformer` on the controller is the reverse:
+- A rename runs in both directions: `headerRenameFilter` pairs mirrored header edits with an
+  invertible affected-record delta, and `renamePerformer` on the controller is the reverse:
   one atomic edit over `headerNameAtoms` paired with an invertible affected-record delta.
   The shared history listener publishes the roster before the snapshot and import, including
   for legacy Genius drafts without promoting them to rich state. Editor Undo and Redo restore
   both halves; toast Undo recomputes the reverse rename against current text.
+  Typed header sessions use the same history owner. Grouped inverses reverse effect order,
+  so multi-character Undo and Redo restore the final spelling rather than an intermediate one.
+  Rich reconciliation reads the prospective roster in that transaction, preserving voice IDs.
+  `renamedPerformer` owns alias construction across the header, roster and controller paths.
   Names failing `isMirrorableHeaderName` are refused out loud. Regressions:
   `workbench performer renames` in `workbench.test.ts`.
 - Atomic domain edits (`input.atomic`), including performer assignments and lint fixes, never
@@ -239,8 +243,10 @@ A performer's name lives in two places, the roster record and every section-head
 names them, and a rename made in either has to reach both, because a legend the roster no longer
 recognizes is an unresolved voice and a duplicate import waiting to happen. Editing the name inside
 one header was already mirrored: `headerRenameFilter` rewrites the other headers in the same
-transaction and the roster adopts the spelling (`adoptHeaderRename`, silently, keeping the old one
-as an alias). **The roster-side rename shipped without the reverse half**, so the Performers tab
+transaction and the roster originally adopted the spelling outside history (`adoptHeaderRename`,
+silently, keeping the old one as an alias). That callback-only path is superseded: typed headers
+now carry the same invertible roster effect, and the callback observes the already-committed name.
+**The roster-side rename shipped without the reverse half**, so the Performers tab
 said `Renamed KrissyB to KrissyC.` over a document whose every header still read KrissyB: the one
 job a roster rename exists for, reported as done and not done.
 

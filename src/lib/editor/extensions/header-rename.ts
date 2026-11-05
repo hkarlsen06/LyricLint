@@ -10,6 +10,8 @@ import {
 	nameBreaksHeaderStructure
 } from '#lib/performers/header-rename.js';
 import { decodeLegendText } from '#lib/performers/import.js';
+import { renamedPerformer } from '#lib/performers/identity.js';
+import { conversionRosterEffect } from './conversion-roster.js';
 import {
 	editorCallbacksField,
 	editorComposingField,
@@ -206,6 +208,11 @@ export function headerRenameFilter(): Extension {
 		}
 
 		const reverted = name !== transaction.newDoc.sliceString(source.from, source.to);
+		const previousName = decodeLegendText(session.previousName);
+		const displayName = decodeLegendText(name);
+		const performer = transaction.startState
+			.field(editorContextField, false)
+			?.performers.find((record) => record.id === session.performerId);
 		const effects = [
 			setHeaderRenameSessionEffect.of(
 				reverted
@@ -219,11 +226,19 @@ export function headerRenameFilter(): Extension {
 			headerRenameEffect.of({
 				performerId: session.performerId,
 				// The roster holds decoded names; the headers keep their own spelling.
-				previousName: decodeLegendText(session.previousName),
-				displayName: decodeLegendText(name),
+				previousName,
+				displayName,
 				occurrences: targets.length,
 				started: !continues
-			})
+			}),
+			...(performer && displayName.trim()
+				? [
+						conversionRosterEffect.of({
+							before: [performer],
+							after: [renamedPerformer(performer, previousName, displayName.trim())]
+						})
+					]
+				: [])
 		];
 		const mirrored: TransactionSpec =
 			edits.length === 0

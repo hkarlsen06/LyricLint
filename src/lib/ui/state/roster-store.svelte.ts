@@ -8,7 +8,8 @@ import {
 	allocatePerformerColor,
 	extractPerformers,
 	isRetiredUnresolvedVoiceName,
-	normalizePerformerKey
+	normalizePerformerKey,
+	renamedPerformer
 } from '#lib/performers/index.js';
 import {
 	applyPerformerRecordDelta,
@@ -276,34 +277,17 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			const trimmed = displayName.trim();
 			const current = performers.find((performer) => performer.id === id);
 			if (!current || !trimmed) return;
-			// The previous spelling stays as an alias so undoing the document edit,
-			// or a header the user has not retyped yet, still resolves to this
-			// performer instead of importing a duplicate.
-			const aliases = [...current.aliases, previousName].filter(
-				(alias, index, allAliases) =>
-					alias.length > 0 && alias !== trimmed && allAliases.indexOf(alias) === index
-			);
+			const next = renamedPerformer(current, previousName, trimmed);
 			if (
 				current.displayName === trimmed &&
-				aliases.length === current.aliases.length &&
-				aliases.every((alias, index) => alias === current.aliases[index])
+				next.aliases.length === current.aliases.length &&
+				next.aliases.every((alias, index) => alias === current.aliases[index])
 			) {
 				return;
 			}
 			// The header edit already lives in editor undo, so this roster update
 			// deliberately carries no toast of its own.
-			setRoster(
-				performers.map((performer) =>
-					performer.id === id
-						? {
-								...performer,
-								displayName: trimmed,
-								normalizedKey: normalizePerformerKey(trimmed),
-								aliases
-							}
-						: performer
-				)
-			);
+			setRoster(performers.map((performer) => (performer.id === id ? next : performer)));
 		},
 		recolorPerformer(id) {
 			const current = performers.find((performer) => performer.id === id);
