@@ -128,7 +128,7 @@ describe('CompareDialog', () => {
 		expect(screen.queryByText('Line 2')).toBeNull();
 	});
 
-	test('pressing a changed line closes the dialog and parks the caret on it, focused', async () => {
+	test('pressing a changed line closes the dialog and requests its editor passage', async () => {
 		const { controller, calls } = createTestWorkbench();
 		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
@@ -136,15 +136,11 @@ describe('CompareDialog', () => {
 
 		await fireEvent.click(openDialog().querySelector('del')!.closest('button')!);
 		expect(openDialog().open).toBe(false);
-		// The hand-off is a frame behind the close, so the browser's own focus
-		// restoration cannot trample it, hence the wait.
 		// '[Verse]\nLine': line 2 starts at offset 8, and the caret is collapsed
 		// there rather than selecting: the press aimed at a line to edit.
 		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 }));
 		expect(calls.revealed.at(-1)).toEqual({ from: 8, to: 8 });
-		// Unlike a diagnostic press, this caret is exactly where the user put it,
-		// so the editor takes focus with it.
-		expect(calls.focusCount).toBe(1);
+		expect(controller.conversionPassageRequest).toBe(1);
 	});
 
 	test('a tap resolves to the character under it, not the start of the line', async () => {

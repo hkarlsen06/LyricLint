@@ -68,14 +68,7 @@
 		replacing = false;
 	}
 
-	/**
-	 * The press that makes the modal a review rather than a report: every row,
-	 * context and header included, closes the surface and parks the caret at
-	 * that line in the editor. Unlike a diagnostic card's press, the editor
-	 * takes focus: the diagnostic idiom protects a caret the user never placed,
-	 * and this caret is exactly where they aimed, on a line they pressed in
-	 * order to go and edit.
-	 */
+	/** Map the Genius difference to the active format; the shell reveals and focuses its passage. */
 	function revealRow(at: number): void {
 		const conversion = controller.snapshot.conversion;
 		if (conversion?.profile === 'musixmatch') {
@@ -85,18 +78,7 @@
 			at = mapSelection(genius.value, active.value, { anchor: at, head: at }).anchor;
 		}
 		close();
-		// A closing modal restores focus to its trigger, synchronously on some
-		// engines and a task later on WebKit, so editor focus taken in the same
-		// tick is either trampled or lands while the page is still leaving the
-		// dialog's inert state. Either way CodeMirror's cursor layer goes on
-		// drawing an unfocused view: a caret that types but cannot be seen. One
-		// frame later the restoration has already happened, and the editor's
-		// focus is the final word.
-		requestAnimationFrame(() => {
-			controller.editor.setSelection({ anchor: at, head: at });
-			controller.editor.revealRange({ from: at, to: at });
-			controller.editor.focus();
-		});
+		controller.showConversionPassage({ from: at, to: at });
 	}
 
 	/** The character position under a point, on whichever API this engine has. */

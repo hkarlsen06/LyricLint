@@ -34,6 +34,50 @@ async function mount(text = '[Verse]\nImma go\nImma stay') {
 	return controller;
 }
 
+test.each([
+	[360, 'Review', 'genius'],
+	[390, 'Tools', 'musixmatch']
+] as const)(
+	'Compare reveals the mapped editor from %s %s in %s',
+	async (width, origin, profile) => {
+		await page.viewport(width, 844);
+		const source = '[Verse: Mira]\nSilver compass';
+		const { controller } = createTestWorkbench({ text: source });
+		const view = await render(Workspace, {
+			controller,
+			editorComponent: EditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} }
+		});
+		await waitFor(() => expect(controller.editor.switchProfile).toBeDefined());
+		if (profile === 'musixmatch') controller.switchProfile(profile);
+		const text = controller.snapshot.text;
+		controller.setCompareBaseline('[Verse: Mira]\nLunar compass');
+		const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
+		await fireEvent.click(navigation.getByRole('button', { name: new RegExp(`^${origin}`) }));
+		const editor = screen.getByTestId('editor-region').closest<HTMLElement>('.editor-region');
+		expect(editor).not.toBeVisible();
+		const documentControl = screen.getByRole('button', { name: 'Document' });
+		await fireEvent.click(documentControl);
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		await waitFor(() =>
+			expect(view.container.querySelector('.compare-diff__row ins')).not.toBeNull()
+		);
+		const changed = view.container.querySelector('.compare-diff__row ins')?.closest('button');
+		if (!changed) throw new Error('The changed comparison line is missing.');
+		await fireEvent.click(changed);
+		const write = navigation.getByRole('button', { name: 'Write' });
+		await waitFor(() => expect(write).toHaveAttribute('aria-pressed', 'true'));
+		expect(write).toHaveFocus();
+		expect(editor).toBeVisible();
+		expect(editor?.inert).toBe(false);
+		expect(documentControl).toHaveAttribute('aria-expanded', 'false');
+		expect(view.container.querySelector('dialog.compare-dialog')).not.toBeVisible();
+		const position = text.indexOf('Silver');
+		expect(controller.snapshot.selection).toEqual({ anchor: position, head: position });
+		expect(controller.snapshot.text).toBe(text);
+	}
+);
+
 test('phone review opens one decision, releases it on return, and retains the editor', async () => {
 	await page.viewport(390, 844);
 	await mount();

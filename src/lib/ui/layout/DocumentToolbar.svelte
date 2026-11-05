@@ -228,7 +228,11 @@
 			<!-- Reviewing what the copy will change on the page is the step before
 		     copying it, so it sits beside the action it precedes. The component
 		     gates itself on the document being empty. -->
-			<CompareDialog {controller} />
+			<CompareDialog
+				{controller}
+				onDismiss={() => (commandsOpen = false)}
+				returnFocus={phone.current ? commandsTrigger : undefined}
+			/>
 		</div>
 	</div>
 {/snippet}
