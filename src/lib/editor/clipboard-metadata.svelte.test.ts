@@ -27,6 +27,7 @@ function context(): EditorDisplayContext {
 async function mount(options: {
 	text: string;
 	language?: string;
+	conversion?: ReturnType<typeof createConversionEnvelope>;
 	selection?: { anchor: number; head: number };
 	/** What the shell's media store would answer for this draft's remote source. */
 	mediaSource?: () => ClipboardMediaSource | undefined;
@@ -51,6 +52,7 @@ async function mount(options: {
 	await render(EditorPane, {
 		props: {
 			initialText: options.text,
+			initialConversion: options.conversion,
 			initialSelection: options.selection,
 			context: { ...context(), language: options.language ?? 'en' },
 			callbacks,
@@ -268,6 +270,63 @@ describe('copy', () => {
 });
 
 describe('paste', () => {
+	it.each([
+		['fr', 'Pourquoi ? Hello', 'genius'],
+		['fr', 'Pourquoi ? Hello', 'musixmatch'],
+		['ja', '月? Hello', 'genius'],
+		['ja', '月? Hello', 'musixmatch']
+	] as const)(
+		'carries derived %s spelling from %s into a nonempty %s line',
+		async (language, source, authored) => {
+			const imported = importDocument({ text: source, profile: 'genius', language });
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const projection = renderProfile(imported.value, 'musixmatch');
+			if (!projection.ok) throw new Error(projection.refusal.message);
+			const from = projection.value.text.indexOf('Hello');
+			const tagged = resolveDecision(imported.value, projection.value, {
+				kind: 'setPassageLanguage',
+				range: { from, to: from + 5 },
+				language: 'en'
+			});
+			if (!tagged.ok) throw new Error(tagged.refusal.message);
+			const conversion = createConversionEnvelope(
+				tagged.value.document,
+				'musixmatch',
+				profilePolicyVersions
+			);
+			const target = importDocument({ text: 'Left Right', profile: authored, language: 'en' });
+			if (!target.ok) throw new Error(target.refusal.message);
+			const { handle, text } = await mount({
+				text: 'Left Right',
+				conversion: createConversionEnvelope(target.value, 'musixmatch', profilePolicyVersions)
+			});
+			expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+			handle.setSelection({ anchor: 5, head: 5 });
+			const transfer = new DataTransfer();
+			transfer.setData('text/plain', conversion.projectionText);
+			transfer.setData(
+				'text/html',
+				clipboardHtml(conversion.projectionText, {
+					lines: 1,
+					anchors: [],
+					links: [],
+					conversion,
+					performers: []
+				})
+			);
+			clipboard('paste', transfer);
+			expect(text()).toBe(`Left ${conversion.projectionText}Right`);
+			expect(
+				handle
+					.getSnapshot()
+					.conversion?.model.languageRanges.some((range) => range.language === language)
+			).toBe(true);
+			expect(handle.getSnapshot().conversionRecovery).toBeUndefined();
+			expect(handle.switchProfile?.('genius')).toEqual({ ok: true });
+			expect(text()).toBe(`Left ${source}Right`);
+		}
+	);
+
 	it.each([false, true])(
 		'carries mixed passage languages inside receiving override=%s',
 		async (insideOverride) => {

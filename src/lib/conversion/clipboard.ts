@@ -12,6 +12,7 @@ import {
 import { contentOffset, renderProfile } from './projection.js';
 import { reconcileEdit } from './reconcile.js';
 import { replacePassageLanguages } from './passage-language.js';
+import { retainProjectionUnits } from './projection-units.js';
 
 function inside(range: TextRange, lower: number, upper: number): boolean {
 	return lower <= range.from && range.to <= upper;
@@ -247,6 +248,16 @@ export function pasteDocument(
 			'unavailable-capability',
 			'The pasted details cannot be attached safely at this position.'
 		);
+	// The canonical splice's temporary spelling is replaced by the fragment's
+	// own language and forms below. Unrelated retained spellings keep their IDs.
+	const retainedFormIds = new Set(document.forms.map((form) => form.id));
+	next.forms = next.forms.filter(
+		(form) =>
+			form.profile !== profile ||
+			retainedFormIds.has(form.id) ||
+			form.from < at ||
+			at + fragment.content.length < form.to
+	);
 	const shifted = <T extends TextRange>(range: T): T => ({
 		...range,
 		from: range.from + at,
@@ -425,7 +436,25 @@ export function pasteDocument(
 			}));
 		next.links.push(copied);
 	}
-	const rendered = renderProfile(next, profile);
+	const units = source.value.segments.flatMap((segment) =>
+		segment.kind === 'transformed'
+			? [
+					{
+						from: segment.contentFrom + at,
+						to: segment.contentTo + at,
+						text: source.value.text.slice(segment.from, segment.to)
+					}
+				]
+			: []
+	);
+	units.push(
+		...source.value.hidden.flatMap((entry) =>
+			entry.contentTo !== undefined
+				? [{ from: entry.contentAt + at, to: entry.contentTo + at, text: '' }]
+				: []
+		)
+	);
+	const rendered = retainProjectionUnits(next, profile, units);
 	if (!rendered.ok) return rendered;
 	const expected =
 		projection.text.slice(0, selection.from) +

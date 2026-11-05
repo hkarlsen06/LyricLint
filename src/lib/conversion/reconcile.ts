@@ -1,4 +1,5 @@
 import { scanPhysicalLines } from '#lib/core/parser.js';
+import { retainProjectionUnits } from './projection-units.js';
 import {
 	applyPassageTransfer,
 	mapPassageState,
@@ -795,42 +796,20 @@ function reconcilePlain(
 	captureAuthoredEdits(next, projection.profile, changes, map);
 	updateEmptySections(next);
 	retainSectionPlacement(next);
-	let result = renderProfile(next, projection.profile);
-	if (!result.ok) return result;
-	const formCount = next.forms.length;
-	// Neighboring edits can remove a derived spelling's policy context. Keep
-	// the untouched visible unit as a local form, without changing its source.
-	for (const segment of projection.segments) {
-		if (segment.kind !== 'transformed') continue;
+	const units = projection.segments.flatMap((segment) => {
+		if (segment.kind !== 'transformed') return [];
 		const range = { from: segment.contentFrom, to: segment.contentTo };
-		if (changes.some((change) => overlaps(range, change))) continue;
-		const from = map(range.from, 1);
-		const to = map(range.to, -1);
-		const text = projection.text.slice(segment.from, segment.to);
-		if (
-			from >= to ||
-			result.value.text.slice(
-				projectOffset(result.value, from, 1),
-				projectOffset(result.value, to, -1)
-			) === text ||
-			next.forms.some(
-				(form) => form.profile === projection.profile && form.from < to && from < form.to
-			)
-		)
-			continue;
-		const owner = next.owners.find((entry) => entry.from <= from && to <= entry.to);
-		if (!owner) continue;
-		next.forms.push({
-			id: allocateId(next, 'form'),
-			from,
-			to,
-			text,
-			profile: projection.profile,
-			ownerId: owner.id,
-			ownerRevision: owner.revision
-		});
-	}
-	if (next.forms.length !== formCount) result = renderProfile(next, projection.profile);
+		return changes.some((change) => overlaps(range, change))
+			? []
+			: [
+					{
+						from: map(range.from, 1),
+						to: map(range.to, -1),
+						text: projection.text.slice(segment.from, segment.to)
+					}
+				];
+	});
+	const result = retainProjectionUnits(next, projection.profile, units);
 	if (!result.ok) return result;
 	const visibleChanges = changes.map((change) => ({
 		from: projectOffset(projection, change.from, 1),
