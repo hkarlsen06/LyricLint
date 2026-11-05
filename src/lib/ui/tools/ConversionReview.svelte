@@ -49,11 +49,11 @@
 		const text = controller.snapshot.text;
 		const from = text.lastIndexOf('\n', Math.max(0, request.range.from - 1)) + 1;
 		const nextLine = text.indexOf('\n', request.range.to);
-		const before = [...text.slice(from, request.range.from)];
-		const after = [...text.slice(request.range.to, nextLine === -1 ? text.length : nextLine)];
+		const before = text.slice(from, request.range.from);
+		const after = text.slice(request.range.to, nextLine === -1 ? text.length : nextLine);
 		return {
-			before: (before.length > 60 ? '…' : '') + before.slice(-60).join(''),
-			after: after.slice(0, 60).join('') + (after.length > 60 ? '…' : '')
+			before,
+			after
 		};
 	});
 	let sourceId = $state('');
@@ -208,10 +208,15 @@
 					placeholder, including for numbered notation.
 				</p>
 			{:else}
-				<label>Audible prefix<input bind:value={heardPrefix} /></label>
+				<label
+					>Audible prefix<input
+						bind:value={heardPrefix}
+						oninput={() => (listened = false)}
+					/></label
+				>
 				<label class="check"
-					><input type="checkbox" bind:checked={listened} />I listened: the recording censors this
-					word immediately after that prefix</label
+					><input type="checkbox" bind:checked={listened} />I listened: the recording cuts off this
+					word right after the prefix.</label
 				>
 			{/if}
 			<div
@@ -297,8 +302,10 @@
 		min-height: var(--control-height-touch);
 	}
 	.check input {
-		width: auto;
-		min-height: auto;
+		width: var(--space-5);
+		height: var(--space-5);
+		min-height: var(--space-5);
+		margin: 0;
 	}
 	pre,
 	.lyrics {

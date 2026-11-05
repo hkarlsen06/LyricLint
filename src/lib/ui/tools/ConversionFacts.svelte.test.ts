@@ -55,10 +55,10 @@ async function setup(text = '[Verse]\n2 stars') {
 
 async function fillQuantity(panel: ReturnType<typeof within>, value = '2') {
 	await fireEvent.input(panel.getByLabelText('Exact whole-number value'), { target: { value } });
-	await fireEvent.change(panel.getByLabelText('Meaning'), {
+	await fireEvent.change(panel.getByLabelText('How is this number used?'), {
 		target: { value: 'ordinary-cardinal' }
 	});
-	await fireEvent.change(panel.getByLabelText('Reading on the recording'), {
+	await fireEvent.change(panel.getByLabelText('How is it sung?'), {
 		target: { value: 'whole-quantity' }
 	});
 }

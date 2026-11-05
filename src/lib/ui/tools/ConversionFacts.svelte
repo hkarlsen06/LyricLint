@@ -201,20 +201,22 @@
 								Quantity in the selected passage
 							</h3>{/if}
 						{#if !focused}<p class="conversion-facts__lyrics">{selectedText}</p>{/if}
-						<label
-							>Exact whole-number value<input
-								inputmode="numeric"
-								bind:value
-								aria-describedby={valueGuidance && !valueGuidance.ok
-									? `${id}-value-guidance`
-									: undefined}
-							/></label
-						>
+						{#if !focused || parseQuantityInteger(selectedText) === undefined}
+							<label
+								>Exact whole-number value<input
+									inputmode="numeric"
+									bind:value
+									aria-describedby={valueGuidance && !valueGuidance.ok
+										? `${id}-value-guidance`
+										: undefined}
+								/></label
+							>
+						{/if}
 						{#if valueGuidance && !valueGuidance.ok}<p id={`${id}-value-guidance`} role="status">
 								{valueGuidance.message}
 							</p>{/if}
 						<label
-							>Meaning<select bind:value={usage}
+							>How is this number used?<select bind:value={usage}
 								><option value="unknown">Not confirmed</option><option value="ordinary-cardinal"
 									>An ordinary quantity</option
 								><option value="name-or-identifier">A name or identifier</option><option
@@ -225,14 +227,18 @@
 							></label
 						>
 						<label
-							>Reading on the recording<select bind:value={pronunciation}
+							>How is it sung?<select bind:value={pronunciation}
 								><option value="unknown">Not confirmed</option><option value="whole-quantity"
 									>Sung as the whole quantity</option
 								><option value="individual-digits">Sung as individual digits</option></select
 							></label
 						>
 						<details>
-							<summary>Exact wording</summary>
+							<summary>Use custom exact wording</summary>
+							<p>
+								Optional: enter the exact sung words or digit form to use instead of the standard
+								wording.
+							</p>
 							<label>Exact words as sung<input bind:value={spokenForm} /></label>
 							<label>Digit form, if applicable<input bind:value={digitForm} /></label>
 						</details>

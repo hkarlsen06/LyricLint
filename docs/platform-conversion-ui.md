@@ -430,6 +430,18 @@ has a type. Edit header in Genius switches formats and selects that exact stable
 header for manual transcription and instruction editing. It never chooses a source or copy count.
 Ordinary untyped labels keep the inline type selector and deliberate Save. Hidden instructions
 never receive invented lyric ranges. Format switches and subsequent edits keep normal Undo.
+Focused quantity tasks ask “How is this number used?” and “How is it sung?” independently.
+A selected canonical ASCII integer supplies its already-proven exact value without a duplicate
+input. Word forms, noncanonical numbers and non-Latin digits retain the exact-value input,
+and the unfocused listening tool retains all expert fields. “Use custom exact wording” discloses
+optional exact sung words and digit forms; the shared policy and source-match validators still
+refuse unsupported or mismatched facts. Invalid values explain the refusal before preview.
+Censorship requires the heard prefix and an explicit confirmation that the word is censored
+immediately after that prefix. Editing the prefix clears confirmation. Decide later discards
+unfinished input; reopening starts empty. The native checkbox uses the spacing scale for its
+glyph and retains a full touch-height label, keyboard checking and focus. Context and replacement
+previews wrap the entire lyric line without truncating its surrounding words.
+
 Conversion task requests capture recording identity alongside the original range, revision, draft
 and profile. A replacement recording retires the task with an announced recording-specific reason;
 reopen the finding and reconfirm listening. Finite ordered bounds past the recording end name its
