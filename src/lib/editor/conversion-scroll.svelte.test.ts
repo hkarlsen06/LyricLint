@@ -20,8 +20,50 @@ const frame = () =>
 		requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
 	);
 
-it('keeps user scrolling that happens before a passage request is measured', async () => {
+it.each(['wheel', 'touchmove', 'pointerdown', 'keydown'])(
+	'keeps %s scrolling that happens before a passage request is measured',
+	async (input) => {
+		const host = document.body.appendChild(document.createElement('div'));
+		const view = new EditorView({
+			parent: host,
+			state: EditorState.create({
+				doc: Array.from({ length: 220 }, () => 'Silver water carries every word home').join('\n'),
+				extensions: [
+					conversionScroll,
+					EditorView.theme({
+						'&': { height: '300px' },
+						'.cm-scroller': { overflow: 'auto' }
+					})
+				]
+			})
+		});
+		try {
+			const pos = view.state.doc.line(120).from;
+			view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: 'start', yMargin: 20 }) });
+			await frame();
+			const inset = view.coordsAtPos(pos)!.top - view.scrollDOM.getBoundingClientRect().top;
+			view.dispatch({ effects: scrollConversionPassage(view, pos, inset) });
+			view.scrollDOM.dispatchEvent(
+				input === 'wheel'
+					? new WheelEvent(input, { deltaY: 125, bubbles: true })
+					: input === 'keydown'
+						? new KeyboardEvent(input, { key: 'PageDown', bubbles: true })
+						: new Event(input, { bubbles: true })
+			);
+			view.scrollDOM.scrollTop += 125;
+			const userScrollTop = view.scrollDOM.scrollTop;
+			await frame();
+			expect(view.scrollDOM.scrollTop).toBe(userScrollTop);
+		} finally {
+			view.destroy();
+			host.remove();
+		}
+	}
+);
+
+it('restores the passage after layout clamps the old near-end scroll position', async () => {
 	const host = document.body.appendChild(document.createElement('div'));
+	const compartment = new Compartment();
 	const view = new EditorView({
 		parent: host,
 		state: EditorState.create({
@@ -30,21 +72,35 @@ it('keeps user scrolling that happens before a passage request is measured', asy
 				conversionScroll,
 				EditorView.theme({
 					'&': { height: '300px' },
-					'.cm-scroller': { overflow: 'auto' }
-				})
+					'.cm-scroller': { overflow: 'auto' },
+					'.cm-content': { lineHeight: '25px' }
+				}),
+				compartment.of(
+					EditorView.decorations.of(
+						Decoration.set([
+							Decoration.widget({ widget: new Fixed(500), block: true, side: -1 }).range(0)
+						])
+					)
+				)
 			]
 		})
 	});
 	try {
-		const pos = view.state.doc.line(120).from;
-		view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: 'start', yMargin: 20 }) });
 		await frame();
-		const inset = view.coordsAtPos(pos)!.top - view.scrollDOM.getBoundingClientRect().top;
-		view.dispatch({ effects: scrollConversionPassage(view, pos, inset) });
-		view.scrollDOM.scrollTop += 125;
-		const userScrollTop = view.scrollDOM.scrollTop;
+		view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight - view.scrollDOM.clientHeight - 50;
 		await frame();
-		expect(view.scrollDOM.scrollTop).toBe(userScrollTop);
+		const bounds = view.scrollDOM.getBoundingClientRect();
+		const position = view.posAtCoords({ x: bounds.left + 20, y: bounds.top + 15 });
+		if (position === null) throw new Error('The visible passage could not be resolved.');
+		const before = view.coordsAtPos(position)!.top;
+		view.dispatch({
+			effects: [
+				compartment.reconfigure([]),
+				scrollConversionPassage(view, position, before - bounds.top)
+			]
+		});
+		await frame();
+		expect(Math.abs(view.coordsAtPos(position)!.top - before)).toBeLessThanOrEqual(2);
 	} finally {
 		view.destroy();
 		host.remove();
