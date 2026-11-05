@@ -1,10 +1,24 @@
 import { EditorView } from '@codemirror/view';
+import type { EditorState } from '@codemirror/state';
 
-const pending = new WeakMap<EditorView, { position: number; inset: number }>();
+const pending = new WeakMap<
+	EditorView,
+	{
+		position: number;
+		inset: number;
+		state: Pick<EditorState, 'doc' | 'selection'>;
+		scrollTop: number;
+	}
+>();
 
 /** Scope the custom scroll handler to this projection's reading passage. */
-export function scrollConversionPassage(view: EditorView, position: number, inset: number) {
-	pending.set(view, { position, inset });
+export function scrollConversionPassage(
+	view: EditorView,
+	position: number,
+	inset: number,
+	state: Pick<EditorState, 'doc' | 'selection'> = view.state
+) {
+	pending.set(view, { position, inset, state, scrollTop: view.scrollDOM.scrollTop });
 	return EditorView.scrollIntoView(position, { y: 'start', yMargin: inset });
 }
 
@@ -18,17 +32,15 @@ export const conversionScroll = EditorView.scrollHandler.of((view, range, option
 		options.yMargin !== target.inset
 	)
 		return false;
-	const { doc, selection } = view.state;
-	const scrollTop = view.scrollDOM.scrollTop;
+	const current = () =>
+		view.state.doc === target.state.doc &&
+		view.state.selection.eq(target.state.selection) &&
+		view.scrollDOM.scrollTop === target.scrollTop;
+	if (!current()) return true;
 	view.requestMeasure({
 		key: conversionScroll,
 		read(view) {
-			if (
-				view.state.doc !== doc ||
-				!view.state.selection.eq(selection) ||
-				view.scrollDOM.scrollTop !== scrollTop
-			)
-				return undefined;
+			if (!current()) return undefined;
 			const coordinates = view.coordsAtPos(range.head);
 			if (!coordinates) return undefined;
 			return (
@@ -36,7 +48,7 @@ export const conversionScroll = EditorView.scrollHandler.of((view, range, option
 			);
 		},
 		write(delta, view) {
-			if (delta === undefined || delta === 0) return;
+			if (delta === undefined || delta === 0 || !current()) return;
 			// Quantize the magnitude, then restore its sign. Native absolute scrollTop
 			// rounding otherwise loses half a pixel on both legs of a switch. Use
 			// the browser itself: emulated DPR and CSS zoom need not imply the same

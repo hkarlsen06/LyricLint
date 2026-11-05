@@ -19,6 +19,38 @@ const frame = () =>
 	new Promise<void>((resolve) =>
 		requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
 	);
+
+it('keeps user scrolling that happens before a passage request is measured', async () => {
+	const host = document.body.appendChild(document.createElement('div'));
+	const view = new EditorView({
+		parent: host,
+		state: EditorState.create({
+			doc: Array.from({ length: 220 }, () => 'Silver water carries every word home').join('\n'),
+			extensions: [
+				conversionScroll,
+				EditorView.theme({
+					'&': { height: '300px' },
+					'.cm-scroller': { overflow: 'auto' }
+				})
+			]
+		})
+	});
+	try {
+		const pos = view.state.doc.line(120).from;
+		view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: 'start', yMargin: 20 }) });
+		await frame();
+		const inset = view.coordsAtPos(pos)!.top - view.scrollDOM.getBoundingClientRect().top;
+		view.dispatch({ effects: scrollConversionPassage(view, pos, inset) });
+		view.scrollDOM.scrollTop += 125;
+		const userScrollTop = view.scrollDOM.scrollTop;
+		await frame();
+		expect(view.scrollDOM.scrollTop).toBe(userScrollTop);
+	} finally {
+		view.destroy();
+		host.remove();
+	}
+});
+
 it('keeps a passage stable through known fractional widget changes', async () => {
 	const results = [];
 	for (const zoom of [1, 1.25])

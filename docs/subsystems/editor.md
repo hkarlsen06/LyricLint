@@ -160,6 +160,8 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 - Profile passage restoration rounds scroll movement symmetrically at the browser's native scroll
   precision in CodeMirror's public measurement phase. It keeps no reading anchor between changes:
   each switch captures the current passage, including after user scrolling or layout changes.
+  The expected post-conversion state and scroll position are captured when scheduling;
+  intervening user scrolling cancels restoration before it can become a new measurement baseline.
   Known fractional widget heights can otherwise accumulate native scrollTop rounding bias;
   `conversion-scroll.svelte.test.ts` covers that independently of widget estimation.
 - Viewport continuity captures geometry only while the editor is in view and visible.

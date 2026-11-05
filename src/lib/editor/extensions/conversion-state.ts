@@ -377,7 +377,15 @@ export function dispatchConversionTransactions(
 		projection = next;
 	}
 	const effects =
-		passage === undefined ? [] : [startSnapshot ?? scrollConversionPassage(view, passage, inset)];
+		passage === undefined
+			? []
+			: [
+					startSnapshot ??
+						scrollConversionPassage(view, passage, inset, {
+							doc: last.state.doc,
+							selection: selection ?? last.state.selection
+						})
+				];
 	view.update(
 		selection || effects.length
 			? [
