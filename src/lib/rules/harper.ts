@@ -73,7 +73,7 @@ export interface HarperDiagnosticProvider {
 	dispose(): Promise<void>;
 }
 
-type HarperEngineFactory = () => Promise<HarperEngine>;
+type HarperEngineFactory = (signal: AbortSignal) => Promise<HarperEngine | undefined>;
 
 /**
  * Harper lints switched off because what they advise is what the reviewed
@@ -511,12 +511,40 @@ function dictionaryWords(performers: readonly PerformerRecord[]): string[] {
 	return [...words].sort((left, right) => left.localeCompare(right));
 }
 
-async function createWorkerEngine(): Promise<HarperEngine> {
-	const [{ WorkerLinter }, { binary }] = await Promise.all([
-		import('harper.js'),
-		import('harper.js/binary')
-	]);
-	return new WorkerLinter({ binary });
+export async function createWorkerEngine(
+	signal: AbortSignal,
+	loadWorker: (canceled: () => boolean) => Promise<(() => HarperEngine) | undefined> = async (
+		canceled
+	) => {
+		const [{ WorkerLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		if (canceled()) return undefined;
+		// Serializer starts setup without awaiting it. Own that initialization so
+		// navigation cancellation cannot escape as an unhandled rejection.
+		await binary.setup();
+		return () => new WorkerLinter({ binary });
+	}
+): Promise<HarperEngine | undefined> {
+	// A reload can finish these imports after WebKit has stopped allowing the
+	// departing document to start workers or fetch WASM, even before pagehide.
+	let leaving = false;
+	const onBeforeUnload = (): void => {
+		leaving = true;
+	};
+	const canceled = (): boolean => signal.aborted || leaving;
+	window.addEventListener('beforeunload', onBeforeUnload);
+	try {
+		const construct = await loadWorker(canceled);
+		if (!construct || canceled()) return undefined;
+		return construct();
+	} catch (error: unknown) {
+		if (canceled()) return undefined;
+		throw error;
+	} finally {
+		window.removeEventListener('beforeunload', onBeforeUnload);
+	}
 }
 
 /**
@@ -529,15 +557,20 @@ async function createWorkerEngine(): Promise<HarperEngine> {
 export function createHarperDiagnosticProvider(
 	createEngine: HarperEngineFactory = createWorkerEngine
 ): HarperDiagnosticProvider {
-	let enginePromise: Promise<HarperEngine> | undefined;
+	const lifetime = new AbortController();
+	let enginePromise: Promise<HarperEngine | undefined> | undefined;
 	let importedWordKey: string | undefined;
 
-	function engine(): Promise<HarperEngine> {
+	function engine(): Promise<HarperEngine | undefined> {
 		// The audited refusals are applied before the first lint ever runs: the
 		// config is a property of the engine, not of any one document, and a
 		// finding produced under the default config would censor or formalize a
 		// lyric on the engine's very first answer.
-		enginePromise ??= createEngine().then(async (harper) => {
+		enginePromise ??= createEngine(lifetime.signal).then(async (harper) => {
+			if (!harper) {
+				enginePromise = undefined;
+				return undefined;
+			}
 			await harper.setLintConfig(harperLintConfig);
 			return harper;
 		});
@@ -546,11 +579,16 @@ export function createHarperDiagnosticProvider(
 
 	return {
 		async lint(request) {
-			if (resolveLanguageTag(request.language) !== 'en' || request.text.trim().length === 0) {
+			if (
+				lifetime.signal.aborted ||
+				resolveLanguageTag(request.language) !== 'en' ||
+				request.text.trim().length === 0
+			) {
 				return [];
 			}
 
 			const harper = await engine();
+			if (!harper || lifetime.signal.aborted) return [];
 			// LyricLint's reviewed Genius policy is authoritative. Teaching
 			// Harper the preferred forms prevents its general-purpose dictionary
 			// from contradicting spellings such as "ayy"; native rules still
@@ -593,11 +631,12 @@ export function createHarperDiagnosticProvider(
 			return sortDiagnostics(deduplicateApplicableDiagnostics(diagnostics));
 		},
 		async dispose() {
+			lifetime.abort();
 			const pending = enginePromise;
 			enginePromise = undefined;
 			if (!pending) return;
 			const harper = await pending;
-			await harper.dispose();
+			await harper?.dispose();
 		}
 	};
 }

@@ -3,6 +3,7 @@ import { parseDocument } from '#lib/core/parser.js';
 import type { Diagnostic, PerformerRecord } from '#lib/core/types.js';
 import {
 	createHarperDiagnosticProvider,
+	createWorkerEngine,
 	disabledHarperLints,
 	mergeHarperDiagnostics,
 	projectLyricsForHarper
@@ -776,4 +777,76 @@ describe('Harper diagnostic merging', () => {
 			await provider.dispose();
 		}
 	});
+});
+
+describe('Harper initialization lifetime', () => {
+	it.each([false, true])(
+		'keeps initialization failures observable unless navigation canceled it (%s)',
+		async (leaving) => {
+			const browserWindow = new EventTarget();
+			vi.stubGlobal('window', browserWindow);
+			const loading = Promise.withResolvers<() => ReturnType<typeof engineReturning>>();
+			const failure = new Error('WASM setup failed');
+			try {
+				const pending = createWorkerEngine(new AbortController().signal, () => loading.promise);
+				if (leaving) browserWindow.dispatchEvent(new Event('beforeunload'));
+				loading.reject(failure);
+				if (leaving) expect(await pending).toBeUndefined();
+				else await expect(pending).rejects.toBe(failure);
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		}
+	);
+
+	it.each(['beforeunload', 'dispose'] as const)(
+		'does not construct a worker when %s overtakes its imports',
+		async (stop) => {
+			const browserWindow = new EventTarget();
+			vi.stubGlobal('window', browserWindow);
+			const engine = engineReturning(() => []);
+			const construct = vi.fn(function () {
+				return engine;
+			});
+			const importing = Promise.withResolvers<void>();
+			const ready = Promise.withResolvers<void>();
+			const loadWorker = async () => {
+				importing.resolve();
+				await ready.promise;
+				return construct;
+			};
+			const provider = createHarperDiagnosticProvider((signal) =>
+				createWorkerEngine(signal, loadWorker)
+			);
+			const text = '[Verse]\nAfter reset';
+			const request = {
+				text,
+				document: parseDocument(text),
+				language: 'en',
+				performers: [],
+				revision: 1
+			};
+			try {
+				const pending = provider.lint(request);
+				await importing.promise;
+				const disposing = stop === 'dispose' ? provider.dispose() : undefined;
+				if (stop === 'beforeunload') browserWindow.dispatchEvent(new Event('beforeunload'));
+				ready.resolve();
+				expect(await pending).toEqual([]);
+				await disposing;
+				expect(construct).not.toHaveBeenCalled();
+				if (stop === 'beforeunload') {
+					// A canceled navigation must leave future grammar requests usable.
+					await provider.lint(request);
+					expect(construct).toHaveBeenCalledOnce();
+					expect(engine.setLintConfig).toHaveBeenCalledOnce();
+					expect(engine.lint).toHaveBeenCalledOnce();
+				}
+			} finally {
+				ready.resolve();
+				await provider.dispose();
+				vi.unstubAllGlobals();
+			}
+		}
+	);
 });

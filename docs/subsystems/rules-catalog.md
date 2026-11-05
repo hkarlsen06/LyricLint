@@ -104,6 +104,13 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   kinds drop whole in `appliesToLyrics`; marked g-drops (`runnin'`) are filtered in the
   provider; unmarked g-drops get a synthesized elision-mark fix only when Harper's own
   suggestions endorse the `-ing` form (`elisionMarkFixes`). Rules that merely misfire stay on.
+- Pending Harper engine imports belong to the provider's lifetime. Disposal cancels
+  construction, and `beforeunload` cancels that initialization attempt before WebKit
+  stops allowing the old document to create workers or fetch WASM. `pagehide` is too
+  late for this boundary. Cancellation creates no worker and does not turn grammar
+  off: a later request can initialize again if navigation was canceled. The factory awaits main-thread binary setup before constructing WorkerLinter,
+  whose Serializer otherwise starts setup without an owner for its rejection. Existing
+  live-document engine failures still reach the workbench's unavailable feedback.
 - Shorthand expansion (`spelling.texting-shorthand`) is gated on one question (does anybody
   sing the letters?), never a `safe` fix, never mirrors the token's case beyond a leading
   capital, and leaves neighbouring sets to the rules that own them.
@@ -726,3 +733,26 @@ callers, and `runRules` remains the single synchronous rule runner. Shared edito
 builds context and applies the existing deferral policy without importing that runner; callers
 that execute native rules import the engine explicitly. Engine and fix-contract tests continue
 to verify ordering and all-or-nothing collision handling.
+
+
+### A departing document cannot start Harper after its engine imports resolve
+
+The native delete/reset/new/open/reload workflow reproduced a blob-worker error and a
+same-origin WASM fetch error in desktop WebKit at revision
+`327ff529b2cca55ae0448f6147caaf80960d1b7c`. All persistence assertions passed.
+An event-driven replay reloaded at the engine chunk request: the old time origin
+logged `beforeunload`, then worker construction and WASM fetch with both access-control
+errors, then `pagehide` and `unload`, then the new time origin. This is an initialization
+lifetime race, not evidence for weakening CSP. Harper's Serializer starts WASM setup
+without awaiting worker readiness, explaining the paired failures.
+
+A first production replay of the import-only guard also exposed canceled, already
+in-flight WASM setup as unhandled Serializer and queue rejections. The factory must
+therefore own main-thread binary setup as well, before constructing the worker.
+Cancellation is handled only for a departing or disposed lifetime; live failures propagate.
+
+The factory now observes navigation while awaiting imports and setup, and the provider supplies
+an abort signal for disposal. Neither canceled attempt constructs a worker. An aborted
+navigation attempt clears the cached initialization so a subsequent request remains
+usable. The focused lifetime tests cover both boundaries and renewed grammar requests;
+the production WebKit replay covers the browser failure that mocks cannot establish.
