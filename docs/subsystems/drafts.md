@@ -6,6 +6,10 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 
 ## The rules
 
+- A refused delete or reset restores every canceled pending save, including retained failures
+  and side records, so departure recovery and a later retry retain the latest work. Successful
+  deletion keeps those saves canceled. A refused reset keeps the running preferences unchanged.
+
 - A deliberate roster edit keeps a metadata-only draft through the normal guarded save path,
   including its Undo. An empty lyric document does not discard named performers on switching
   drafts or reload. Roster toast actions are scoped to their originating draft load session;

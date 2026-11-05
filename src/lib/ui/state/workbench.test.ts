@@ -18,6 +18,7 @@ import type {
 } from '#lib/core/types.js';
 import { describe, expect, test, vi } from 'vitest';
 import { createAutosaveController } from '#lib/persistence/autosave.js';
+import { createDepartureCheckpoint } from '#lib/persistence/departure-checkpoint.js';
 import {
 	createContractIgnoreStore,
 	createInMemoryDraftRepository,
@@ -821,6 +822,143 @@ describe('workbench draft safety', () => {
 		);
 		expect(await baseRepository.get(second.id)).toBeDefined();
 	});
+
+	test.each([
+		['delete', false],
+		['delete', true],
+		['reset', false],
+		['reset', true]
+	] as const)(
+		'a refused %s preserves pending edits after save failure=%s',
+		async (operation, failed) => {
+			const first = draft('draft-a');
+			const second = draft('draft-b');
+			const baseRepository = createInMemoryDraftRepository([first, second]);
+			let refuseSave = failed;
+			const repository: DraftRepository = {
+				...baseRepository,
+				async save(record) {
+					if (refuseSave) throw new Error('storage unavailable');
+					await baseRepository.save(record);
+				},
+				async delete() {
+					throw new Error('deletion refused');
+				},
+				async deleteAll() {
+					throw new Error('reset refused');
+				}
+			};
+			const storage = createMemorySessionStorage();
+			const checkpoint = createDepartureCheckpoint(() => storage);
+			const autosave = createAutosaveController(repository, { debounceMs: 60_000, checkpoint });
+			const { controller } = setup({ initial: first, repository, autosave });
+			const latest = '[Verse]\nLatest unsaved lyric';
+			const otherLatest = '[Verse]\nOther pending lyric';
+			try {
+				autosave.schedule({ revision: 1, draft: { ...second, text: otherLatest } });
+				controller.onSnapshot(snapshot(first, 1, latest));
+				controller.setGrammarCheckEnabled(false);
+				if (failed) {
+					await controller.flushAutosave();
+					expect(autosave.status()).toBe('failed');
+				}
+				if (operation === 'delete') await controller.deleteDraft(first.id);
+				else await controller.deleteAllDrafts();
+
+				expect(controller.draftId).toBe(first.id);
+				expect(controller.snapshot.text).toBe(latest);
+				expect((await baseRepository.get(first.id))?.text).toBe(first.text);
+				expect(autosave.checkpoint?.()).toBe(true);
+				expect(
+					checkpoint
+						.read()
+						.map(({ draft }) => draft.text)
+						.sort()
+				).toEqual([latest, otherLatest].sort());
+				expect(controller.grammarCheckEnabled).toBe(false);
+				refuseSave = false;
+				await controller.flushAutosave();
+				expect((await baseRepository.get(first.id))?.text).toBe(latest);
+				expect((await baseRepository.get(second.id))?.text).toBe(otherLatest);
+			} finally {
+				autosave.cancel();
+			}
+		}
+	);
+
+	test.each(['delete', 'reset'] as const)(
+		'a refused %s retains an in-flight save that subsequently fails',
+		async (operation) => {
+			const first = draft('draft-a');
+			const baseRepository = createInMemoryDraftRepository([first]);
+			const started = Promise.withResolvers<void>();
+			const release = Promise.withResolvers<void>();
+			let firstAttempt = true;
+			const repository: DraftRepository = {
+				...baseRepository,
+				async save(record) {
+					if (firstAttempt) {
+						firstAttempt = false;
+						started.resolve();
+						await release.promise;
+						throw new Error('save refused');
+					}
+					await baseRepository.save(record);
+				},
+				async delete() {
+					throw new Error('deletion refused');
+				},
+				async deleteAll() {
+					throw new Error('reset refused');
+				}
+			};
+			const storage = createMemorySessionStorage();
+			const checkpoint = createDepartureCheckpoint(() => storage);
+			const autosave = createAutosaveController(repository, { debounceMs: 60_000, checkpoint });
+			const { controller } = setup({ initial: first, repository, autosave });
+			const latest = '[Verse]\nIn-flight unsaved lyric';
+			controller.onSnapshot(snapshot(first, 1, latest));
+			const flushing = controller.flushAutosave();
+			try {
+				await started.promise;
+				if (operation === 'delete') await controller.deleteDraft(first.id);
+				else await controller.deleteAllDrafts();
+				expect(autosave.checkpoint?.()).toBe(true);
+				expect(checkpoint.read().map(({ draft }) => draft.text)).toEqual([latest]);
+				release.resolve();
+				await flushing;
+				await controller.flushAutosave();
+				expect((await baseRepository.get(first.id))?.text).toBe(latest);
+			} finally {
+				release.resolve();
+				await flushing;
+				autosave.cancel();
+			}
+		}
+	);
+
+	test.each(['delete', 'reset'] as const)(
+		'a successful %s cannot resurrect canceled edits',
+		async (operation) => {
+			const first = draft('draft-a');
+			const repository = createInMemoryDraftRepository([first]);
+			const storage = createMemorySessionStorage();
+			const checkpoint = createDepartureCheckpoint(() => storage);
+			const autosave = createAutosaveController(repository, { debounceMs: 60_000, checkpoint });
+			const { controller } = setup({ initial: first, repository, autosave });
+			try {
+				controller.onSnapshot(snapshot(first, 1, '[Verse]\nPending deletion'));
+				expect(autosave.checkpoint?.()).toBe(true);
+				if (operation === 'delete') await controller.deleteDraft(first.id);
+				else await controller.deleteAllDrafts();
+				await controller.flushAutosave();
+				expect(await repository.get(first.id)).toBeUndefined();
+				expect(checkpoint.read()).toEqual([]);
+			} finally {
+				autosave.cancel();
+			}
+		}
+	);
 
 	test('a refused duplicate reports the failure instead of failing silently', async () => {
 		const first = draft('draft-a');

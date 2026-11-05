@@ -1426,11 +1426,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// from writing the freshly emptied workspace over the one file that
 			// could undo this press. The file itself stays on the user's disk.
 			await deps.backup?.unlink();
-			await draft.deleteAllDrafts();
 			// A reset returns the running session to its defaults too: the stored
 			// rows are already gone, and a switch still showing the old choice would
 			// be reporting a preference that no longer exists.
-			grammarCheckEnabled = true;
+			if (await draft.deleteAllDrafts()) grammarCheckEnabled = true;
 		},
 		async backupWorkspace() {
 			if (!deps.backup) return;

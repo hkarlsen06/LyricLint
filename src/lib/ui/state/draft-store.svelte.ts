@@ -160,7 +160,7 @@ interface DraftStore {
 	duplicateDraft(id: string): Promise<void>;
 	exportDraft(id?: string): Promise<void>;
 	deleteDraft(id: string): Promise<void>;
-	deleteAllDrafts(): Promise<void>;
+	deleteAllDrafts(): Promise<boolean>;
 }
 
 export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
@@ -579,14 +579,16 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			feedback.announce(`Exported ${draft.title} as UTF-8 text.`);
 		},
 		async deleteDraft(id) {
+			let restoreCanceled: void | (() => void) = undefined;
 			try {
 				const deleted = await deps.repository.get(id);
 				if (deps.autosave.cancelDraft) {
-					deps.autosave.cancelDraft(id);
+					restoreCanceled = deps.autosave.cancelDraft(id);
 				} else if (id === draftId) {
-					deps.autosave.cancel();
+					restoreCanceled = deps.autosave.cancel();
 				}
 				await deps.repository.delete(id);
+				restoreCanceled = undefined;
 				// Same as the discard above: the rows went with the record, and the
 				// mirror is what would otherwise go on answering for a deleted draft.
 				deps.ignoreStore?.clearDraft(id, false);
@@ -604,18 +606,24 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				await store.refreshDrafts();
 				feedback.announce(`Deleted ${deleted?.title ?? "'scribe"}.`);
 			} catch {
+				if (typeof restoreCanceled === 'function') restoreCanceled();
 				reportFailure("The 'scribe could not be deleted.");
 			}
 		},
 		async deleteAllDrafts() {
+			let restoreCanceled: void | (() => void) = undefined;
 			try {
-				deps.autosave.cancel();
+				restoreCanceled = deps.autosave.cancel();
 				await deps.repository.deleteAll();
+				restoreCanceled = undefined;
 				drafts = [];
 				loadDraft(emptyTransientDraft(), false);
 				feedback.announce("All local 'scribes deleted.");
+				return true;
 			} catch {
+				if (typeof restoreCanceled === 'function') restoreCanceled();
 				reportFailure("Local 'scribes could not be deleted.");
+				return false;
 			}
 		}
 	};

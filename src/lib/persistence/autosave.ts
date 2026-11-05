@@ -275,7 +275,34 @@ export function createAutosaveController(
 		return drain;
 	};
 
-	return {
+	function cancellationRecovery(draftId?: string): () => void {
+		const canceled = new Map<string, PendingSave>();
+		for (const save of [inFlight, ...pending.values()]) {
+			if (!save || (draftId !== undefined && save.draft.id !== draftId)) continue;
+			if (generationFor(save.draft.id) !== save.generation) continue;
+			canceled.set(save.draft.id, {
+				...save,
+				draft: copySnapshot(save),
+				sideRecords: save.sideRecords
+					? {
+							...save.sideRecords,
+							ignoredDiagnostics: save.sideRecords.ignoredDiagnostics
+								? [...save.sideRecords.ignoredDiagnostics]
+								: undefined,
+							media: save.sideRecords.media ? { ...save.sideRecords.media } : save.sideRecords.media
+						}
+					: undefined
+			});
+		}
+		return () => {
+			for (const [id, save] of canceled) {
+				if (generationFor(id) !== save.generation + 1 || latestRevision.has(id)) continue;
+				controller.schedule(save);
+			}
+		};
+	}
+
+	const controller: AutosaveController = {
 		checkpoint,
 		subscribeSaved(listener) {
 			savedListeners.add(listener);
@@ -338,6 +365,7 @@ export function createAutosaveController(
 		},
 
 		cancel() {
+			const restore = cancellationRecovery();
 			clearAllTimers();
 			const knownDraftIds = new Set([
 				...pending.keys(),
@@ -353,9 +381,11 @@ export function createAutosaveController(
 			if (checkpointWritten) checkpoint();
 			lastSettledStatus = 'idle';
 			refreshStatus();
+			return restore;
 		},
 
 		cancelDraft(draftId) {
+			const restore = cancellationRecovery(draftId);
 			clearDraftTimer(draftId);
 			pending.delete(draftId);
 			latestRevision.delete(draftId);
@@ -366,6 +396,7 @@ export function createAutosaveController(
 				lastSettledStatus = 'idle';
 			}
 			refreshStatus();
+			return restore;
 		},
 
 		/**
@@ -393,4 +424,5 @@ export function createAutosaveController(
 			return currentStatus;
 		}
 	};
+	return controller;
 }

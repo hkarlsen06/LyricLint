@@ -832,9 +832,10 @@ export type AutosaveStatus = 'idle' | 'scheduled' | 'saving' | 'saved' | 'failed
 export interface AutosaveController {
 	schedule(snapshot: AutosaveSnapshot): void;
 	flush(): Promise<void>;
-	cancel(): void;
+	/** The returned callback can restore canceled work when a deletion refuses. */
+	cancel(): void | (() => void);
 	/** Drop any pending write for one draft so a deleted draft cannot be resurrected. */
-	cancelDraft?(draftId: string): void;
+	cancelDraft?(draftId: string): void | (() => void);
 	status(): AutosaveStatus;
 }
 
