@@ -792,6 +792,11 @@
 		.version__choice {
 			min-height: var(--control-height-touch);
 		}
+		.version__choice label {
+			display: flex;
+			align-items: center;
+			min-height: var(--control-height-touch);
+		}
 	}
 	.version__bullet {
 		text-align: center;
