@@ -93,6 +93,7 @@ export function createAutosaveController(
 	const debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
 	let nextOrder = 0;
 	const pending = new Map<string, PendingSave>();
+	const suspensions = new Set<Map<string, { save: PendingSave; resumeGeneration: number }>>();
 	const timers = new Map<string, ReturnType<typeof setTimeout>>();
 	const latestRevision = new Map<string, number>();
 	const generations = new Map<string, number>();
@@ -228,17 +229,31 @@ export function createAutosaveController(
 					);
 					committedGenerations.set(result.draft.id, result.draft.storageGeneration ?? 0);
 					if (result.conflicted) {
+						const redirect = (next: PendingSave) => {
+							next.draft.id = result.draft.id;
+							if (next.sideRecords?.media) next.sideRecords.media.draftId = result.draft.id;
+							next.draft.title = result.draft.title;
+							next.draft.createdAt = result.draft.createdAt;
+							next.draft.storageGeneration = result.draft.storageGeneration;
+							next.generation = generationFor(result.draft.id);
+						};
 						const next = pending.get(saveDraftId);
 						if (next) {
 							pending.delete(saveDraftId);
 							clearDraftTimer(saveDraftId);
-							next.draft.id = result.draft.id;
-							if (next.sideRecords?.media) next.sideRecords.media.draftId = result.draft.id;
-							next.draft.title = result.draft.title;
-							next.draft.storageGeneration = result.draft.storageGeneration;
-							next.generation = generationFor(result.draft.id);
+							redirect(next);
+							latestRevision.set(result.draft.id, next.revision);
 							pending.set(result.draft.id, next);
 							void enqueueDrain(result.draft.id);
+						}
+						for (const suspended of suspensions) {
+							const recovery = suspended.get(saveDraftId);
+							// A later cancellation owns the decision to discard this work.
+							if (!recovery || generationFor(saveDraftId) !== recovery.resumeGeneration) continue;
+							suspended.delete(saveDraftId);
+							redirect(recovery.save);
+							recovery.resumeGeneration = generationFor(result.draft.id);
+							suspended.set(result.draft.id, recovery);
 						}
 					}
 					for (const listener of savedListeners) listener(result);
@@ -275,35 +290,55 @@ export function createAutosaveController(
 		return drain;
 	};
 
-	function cancellationRecovery(draftId?: string): () => void {
-		const canceled = new Map<string, PendingSave>();
+	function cancellationRecovery(draftId?: string, tracked = false) {
+		const canceled = new Map<string, { save: PendingSave; resumeGeneration: number }>();
 		for (const save of [inFlight, ...pending.values()]) {
 			if (!save || (draftId !== undefined && save.draft.id !== draftId)) continue;
 			if (generationFor(save.draft.id) !== save.generation) continue;
 			canceled.set(save.draft.id, {
-				...save,
-				draft: copySnapshot(save),
-				sideRecords: save.sideRecords
-					? {
-							...save.sideRecords,
-							ignoredDiagnostics: save.sideRecords.ignoredDiagnostics
-								? [...save.sideRecords.ignoredDiagnostics]
-								: undefined,
-							media: save.sideRecords.media ? { ...save.sideRecords.media } : save.sideRecords.media
-						}
-					: undefined
+				resumeGeneration: save.generation + 1,
+				save: {
+					...save,
+					draft: copySnapshot(save),
+					sideRecords: save.sideRecords
+						? {
+								...save.sideRecords,
+								ignoredDiagnostics: save.sideRecords.ignoredDiagnostics
+									? [...save.sideRecords.ignoredDiagnostics]
+									: undefined,
+								media: save.sideRecords.media
+									? { ...save.sideRecords.media }
+									: save.sideRecords.media
+							}
+						: undefined
+				}
 			});
 		}
-		return () => {
-			for (const [id, save] of canceled) {
-				if (generationFor(id) !== save.generation + 1 || latestRevision.has(id)) continue;
-				controller.schedule(save);
+		if (tracked && canceled.size > 0) suspensions.add(canceled);
+		const discard = () => {
+			suspensions.delete(canceled);
+			canceled.clear();
+		};
+		return {
+			discard,
+			restore() {
+				for (const [id, { save, resumeGeneration }] of canceled) {
+					if (generationFor(id) !== resumeGeneration || latestRevision.has(id)) continue;
+					controller.schedule(save);
+				}
+				discard();
 			}
 		};
 	}
 
 	const controller: AutosaveController = {
 		checkpoint,
+		suspend(draftId) {
+			const recovery = cancellationRecovery(draftId, true);
+			if (draftId === undefined) controller.cancel();
+			else controller.cancelDraft?.(draftId);
+			return recovery;
+		},
 		subscribeSaved(listener) {
 			savedListeners.add(listener);
 			return () => savedListeners.delete(listener);
@@ -370,7 +405,8 @@ export function createAutosaveController(
 			const knownDraftIds = new Set([
 				...pending.keys(),
 				...latestRevision.keys(),
-				...generations.keys()
+				...generations.keys(),
+				...[...suspensions].flatMap((suspended) => [...suspended.keys()])
 			]);
 			pending.clear();
 			latestRevision.clear();
@@ -381,7 +417,7 @@ export function createAutosaveController(
 			if (checkpointWritten) checkpoint();
 			lastSettledStatus = 'idle';
 			refreshStatus();
-			return restore;
+			return restore.restore;
 		},
 
 		cancelDraft(draftId) {
@@ -396,7 +432,7 @@ export function createAutosaveController(
 				lastSettledStatus = 'idle';
 			}
 			refreshStatus();
-			return restore;
+			return restore.restore;
 		},
 
 		/**

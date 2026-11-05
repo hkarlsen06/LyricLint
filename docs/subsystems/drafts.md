@@ -9,6 +9,12 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 - A refused delete or reset restores every canceled pending save, including retained failures
   and side records, so departure recovery and a later retry retain the latest work. Successful
   deletion keeps those saves canceled. A refused reset keeps the running preferences unchanged.
+  The draft store serializes all destructive operations through one queue, including row delete
+  versus workspace reset. Each operation owns an autosave suspension and settles it exactly once:
+  restore on refusal, discard as soon as deletion commits. Suspended snapshots follow in-flight
+  conflict copies with their media identity and storage generation. A later edit or cancellation
+  of the adopted copy prevents restoring its older suspended work. Ordinary cancellation keeps
+  its optional restore callback and registers no long-lived suspension.
 
 - A deliberate roster edit keeps a metadata-only draft through the normal guarded save path,
   including its Undo. An empty lyric document does not discard named performers on switching

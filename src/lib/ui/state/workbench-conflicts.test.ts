@@ -6,6 +6,8 @@ import type { DraftRecord, EditorHandle, EditorSnapshot } from '#lib/core/types.
 import { importDocument } from '#lib/conversion/import.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { createDepartureCheckpoint } from '#lib/persistence/departure-checkpoint.js';
+import { createMemorySessionStorage } from './in-memory.js';
 import { createAutosaveController } from '#lib/persistence/autosave.js';
 import { createWorkspaceBackup, parseWorkspaceBackup } from '#lib/persistence/backup.js';
 import { closeDatabase, openDatabase, type LyricLintDatabase } from '#lib/persistence/database.js';
@@ -61,7 +63,9 @@ async function setup() {
 	const initial = await repository.create(record('[Verse]\nOriginal'));
 	const ignores = await createDraftIgnoreStore(database);
 	const mediaRepository = createMediaRepository(database);
-	const autosave = createAutosaveController(repository, { debounceMs: 60_000 });
+	const storage = createMemorySessionStorage();
+	const checkpoint = createDepartureCheckpoint(() => storage);
+	const autosave = createAutosaveController(repository, { debounceMs: 60_000, checkpoint });
 	let current = snapshot(initial);
 	const editor: EditorHandle = {
 		focus() {},
@@ -96,6 +100,8 @@ async function setup() {
 	await vi.waitFor(() => expect(controller.media?.restoring).toBe(false));
 	return {
 		database,
+		autosave,
+		checkpoint,
 		repository,
 		controller,
 		ignores,
@@ -118,6 +124,163 @@ async function setup() {
 }
 
 describe('actual workbench mutation order across competing writers', () => {
+	it.each(['reset', 'delete', 'mixed', 'failed-reset'] as const)(
+		'preserves rich pending work through overlapping refused %s operations',
+		async (operation) => {
+			const run = await setup();
+			const entered = Promise.withResolvers<void>();
+			const release = Promise.withResolvers<void>();
+			let attempts = 0;
+			const refuse = async () => {
+				attempts++;
+				entered.resolve();
+				await release.promise;
+				throw new Error('deletion refused');
+			};
+			vi.spyOn(run.repository, 'deleteAll').mockImplementation(refuse);
+			vi.spyOn(run.repository, 'delete').mockImplementation(refuse);
+			await run.controller.media?.attachFile(new File(['local'], 'local.wav'));
+			run.ignores.ignore('song', 'local-ignore');
+			const latest = '[Verse]\nLatest pending';
+			run.edit(latest);
+			const other = await run.repository.create({
+				...record('[Chorus]\nOther pending'),
+				id: 'other'
+			});
+			run.autosave.schedule({
+				revision: 1,
+				draft: other,
+				sideRecords: { ignoredDiagnostics: ['other-ignore'] }
+			});
+			if (operation === 'failed-reset') {
+				vi.spyOn(run.repository, 'compareAndSave').mockRejectedValue(new Error('write refused'));
+				await run.autosave.flush();
+				expect(run.autosave.status()).toBe('failed');
+				vi.mocked(run.repository.compareAndSave!).mockRestore();
+			}
+			expect(run.autosave.checkpoint?.()).toBe(true);
+			const first =
+				operation === 'delete'
+					? run.controller.deleteDraft('song')
+					: run.controller.deleteAllDrafts();
+			await entered.promise;
+			const second =
+				operation === 'reset' || operation === 'failed-reset'
+					? run.controller.deleteAllDrafts()
+					: run.controller.deleteDraft('song');
+			// Allow both confirmation handlers to reach their first asynchronous boundary.
+			await new Promise<void>((resolve) => setTimeout(resolve, 10));
+			release.resolve();
+			await Promise.all([first, second]);
+			expect(attempts).toBe(2);
+			expect(run.autosave.checkpoint?.()).toBe(true);
+			expect(
+				run.checkpoint
+					.read()
+					.map(({ draft }) => draft.text)
+					.sort()
+			).toEqual([latest, other.text].sort());
+			await run.autosave.flush();
+			expect((await run.repository.get('song'))?.text).toBe(latest);
+			expect((await run.repository.get('song'))?.conversion).toEqual(
+				run.controller.snapshot.conversion
+			);
+			expect((await run.mediaRepository.get('song'))?.name).toBe('local.wav');
+			expect((await run.database.draftIgnores.get('song'))?.keys).toEqual(['local-ignore']);
+			expect((await run.database.draftIgnores.get('other'))?.keys).toEqual(['other-ignore']);
+			run.autosave.cancel();
+			run.player.destroy();
+		}
+	);
+
+	it.each(['none', 'edit', 'before-fork', 'after-restore', 'cancel'] as const)(
+		'restores suspended S2 to the real conflict fork, later edit=%s',
+		async (laterEdit) => {
+			const run = await setup();
+			const remote = await run.remoteSave();
+			await run.controller.media?.attachFile(new File(['local'], 'local.wav'));
+			const compare = run.repository.compareAndSave!.bind(run.repository);
+			const started = Promise.withResolvers<void>();
+			const releaseSave = Promise.withResolvers<void>();
+			vi.spyOn(run.repository, 'compareAndSave').mockImplementationOnce(async (...args) => {
+				started.resolve();
+				await releaseSave.promise;
+				return compare(...args);
+			});
+			const deleting = Promise.withResolvers<void>();
+			const refuse = Promise.withResolvers<void>();
+			vi.spyOn(run.repository, 'deleteAll').mockImplementation(async () => {
+				deleting.resolve();
+				await refuse.promise;
+				throw new Error('reset refused');
+			});
+			run.edit('[Verse]\nS1');
+			const saving = run.autosave.flush();
+			await started.promise;
+			run.edit('[Verse]\nS2');
+			const resetting = run.controller.deleteAllDrafts();
+			await deleting.promise;
+			if (laterEdit === 'before-fork') run.edit('[Verse]\nS3');
+			releaseSave.resolve();
+			await saving;
+			const forkId = run.controller.draftId;
+			expect(forkId).not.toBe('song');
+			if (laterEdit === 'edit') run.edit('[Verse]\nS3');
+			if (laterEdit === 'cancel') run.autosave.cancel();
+			refuse.resolve();
+			await resetting;
+			expect(run.autosave.checkpoint?.()).toBe(true);
+			if (laterEdit === 'none' || laterEdit === 'after-restore') {
+				const [resumed] = run.checkpoint.read();
+				expect(resumed?.draft.id).toBe(forkId);
+				expect(resumed?.draft.text).toBe('[Verse]\nS2');
+				expect(resumed?.sideRecords?.media?.draftId).toBe(forkId);
+			}
+			if (laterEdit === 'after-restore') run.edit('[Verse]\nS3');
+			await run.autosave.flush();
+			// Also exercise the originally reported later S3, after S2 has resumed.
+			if (laterEdit === 'none') {
+				expect((await run.repository.get(forkId))?.text).toBe('[Verse]\nS2');
+				run.edit('[Verse]\nS3');
+				await run.autosave.flush();
+			}
+			expect(await run.repository.get('song')).toEqual(remote);
+			expect((await run.repository.list()).length).toBe(2);
+			expect((await run.repository.get(forkId))?.text).toBe(
+				laterEdit === 'cancel' ? '[Verse]\nS1' : '[Verse]\nS3'
+			);
+			expect((await run.mediaRepository.get(forkId))?.draftId).toBe(forkId);
+			expect((await run.mediaRepository.get(forkId))?.name).toBe('local.wav');
+			expect(await run.database.draftIgnores.get(forkId)).toBeUndefined();
+			expect(await run.repository.getCurrent()).toBe(forkId);
+			const recovered = await recoverStartupDraft(run.repository, run.mediaRepository);
+			expect(recovered.id).toBe(forkId);
+			expect(recovered.text).toBe(laterEdit === 'cancel' ? '[Verse]\nS1' : '[Verse]\nS3');
+			run.autosave.cancel();
+			run.player.destroy();
+		}
+	);
+
+	it.each(['delete', 'reset'] as const)(
+		'successful %s discards suspended rich saves and recovery',
+		async (operation) => {
+			const run = await setup();
+			await run.controller.media?.attachFile(new File(['local'], 'local.wav'));
+			run.ignores.ignore('song', 'local-ignore');
+			run.edit('[Verse]\nPending');
+			expect(run.autosave.checkpoint?.()).toBe(true);
+			if (operation === 'delete') await run.controller.deleteDraft('song');
+			else await run.controller.deleteAllDrafts();
+			await run.autosave.flush();
+			expect(await run.repository.get('song')).toBeUndefined();
+			expect(await run.mediaRepository.get('song')).toBeUndefined();
+			expect(await run.database.draftIgnores.get('song')).toBeUndefined();
+			expect(run.checkpoint.read()).toEqual([]);
+			run.autosave.cancel();
+			run.player.destroy();
+		}
+	);
+
 	it('saves a stale clear as a recoverable empty conflict copy without deleting newer work', async () => {
 		const run = await setup();
 		const remote = await run.remoteSave();

@@ -24,7 +24,7 @@ export type {
 
 /**
  * The persistence implementation broadens the frozen controller contract with
- * one hook the frozen one has no room for: a draft has been loaded into a fresh
+ * lifecycle hooks. A draft can be loaded into a fresh
  * editor, so its revision counter has started over and the mark this controller
  * holds for it describes a session that is gone.
  *
@@ -32,6 +32,8 @@ export type {
  * has never heard of it is unchanged.
  */
 export type AutosaveController = Omit<CoreAutosaveController, 'schedule'> & {
+	/** Destructive operation owns this recovery until it restores or discards it. */
+	suspend?(draftId?: string): { restore(): void; discard(): void };
 	noteDraftLoaded?(draftId: string): void;
 	/** Synchronous departure recovery. False means navigation needs a warning. */
 	checkpoint?(): boolean;

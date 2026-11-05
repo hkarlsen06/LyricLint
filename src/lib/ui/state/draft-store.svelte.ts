@@ -389,6 +389,33 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		};
 	}
 
+	// Every destructive entry point shares one owner, including reset versus row delete.
+	let destructiveQueue = Promise.resolve();
+	function runDestructive<T>(operation: () => Promise<T>): Promise<T> {
+		const result = destructiveQueue.then(operation);
+		destructiveQueue = result.then(
+			() => {},
+			() => {}
+		);
+		return result;
+	}
+
+	function suspendSaves(id?: string) {
+		if (deps.autosave.suspend) return deps.autosave.suspend(id);
+		const restore =
+			id !== undefined && deps.autosave.cancelDraft
+				? deps.autosave.cancelDraft(id)
+				: id === undefined || id === draftId
+					? deps.autosave.cancel()
+					: undefined;
+		return {
+			restore: () => {
+				if (typeof restore === 'function') restore();
+			},
+			discard() {}
+		};
+	}
+
 	const store: DraftStore = {
 		get draftId() {
 			return draftId;
@@ -578,53 +605,55 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			deps.exportText(draft.text, safeFilename(draft.title));
 			feedback.announce(`Exported ${draft.title} as UTF-8 text.`);
 		},
-		async deleteDraft(id) {
-			let restoreCanceled: void | (() => void) = undefined;
-			try {
-				const deleted = await deps.repository.get(id);
-				if (deps.autosave.cancelDraft) {
-					restoreCanceled = deps.autosave.cancelDraft(id);
-				} else if (id === draftId) {
-					restoreCanceled = deps.autosave.cancel();
-				}
-				await deps.repository.delete(id);
-				restoreCanceled = undefined;
-				// Same as the discard above: the rows went with the record, and the
-				// mirror is what would otherwise go on answering for a deleted draft.
-				deps.ignoreStore?.clearDraft(id, false);
-				if (id === draftId) {
-					const remaining = await deps.repository.list();
-					const next = remaining[0] ? await deps.repository.get(remaining[0].id) : undefined;
-					if (next) {
-						await deps.ignoreStore?.reloadDraft?.(next.id);
-						await deps.repository.setCurrent(next.id);
-						loadDraft(next, true);
-					} else {
-						loadDraft(emptyTransientDraft(), false);
+		deleteDraft(id) {
+			return runDestructive(async () => {
+				let canceled: ReturnType<typeof suspendSaves> | undefined;
+				try {
+					const deleted = await deps.repository.get(id);
+					canceled = suspendSaves(id);
+					await deps.repository.delete(id);
+					canceled?.discard();
+					canceled = undefined;
+					// Same as the discard above: the rows went with the record, and the
+					// mirror is what would otherwise go on answering for a deleted draft.
+					deps.ignoreStore?.clearDraft(id, false);
+					if (id === draftId) {
+						const remaining = await deps.repository.list();
+						const next = remaining[0] ? await deps.repository.get(remaining[0].id) : undefined;
+						if (next) {
+							await deps.ignoreStore?.reloadDraft?.(next.id);
+							await deps.repository.setCurrent(next.id);
+							loadDraft(next, true);
+						} else {
+							loadDraft(emptyTransientDraft(), false);
+						}
 					}
+					await store.refreshDrafts();
+					feedback.announce(`Deleted ${deleted?.title ?? "'scribe"}.`);
+				} catch {
+					canceled?.restore();
+					reportFailure("The 'scribe could not be deleted.");
 				}
-				await store.refreshDrafts();
-				feedback.announce(`Deleted ${deleted?.title ?? "'scribe"}.`);
-			} catch {
-				if (typeof restoreCanceled === 'function') restoreCanceled();
-				reportFailure("The 'scribe could not be deleted.");
-			}
+			});
 		},
-		async deleteAllDrafts() {
-			let restoreCanceled: void | (() => void) = undefined;
-			try {
-				restoreCanceled = deps.autosave.cancel();
-				await deps.repository.deleteAll();
-				restoreCanceled = undefined;
-				drafts = [];
-				loadDraft(emptyTransientDraft(), false);
-				feedback.announce("All local 'scribes deleted.");
-				return true;
-			} catch {
-				if (typeof restoreCanceled === 'function') restoreCanceled();
-				reportFailure("Local 'scribes could not be deleted.");
-				return false;
-			}
+		deleteAllDrafts() {
+			return runDestructive(async () => {
+				let canceled: ReturnType<typeof suspendSaves> | undefined;
+				try {
+					canceled = suspendSaves();
+					await deps.repository.deleteAll();
+					canceled?.discard();
+					canceled = undefined;
+					drafts = [];
+					loadDraft(emptyTransientDraft(), false);
+					feedback.announce("All local 'scribes deleted.");
+					return true;
+				} catch {
+					canceled?.restore();
+					reportFailure("Local 'scribes could not be deleted.");
+					return false;
+				}
+			});
 		}
 	};
 

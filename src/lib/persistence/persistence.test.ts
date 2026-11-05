@@ -887,6 +887,7 @@ describe('autosave and recovery', () => {
 		expect(autosave.status()).toBe('saved');
 		expect(Object.keys(autosave)).toEqual([
 			'checkpoint',
+			'suspend',
 			'subscribeSaved',
 			'schedule',
 			'flush',
