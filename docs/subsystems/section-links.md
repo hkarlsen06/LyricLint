@@ -24,8 +24,13 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   retained IDs to the existing alignment and comparison formatter. An explicit wording choice
   uses `reconcileEdit` once with preplanned edits, preserving unchosen variations, exclusions
   and retained markup. Equal corrected words do not acquire an implicit connection. The task
-  captures draft, revision, profile and model; Apply refuses changes to that basis rather than
-  selecting a new group or passage. Genius keeps its existing comparison and edit path.
+  captures draft, revision, profile and model; Apply and both section and lyric navigation refuse
+  changes to that basis, including after an asynchronous editor handoff. The refusal asks the
+  writer to open Manage again. Corrections narrow unchanged prefixes and suffixes through
+  `narrowEdit`, retaining complete transformed wording units. Explicit empty fills carry section
+  IDs into reconciliation, which owns separators and collocated boundaries. Comparison gutters
+  retain separate controls for collocated empty sections rather than keying them by offset. Each filled copy
+  receives fresh untimed lyric records; source annotations and voices stay on the source. Genius keeps its existing comparison and edit path.
 - A section group records which performances belong together. Each stored **passage** names
   the actual subset sharing exact text; a chorus-only passage remains connected when an intro
   joins the group. Occurrences have non-overlapping absolute ranges and at most one occurrence

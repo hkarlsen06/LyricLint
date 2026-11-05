@@ -621,6 +621,50 @@ function reconcilePlain(
 	input: CommittedEdit
 ): EngineResult<ReconciledDocument> {
 	const sourceChanges = sharedChanges(projection, input.changes);
+	if (
+		input.sectionFills &&
+		(!Array.isArray(input.sectionFills) ||
+			input.sectionFills.some(
+				(fill) => !fill || typeof fill.sectionId !== 'string' || typeof fill.text !== 'string'
+			) ||
+			new Set(input.sectionFills.map((fill) => fill.sectionId)).size !== input.sectionFills.length)
+	)
+		return refuse(
+			'invalid-input',
+			'Section copies need distinct current section identities and lyric text.'
+		);
+	const fills = new Map(input.sectionFills?.map((fill) => [fill.sectionId, fill.text]) ?? []);
+	const inserted = new Map<number, string>();
+	const starts = new Map<string, number>();
+	for (const [index, section] of document.sections.entries()) {
+		const text = fills.get(section.id);
+		const prior = inserted.get(section.at) ?? '';
+		starts.set(section.id, prior.length);
+		if (text === undefined) continue;
+		const end = document.sections[index + 1]?.at ?? document.content.length;
+		if (
+			projection.profile !== 'musixmatch' ||
+			section.literalHeaderRange ||
+			document.content.slice(section.at, end).trim() ||
+			!text.trim()
+		)
+			return refuse('invalid-input', 'Only an empty section can receive this lyric copy.');
+		const prefix =
+			!prior && section.at > 0 && document.content[section.at - 1] !== '\n' ? '\n\n' : '';
+		starts.set(section.id, prior.length + prefix.length);
+		inserted.set(
+			section.at,
+			prior +
+				prefix +
+				text +
+				(index + 1 < document.sections.length && end === section.at ? '\n\n' : '')
+		);
+	}
+	if (fills.size !== document.sections.filter((section) => fills.has(section.id)).length)
+		return refuse('invalid-input', 'This empty section is no longer available.');
+	for (const [at, insert] of inserted) sourceChanges.push({ from: at, to: at, insert });
+	sourceChanges.sort((a, b) => a.from - b.from);
+
 	const mirrored =
 		input.mirror === false
 			? { ok: true as const, value: { changes: sourceChanges, transfers: [] } }
@@ -629,13 +673,17 @@ function reconcilePlain(
 	const { changes, transfers } = mirrored.value;
 	if (!validEdits(document.content, changes))
 		return refuse('invariant-failure', 'Mapped edits overlap.');
-	const next: ConversionDocument = {
-		...document,
-		content: applyTextEdits(document.content, changes)
-	};
+	const content = applyTextEdits(document.content, changes);
+	if (content.length > CONVERSION_LIMITS.text || changes.length > CONVERSION_LIMITS.edits)
+		return refuse('operation-limit', 'These section copies exceed the conversion limits.');
+	const next: ConversionDocument = { ...document, content };
 	const map = (at: number, affinity: -1 | 1) => mapEditPosition(at, changes, affinity);
 	next.sections = document.sections.map((section) => {
-		const result = { ...section, at: map(section.at, -1) };
+		const result = {
+			...section,
+			at: map(section.at, -1) + (inserted.has(section.at) ? starts.get(section.id)! : 0)
+		};
+		if (fills.has(section.id) && !/[\r\n]$/u.test(result.header)) result.header += '\n';
 		if (section.literalHeaderRange)
 			result.literalHeaderRange = {
 				from: map(section.literalHeaderRange.from, 1),
@@ -647,8 +695,62 @@ function reconcilePlain(
 		return result;
 	});
 	next.wrappers = retainedWrappers(document, next.content, changes, map);
+	if (inserted.size) {
+		for (const wrapper of next.wrappers) {
+			const old = document.wrappers.find((entry) => entry.id === wrapper.id)!;
+			if (old.from !== old.to || !inserted.has(old.from)) continue;
+			const owner = document.sections.find((section, index) =>
+				sectionContainsWrapper(section, document.sections[index + 1], old)
+			);
+			if (owner)
+				wrapper.from = wrapper.to = next.sections.find((section) => section.id === owner.id)!.at;
+		}
+	}
+
 	retainLinesAndOwners(document, next, map, changes, projection.profile);
 	retainOtherRecords(document, next, map, changes, transfers);
+	if (inserted.size) {
+		for (const voice of document.voices) {
+			if (voice.from !== voice.to || !inserted.has(voice.from)) continue;
+			const at = next.sections.find((section) => section.id === voice.sectionId)!.at;
+			const retained = next.voices.find((entry) => entry.id === voice.id);
+			if (retained) retained.from = retained.to = at;
+			else next.voices.push({ ...voice, from: at, to: at });
+		}
+		// Collocated empty passages retain their section's insertion point, not the whole new block.
+		for (const link of next.links) {
+			const original = document.links.find((entry) => entry.id === link.id)!;
+			for (const passage of link.passages ?? []) {
+				for (const member of passage.members) {
+					const old = original.passages
+						?.flatMap((entry) => entry.members)
+						.find(
+							(entry) =>
+								entry.sectionId === member.sectionId &&
+								entry.from === entry.to &&
+								inserted.has(entry.from)
+						);
+					if (old)
+						member.from = member.to = next.sections.find(
+							(section) => section.id === member.sectionId
+						)!.at;
+				}
+			}
+			for (const member of link.detached ?? []) {
+				const old = original.detached?.find(
+					(entry) =>
+						entry.sectionId === member.sectionId &&
+						entry.from === entry.to &&
+						inserted.has(entry.from)
+				);
+				if (old)
+					member.from = member.to = next.sections.find(
+						(section) => section.id === member.sectionId
+					)!.at;
+			}
+		}
+	}
+
 	captureAuthoredEdits(next, projection.profile, changes, map);
 	updateEmptySections(next);
 	retainSectionPlacement(next);
@@ -956,6 +1058,8 @@ export function reconcileEdit(
 		JSON.stringify(current.value.segments) !== JSON.stringify(projection.segments)
 	)
 		return refuse('stale-basis', 'These edits belong to an earlier lyric projection.');
+	if (input?.sectionFills?.length && projection.profile !== 'musixmatch')
+		return refuse('invalid-input', 'Empty-section copies require the Musixmatch projection.');
 	if (!input || !Array.isArray(input.changes) || !validEdits(projection.text, input.changes))
 		return refuse(
 			'invalid-input',
@@ -966,7 +1070,7 @@ export function reconcileEdit(
 	const changes = input.changes.filter(
 		(edit) => projection.text.slice(edit.from, edit.to) !== edit.insert
 	);
-	if (!changes.length)
+	if (!changes.length && !input.sectionFills?.length)
 		return { ok: true, value: { document, projection: current.value, changes: [] } };
 	const size =
 		projection.text.length +

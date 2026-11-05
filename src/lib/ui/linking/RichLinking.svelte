@@ -83,23 +83,31 @@
 		await tick();
 		root.querySelector<HTMLButtonElement>(`[data-manage="${groupId}"]`)?.focus();
 	}
+	function currentBasis(baseline: NonNullable<typeof management>): boolean {
+		if (
+			controller.draftId === baseline.draftId &&
+			controller.snapshot.revision === baseline.revision &&
+			controller.profile === 'musixmatch' &&
+			JSON.stringify(controller.snapshot.conversion?.model) === JSON.stringify(baseline.model)
+		)
+			return true;
+		const message = 'The lyrics, draft or format changed. Open Manage again before continuing.';
+		controller.feedback.announce(message);
+		controller.feedback.addToast({ message });
+		return false;
+	}
+	async function navigateComparison(
+		baseline: NonNullable<typeof management>,
+		target: TextRange
+	): Promise<void> {
+		if (!currentBasis(baseline)) return;
+		await onShowEditor?.();
+		if (!currentBasis(baseline)) return;
+		controller.showConversionPassage(target);
+	}
 	function correct(choice: SectionLinkChoice): void {
 		const baseline = management;
-		if (!baseline) return;
-		if (
-			controller.draftId !== baseline.draftId ||
-			controller.snapshot.revision !== baseline.revision ||
-			controller.profile !== 'musixmatch' ||
-			JSON.stringify(controller.snapshot.conversion?.model) !== JSON.stringify(baseline.model)
-		) {
-			controller.feedback.announce(
-				'The lyrics, draft or format changed. Open Manage again before applying.'
-			);
-			controller.feedback.addToast({
-				message: 'The lyrics, draft or format changed. Open Manage again before applying.'
-			});
-			return;
-		}
+		if (!baseline || !currentBasis(baseline)) return;
 		if (
 			controller.applyConversionAction({
 				kind: 'reviewLinkDifferences',
@@ -178,11 +186,15 @@
 				conversionLinkDifferences(baseline.model, baseline.projection, baseline.sectionIds)}
 			onApply={correct}
 			onBack={closeManagement}
-			onNavigate={(index) => show(ranges.get(baseline.sectionIds[index]))}
-			onNavigateLyric={async (from) => {
-				await onShowEditor?.();
-				controller.showConversionPassage({ from, to: from });
+			onNavigate={(index) => {
+				const range = conversionSectionRanges(baseline.model).get(baseline.sectionIds[index]);
+				if (range)
+					void navigateComparison(baseline, {
+						from: projectOffset(baseline.projection, range.from, 1),
+						to: projectOffset(baseline.projection, range.to, -1)
+					});
 			}}
+			onNavigateLyric={(from) => navigateComparison(baseline, { from, to: from })}
 		/>
 	{:else}
 		<h2 tabindex="-1" data-linking-heading>Link repeated sections</h2>

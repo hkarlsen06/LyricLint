@@ -1,3 +1,4 @@
+import { narrowEdit } from '#lib/performers/transform.js';
 import { alignBodies } from '#lib/core/link-shape.js';
 import { describeLinkDifferences } from '#lib/core/link-differences.js';
 import type { SectionLinkChoice, LinkDifference, TextEdit } from '#lib/core/types.js';
@@ -86,6 +87,7 @@ export function resolveLinkDecision(
 			return refuse('stale-basis', 'This linked group changed. Open Manage again.');
 		const differences = conversionLinkDifferences(document, projection, group.sectionIds);
 		const changes: TextEdit[] = [];
+		const sectionFills: { sectionId: string; text: string }[] = [];
 		for (const difference of differences) {
 			if (action.choice.keepDifferent?.[difference.index] !== false) continue;
 			const winner = action.choice.replaceFromByDifference?.[difference.index];
@@ -96,16 +98,31 @@ export function resolveLinkDecision(
 			if (!range || !document.content.slice(range.from, range.to).trim())
 				return refuse('invalid-input', 'An empty section cannot replace populated lyrics.');
 			for (const wording of difference.wordings) {
-				if (wording.text !== source.text)
-					changes.push({
-						from: wording.from,
-						to: wording.from + wording.text.length,
-						insert: source.text
-					});
+				if (wording.text === source.text) continue;
+				const sectionId = group.sectionIds[wording.headerFrom];
+				const target = conversionSectionRanges(document).get(sectionId)!;
+				if (!document.content.slice(target.from, target.to).trim()) {
+					sectionFills.push({ sectionId, text: source.text });
+					continue;
+				}
+				const full = {
+					from: wording.from,
+					to: wording.from + wording.text.length,
+					insert: source.text
+				};
+				const narrow = narrowEdit(wording.from, wording.text, source.text);
+				const cutsUnit = projection.segments.some(
+					(segment) =>
+						segment.kind === 'transformed' &&
+						((segment.from < narrow.from && narrow.from < segment.to) ||
+							(segment.from < narrow.to && narrow.to < segment.to))
+				);
+				changes.push(cutsUnit ? full : narrow);
 			}
 		}
 		return reconcileEdit(document, projection, {
 			changes: changes.sort((a, b) => a.from - b.from),
+			sectionFills,
 			mirror: false
 		});
 	}

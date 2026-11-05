@@ -9,7 +9,7 @@ import LinkingPanel from './LinkingPanel.svelte';
 
 const song =
 	'[Chorus]\nWe hold the light\nAnd come home tonight\n\n[Chorus 2]\nWe hold the light\nAnd come home again';
-async function setup(text = song) {
+async function setup(text = song, onShowEditor?: () => void | Promise<void>) {
 	const workbench = createTestWorkbench({ text, revision: 0, selection: { anchor: 0, head: 0 } });
 	let handle: EditorHandle | undefined;
 	await render(EditorPane, {
@@ -33,7 +33,7 @@ async function setup(text = song) {
 	await waitFor(() => expect(handle).toBeDefined());
 	workbench.controller.switchProfile('musixmatch');
 	await waitFor(() => expect(workbench.controller.profile).toBe('musixmatch'));
-	const view = await render(LinkingPanel, { controller: workbench.controller });
+	const view = await render(LinkingPanel, { controller: workbench.controller, onShowEditor });
 	return { ...workbench, handle: handle!, view, panel: within(view.container) };
 }
 
@@ -173,4 +173,44 @@ describe('Musixmatch stable section linking', () => {
 			)
 		).toBeNull();
 	});
+});
+
+it('refuses stale comparison lyric and section navigation after clearing the live document', async () => {
+	const { panel, handle, controller } = await setup();
+	for (const checkbox of panel.getAllByRole('checkbox')) await fireEvent.click(checkbox);
+	await fireEvent.click(panel.getByRole('button', { name: 'Set up link' }));
+	await fireEvent.click(panel.getByRole('button', { name: /^Manage /u }));
+	await fireEvent.click(panel.getByRole('button', { name: 'Review differences' }));
+	const snapshot = handle.getSnapshot();
+	handle.dispatchAtomic({
+		baseRevision: snapshot.revision,
+		edits: [{ from: 0, to: snapshot.text.length, insert: '' }]
+	});
+	for (const button of panel.getAllByRole('button', { name: /line [2-9]/iu })) {
+		await fireEvent.click(button);
+		expect(controller.feedback.announcement).toContain('Open Manage again');
+		expect(handle.getSnapshot().selection.anchor).toBe(0);
+	}
+	expect(controller.feedback.announcement).toContain('Open Manage again');
+});
+
+it('revalidates section handoff after asynchronously showing the editor', async () => {
+	let change: () => void = () => {};
+	const { panel, handle, controller } = await setup(song, async () => {
+		await Promise.resolve();
+		change();
+	});
+	for (const checkbox of panel.getAllByRole('checkbox')) await fireEvent.click(checkbox);
+	await fireEvent.click(panel.getByRole('button', { name: 'Set up link' }));
+	await fireEvent.click(panel.getByRole('button', { name: /^Manage /u }));
+	change = () => {
+		const snapshot = handle.getSnapshot();
+		handle.dispatchAtomic({
+			baseRevision: snapshot.revision,
+			edits: [{ from: 0, to: snapshot.text.length, insert: '' }]
+		});
+	};
+	await fireEvent.click(panel.getAllByRole('button', { name: /^Line /u }).at(-1)!);
+	await waitFor(() => expect(controller.feedback.announcement).toContain('Open Manage again'));
+	expect(handle.getSnapshot().selection.anchor).toBe(0);
 });

@@ -208,6 +208,8 @@ export interface ImportInput {
 	nextId?: number;
 }
 export interface CommittedEdit {
+	/** Explicit empty-section copies, allocated without source metadata. */
+	sectionFills?: readonly { sectionId: string; text: string }[];
 	changes: readonly TextEdit[];
 	/** Existing editor mirror has already expanded these changes. */ mirror?: boolean;
 	onlySectionId?: string;

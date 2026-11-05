@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { importDocument } from './import.js';
 import { renderProfile } from './projection.js';
+import { resolveDecision } from './index.js';
 import { conversionLinkDifferences, resolveLinkDecision } from './links.js';
 import type { ConversionDocument, EngineResult } from './model.js';
 
@@ -154,4 +155,126 @@ it('corrects only an explicit wording choice and refuses a changed group without
 	expect(
 		resolveLinkDecision({ ...document, links: [] }, projection, { ...action, sectionIds }).ok
 	).toBe(false);
+});
+
+function chooseLast(document: ConversionDocument, sectionIds: string[]) {
+	const projection = value(renderProfile(document, 'musixmatch'));
+	const differences = conversionLinkDifferences(document, projection, sectionIds);
+	return value(
+		resolveLinkDecision(document, projection, {
+			kind: 'reviewLinkDifferences',
+			sectionIds,
+			choice: {
+				headers: sectionIds.map((_, i) => i),
+				keepDifferent: differences.map(() => false),
+				replaceFromByDifference: differences.map(() => sectionIds.length - 1)
+			}
+		})
+	);
+}
+it.each([
+	['[Chorus]\n[Chorus 2]\nWe stay here', '[Chorus]\nWe stay here\n\n[Chorus 2]\nWe stay here'],
+	[
+		'[Verse]\nUntouched\n\n[Chorus]\n[Chorus 2]\n[Chorus 3]\nWe stay here',
+		'[Verse]\nUntouched\n\n[Chorus]\nWe stay here\n\n[Chorus 2]\nWe stay here\n\n[Chorus 3]\nWe stay here'
+	]
+])('fills explicit empty section identities in %s', (source, expected) => {
+	const original = song(source);
+	const sectionIds = original.sections.filter((s) => s.name.startsWith('Chorus')).map((s) => s.id);
+	const document = link(original, sectionIds);
+	const next = chooseLast(document, sectionIds);
+	expect(value(renderProfile(next.document, 'genius')).text).toBe(expected);
+	expect(next.document.sections.map((s) => s.id)).toEqual(document.sections.map((s) => s.id));
+});
+it('preserves a hidden annotation on the unchanged prefix of a corrected word', () => {
+	const source = '[Chorus]\nHold on [ti](123)ght\n\n[Chorus 2]\nHold on tighht';
+	const original = song(source);
+	const sectionIds = original.sections.map((s) => s.id);
+	const document = link(original, sectionIds);
+	const next = chooseLast(document, sectionIds);
+	expect(value(renderProfile(next.document, 'genius')).text).toBe(
+		source.replace('[ti](123)ght', '[ti](123)ghht')
+	);
+	expect(next.document.wrappers.map((w) => w.id)).toEqual(document.wrappers.map((w) => w.id));
+});
+
+it('fills copies with fresh untimed records and preserves the source annotation, voices and timings', () => {
+	const source =
+		'[Verse]\nUntouched\n\n[Chorus]\n[Chorus 2]\n[Chorus 3: Mira]\n[We](123) stay here';
+	const original = song(source);
+	original.lines.forEach((line, i) => {
+		line.time = i + 1;
+	});
+	const ids = original.sections.slice(1).map((section) => section.id);
+	const document = link(original, ids);
+	const next = chooseLast(document, ids);
+	expect(value(renderProfile(next.document, 'genius')).text).toBe(
+		'[Verse]\nUntouched\n\n[Chorus]\nWe stay here\n\n[Chorus 2]\nWe stay here\n\n[Chorus 3: Mira]\n[We](123) stay here'
+	);
+	expect(next.document.wrappers.map((w) => w.id)).toEqual(document.wrappers.map((w) => w.id));
+	for (const old of document.lines.filter((line) => line.time !== undefined)) {
+		const line = next.document.lines.find((line) => line.id === old.id)!;
+		expect(line.time).toBe(old.time);
+		expect(next.document.content.slice(line.from, line.to)).toBe(
+			document.content.slice(old.from, old.to)
+		);
+	}
+	expect(
+		next.document.lines
+			.filter((line) => !document.lines.some((old) => old.id === line.id))
+			.every((line) => line.time === undefined)
+	).toBe(true);
+	expect(next.document.voices.map((v) => v.id)).toEqual(document.voices.map((v) => v.id));
+	expect(next.document.voices.map((v) => next.document.content.slice(v.from, v.to))).toEqual(
+		document.voices.map((v) => document.content.slice(v.from, v.to))
+	);
+});
+
+it('keeps a transformed wording unit whole when narrowing would cut its retained form', () => {
+	const original = song('[Chorus]\n[2](123) stars\n\n[Chorus 2]\ntwins stars');
+	const formed = value(
+		resolveDecision(original, value(renderProfile(original, 'musixmatch')), {
+			kind: 'setForm',
+			range: { from: 0, to: 1 },
+			profile: 'musixmatch',
+			text: 'two'
+		})
+	).document;
+	const ids = formed.sections.map((section) => section.id);
+	const document = link(formed, ids);
+	const next = chooseLast(document, ids);
+	expect(next.projection.text).toBe('twins stars\n\ntwins stars');
+	expect(value(renderProfile(next.document, 'genius')).text).toBe(
+		'[Chorus]\n[twins](123) stars\n\n[Chorus 2]\ntwins stars'
+	);
+	expect(next.document.wrappers.map((w) => w.id)).toEqual(document.wrappers.map((w) => w.id));
+});
+it('narrows Unicode wording edits without splitting a surrogate pair', () => {
+	const original = song('[Chorus]\n𐐀abc\n\n[Chorus 2]\n𐐁abc');
+	const ids = original.sections.map((section) => section.id);
+	const document = link(original, ids);
+	const next = chooseLast(document, ids);
+	expect(next.projection.text).toBe('𐐁abc\n\n𐐁abc');
+});
+
+it('fills a final empty section with an unterminated retained heading', () => {
+	const original = song('[Chorus]\n[Chorus 2]\nWe stay here\n\n[Chorus 3]');
+	const ids = original.sections.map((section) => section.id);
+	const document = link(original, ids);
+	const projection = value(renderProfile(document, 'musixmatch'));
+	const differences = conversionLinkDifferences(document, projection, ids);
+	const next = value(
+		resolveLinkDecision(document, projection, {
+			kind: 'reviewLinkDifferences',
+			sectionIds: ids,
+			choice: {
+				headers: [0, 1, 2],
+				keepDifferent: differences.map(() => false),
+				replaceFromByDifference: differences.map(() => 1)
+			}
+		})
+	);
+	expect(value(renderProfile(next.document, 'genius')).text).toBe(
+		'[Chorus]\nWe stay here\n\n[Chorus 2]\nWe stay here\n\n[Chorus 3]\nWe stay here'
+	);
 });
