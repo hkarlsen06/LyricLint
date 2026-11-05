@@ -682,9 +682,10 @@ local file has neither and the heading itself goes. No press contacts anyone: th
 arrived with the song, the link is arithmetic on an id, and the facts came in on the read that was
 already paying for the name.
 
-**And it leads the panel**, because it is the only section there that is about the song in front of
-the user rather than about the application. Everything under it is a setting, a backup, or a way
-out. A section that comes and goes has to lead or it lands somewhere different on every draft.
+Document output and optional Timed lyrics output lead normal Song, ahead of metadata and
+advanced section editing. Clipboard review and recovery surfaces still come first when present.
+This keeps ordinary file exports reachable in the first phone viewport even with long song facts.
+Clearing remains a separate disclosure within Document; routine Copy stays in the toolbar.
 
 **Those facts are a `<dl>` and not a copied block**, because they go into separate fields on
 whatever page they are being typed into. One string holding all of them would only have to be

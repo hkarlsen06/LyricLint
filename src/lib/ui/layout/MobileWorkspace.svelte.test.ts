@@ -173,6 +173,43 @@ test('notifications leave phone navigation reachable and release its offset on t
 	expect(document.documentElement.style.getPropertyValue('--mobile-navigation-height')).toBe('');
 });
 
+test.each([360, 390])(
+	'keeps Song files in the first usable phone viewport at %ipx',
+	async (width) => {
+		await page.viewport(width, 844);
+		const { controller, calls } = createTestWorkbench({
+			text: '[Verse: Åsa]\nOne [silver](12345) line\n\n[Chorus]\nStay beside me'
+		});
+		await controller.setTitle(
+			'A very long song title with Åsa and Bjørn that fills several phone widths'
+		);
+		controller.setGeniusUrl('https://genius.com/Asa-a-very-long-song-title-lyrics');
+		calls.lineAnchors = [{ line: 2, time: 1.25 }];
+		controller.onLineAnchorsChanged();
+		await render(Workspace, {
+			controller,
+			editorComponent: MockEditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: 'Tools' }));
+		await fireEvent.click(await screen.findByRole('tab', { name: 'Song' }));
+		const pane = document.querySelector('#document-panel')!.getBoundingClientRect();
+		for (const name of ['Export .txt', 'Export Scribe', 'Export timings']) {
+			const buttons = await screen.findAllByRole('button', { name });
+			expect(buttons).toHaveLength(1);
+			const rect = buttons[0]!.getBoundingClientRect();
+			expect(rect.top).toBeGreaterThanOrEqual(pane.top);
+			expect(rect.bottom).toBeLessThanOrEqual(pane.bottom);
+			expect(rect.height).toBeGreaterThanOrEqual(44);
+			expect(rect.right).toBeLessThanOrEqual(width);
+		}
+		expect(screen.getByRole('textbox', { name: 'Genius page link' })).toHaveValue(
+			controller.geniusUrl
+		);
+		expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+	}
+);
+
 test('Song fields keep touch targets outside the workspace ancestor', async () => {
 	await page.viewport(390, 844);
 	const imported = importDocument({ text: '[Verse: Mira]\nStay beside me', profile: 'genius' });

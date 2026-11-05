@@ -29,9 +29,9 @@ describe('SongPanel skimmability', () => {
 
 		// A locally named draft can search for its song before anything is attached.
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
+			'Document',
 			'Song metadata',
-			'Genius page',
-			'Document'
+			'Genius page'
 		]);
 		expect((screen.getByRole('link', { name: 'Search YouTube' }) as HTMLAnchorElement).href).toBe(
 			'https://www.youtube.com/results?search_query=Test%20draft'
@@ -251,7 +251,7 @@ describe('SongPanel song metadata', () => {
 		);
 	}
 
-	test('offers each control only where its own fact exists, and leads the tab', async () => {
+	test('offers each control only where its own fact exists', async () => {
 		const { container } = await render(SongPanel, {
 			controller: withSong({
 				artwork: 'https://i.scdn.co/image/640',
@@ -259,7 +259,7 @@ describe('SongPanel song metadata', () => {
 			})
 		});
 
-		expect(headings(container)[0]).toBe('Song metadata');
+		expect(headings(container)).toContain('Song metadata');
 		expect(screen.getByRole('button', { name: 'Copy image URL' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Download album art' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Copy image URL' }).parentElement).toBe(
@@ -280,6 +280,38 @@ describe('SongPanel song metadata', () => {
 		const actions = section.querySelector('.tool-actions') as HTMLElement;
 		expect(getComputedStyle(actions).marginTop).toBe('16px');
 	});
+
+	test.each([360, 390, 600])(
+		'keeps file output reachable with long song facts at %ipx',
+		async (width) => {
+			const controller = withSong({
+				songDetails: {
+					album: 'A very long album name that wraps across several lines in a narrow phone panel',
+					writers:
+						'Åsa Andersson, Bjørn Berg, A very long credited songwriter name & Another writer',
+					label: 'A long record label and distribution credit that must wrap',
+					releaseDate: '2026-03-20',
+					isrc: 'NOABC2600001'
+				}
+			});
+			controller.setGeniusUrl('https://genius.com/Asa-a-long-song-name-lyrics');
+			const { container } = await render(SongPanel, { controller });
+			container.style.width = `${width}px`;
+			const top = container.getBoundingClientRect().top;
+			const exports = ['Export .txt', 'Export Scribe'].map((name) =>
+				screen.getByRole('button', { name })
+			);
+			const before = exports.map((button) => button.getBoundingClientRect().toJSON());
+			for (const rect of before) expect(rect.bottom - top).toBeLessThan(300);
+			expect(
+				screen.getByText('A long record label and distribution credit that must wrap')
+			).toBeVisible();
+			await fireEvent.click(screen.getByText('Clear this transcription', { exact: true }));
+			expect(exports.map((button) => button.getBoundingClientRect().toJSON())).toEqual(before);
+			expect(screen.getAllByRole('button', { name: 'Export .txt' })).toHaveLength(1);
+			expect(screen.getAllByRole('button', { name: 'Export Scribe' })).toHaveLength(1);
+		}
+	);
 
 	test('copies the known artwork URL without downloading it', async () => {
 		const copied: string[] = [];
@@ -670,10 +702,10 @@ describe('SongPanel conversion restraint', () => {
 		const { container } = await render(SongPanel, { controller });
 
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
+			'Document',
 			'Song metadata',
 			'Genius page',
-			'Sections',
-			'Document'
+			'Sections'
 		]);
 		expect(screen.queryByText('Decisions that need listening')).toBeNull();
 		expect(screen.queryByText('Expand a repeated passage')).toBeNull();

@@ -90,7 +90,7 @@
 	);
 	/**
 	 * Clearing is offered only where there is something to clear. An empty draft
-	 * with no retained sections states nothing and offers nothing — the same
+	 * with no retained sections states nothing and offers nothing, the same
 	 * rule the counts and the timed-lyrics section follow.
 	 */
 	const clearable = $derived(
@@ -167,13 +167,140 @@
 			</div>
 		</section>
 	{/if}
+	<section>
+		<h2>Document</h2>
+		{#if documentCounts.length > 0}
+			<!-- The draft in one run of facts, over the files it turns into: what
+			     would be exported, in the order it would be counted. -->
+			<p>{documentCounts.join(' · ')}</p>
+		{/if}
+		<div class="tool-actions">
+			<button type="button" class="button" onclick={() => controller.exportDraft()}>
+				Export .txt
+			</button>
+			<button type="button" class="button" onclick={() => controller.exportScribe()}>
+				Export Scribe
+			</button>
+		</div>
+		<p>
+			.txt: {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics. Scribe: both formats
+			and all editable details.
+		</p>
+		<!--
+			The document-scoped delete lives in the section about the document it
+			clears, disclosed separately from the exports. The toolbar carries only
+			the commands used on every visit. Quiet until pressed, confirm in
+			place, in the same shape as the line-timings delete below.
+		-->
+		{#if clearable}
+			<details
+				class="song-panel__delete"
+				{@attach dismissOnOutside(() => (confirmClearDocument = false))}
+				ontoggle={(event) => {
+					if (!event.currentTarget.open) confirmClearDocument = false;
+				}}
+			>
+				<summary>Clear this transcription</summary>
+				<div class="clear-decision">
+					<button
+						bind:this={clearButton}
+						type="button"
+						class="button {confirmClearDocument ? 'button--danger' : 'button--quiet'}"
+						onclick={() => {
+							if (!confirmClearDocument) {
+								confirmClearDocument = true;
+								controller.feedback.announce(
+									'Confirm clearing the lyrics and every retained detail.'
+								);
+								return;
+							}
+							if (controller.applyConversionAction({ kind: 'clearDocument' }))
+								confirmClearDocument = false;
+						}}
+						>{confirmClearDocument
+							? 'Delete lyrics and details'
+							: 'Clear lyrics and retained details…'}</button
+					>
+					{#if confirmClearDocument}<button
+							type="button"
+							class="button button--quiet"
+							onclick={() => {
+								confirmClearDocument = false;
+								clearButton?.focus();
+							}}>Cancel</button
+						>{/if}
+					<p class:sr-only={!confirmClearDocument} aria-live="polite">
+						{#if confirmClearDocument}Delete the lyrics and every retained detail on this
+							transcription? Exports already made are untouched.{/if}
+					</p>
+				</div>
+			</details>
+		{/if}
+	</section>
+
+	{#if controller.lineAnchorCount > 0}
+		<section>
+			<h2>Timed lyrics</h2>
+			<div class="tool-actions">
+				<label class="sr-only" for="timed-lyrics-format">Timed lyrics format</label>
+				<select id="timed-lyrics-format" bind:value={timedLyricsFormat}>
+					<option value="lrc">LRC</option>
+					<option value="srt">SRT</option>
+					<option value="vtt">VTT</option>
+				</select>
+				<button
+					type="button"
+					class="button"
+					onclick={() => controller.exportTimedLyrics(timedLyricsFormat)}
+				>
+					Export timings
+				</button>
+			</div>
+			<p>
+				{controller.lineAnchorCount} timed {controller.lineAnchorCount === 1 ? 'line' : 'lines'}, in
+				time order, without the markup a player cannot read.
+			</p>
+			<div aria-live="polite">
+				{#if confirmClearAnchors}
+					<p class="danger-text">
+						Delete {controller.lineAnchorCount} line {controller.lineAnchorCount === 1
+							? 'timing'
+							: 'timings'} on this transcription? The lyrics are untouched.
+					</p>
+					<div class="tool-actions">
+						<button
+							type="button"
+							class="button button--danger"
+							onclick={() => {
+								controller.clearLineAnchors();
+								confirmClearAnchors = false;
+							}}>Delete line timings</button
+						>
+						<button
+							type="button"
+							class="button button--quiet"
+							onclick={() => (confirmClearAnchors = false)}>Cancel</button
+						>
+					</div>
+				{:else}
+					<div class="tool-actions tool-actions--flush">
+						<button
+							type="button"
+							class="button button--quiet danger-text"
+							onclick={() => (confirmClearAnchors = true)}>Delete line timings…</button
+						>
+					</div>
+				{/if}
+			</div>
+		</section>
+	{/if}
+
 	<!--
 		What the attached song is, in the forms somebody filling in a song page
 		elsewhere has to paste: its facts, its cover and its link.
 
-		It leads, because it is the one section here that comes and goes with the
-		attachment; a section that is only sometimes there leads or it is somewhere
-		different on every draft. Each fact draws only where it exists. Attaching
+		Routine file output comes first, regardless of attached metadata. Each fact
+		draws only where it exists. Attaching
 		itself lives in the workbench through the tray's note button. Nothing else here
 		contacts anyone: the facts and the cover's address arrived on the read that
 		named the song, and the link is derived from the id the draft already stores.
@@ -262,97 +389,9 @@
 		</div>
 	</section>
 
-	<!--
-		One action, because an export is wanted once, on the way out. `Copy lyrics`
-		is not here at all: the toolbar carries it as the window's one contrast
-		action, and a second copy of it in a panel was a second command for a press
-		the user already has. `current draft` is gone from the label rather than
-		shortened for room; the toolbar names the draft.
-	-->
 	{#key controller.draftId}<ConversionDetails {controller} />{/key}
-	<section>
-		<h2>Document</h2>
-		{#if documentCounts.length > 0}
-			<!-- The draft in one run of facts, over the files it turns into: what
-			     would be exported, in the order it would be counted. -->
-			<p>{documentCounts.join(' · ')}</p>
-		{/if}
-		<div class="tool-actions">
-			<button type="button" class="button" onclick={() => controller.exportDraft()}>
-				Export .txt
-			</button>
-			<button type="button" class="button" onclick={() => controller.exportScribe()}>
-				Export Scribe
-			</button>
-		</div>
-		<p>
-			.txt: {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics. Scribe: both formats
-			and all editable details.
-		</p>
-		<!--
-			The document-scoped delete lives in the section about the document it
-			clears — next to the exports, not in the toolbar, which carries only
-			the commands used on every visit. Quiet until pressed, confirm in
-			place, in the same shape as the line-timings delete below.
-		-->
-		{#if clearable}
-			<details
-				class="song-panel__delete"
-				{@attach dismissOnOutside(() => (confirmClearDocument = false))}
-				ontoggle={(event) => {
-					if (!event.currentTarget.open) confirmClearDocument = false;
-				}}
-			>
-				<summary>Clear this transcription</summary>
-				<div class="clear-decision">
-					<button
-						bind:this={clearButton}
-						type="button"
-						class="button {confirmClearDocument ? 'button--danger' : 'button--quiet'}"
-						onclick={() => {
-							if (!confirmClearDocument) {
-								confirmClearDocument = true;
-								controller.feedback.announce(
-									'Confirm clearing the lyrics and every retained detail.'
-								);
-								return;
-							}
-							if (controller.applyConversionAction({ kind: 'clearDocument' }))
-								confirmClearDocument = false;
-						}}
-						>{confirmClearDocument
-							? 'Delete lyrics and details'
-							: 'Clear lyrics and retained details…'}</button
-					>
-					{#if confirmClearDocument}<button
-							type="button"
-							class="button button--quiet"
-							onclick={() => {
-								confirmClearDocument = false;
-								clearButton?.focus();
-							}}>Cancel</button
-						>{/if}
-					<p class:sr-only={!confirmClearDocument} aria-live="polite">
-						{#if confirmClearDocument}Delete the lyrics and every retained detail on this
-							transcription? Exports already made are untouched.{/if}
-					</p>
-				</div>
-			</details>
-		{/if}
-	</section>
 
-	<!--
-		Everything about the draft's timings in one place: the export, and the way to
-		clear them. Drawn only where there is something to write; a draft with no
-		timings is offered neither, the same rule `availableRates` and the cover
-		section follow.
-
-		The three formats are one native `<select>` rather than three buttons: the
-		choice is which container, and the command is still one press. The delete is
-		the destructive confirm-in-place, in the section it belongs to rather than
-		beside `Delete all local data`, which is a different scope and now a different
-		tab; the two were only ever together because both are destructive.
-	-->
+	<!-- The caret line remains the single accessible timing editor. File output is above. -->
 	{#if timing}
 		<section>
 			<h2>Timing line {timing.line}</h2>
@@ -406,63 +445,6 @@
 						onclick={() => controller.setCurrentLineTime(controller.media!.player.liveTime())}
 						>Use playback time</button
 					>
-				{/if}
-			</div>
-		</section>
-	{/if}
-
-	{#if controller.lineAnchorCount > 0}
-		<section>
-			<h2>Timed lyrics</h2>
-			<div class="tool-actions">
-				<label class="sr-only" for="timed-lyrics-format">Timed lyrics format</label>
-				<select id="timed-lyrics-format" bind:value={timedLyricsFormat}>
-					<option value="lrc">LRC</option>
-					<option value="srt">SRT</option>
-					<option value="vtt">VTT</option>
-				</select>
-				<button
-					type="button"
-					class="button"
-					onclick={() => controller.exportTimedLyrics(timedLyricsFormat)}
-				>
-					Export timings
-				</button>
-			</div>
-			<p>
-				{controller.lineAnchorCount} timed {controller.lineAnchorCount === 1 ? 'line' : 'lines'}, in
-				time order, without the markup a player cannot read.
-			</p>
-			<div aria-live="polite">
-				{#if confirmClearAnchors}
-					<p class="danger-text">
-						Delete {controller.lineAnchorCount} line {controller.lineAnchorCount === 1
-							? 'timing'
-							: 'timings'} on this transcription? The lyrics are untouched.
-					</p>
-					<div class="tool-actions">
-						<button
-							type="button"
-							class="button button--danger"
-							onclick={() => {
-								controller.clearLineAnchors();
-								confirmClearAnchors = false;
-							}}>Delete line timings</button
-						>
-						<button
-							type="button"
-							class="button button--quiet"
-							onclick={() => (confirmClearAnchors = false)}>Cancel</button
-						>
-					</div>
-				{:else}
-					<div class="tool-actions tool-actions--flush">
-						<button
-							type="button"
-							class="button button--quiet danger-text"
-							onclick={() => (confirmClearAnchors = true)}>Delete line timings…</button
-						>
-					</div>
 				{/if}
 			</div>
 		</section>
