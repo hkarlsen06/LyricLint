@@ -143,7 +143,14 @@ test.each([360, 390])(
 		expect(pane.bottom).toBeLessThanOrEqual(nav.top);
 		expect(screen.queryByLabelText('Exact whole-number value')).toBeNull();
 		expect(screen.getByLabelText('How is this number used?')).toHaveValue('unknown');
+		expect(screen.queryByLabelText('How is it sung?')).toBeNull();
+		await fireEvent.change(screen.getByLabelText('How is this number used?'), {
+			target: { value: 'ordinary-cardinal' }
+		});
 		expect(screen.getByLabelText('How is it sung?')).toHaveValue('unknown');
+		await fireEvent.change(screen.getByLabelText('How is it sung?'), {
+			target: { value: 'whole-quantity' }
+		});
 		const wording = screen.getByText('Use custom exact wording', { exact: true });
 		expect(wording.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
 		const beforeWording = wording.getBoundingClientRect().toJSON();
@@ -366,3 +373,41 @@ test('revealing an ignored finding opens its lyrics without restoring it or focu
 	expect(screen.getAllByRole('button', { name: /^Go to / })).toHaveLength(1);
 	expect(screen.getByRole('button', { name: '1 diagnostic ignored' })).toBeTruthy();
 });
+
+test.each([360, 390])(
+	'reserves notification space outside the task and preserves reading and focus at %ipx',
+	async (width) => {
+		await page.viewport(width, 844);
+		const controller = await mount();
+		await render(ToastRegion, { feedback: controller.feedback });
+		const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
+		await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
+		const task = document.querySelector<HTMLElement>('#document-panel')!;
+		const trigger = (await screen.findAllByRole('button', { name: /^Go to / }))[0];
+		trigger.focus();
+		const top = trigger.getBoundingClientRect().top;
+		const scroll = task.scrollTop;
+		controller.feedback.addToast({
+			message: 'Imported a performer with a long exact name into the roster.',
+			actionLabel: 'Undo',
+			action() {},
+			duration: 10000
+		});
+		const notification = screen.getByRole('region', { name: 'Notifications' });
+		await waitFor(() =>
+			expect(task.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+				notification.getBoundingClientRect().top
+			)
+		);
+		expect(trigger).toHaveFocus();
+		expect(trigger.getBoundingClientRect().top).toBe(top);
+		expect(task.scrollTop).toBe(scroll);
+		expect(notification.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+			screen.getByRole('navigation', { name: 'Workbench views' }).getBoundingClientRect().top
+		);
+		controller.feedback.dismissToast(controller.feedback.toasts[0].id);
+		await waitFor(() => expect(notification.getBoundingClientRect().height).toBe(0));
+		expect(trigger).toHaveFocus();
+		expect(trigger.getBoundingClientRect().top).toBe(top);
+	}
+);

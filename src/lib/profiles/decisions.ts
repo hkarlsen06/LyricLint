@@ -58,6 +58,28 @@ function decimalValue(text: string): string | undefined {
 	return parseQuantityInteger(ascii);
 }
 
+/** Source bytes are known; this proves identity without claiming anything about the recording. */
+export function quantitySourceDigits(source: string, value: string): string | undefined {
+	return decimalValue(source) === parseQuantityInteger(value) &&
+		parseQuantityInteger(value) !== undefined
+		? source
+		: undefined;
+}
+
+/** One policy-owned answer for required wording, including source identity at the commit boundary. */
+export function quantityWordingRequirement(
+	facts: QuantityFacts,
+	source: string
+): 'required' | 'optional' {
+	const standard = decideQuantityRepresentation({
+		...facts,
+		spokenForm: undefined,
+		digitForm: undefined
+	});
+	if (!standard.ok) return 'required';
+	return !/\p{Nd}/u.test(source) && source !== standard.value ? 'required' : 'optional';
+}
+
 /**
  * Select a representation only after semantic facts are supplied. This does not identify quantities
  * in lyric text. The conversion model must retain both authored forms and invalidate stale facts.
@@ -69,10 +91,11 @@ export function decideQuantityRepresentation(facts: QuantityFacts): PolicyDecisi
 			'invalid-fact',
 			'Keep names, codes and dates as written. An ordinary quantity needs a whole number without leading zeros, separators or signs.'
 		);
+	if (facts.usage === 'unknown') return review('needs-context', 'Confirm how this number is used.');
 	if (facts.usage !== 'ordinary-cardinal')
 		return review(
 			'needs-context',
-			'This operation applies only to an ordinary cardinal quantity. Names, identifiers, fixed expressions, dates, times, phones and decades keep their own policies.'
+			'This is not an ordinary quantity conversion. Use Edit in lyrics to follow the policy for this phrase.'
 		);
 	if (facts.pronunciation !== 'whole-quantity')
 		return review(

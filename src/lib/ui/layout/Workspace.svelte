@@ -1769,7 +1769,7 @@
 		.workspace,
 		.workspace.workspace--expanded {
 			grid-template-columns: minmax(0, 1fr);
-			grid-template-rows: auto minmax(0, 1fr) minmax(0, 0fr) auto auto auto;
+			grid-template-rows: auto minmax(0, 1fr) minmax(0, 0fr) auto auto auto auto;
 			padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
 			transition: none;
 			height: var(--visual-viewport-height, 100dvh);
@@ -1778,6 +1778,16 @@
 			left: 0;
 			right: 0;
 		}
+		.workspace::before {
+			content: '';
+			grid-column: 1 / -1;
+			grid-row: 5;
+			height: var(--notification-height, 0px);
+			/* An empty notification region reserves no space. */
+			margin-block: min(var(--notification-height, 0px), var(--space-2));
+			pointer-events: none;
+		}
+
 		.workspace .editor-region {
 			--editor-actions-reserve: 0px;
 			display: flex;
@@ -1791,14 +1801,14 @@
 			min-height: 0;
 		}
 		.workspace[data-mobile-view='review'][data-review-focused='true'] {
-			grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto auto auto;
+			grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto auto auto auto;
 		}
 		.editor-region[aria-hidden='true'] {
 			display: none;
 		}
 		.workspace-media {
 			grid-column: 1;
-			grid-row: 5;
+			grid-row: 6;
 			margin: 0;
 		}
 		.workspace-video {
@@ -1807,7 +1817,7 @@
 		}
 		.mobile-navigation {
 			grid-column: 1;
-			grid-row: 6;
+			grid-row: 7;
 			display: flex;
 			gap: var(--space-1);
 			padding: var(--space-1) var(--space-2);
@@ -1858,14 +1868,16 @@
 	   writing region and allow this constrained workspace to scroll. */
 	@media (pointer: coarse) and (max-width: 46rem) and (orientation: portrait) {
 		.workspace:has(.workspace-video) {
-			grid-template-rows: auto minmax(var(--mobile-context-min), 1fr) minmax(0, 0fr) auto auto auto;
+			grid-template-rows:
+				auto minmax(var(--mobile-context-min), 1fr) minmax(0, 0fr)
+				auto auto auto auto;
 			overflow-y: auto;
 		}
 		:global(:root[data-keyboard-inset])
 			.workspace:has(.workspace-video)[data-mobile-view='review'][data-review-focused='true'] {
 			grid-template-rows:
 				auto minmax(var(--mobile-context-min), 1fr) minmax(var(--mobile-context-min), 1fr)
-				auto auto auto;
+				auto auto auto auto;
 		}
 	}
 

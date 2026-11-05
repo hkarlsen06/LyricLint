@@ -15,7 +15,7 @@ the active lyric view. It does not report missing Musixmatch tags as Genius comp
 
 Fact actions are explicit: quantities require exact value, role and pronunciation; instrumental
 intervals require the current recording, supplied bounds and adjacent tagged sections. Their
-eligibility comes from `profiles/decisions.ts`; unsupported or conflicting cases keep their
+eligibility and required wording come from `profiles/decisions.ts`. Role and pronunciation remain independent unknown states. Required exact sung words are shown directly; optional custom capitalization and digit style stay in a disclosure. A known source digit form is reused only when the same exact-arithmetic validator proves its identity against the supplied value. Preview is disabled for already-known refusals; it never changes lyrics before Apply. Their eligibility comes from the shared validator; unsupported or conflicting cases keep their
 wording and a local explanation. The editor does not certify listening, authorship, native
 submission, complete grammar or unresolved language policy. Public references expose every
 researched clause and its remaining scope.

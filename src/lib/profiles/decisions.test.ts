@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import {
 	decideQuantityRepresentation,
+	quantitySourceDigits,
+	quantityWordingRequirement,
 	decideInstrumentalRepresentation,
 	parseQuantityInteger,
 	type QuantityFacts,
@@ -138,4 +140,18 @@ describe('typed instrumental interval decisions', () => {
 	])('refuses incomplete, stale or conflicting interval evidence: %o', (change) => {
 		expect(decideInstrumentalRepresentation({ ...interval, ...change }).ok).toBe(false);
 	});
+});
+
+test('source digits prove only exact identity and wording requirements remain policy-owned', () => {
+	expect(quantitySourceDigits('２', '2')).toBe('２');
+	expect(quantitySourceDigits('٢', '2')).toBe('٢');
+	for (const source of ['007', '０２', '2٢', '２x', '3', 'two'])
+		expect(quantitySourceDigits(source, '2')).toBeUndefined();
+	expect(quantityWordingRequirement({ ...quantity, value: '2', spokenForm: undefined }, '2')).toBe(
+		'optional'
+	);
+	expect(quantityWordingRequirement({ ...quantity, language: 'fr', value: '2' }, '２')).toBe(
+		'required'
+	);
+	expect(quantityWordingRequirement(quantity, 'twelve')).toBe('required');
 });

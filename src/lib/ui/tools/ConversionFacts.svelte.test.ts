@@ -103,7 +103,7 @@ test('uses the selected passage language and retires a preview when its facts ch
 		target: { value: '3' }
 	});
 	expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
-	await fireEvent.click(panel.getByRole('button', { name: 'Preview quantity' }));
+	expect(panel.getByRole('button', { name: 'Preview quantity' })).toBeDisabled();
 	expect(
 		panel.getByText('The selected digits do not match the exact confirmed quantity.')
 	).toBeVisible();
@@ -113,7 +113,7 @@ test('uses the selected passage language and retires a preview when its facts ch
 		language: 'ar'
 	});
 	await fillQuantity(panel);
-	await fireEvent.click(panel.getByRole('button', { name: 'Preview quantity' }));
+	expect(panel.getByRole('button', { name: 'Preview quantity' })).toBeDisabled();
 	expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
 	expect(
 		panel.getByText(/Dedicated Arabic or Korean numeric-policy evidence is incomplete/u)
@@ -198,5 +198,41 @@ test('expands only an explicitly selected repeat scope and count after an exact 
 	handle.undo();
 	handle.undo();
 	expect(handle.getSnapshot().text).toBe('Again (x3)');
+	player.destroy();
+});
+
+test.each(['2', '２'])(
+	'requires French sung wording and proves source digits for %s',
+	async (source) => {
+		const { panel, controller, handle, player } = await setup('[Verse]\n' + source + ' étoiles');
+		controller.setLanguage('fr');
+		handle.setSelection({ anchor: 0, head: 1 });
+		await fillQuantity(panel);
+		expect(panel.getByLabelText('Exact words as sung (required)')).toBeVisible();
+		expect(panel.getByRole('button', { name: 'Preview quantity' })).toBeDisabled();
+		await fireEvent.input(panel.getByLabelText('Exact words as sung (required)'), {
+			target: { value: 'deux' }
+		});
+		const before = JSON.stringify(controller.snapshot.conversion?.model);
+		await fireEvent.click(panel.getByRole('button', { name: 'Preview quantity' }));
+		expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
+		await fireEvent.click(panel.getByRole('button', { name: 'Apply quantity' }));
+		expect(controller.snapshot.text).toBe('deux étoiles');
+		player.destroy();
+	}
+);
+
+test('unsupported roles offer a local next action without a conversion or generic fact', async () => {
+	const { panel, controller, player } = await setup();
+	const before = JSON.stringify(controller.snapshot.conversion?.model);
+	await fireEvent.change(panel.getByLabelText('How is this number used?'), {
+		target: { value: 'date-or-time' }
+	});
+	expect(panel.queryByLabelText('How is it sung?')).toBeNull();
+	expect(panel.queryByRole('button', { name: 'Preview quantity' })).toBeNull();
+	expect(panel.getByRole('status').textContent?.replace(/\s+/gu, ' ')).toContain(
+		'Use Edit in lyrics'
+	);
+	expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
 	player.destroy();
 });

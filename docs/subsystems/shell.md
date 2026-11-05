@@ -42,7 +42,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 - Focused conversion tasks show one lyric-line context with a bold target and one Edit in
   lyrics action. On phones the task takes the whole panel height while the editor remains
   mounted and hidden. Quantity values may be prefilled from exact unsigned ASCII digits;
-  meaning and pronunciation still require confirmation. Exact wording opens deliberately,
+  meaning and pronunciation still require independent confirmation. Role comes first; pronunciation and required exact sung words grow below it. Optional custom output opens deliberately,
   and Apply quantity describes the immediate edit.
   Quantity and censorship previews show the resulting lyric line below their Preview control,
   with the replacement emphasized. The original target stays visible for comparison. Invalid

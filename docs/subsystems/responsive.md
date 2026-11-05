@@ -32,7 +32,7 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   Back to Review restores the ordinary finding and its editor context. A retained repeat header opens its exact Genius range in Write. Passage handoffs restore selection after Write becomes visible and focus the Write control without opening the keyboard. Quantity tasks use
   an exact selected canonical ASCII integer without a duplicate value field or assumptions about
   meaning or pronunciation. Other source forms retain the exact-value field. Custom exact
-  wording stays in a named disclosure, and Apply quantity names the deliberate lyric change.
+  output stays in a named disclosure; required sung words are visible and labelled required. The policy owner proves source digit identity against the supplied exact value without a duplicate digit field. Apply quantity names the deliberate lyric change.
   Conversion task disclosures keep a full touch-height row as their contents expand below.
   `MobileWorkspace.svelte.test.ts` pins the single scroll region and edit handoff.
 - Revealing a saved ignored or accepted finding opens its passage in Write without restoring
@@ -64,7 +64,7 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   rotation with an already-open keyboard. Pinch zoom keeps the pre-zoom layout. Transport remains in flow. Write/Review/Tools hides while the keyboard is open and
   returns after dismissal; it never rides above the keys. This gives the editor or Assistant
   composer the remaining height. `MobileWorkspace.svelte.test.ts` pins hide and restore. Desktop keeps its existing floating transport behavior.
-  Notifications clear the measured navigation and media-strip heights. Hidden navigation
+  Notifications clear the measured navigation and media-strip heights. A measured notification row outside phone task scrollports reserves their full wrapping height, so feedback cannot cover task actions. The row shrinks below the reading position when feedback leaves. Hidden navigation
   contributes no offset; unmounting the workspace removes its published height.
   `keyboard-inset.svelte.test.ts` pins measurement and cleanup; native keyboard behavior
   also needs simulator/device validation.

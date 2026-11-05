@@ -313,12 +313,14 @@ test('opens the exact listening decision from a diagnostic, previews it, and ret
 	await page.getByRole('button', { name: 'Review quantity', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Review quantity' })).toBeFocused();
 	await expect(page.getByLabel('Exact whole-number value', { exact: true })).toHaveCount(0);
+	await expect(page.getByRole('combobox', { name: 'How is it sung?', exact: true })).toHaveCount(0);
 	await page
 		.getByRole('combobox', { name: 'How is this number used?', exact: true })
 		.selectOption('ordinary-cardinal');
 	await page
 		.getByRole('combobox', { name: 'How is it sung?', exact: true })
 		.selectOption('whole-quantity');
+	await expect(page.getByLabel('Exact words as sung (required)', { exact: true })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Preview quantity', exact: true }).click();
 	await expect(page.getByLabel('Replacement preview')).toHaveText('I saw two stars');
 	await expect.poll(() => lyrics(page)).toBe('I saw 2 stars');

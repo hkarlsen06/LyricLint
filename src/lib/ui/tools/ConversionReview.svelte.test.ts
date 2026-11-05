@@ -50,7 +50,14 @@ test('shows one exact lyric context and prefills only the selected integer, with
 	expect(panel.getByLabelText('Lyric passage').querySelector('strong')?.textContent).toBe('2');
 	expect(panel.queryByLabelText('Exact whole-number value')).toBeNull();
 	expect(panel.getByLabelText('How is this number used?')).toHaveValue('unknown');
+	expect(panel.queryByLabelText('How is it sung?')).toBeNull();
+	await fireEvent.change(panel.getByLabelText('How is this number used?'), {
+		target: { value: 'ordinary-cardinal' }
+	});
 	expect(panel.getByLabelText('How is it sung?')).toHaveValue('unknown');
+	await fireEvent.change(panel.getByLabelText('How is it sung?'), {
+		target: { value: 'whole-quantity' }
+	});
 	expect(panel.getByLabelText('Exact words as sung')).not.toBeVisible();
 	await fireEvent.click(panel.getByText('Use custom exact wording', { exact: true }));
 	expect(panel.getByLabelText('Exact words as sung')).toBeVisible();
@@ -93,7 +100,7 @@ test('explains an uninitialized unsupported quantity before a preview can be req
 	const guidance = panel.getByRole('status');
 	expect(guidance.textContent).toContain('without leading zeros');
 	expect(value.getAttribute('aria-describedby')).toBe(guidance.id);
-	expect(panel.getByRole('button', { name: 'Preview quantity' })).toBeDisabled();
+	expect(panel.queryByRole('button', { name: 'Preview quantity' })).toBeNull();
 	expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
 });
 
@@ -213,7 +220,7 @@ test.each([
 			target: { value: 'whole-quantity' }
 		});
 		await fireEvent.click(panel.getByText('Use custom exact wording', { exact: true }));
-		await fireEvent.input(panel.getByLabelText('Exact words as sung'), {
+		await fireEvent.input(panel.getByLabelText('Exact words as sung (required)'), {
 			target: { value: words }
 		});
 		if (digits)
@@ -274,13 +281,8 @@ test.each(['date-or-time', 'name-or-identifier'])(
 		await fireEvent.change(panel.getByLabelText('How is this number used?'), {
 			target: { value: usage }
 		});
-		await fireEvent.change(panel.getByLabelText('How is it sung?'), {
-			target: { value: 'whole-quantity' }
-		});
-		await fireEvent.click(panel.getByRole('button', { name: 'Preview quantity' }));
-		expect(
-			panel.getByText(/This operation applies only to an ordinary cardinal quantity/)
-		).toBeVisible();
+		expect(panel.queryByRole('button', { name: 'Preview quantity' })).toBeNull();
+		expect(panel.getByText(/This is not an ordinary quantity conversion/)).toBeVisible();
 		expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
 	}
 );

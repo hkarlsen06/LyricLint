@@ -1,8 +1,18 @@
 <script lang="ts">
 	import { tick, type Snippet } from 'svelte';
-	import { renderProfile, resolveDecision, type ConversionAction } from '#lib/conversion/index.js';
+	import {
+		contentOffset,
+		renderProfile,
+		resolveDecision,
+		type ConversionAction
+	} from '#lib/conversion/index.js';
 	import type { QuantityFacts, InstrumentalIntervalFacts } from '#lib/profiles/decisions.js';
-	import { decideQuantityRepresentation, parseQuantityInteger } from '#lib/profiles/decisions.js';
+	import {
+		decideQuantityRepresentation,
+		parseQuantityInteger,
+		quantitySourceDigits,
+		quantityWordingRequirement
+	} from '#lib/profiles/decisions.js';
 	import type { ConversionReviewRequest, WorkbenchController } from '../state/workbench.svelte.js';
 	let {
 		controller,
@@ -32,6 +42,7 @@
 		);
 	});
 	const model = $derived(controller.snapshot.conversion?.model);
+	const projection = $derived(model && renderProfile(model, controller.profile));
 	const selection = $derived({
 		from:
 			focused?.range.from ??
@@ -55,19 +66,29 @@
 	const quantityFacts = $derived.by(() => {
 		const facts: QuantityFacts = {
 			profile: target,
-			language: controller.language,
+			language:
+				model?.languageRanges.find((entry) => {
+					const from = projection?.ok
+						? contentOffset(projection.value, selection.from, -1)
+						: selection.from;
+					const to = projection?.ok
+						? contentOffset(projection.value, selection.to, 1)
+						: selection.to;
+					return entry.from <= from && to <= entry.to;
+				})?.language ?? controller.language,
 			value,
 			usage,
 			pronunciation
 		};
 		if (spokenForm) facts.spokenForm = spokenForm;
-		if (digitForm) facts.digitForm = digitForm;
+		const sourceDigits = quantitySourceDigits(selectedText, value);
+		if (digitForm || sourceDigits) facts.digitForm = digitForm || sourceDigits;
 		return facts;
 	});
+	const wordingRequirement = $derived(quantityWordingRequirement(quantityFacts, selectedText));
+	const eligibility = $derived(decideQuantityRepresentation(quantityFacts));
 	const valueGuidance = $derived(
-		focused?.kind === 'quantity' && parseQuantityInteger(value) === undefined
-			? decideQuantityRepresentation(quantityFacts)
-			: undefined
+		parseQuantityInteger(value) === undefined ? eligibility : undefined
 	);
 	let beforeId = $state('');
 	let start = $state<number>();
@@ -110,6 +131,9 @@
 	let intervalPreview = $state<Preview>();
 	const quantityBasis = $derived(
 		JSON.stringify([controller.snapshot.revision, controller.profile, selection, quantityFacts])
+	);
+	const candidate = $derived(
+		preview({ kind: 'confirmQuantity', range: selection, facts: quantityFacts }, quantityBasis)
 	);
 	const intervalBasis = $derived(
 		JSON.stringify([controller.snapshot.revision, controller.profile, intervalFacts, markerScope])
@@ -226,43 +250,61 @@
 								></select
 							></label
 						>
-						<label
-							>How is it sung?<select bind:value={pronunciation}
-								><option value="unknown">Not confirmed</option><option value="whole-quantity"
-									>Sung as the whole quantity</option
-								><option value="individual-digits">Sung as individual digits</option></select
-							></label
-						>
-						<details>
-							<summary>Use custom exact wording</summary>
-							<p>
-								Optional: enter the exact sung words or digit form to use instead of the standard
-								wording.
-							</p>
-							<label>Exact words as sung<input bind:value={spokenForm} /></label>
-							<label>Digit form, if applicable<input bind:value={digitForm} /></label>
-						</details>
-						{#if !focused}
+						{#if usage === 'ordinary-cardinal'}
 							<label
-								>Format for this decision<select bind:value={target}
-									><option value="genius">Genius</option><option value="musixmatch"
-										>Musixmatch</option
-									></select
+								>How is it sung?<select bind:value={pronunciation}
+									><option value="unknown">Not confirmed</option><option value="whole-quantity"
+										>Sung as the whole quantity</option
+									><option value="individual-digits">Sung as individual digits</option></select
 								></label
 							>
+							{#if pronunciation === 'whole-quantity' && wordingRequirement === 'required'}
+								<label
+									>Exact words as sung (required)<input bind:value={spokenForm} required /></label
+								>
+							{/if}
+							{#if pronunciation === 'whole-quantity'}<details>
+									<summary>Use custom exact wording</summary>
+									{#if wordingRequirement === 'optional'}
+										<label>Exact words as sung<input bind:value={spokenForm} /></label>
+									{/if}
+									<label
+										>Digit form, if applicable<input
+											bind:value={digitForm}
+											placeholder={quantitySourceDigits(selectedText, value)}
+										/></label
+									>
+								</details>{/if}
+							{#if !focused}
+								<label
+									>Format for this decision<select bind:value={target}
+										><option value="genius">Genius</option><option value="musixmatch"
+											>Musixmatch</option
+										></select
+									></label
+								>
+							{/if}
+							{#if !candidate.canApply && !valueGuidance && pronunciation !== 'unknown'}
+								<p role="status">{candidate.message}</p>
+							{/if}
+							<button
+								type="button"
+								class="button"
+								disabled={!candidate.canApply}
+								aria-expanded={!!currentQuantity}
+								aria-controls={`${id}-quantity`}
+								onclick={() =>
+									(quantityPreview = preview(
+										{ kind: 'confirmQuantity', range: selection, facts: quantityFacts },
+										quantityBasis
+									))}>Preview quantity</button
+							>
+						{:else if usage !== 'unknown'}
+							<p role="status">
+								This is not an ordinary quantity conversion. Use Edit in lyrics to follow the policy
+								for this phrase.
+							</p>
 						{/if}
-						<button
-							type="button"
-							class="button"
-							disabled={!!valueGuidance && !valueGuidance.ok}
-							aria-expanded={!!currentQuantity}
-							aria-controls={`${id}-quantity`}
-							onclick={() =>
-								(quantityPreview = preview(
-									{ kind: 'confirmQuantity', range: selection, facts: quantityFacts },
-									quantityBasis
-								))}>Preview quantity</button
-						>
 						<div id={`${id}-quantity`} aria-live="polite">
 							{#if currentQuantity}
 								{#if currentQuantity.canApply && previewPassage}{@render previewPassage(
