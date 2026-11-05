@@ -13,6 +13,7 @@ import EditorPane from './EditorPane.svelte';
 import { importDocument } from '#lib/conversion/import.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
+import { renderProfile, resolveDecision } from '#lib/conversion/index.js';
 
 function context(): EditorDisplayContext {
 	return {
@@ -25,6 +26,7 @@ function context(): EditorDisplayContext {
 
 async function mount(options: {
 	text: string;
+	language?: string;
 	selection?: { anchor: number; head: number };
 	/** What the shell's media store would answer for this draft's remote source. */
 	mediaSource?: () => ClipboardMediaSource | undefined;
@@ -50,7 +52,7 @@ async function mount(options: {
 		props: {
 			initialText: options.text,
 			initialSelection: options.selection,
-			context: context(),
+			context: { ...context(), language: options.language ?? 'en' },
 			callbacks,
 			onready: (ready: EditorHandle) => {
 				handle = ready;
@@ -266,6 +268,74 @@ describe('copy', () => {
 });
 
 describe('paste', () => {
+	it.each([false, true])(
+		'carries mixed passage languages inside receiving override=%s',
+		async (insideOverride) => {
+			const source = insideOverride ? 'Bonjour' : '[Verse]\nHello bonjour';
+			const imported = importDocument({ text: source, profile: 'genius', language: 'en' });
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const projection = renderProfile(imported.value, 'musixmatch');
+			if (!projection.ok) throw new Error(projection.refusal.message);
+			const tagged = resolveDecision(imported.value, projection.value, {
+				kind: 'setPassageLanguage',
+				range: { from: insideOverride ? 0 : 6, to: insideOverride ? 7 : 13 },
+				language: 'fr'
+			});
+			if (!tagged.ok) throw new Error(tagged.refusal.message);
+			const conversion = createConversionEnvelope(
+				tagged.value.document,
+				'musixmatch',
+				profilePolicyVersions
+			);
+			const { handle, text } = await mount({
+				text: insideOverride ? 'A B' : '',
+				language: insideOverride ? 'en' : 'ja'
+			});
+			expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+			if (insideOverride) {
+				expect(
+					handle.dispatchConversionAction?.(
+						{ kind: 'setPassageLanguage', range: { from: 0, to: 3 }, language: 'de' },
+						handle.getSnapshot().revision
+					)
+				).toEqual({ ok: true });
+				handle.setSelection({ anchor: 2, head: 2 });
+			}
+			const transfer = new DataTransfer();
+			transfer.setData('text/plain', conversion.projectionText);
+			transfer.setData(
+				'text/html',
+				clipboardHtml(conversion.projectionText, {
+					lines: 1,
+					anchors: [],
+					links: [],
+					conversion,
+					performers: []
+				})
+			);
+			clipboard('paste', transfer);
+			expect(text()).toBe(insideOverride ? 'A BonjourB' : 'Hello bonjour');
+			expect(
+				handle.getSnapshot().conversion?.model.languageRanges.map(({ from, to, language }) => ({
+					from,
+					to,
+					language
+				}))
+			).toEqual(
+				insideOverride
+					? [
+							{ from: 0, to: 2, language: 'de' },
+							{ from: 2, to: 9, language: 'fr' },
+							{ from: 9, to: 10, language: 'de' }
+						]
+					: [
+							{ from: 0, to: 6, language: 'en' },
+							{ from: 6, to: 13, language: 'fr' }
+						]
+			);
+		}
+	);
+
 	it('previews an explicitly named source format without guessing ordinary pasted syntax', async () => {
 		const { handle, text } = await mount({ text: '' });
 		expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });

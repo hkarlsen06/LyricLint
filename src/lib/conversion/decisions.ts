@@ -1,4 +1,5 @@
 import { canPlaceSection } from './section-placement.js';
+import { replacePassageLanguages } from './passage-language.js';
 import { parseDocument } from '#lib/core/parser.js';
 import type { PerformerRecord, TextEdit, TextRange } from '#lib/core/types.js';
 import { escapeLegendText, serializeLegend, styleTags } from '#lib/serialization/genius-markup.js';
@@ -818,27 +819,7 @@ export function resolveDecision(
 				action.language.length > 128
 			)
 				return invalid('Choose a language for a nonempty lyric passage.');
-			next.languageRanges = next.languageRanges.flatMap((entry) => {
-				if (entry.to <= range.from || range.to <= entry.from) return [entry];
-				return [
-					...(entry.from < range.from ? [{ ...entry, to: range.from }] : []),
-					...(range.to < entry.to
-						? [
-								{
-									...entry,
-									id: entry.from < range.from ? allocateId(next, 'language') : entry.id,
-									from: range.to
-								}
-							]
-						: [])
-				];
-			});
-			next.languageRanges.push({
-				id: allocateId(next, 'language'),
-				...range,
-				language: action.language
-			});
-			next.languageRanges.sort((a, b) => a.from - b.from);
+			replacePassageLanguages(next, range, [{ ...range, language: action.language }]);
 			const retained = retainActiveRepresentation(projection, next);
 			if (!retained.ok) return retained;
 			break;

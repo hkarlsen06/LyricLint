@@ -11,6 +11,7 @@ import {
 } from './model.js';
 import { contentOffset, renderProfile } from './projection.js';
 import { reconcileEdit } from './reconcile.js';
+import { replacePassageLanguages } from './passage-language.js';
 
 function inside(range: TextRange, lower: number, upper: number): boolean {
 	return lower <= range.from && range.to <= upper;
@@ -305,19 +306,26 @@ export function pasteDocument(
 			openOrder: wrapper.openOrder + offsetOrder,
 			closeOrder: wrapper.closeOrder + offsetOrder
 		});
-	const copiedLanguages = fragment.languageRanges.map((range) => ({
-		...shifted(range),
-		id: id(range.id, 'language')
-	}));
-	if (fragment.defaultLanguage !== next.defaultLanguage && fragment.content.length > 0) {
+	const copiedLanguages = [];
+	const keepDefault = fragment.defaultLanguage !== next.defaultLanguage;
+	let cursor = 0;
+	for (const range of [...fragment.languageRanges].sort((a, b) => a.from - b.from)) {
+		if (keepDefault && cursor < range.from)
+			copiedLanguages.push({
+				from: cursor + at,
+				to: range.from + at,
+				language: fragment.defaultLanguage
+			});
+		copiedLanguages.push({ from: range.from + at, to: range.to + at, language: range.language });
+		cursor = range.to;
+	}
+	if (keepDefault && cursor < fragment.content.length)
 		copiedLanguages.push({
-			id: allocateId(next, 'language'),
-			from: at,
-			to: at + fragment.content.length,
+			from: cursor + at,
+			to: fragment.content.length + at,
 			language: fragment.defaultLanguage
 		});
-	}
-	next.languageRanges = [...copiedLanguages, ...next.languageRanges];
+	replacePassageLanguages(next, { from: at, to: at + fragment.content.length }, copiedLanguages);
 	for (const form of fragment.forms) {
 		const owner = ownerFor(form.from, form.to);
 		if (!owner)

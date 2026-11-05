@@ -55,7 +55,9 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   never travel. A partial generated delimiter falls back to the exact selected text.
 - Same-profile carrying pastes attach the validated fragment and allocate fresh record identities
   in one editor transaction. Performer ID collisions are remapped deterministically and the shell
-  receives additions before the snapshot. Foreign-profile payloads preserve the exact pasted text
+  receives additions before the snapshot. The fragment keeps its default and explicit passage
+  languages; receiving language ranges remain unchanged outside the pasted passage.
+  Foreign-profile payloads preserve the exact pasted text
   and hold incompatible metadata for explicit review in Song. The passage preview names its source
   format and shows the exact receiving-format text; Apply commits text and details together, while
   Keep current text discards the pending metadata. A deliberate Interpret as Genius/Musixmatch
