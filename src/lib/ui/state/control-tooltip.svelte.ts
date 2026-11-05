@@ -132,6 +132,17 @@ export function describeControl(hint: () => ControlHint | undefined): Attachment
 			showControlHint(node, current);
 		};
 		const hide = (): void => releaseControlHint(node);
+		const onPointerEnter = (event: Event): void => {
+			if (event instanceof PointerEvent && event.pointerType === 'touch') {
+				hideControlHint();
+				return;
+			}
+			show();
+		};
+		const onFocus = (): void => {
+			if (node.matches(':focus-visible')) show();
+			else hideControlHint();
+		};
 		const onKeydown = (event: Event): void => {
 			// SAFETY: registered below for `keydown` alone, which the DOM dispatches
 			// as a `KeyboardEvent`. The parameter is `Event` only because
@@ -141,9 +152,9 @@ export function describeControl(hint: () => ControlHint | undefined): Attachment
 				hideControlHint();
 			}
 		};
-		node.addEventListener('pointerenter', show);
+		node.addEventListener('pointerenter', onPointerEnter);
 		node.addEventListener('pointerleave', hide);
-		node.addEventListener('focus', show);
+		node.addEventListener('focus', onFocus);
 		node.addEventListener('blur', hide);
 		node.addEventListener('keydown', onKeydown);
 		// A pressed control is a control the user has finished asking about, and on
@@ -151,9 +162,9 @@ export function describeControl(hint: () => ControlHint | undefined): Attachment
 		node.addEventListener('click', hide);
 		return () => {
 			hide();
-			node.removeEventListener('pointerenter', show);
+			node.removeEventListener('pointerenter', onPointerEnter);
 			node.removeEventListener('pointerleave', hide);
-			node.removeEventListener('focus', show);
+			node.removeEventListener('focus', onFocus);
 			node.removeEventListener('blur', hide);
 			node.removeEventListener('keydown', onKeydown);
 			node.removeEventListener('click', hide);

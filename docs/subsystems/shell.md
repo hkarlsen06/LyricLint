@@ -145,6 +145,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   `placeControlHint`; `aria-hidden` because both facts are already the control's own.
   Escape hides the hint without consuming the key, so a focused control's hint cannot
   block transport shortcuts or an enclosing surface's dismissal.
+  Mouse hover and visible keyboard focus disclose hints. Touch entry and a pointer-origin
+  programmatic focus handoff stay quiet; Tab still reveals the shortcut.
 - A control with a keyboard twin names it in that box; only the leading fix names `Mod-.`,
   which answers from the whole window. A control whose label is already visible
   gets no box (it would only repeat it), but a glyph shows no label, so the

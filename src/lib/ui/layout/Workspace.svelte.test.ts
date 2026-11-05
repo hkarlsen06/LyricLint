@@ -988,7 +988,7 @@ describe('Workspace and toolbar', () => {
 	// It is one box for the whole workbench, rendered by `ControlTooltip` rather
 	// than by the surface, which is why it is queried off the document and not off
 	// the tray.
-	test('names the action and its keystroke on hover and on focus', async () => {
+	test('names the action and its keystroke on hover and on keyboard focus', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
 		await renderWorkspace(controller);
 
@@ -1007,7 +1007,9 @@ describe('Workspace and toolbar', () => {
 		await fireEvent.pointerLeave(unknown);
 		expect(document.querySelector('.control-tooltip')).toBeNull();
 
-		await fireEvent.focus(unknown);
+		unknown.focus();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
+		expect(document.activeElement).toBe(unknown);
 		expect(document.querySelector('.control-tooltip')?.textContent).toContain('Unknown lyric');
 
 		// One box at a time, for the whole application: hover moving to another

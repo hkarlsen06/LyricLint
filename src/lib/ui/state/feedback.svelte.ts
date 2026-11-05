@@ -4,6 +4,8 @@ import { SvelteMap } from 'svelte/reactivity';
 export interface ToastMessage {
 	id: string;
 	message: string;
+	/** Which actions may share one Undo; defaults to the visible message. */
+	groupKey?: string;
 	actionLabel?: string;
 	action?: () => void;
 	/** Milliseconds before auto-dismiss. Defaults by action presence. */
@@ -94,14 +96,16 @@ export function createFeedbackState(): FeedbackState {
 			announcementId += 1;
 		},
 		addToast(toast) {
-			// The same message twice is one thing that happened twice: ignoring two
+			// The same action group twice is one thing that happened twice: ignoring two
 			// occurrences of a rule stacked two identical cards, and the second said
 			// nothing the first had not. It coalesces onto the existing toast with a
 			// count, its countdown restarts, and its Undo runs every action it stands
 			// for, so the badge and the press agree about how many.
+			// A caller can keep grouping independent of its visible caption.
 			const existing = toasts.find(
 				(candidate) =>
-					candidate.message === toast.message && candidate.actionLabel === toast.actionLabel
+					(candidate.groupKey ?? candidate.message) === (toast.groupKey ?? toast.message) &&
+					candidate.actionLabel === toast.actionLabel
 			);
 			if (existing) {
 				const previous = existing.action;

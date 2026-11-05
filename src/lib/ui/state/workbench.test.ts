@@ -1157,6 +1157,29 @@ describe('workbench diagnostic navigation', () => {
 		expect(controller.activeDiagnosticKey).toBeUndefined();
 	});
 
+	test.each(['ignore', 'restore'])(
+		'keeps a diagnostic %s Undo out of a different draft',
+		async (action) => {
+			const first = draft('draft-a', '[Verse]\nfirst line');
+			const second = draft('draft-b', first.text);
+			const { controller, ignoreStore } = setup({ initial: first, drafts: [first, second] });
+			const finding: Diagnostic = { ...diagnostic, from: 8, to: 13 };
+			controller.onSnapshot({ ...snapshot(first, 1), diagnostics: [finding] });
+			controller.ignoreDiagnostic(finding);
+			if (action === 'restore') controller.restoreDiagnostic(controller.ignoredDiagnosticKeys[0]!);
+			const undo = controller.feedback.toasts.at(-1)!.id;
+			await controller.openDraft(second.id);
+			controller.onSnapshot({ ...snapshot(second, 1), diagnostics: [finding] });
+			controller.ignoreDiagnostic(finding);
+			if (action === 'restore') controller.restoreDiagnostic(controller.ignoredDiagnosticKeys[0]!);
+			const before = [...controller.ignoredDiagnosticKeys];
+			controller.feedback.runToastAction(undo);
+			expect(controller.ignoredDiagnosticKeys).toEqual(before);
+			expect(ignoreStore.list(first.id)).toHaveLength(action === 'ignore' ? 1 : 0);
+			expect(controller.feedback.announcement).toContain('original');
+		}
+	);
+
 	test('keeps an ignored diagnostic hidden when edits remove and later recreate it', () => {
 		const text = '[Verse]\nfirst line';
 		const record = draft('draft-a', text);
