@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
+	import PerformerContext from './PerformerContext.svelte';
 	import PerformerLegend from './PerformerLegend.svelte';
 	import PerformerRoster from './PerformerRoster.svelte';
 
@@ -30,6 +31,8 @@
 			</ul>
 		</section>
 	{/if}
+
+	<PerformerContext {controller} {active} />
 
 	<PerformerLegend
 		document={controller.snapshot.parsed}

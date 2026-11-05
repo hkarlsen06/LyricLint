@@ -1,4 +1,5 @@
 // Decision record: docs/subsystems/rules-catalog.md, read it before changing this file, and update it with any behavior change.
+import { unaccountedStyledSlots } from '#lib/performers/legend-cleanup.js';
 import { sourceRegistry } from '#lib/rules/data/sources.js';
 import { profileSourceRegistry } from '#lib/profiles/sources.js';
 import { projectConfirmedFacts } from '#lib/profiles/confirmed-facts.js';
@@ -430,7 +431,6 @@ export function resolveVoiceGroupRanges(
 	const ranges: VoiceGroupRange[] = [];
 
 	for (const section of parsed.sections) {
-		if (section.voiceGroups.length === 0) continue;
 		const resolvedGroups = new Map<number, VoiceGroup>();
 		for (const group of section.voiceGroups) {
 			resolvedGroups.set(group.styleSlot, {
@@ -438,6 +438,14 @@ export function resolveVoiceGroupRanges(
 				performerIds: group.rawNameText
 					? resolvePerformerIds(group.rawNameText, performers)
 					: group.performerIds
+			});
+		}
+		// Unknown styled passages retain a range without acquiring a roster identity.
+		for (const { slot } of unaccountedStyledSlots(section)) {
+			resolvedGroups.set(slot, {
+				id: `unknown:${section.from}:${slot}`,
+				performerIds: [],
+				styleSlot: slot
 			});
 		}
 		// Malformed or unsupported markup (e.g. an <i> left open across lines)

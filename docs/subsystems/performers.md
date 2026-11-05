@@ -10,6 +10,17 @@ format itself: `docs/performer-tagging.md`
 
 ## The rules
 
+- The Performers tool shows current lyric voices below the roster, beside its section
+  reference. It reads the cached profile voice ranges and the shared caret predicate,
+  also used by the caret announcer. For the visible context at a range end, an immediately following voice wins;
+  otherwise the preceding voice remains identified after typing. A joint voice joins names with ` & `; distinct selected
+  passages use `; `. Anonymous styled ranges say Unknown voice, and an unassigned position
+  says Voice not identified. No identity is inferred from lyric words. The readout stays out
+  of the document and floating action tray, so it does not change lyric measure or viewport.
+  Hidden panels and composition retain the last settled context. Long context wraps below
+  the roster without moving its controls. On phones this context belongs to Tools, Performers.
+  Pins: `PerformerContext.svelte.test.ts`.
+
 - In Musixmatch, the retained plain section voice is a fallback. Projected voice ranges
   exclude styled passages from that fallback, including unnamed wrappers and assignments
   beyond the Genius style limit. A secondary singer's words carry only that singer's label,
@@ -98,7 +109,7 @@ format itself: `docs/performer-tagging.md`
 - The question heads the card over an `aria-hidden` step bar spanning its width, with a
   `sr-only` `Step 2 of 2` carrying the fact; the roster and the action column share the row
   beneath, so the card is only as wide as those two.
-- The roster is `.list-row`: the name *is* the rename (press to edit in place, no pencil), no
+- The roster is `.list-row`: the name *is* the rename (press to edit in place, with a visible Rename word inside the same control, no pencil), no
   `<strong>`, trash via the shared `RemoveButton`. The collapsed Performers by section reference
   groups identical voice arrangements once, preserving style differences
   (`PerformerLegend.svelte.test.ts`).
