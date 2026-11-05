@@ -97,8 +97,10 @@ test.each([360, 390])(
 		const nav = screen.getByRole('navigation', { name: 'Workbench views' }).getBoundingClientRect();
 		expect(pane.height).toBeGreaterThan(550);
 		expect(pane.bottom).toBeLessThanOrEqual(nav.top);
-		expect(screen.getByLabelText('Exact whole-number value')).toHaveValue('2');
-		const wording = screen.getByText('Exact wording', { exact: true });
+		expect(screen.queryByLabelText('Exact whole-number value')).toBeNull();
+		expect(screen.getByLabelText('How is this number used?')).toHaveValue('unknown');
+		expect(screen.getByLabelText('How is it sung?')).toHaveValue('unknown');
+		const wording = screen.getByText('Use custom exact wording', { exact: true });
 		expect(wording.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
 		const beforeWording = wording.getBoundingClientRect().toJSON();
 		await fireEvent.click(wording);

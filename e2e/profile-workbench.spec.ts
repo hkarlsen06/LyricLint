@@ -312,12 +312,12 @@ test('opens the exact listening decision from a diagnostic, previews it, and ret
 	await choose(page, 'Musixmatch');
 	await page.getByRole('button', { name: 'Review quantity', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Review quantity' })).toBeFocused();
-	await page.getByLabel('Exact whole-number value', { exact: true }).fill('2');
+	await expect(page.getByLabel('Exact whole-number value', { exact: true })).toHaveCount(0);
 	await page
-		.getByRole('combobox', { name: 'Meaning', exact: true })
+		.getByRole('combobox', { name: 'How is this number used?', exact: true })
 		.selectOption('ordinary-cardinal');
 	await page
-		.getByRole('combobox', { name: 'Reading on the recording', exact: true })
+		.getByRole('combobox', { name: 'How is it sung?', exact: true })
 		.selectOption('whole-quantity');
 	await page.getByRole('button', { name: 'Preview quantity', exact: true }).click();
 	await expect(page.getByLabel('Replacement preview')).toHaveText('I saw two stars');

@@ -215,8 +215,8 @@
 					/></label
 				>
 				<label class="check"
-					><input type="checkbox" bind:checked={listened} />I listened: the recording cuts off this
-					word right after the prefix.</label
+					><input type="checkbox" bind:checked={listened} />I listened: this word is censored right
+					after the prefix.</label
 				>
 			{/if}
 			<div
