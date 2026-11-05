@@ -71,6 +71,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   back. Compare always renders the Genius projection against the Genius baseline and maps a
   chosen difference back to the active editor. Text checks and retained-detail review never claim
   that listening, attribution or external Musixmatch tagging have been completed.
+  Comparison lyrics use the reading face at the normal body size; each desktop line target
+  keeps at least the compact control height, and phone targets retain their touch floor.
   Comparison rows use the shared passage handoff: phones reveal Write and focus its control,
   while desktop restores editor focus after the modal closes. Closing Compare retires the phone
   Document menu; cancellation and Escape restore its visible Document trigger.

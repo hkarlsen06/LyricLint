@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test } from 'vitest';
+import { cdp, page } from 'vitest/browser';
 import { createTestWorkbench } from '../test-utils.js';
 import CompareDialog from './CompareDialog.svelte';
 import { importDocument, parseProjection, renderProfile } from '#lib/conversion/index.js';
@@ -36,6 +37,39 @@ async function pasteBaseline(text: string): Promise<void> {
 
 describe('CompareDialog', () => {
 	afterEach(cleanup);
+
+	test.each([1280, 360, 390])(
+		'keeps comparison lines readable and pressable at %ipx',
+		async (width) => {
+			await cdp().send('Emulation.setTouchEmulationEnabled', {
+				enabled: width < 500,
+				maxTouchPoints: 1
+			});
+			await page.viewport(width, 844);
+			try {
+				const line = 'Hold the light through the longest night '.repeat(6).trim();
+				const { controller } = createTestWorkbench({ text: `[Verse]\n${line}\nStay` });
+				await render(CompareDialog, { controller });
+				await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+				await pasteBaseline(`[Verse]\n${line.replace('light', 'flame')}\nStay`);
+				await document.fonts.ready;
+				const dialog = openDialog();
+				const rows = dialog.querySelectorAll<HTMLButtonElement>('.compare-diff__row');
+				expect(rows.length).toBeGreaterThan(1);
+				for (const row of rows) {
+					const bounds = row.getBoundingClientRect();
+					expect(bounds.height).toBeGreaterThanOrEqual(width < 500 ? 44 : 24);
+					expect(bounds.left).toBeGreaterThanOrEqual(0);
+					expect(bounds.right).toBeLessThanOrEqual(width);
+					expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth);
+					expect(parseFloat(getComputedStyle(row).fontSize)).toBeGreaterThanOrEqual(15);
+				}
+			} finally {
+				await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+				await page.viewport(800, 600);
+			}
+		}
+	);
 
 	test('compares the Genius representation while Musixmatch is active without changing the model', async () => {
 		const { controller } = musixmatchWorkbench();

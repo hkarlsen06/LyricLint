@@ -387,7 +387,7 @@
 	.compare-diff__gap {
 		display: flex;
 		width: 100%;
-		padding: 0 var(--space-1);
+		padding: var(--space-0-5) var(--space-1);
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: transparent;
@@ -395,10 +395,20 @@
 		/* Lyric text, so the lyric face, matching the editor the lines came from. */
 		font-family: var(--font-lyrics);
 		font-size-adjust: var(--font-lyrics-size-adjust);
-		font-size: var(--font-size-sm);
+		font-size: var(--font-size-md);
 		line-height: var(--line-height-editor);
 		gap: var(--space-2);
 		text-align: start;
+	}
+
+	.compare-diff__row {
+		min-height: var(--control-height-sm);
+	}
+
+	@media (pointer: coarse) {
+		.compare-diff__row {
+			min-height: var(--control-height-touch);
+		}
 	}
 
 	.compare-diff__row:hover,
