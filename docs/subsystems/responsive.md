@@ -32,6 +32,7 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   Back to Review restores the ordinary finding and its editor context. A retained repeat header opens its exact Genius range in Write. Passage handoffs restore selection after Write becomes visible and focus the Write control without opening the keyboard. Quantity tasks prefill
   an exact selected ASCII integer without assuming its meaning or pronunciation. Exact
   wording stays in a disclosure, and Apply quantity names the deliberate lyric change.
+  Conversion task disclosures keep a full touch-height row as their contents expand below.
   `MobileWorkspace.svelte.test.ts` pins the single scroll region and edit handoff.
 - Revealing a saved ignored or accepted finding opens its passage in Write without restoring
   the finding or opening the typing keyboard. `MobileWorkspace.svelte.test.ts` pins the reveal,

@@ -365,6 +365,13 @@
 		cursor: pointer;
 		font-weight: var(--font-weight-semibold);
 	}
+	@media (pointer: coarse) {
+		.conversion-facts summary {
+			box-sizing: border-box;
+			min-height: var(--control-height-touch);
+			padding-block: var(--space-3);
+		}
+	}
 	.conversion-facts section {
 		display: grid;
 		gap: var(--space-2);

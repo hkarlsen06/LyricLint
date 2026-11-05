@@ -67,7 +67,7 @@ export function decideQuantityRepresentation(facts: QuantityFacts): PolicyDecisi
 	if (value === undefined)
 		return review(
 			'invalid-fact',
-			'Supply an exact unsigned integer without leading zeros, grouping marks, signs or rounding.'
+			'Keep names, codes and dates as written. An ordinary quantity needs a whole number without leading zeros, separators or signs.'
 		);
 	if (facts.usage !== 'ordinary-cardinal')
 		return review(

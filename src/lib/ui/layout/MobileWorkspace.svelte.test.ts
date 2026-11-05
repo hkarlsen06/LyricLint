@@ -98,6 +98,13 @@ test.each([360, 390])(
 		expect(pane.height).toBeGreaterThan(550);
 		expect(pane.bottom).toBeLessThanOrEqual(nav.top);
 		expect(screen.getByLabelText('Exact whole-number value')).toHaveValue('2');
+		const wording = screen.getByText('Exact wording', { exact: true });
+		expect(wording.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+		const beforeWording = wording.getBoundingClientRect().toJSON();
+		await fireEvent.click(wording);
+		expect(screen.getByLabelText('Exact words as sung')).toBeVisible();
+		expect(wording.getBoundingClientRect().toJSON()).toEqual(beforeWording);
+		await fireEvent.click(wording);
 		const edit = screen.getByRole('button', { name: 'Edit in lyrics' });
 		expect(edit.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
 		await fireEvent.click(edit);
