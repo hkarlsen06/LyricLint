@@ -9,7 +9,7 @@ import {
 	type Projection,
 	type ReconciledDocument
 } from './model.js';
-import { contentOffset, renderProfile } from './projection.js';
+import { contentOffset, projectOffset, renderProfile } from './projection.js';
 import { reconcileEdit } from './reconcile.js';
 import { replacePassageLanguages } from './passage-language.js';
 import { retainProjectionUnits } from './projection-units.js';
@@ -454,6 +454,25 @@ export function pasteDocument(
 				: []
 		)
 	);
+	const receiving = renderProfile(next, profile);
+	if (!receiving.ok) return receiving;
+	// A native copied spelling may become derived only in its receiving owner.
+	// Retain those local units against the copied projection as well.
+	const retainReceivingUnit = (from: number, to: number) => {
+		if (from < at || at + fragment.content.length < to) return;
+		units.push({
+			from,
+			to,
+			text: source.value.text.slice(
+				projectOffset(source.value, from - at, 1),
+				projectOffset(source.value, to - at, -1)
+			)
+		});
+	};
+	for (const segment of receiving.value.segments)
+		if (segment.kind === 'transformed') retainReceivingUnit(segment.contentFrom, segment.contentTo);
+	for (const entry of receiving.value.hidden)
+		if (entry.contentTo !== undefined) retainReceivingUnit(entry.contentAt, entry.contentTo);
 	const rendered = retainProjectionUnits(next, profile, units);
 	if (!rendered.ok) return rendered;
 	const expected =

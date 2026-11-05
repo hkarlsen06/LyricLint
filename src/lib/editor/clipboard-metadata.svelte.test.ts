@@ -271,6 +271,58 @@ describe('copy', () => {
 
 describe('paste', () => {
 	it.each([
+		['fr', 'Pourquoi ?'],
+		['ja', '月?']
+	] as const)(
+		'attaches native Musixmatch %s spelling and language through history',
+		async (language, source) => {
+			const imported = importDocument({ text: source, profile: 'musixmatch', language });
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const conversion = createConversionEnvelope(
+				imported.value,
+				'musixmatch',
+				profilePolicyVersions
+			);
+			const target = importDocument({ text: 'Left Right', profile: 'genius', language: 'en' });
+			if (!target.ok) throw new Error(target.refusal.message);
+			const { handle, text } = await mount({
+				text: 'Left Right',
+				conversion: createConversionEnvelope(target.value, 'musixmatch', profilePolicyVersions)
+			});
+			handle.setSelection({ anchor: 5, head: 5 });
+			const transfer = new DataTransfer();
+			transfer.setData('text/plain', source);
+			transfer.setData(
+				'text/html',
+				clipboardHtml(source, {
+					lines: 1,
+					anchors: [],
+					links: [],
+					conversion,
+					performers: []
+				})
+			);
+			clipboard('paste', transfer);
+			expect(text()).toBe(`Left ${source}Right`);
+			const attached = handle.getSnapshot().conversion?.model;
+			expect(attached?.languageRanges).toEqual([
+				expect.objectContaining({ from: 5, to: 5 + source.length, language })
+			]);
+			expect(handle.getSnapshot().conversionRecovery).toBeUndefined();
+			handle.undo();
+			expect(text()).toBe('Left Right');
+			expect(handle.getSnapshot().conversion?.model.languageRanges).toEqual([]);
+			handle.redo();
+			expect(text()).toBe(`Left ${source}Right`);
+			expect(handle.getSnapshot().conversion?.model).toEqual(attached);
+			expect(handle.switchProfile?.('genius')).toEqual({ ok: true });
+			expect(text()).toBe(`Left ${source}Right`);
+			expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+			expect(text()).toBe(`Left ${source}Right`);
+		}
+	);
+
+	it.each([
 		['fr', 'Pourquoi ? Hello', 'genius'],
 		['fr', 'Pourquoi ? Hello', 'musixmatch'],
 		['ja', '月? Hello', 'genius'],

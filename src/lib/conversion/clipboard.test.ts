@@ -23,6 +23,57 @@ function copied(document: ConversionDocument, projection: Projection, from: numb
 
 describe('owned conversion clipboard fragments', () => {
 	it.each([
+		['fr', 'Pourquoi ?'],
+		['ja', '月?'],
+		['fr', 'Pourquoi ? Hello'],
+		['ja', '月? Hello']
+	] as const)(
+		'keeps native Musixmatch %s spelling from %s in receiving owners',
+		(language, text) => {
+			const source = importDocument({ text, profile: 'musixmatch', language });
+			if (!source.ok) throw new Error(source.refusal.message);
+			let document = source.value;
+			const hello = text.indexOf('Hello');
+			if (hello >= 0) {
+				const tagged = resolveDecision(document, rendered(document, 'musixmatch'), {
+					kind: 'setPassageLanguage',
+					range: { from: hello, to: hello + 5 },
+					language: 'en'
+				});
+				if (!tagged.ok) throw new Error(tagged.refusal.message);
+				document = tagged.value.document;
+			}
+			expect(document.forms).toEqual([]);
+			const projection = rendered(document, 'musixmatch');
+			const fragment = copied(document, projection, 0, projection.text.length);
+			for (const authored of ['genius', 'musixmatch'] as const)
+				for (const at of [0, 5, 10]) {
+					const target = imported('Left Right', authored);
+					const pasted = pasteDocument(
+						target,
+						rendered(target, 'musixmatch'),
+						{ from: at, to: at },
+						fragment,
+						'musixmatch'
+					);
+					expect(pasted, JSON.stringify({ authored, at, pasted })).toMatchObject({ ok: true });
+					if (!pasted.ok) continue;
+					const expected = 'Left Right'.slice(0, at) + text + 'Left Right'.slice(at);
+					expect(pasted.value.projection.text).toBe(expected);
+					expect(rendered(pasted.value.document, 'genius').text).toBe(expected);
+					const languageAt = (offset: number) =>
+						pasted.value.document.languageRanges.find(
+							(range) => range.from <= offset && offset < range.to
+						)?.language ?? pasted.value.document.defaultLanguage;
+					expect(languageAt(at)).toBe(language);
+					if (hello >= 0) expect(languageAt(at + hello)).toBe('en');
+					if (at > 0) expect(languageAt(at - 1)).toBe('en');
+					if (at < 10) expect(languageAt(at + text.length)).toBe('en');
+				}
+		}
+	);
+
+	it.each([
 		['fr', 'Pourquoi ? Hello'],
 		['ja', '月? Hello']
 	] as const)('keeps derived %s spelling across inline paste ownership', (language, text) => {
