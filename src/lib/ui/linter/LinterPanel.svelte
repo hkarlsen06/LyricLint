@@ -15,6 +15,7 @@
 	let {
 		controller,
 		nativeRulesStatus = 'ready',
+		grammarPending = false,
 		onRetryNativeRules,
 		active = true,
 		mobile = false,
@@ -24,6 +25,7 @@
 	}: {
 		controller: WorkbenchController;
 		nativeRulesStatus?: 'pending' | 'failed' | 'ready';
+		grammarPending?: boolean;
 		onRetryNativeRules?: () => void;
 		active?: boolean;
 		mobile?: boolean;
@@ -114,7 +116,7 @@
 		// caret is, and Paste lyrics in the toolbar), so this line says what the
 		// panel will do rather than repeating how to feed it, and the space under
 		// it holds the two things worth pressing from here.
-		if (controller.snapshot.text.length > 0 && nativeRulesStatus !== 'ready') {
+		if (controller.snapshot.text.length > 0 && (nativeRulesStatus !== 'ready' || grammarPending)) {
 			return {
 				status: true,
 				title: nativeRulesStatus === 'failed' ? 'Checking unavailable' : 'Checking lyrics…',

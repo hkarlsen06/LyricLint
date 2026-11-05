@@ -1,3 +1,4 @@
+import { HarperInitializationCanceled } from './harper-cancellation.js';
 import { describe, expect, it, vi } from 'vitest';
 import { parseDocument } from '#lib/core/parser.js';
 import type { Diagnostic, PerformerRecord } from '#lib/core/types.js';
@@ -827,12 +828,14 @@ describe('Harper initialization lifetime', () => {
 				revision: 1
 			};
 			try {
-				const pending = provider.lint(request);
+				const pending = expect(provider.lint(request)).rejects.toBeInstanceOf(
+					HarperInitializationCanceled
+				);
 				await importing.promise;
 				const disposing = stop === 'dispose' ? provider.dispose() : undefined;
 				if (stop === 'beforeunload') browserWindow.dispatchEvent(new Event('beforeunload'));
 				ready.resolve();
-				expect(await pending).toEqual([]);
+				await pending;
 				await disposing;
 				expect(construct).not.toHaveBeenCalled();
 				if (stop === 'beforeunload') {

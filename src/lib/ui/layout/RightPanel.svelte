@@ -20,6 +20,7 @@
 	let {
 		controller,
 		nativeRulesStatus = 'ready',
+		grammarPending = false,
 		onRetryNativeRules,
 		assistant,
 		collapsed = false,
@@ -33,6 +34,7 @@
 	}: {
 		controller: WorkbenchController;
 		nativeRulesStatus?: 'pending' | 'failed' | 'ready';
+		grammarPending?: boolean;
 		onRetryNativeRules?: () => void;
 		assistant?: AssistantState;
 		collapsed?: boolean;
@@ -174,6 +176,7 @@
 					{#if activatedPanels.has('linter')}
 						<LinterPanel
 							{nativeRulesStatus}
+							{grammarPending}
 							{onRetryNativeRules}
 							{controller}
 							active={!collapsed}

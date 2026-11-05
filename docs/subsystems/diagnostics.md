@@ -7,6 +7,10 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 ## The rules
 
+- Review keeps its existing checking state while eligible grammar coverage is pending,
+  including a suspended navigation attempt. A canceled initialization never claims a
+  clean document. Native findings remain available while grammar resumes.
+
 - Ignore, accept and restore show brief, rule-named feedback with Undo. Announcements retain
   full draft context. Action grouping uses draft, rule and decision rather than caption text;
   unrelated findings never gain a shared Undo merely because their copy matches. Undo refuses

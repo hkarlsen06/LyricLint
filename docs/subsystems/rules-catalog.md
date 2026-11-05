@@ -108,7 +108,12 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   construction, and `beforeunload` cancels that initialization attempt before WebKit
   stops allowing the old document to create workers or fetch WASM. `pagehide` is too
   late for this boundary. Cancellation creates no worker and does not turn grammar
-  off: a later request can initialize again if navigation was canceled. The factory awaits main-thread binary setup before constructing WorkerLinter,
+  off: Workspace owns the navigation attempt before its outer provider-module import,
+  passes that lifetime through engine initialization, and never records a canceled answer
+  as clean coverage. Pointer or keyboard input in the surviving page resumes checking
+  unchanged text; timers and import completions alone never resume a departing page.
+  A canceled initialization has its own error type, distinct from live engine failure.
+  A ready cached engine survives a canceled navigation. The factory awaits main-thread binary setup before constructing WorkerLinter,
   whose Serializer otherwise starts setup without an owner for its rejection. Existing
   live-document engine failures still reach the workbench's unavailable feedback.
 - Shorthand expansion (`spelling.texting-shorthand`) is gated on one question (does anybody

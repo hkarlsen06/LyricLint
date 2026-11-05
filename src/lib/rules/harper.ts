@@ -7,6 +7,7 @@ import type {
 	TextEdit,
 	TextRange
 } from '#lib/core/types.js';
+import { HarperInitializationCanceled } from './harper-cancellation.js';
 import { resolveLanguageTag } from '#lib/languages/registry.js';
 import { decadeApostropheTokenPattern } from './catalog/numbers-decade-apostrophe.js';
 import { standardizedSpellings } from './data/spelling.js';
@@ -536,6 +537,7 @@ export async function createWorkerEngine(
 	const canceled = (): boolean => signal.aborted || leaving;
 	window.addEventListener('beforeunload', onBeforeUnload);
 	try {
+		if (canceled()) return undefined;
 		const construct = await loadWorker(canceled);
 		if (!construct || canceled()) return undefined;
 		return construct();
@@ -555,7 +557,8 @@ export async function createWorkerEngine(
  * the existing lightweight local rule path.
  */
 export function createHarperDiagnosticProvider(
-	createEngine: HarperEngineFactory = createWorkerEngine
+	createEngine: HarperEngineFactory = createWorkerEngine,
+	ownerSignal?: () => AbortSignal
 ): HarperDiagnosticProvider {
 	const lifetime = new AbortController();
 	let enginePromise: Promise<HarperEngine | undefined> | undefined;
@@ -566,7 +569,9 @@ export function createHarperDiagnosticProvider(
 		// config is a property of the engine, not of any one document, and a
 		// finding produced under the default config would censor or formalize a
 		// lyric on the engine's very first answer.
-		enginePromise ??= createEngine(lifetime.signal).then(async (harper) => {
+		enginePromise ??= createEngine(
+			ownerSignal ? AbortSignal.any([lifetime.signal, ownerSignal()]) : lifetime.signal
+		).then(async (harper) => {
 			if (!harper) {
 				enginePromise = undefined;
 				return undefined;
@@ -588,7 +593,7 @@ export function createHarperDiagnosticProvider(
 			}
 
 			const harper = await engine();
-			if (!harper || lifetime.signal.aborted) return [];
+			if (!harper || lifetime.signal.aborted) throw new HarperInitializationCanceled();
 			// LyricLint's reviewed Genius policy is authoritative. Teaching
 			// Harper the preferred forms prevents its general-purpose dictionary
 			// from contradicting spellings such as "ayy"; native rules still

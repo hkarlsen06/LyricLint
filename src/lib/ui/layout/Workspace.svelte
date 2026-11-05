@@ -27,6 +27,7 @@
 	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	import { workspaceEntrance } from './workspace-entrance.js';
 	import type { HarperDiagnosticProvider } from '#lib/rules/harper.js';
+	import { HarperInitializationCanceled } from '#lib/rules/harper-cancellation.js';
 	import { mergeHarperDiagnostics } from '#lib/rules/results.js';
 	import { useAssistantState } from '#lib/assistant/assistant.svelte.js';
 	import type { AssistantDraftBridge } from '#lib/assistant/draft-bridge.js';
@@ -65,7 +66,8 @@
 		brandRevealed = true,
 		onready,
 		onerror,
-		loadNativeRules = () => import('#lib/rules/engine.js')
+		loadNativeRules = () => import('#lib/rules/engine.js'),
+		loadHarper = () => import('#lib/rules/harper.js')
 	}: {
 		controller: WorkbenchController;
 		editorComponent: Component<EditorPaneProps>;
@@ -77,6 +79,9 @@
 		onready?: () => void;
 		onerror?: (error: Error) => void;
 		loadNativeRules?: () => Promise<{ runRules: NativeRules }>;
+		loadHarper?: () => Promise<
+			Pick<typeof import('#lib/rules/harper.js'), 'createHarperDiagnosticProvider'>
+		>;
 	} = $props();
 
 	const placeholderEditor = untrack(() => controller.editor);
@@ -437,7 +442,7 @@
 	let lastLintKey = '';
 	let harperTimer: ReturnType<typeof setTimeout> | undefined;
 	let harperRequest = 0;
-	let harperPending = false;
+	let harperPending = $state(false);
 	let harperUnavailable = false;
 	// The document Harper has actually answered for, or has nothing to say
 	// about, which is the same thing to everyone downstream. See the memoized
@@ -449,20 +454,64 @@
 	let destroyed = false;
 	let ownedHarperProvider: HarperDiagnosticProvider | undefined;
 	let harperProviderPromise: Promise<HarperDiagnosticProvider | undefined> | undefined;
+	let harperLifetime = new AbortController();
+	let pageHidden = false;
+
+	// Install before the outer provider import. Timers and import completions
+	// cannot establish that a navigation was canceled; fresh input can.
+	$effect(() => {
+		const suspend = (): void => {
+			harperLifetime.abort();
+			harperProviderPromise = undefined;
+			invalidateHarper();
+			harperPending =
+				shouldRunHarper(controller.snapshot) &&
+				harperCoveredKey !== harperCoverage(lintKey(controller.snapshot));
+		};
+		const hide = (): void => {
+			pageHidden = true;
+			suspend();
+		};
+		const resume = (): void => {
+			if (pageHidden || destroyed || !harperLifetime.signal.aborted) return;
+			harperLifetime = new AbortController();
+			invalidateHarper();
+			publishSnapshot(controller.snapshot);
+		};
+		const show = (): void => {
+			pageHidden = false;
+		};
+		window.addEventListener('pageshow', show);
+		window.addEventListener('beforeunload', suspend);
+		window.addEventListener('pagehide', hide);
+		window.addEventListener('pointerdown', resume);
+		window.addEventListener('keydown', resume);
+		return () => {
+			window.removeEventListener('pageshow', show);
+			window.removeEventListener('beforeunload', suspend);
+			window.removeEventListener('pagehide', hide);
+			window.removeEventListener('pointerdown', resume);
+			window.removeEventListener('keydown', resume);
+		};
+	});
 
 	async function lintWithHarper(
 		request: Parameters<HarperDiagnosticProvider['lint']>[0],
 		generation: number
 	): Promise<Diagnostic[]> {
+		const signal = harperLifetime.signal;
+		if (signal.aborted) return [];
 		const provider =
 			harperProvider ??
-			(await (harperProviderPromise ??= import('#lib/rules/harper.js').then(
-				({ createHarperDiagnosticProvider }) => {
-					if (destroyed) return undefined;
-					return (ownedHarperProvider = createHarperDiagnosticProvider());
-				}
-			)));
-		if (destroyed || generation !== harperRequest || !provider) return [];
+			ownedHarperProvider ??
+			(await (harperProviderPromise ??= loadHarper().then(({ createHarperDiagnosticProvider }) => {
+				if (destroyed || signal.aborted) return undefined;
+				return (ownedHarperProvider = createHarperDiagnosticProvider(
+					undefined,
+					() => harperLifetime.signal
+				));
+			})));
+		if (destroyed || signal.aborted || generation !== harperRequest || !provider) return [];
 		return provider.lint(request);
 	}
 
@@ -588,6 +637,11 @@
 		nativeDiagnostics: EditorSnapshot['diagnostics']
 	): void {
 		const request = invalidateHarper();
+		if (harperLifetime.signal.aborted) {
+			harperPending =
+				shouldRunHarper(snapshot) && harperCoveredKey !== harperCoverage(lintKey(snapshot));
+			return;
+		}
 		const key = harperCoverage(lintKey(snapshot));
 		if (!shouldRunHarper(snapshot)) {
 			// Nothing is coming and nothing is owed: this document is as answered as
@@ -635,6 +689,11 @@
 				})
 				.catch((error: unknown) => {
 					if (request !== harperRequest || harperUnavailable) return;
+					if (error instanceof HarperInitializationCanceled) {
+						invalidateHarper();
+						if (!harperLifetime.signal.aborted) publishSnapshot(controller.snapshot);
+						return;
+					}
 					harperPending = false;
 					// A provider that has failed is one nothing more is coming from,
 					// here or on any later document, so this key is answered too.
@@ -779,6 +838,7 @@
 
 	onDestroy(() => {
 		destroyed = true;
+		harperLifetime.abort();
 		if (settleTimer !== undefined) clearTimeout(settleTimer);
 		if (languageDetectorTimer !== undefined) clearTimeout(languageDetectorTimer);
 		invalidateHarper();
@@ -1426,6 +1486,7 @@
 				controller,
 				assistant,
 				nativeRulesStatus,
+				grammarPending: harperPending,
 				onRetryNativeRules: retryNativeRules,
 				collapsed: panelCollapsed,
 				mobile: phone.current,
