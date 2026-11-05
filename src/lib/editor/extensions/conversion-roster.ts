@@ -19,7 +19,11 @@ export function changesReferencedPerformers(
 		delta.before
 			.filter((record) => {
 				const replacement = delta.after.find((entry) => entry.id === record.id);
-				return !replacement || replacement.displayName !== record.displayName;
+				return (
+					!replacement ||
+					replacement.displayName !== record.displayName ||
+					record.aliases.some((alias) => !replacement.aliases.includes(alias))
+				);
 			})
 			.map((record) => record.id)
 	);

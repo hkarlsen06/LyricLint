@@ -1476,6 +1476,31 @@ describe('workbench performer imports', () => {
 		expect(controller.snapshot.conversion?.model.sections[0]?.header).toBe('[Verse: Luna]\n');
 	});
 
+	test('legacy merge Undo cannot detach an alias used by a retained rich legend', () => {
+		const initial = draft('draft-a', 'Moon');
+		const { controller, editor } = setup({ initial });
+		editor.dispatchPerformerRecords = (delta) => {
+			controller.adoptPerformerRecords(delta);
+			return { ok: true };
+		};
+		controller.addPerformer('Mira');
+		controller.addPerformer('Noor');
+		controller.mergePerformers(controller.performers[0]!.id, controller.performers[1]!.id);
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		const model = importDocument({
+			text: '[Verse: Mira]\nMoon',
+			profile: 'genius',
+			performers: controller.performers
+		});
+		if (!model.ok) throw new Error(model.refusal.message);
+		const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+		controller.onSnapshot({ ...snapshot(initial, 1, conversion.projectionText), conversion });
+		const expected = controller.performers.map((record) => ({ ...record }));
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual(expected);
+		expect(controller.feedback.announcement).toContain('retained voices or legends');
+	});
+
 	test.each(['add', 'import'])('restores the last removed performer before a later %s', (kind) => {
 		const initial = draft('draft-a', '');
 		const { controller } = setup({ initial });

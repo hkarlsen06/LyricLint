@@ -25,7 +25,7 @@ format itself: `docs/performer-tagging.md`
 - A roster-only toast inverse in a rich draft commits an invertible roster effect through
   editor history. It starts a new history branch, so earlier Redo cannot resurrect a voice
   without its performer. Undo restores that identity before older lyric associations return.
-  Referenced name changes and removals refuse, including names still present in retained
+  Referenced name changes, alias removals and performer removals refuse, including names still present in retained
   section legends. New roster positions do not reuse an order held by a pending Undo.
   Pins: `roster-undo-history.svelte.test.ts` and `workbench.test.ts`.
 
