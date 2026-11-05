@@ -1695,7 +1695,8 @@ describe('workbench performer renames', () => {
 	): AppliedDocument {
 		let currentText = record.text;
 		let revision = 0;
-		editor.dispatchAtomic = (edit) => {
+		editor.dispatchAtomic = (edit, delta) => {
+			if (delta) controller.adoptPerformerRecords(delta);
 			// Back to front, so earlier offsets stay valid while later ones move.
 			for (const change of [...edit.edits].sort((left, right) => right.from - left.from)) {
 				currentText =
@@ -1719,7 +1720,8 @@ describe('workbench performer renames', () => {
 		const record = draft('draft-a', text);
 		const { controller, editor } = setup({ initial: record });
 		const dispatched: Parameters<EditorHandle['dispatchAtomic']>[0][] = [];
-		editor.dispatchAtomic = (edit) => {
+		editor.dispatchAtomic = (edit, delta) => {
+			if (delta) controller.adoptPerformerRecords(delta);
 			dispatched.push(edit);
 			controller.onSnapshot(snapshot(record, 1, text.replaceAll('Avery', 'Avery Stone')));
 		};

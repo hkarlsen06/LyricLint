@@ -1,8 +1,18 @@
+import { isolateHistory } from '@codemirror/commands';
 import { EditorSelection, Transaction } from '@codemirror/state';
 import type { Annotation } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
-import type { AtomicDocumentEdit, TextEdit } from '#lib/core/types.js';
-import { editorRevisionField } from './extensions/editor-state.js';
+import type { AtomicDocumentEdit, PerformerRecordDelta, TextEdit } from '#lib/core/types.js';
+import {
+	conversionRosterEffect,
+	validPerformerRecordDelta
+} from './extensions/conversion-roster.js';
+import {
+	editorCallbacksField,
+	editorComposingField,
+	editorContextField,
+	editorRevisionField
+} from './extensions/editor-state.js';
 
 function assertIntegerOffset(value: number, label: string): void {
 	if (!Number.isSafeInteger(value) || value < 0) {
@@ -76,12 +86,26 @@ export function validateAtomicEdit(
 export function dispatchAtomicEdit(
 	view: EditorView,
 	edit: AtomicDocumentEdit,
-	annotations: readonly Annotation<unknown>[] = []
+	annotations: readonly Annotation<unknown>[] = [],
+	rosterChanges?: PerformerRecordDelta
 ): void {
 	const currentRevision = view.state.field(editorRevisionField);
 	validateAtomicEdit(edit, view.state.doc.length, currentRevision);
 
+	if (rosterChanges) {
+		if (view.composing || view.state.field(editorComposingField))
+			throw new Error('Finish composing this character before changing its details.');
+		if (
+			!view.state.field(editorCallbacksField)?.onPerformerRecordsChanged ||
+			!validPerformerRecordDelta(
+				view.state.field(editorContextField)?.performers ?? [],
+				rosterChanges
+			)
+		)
+			throw new Error('The performer roster changed. Review this action again.');
+	}
 	view.dispatch({
+		effects: rosterChanges ? [conversionRosterEffect.of(rosterChanges)] : [],
 		changes: edit.edits.map(({ from, to, insert }) => ({ from, to, insert })),
 		selection: edit.selectionAfter
 			? EditorSelection.single(edit.selectionAfter.anchor, edit.selectionAfter.head)
@@ -89,6 +113,7 @@ export function dispatchAtomicEdit(
 		annotations: [
 			Transaction.userEvent.of('input.atomic'),
 			Transaction.addToHistory.of(true),
+			...(rosterChanges ? [isolateHistory.of('full')] : []),
 			...annotations
 		]
 	});

@@ -1153,12 +1153,12 @@ export function createLyricEditor(
 		dismissClipboardReview() {
 			dismissClipboardReview(view);
 		},
-		dispatchAtomic(edit) {
+		dispatchAtomic(edit, rosterChanges) {
 			if (conversionForState(view.state)?.recovery)
 				throw new Error('Recover the lyric associations before applying a structured edit.');
 			// Validation belongs before cleanup: a stale edit throws without changing
 			// either the document or the preview the reader is still considering.
-			dispatchAtomicEdit(view, edit);
+			dispatchAtomicEdit(view, edit, [], rosterChanges);
 			view.dispatch({
 				effects: setFixPreviewEffect.of(undefined),
 				annotations: Transaction.addToHistory.of(false)

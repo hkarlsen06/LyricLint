@@ -561,15 +561,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	 * appeared nowhere in the document. Keeping the headers in step is the one
 	 * job a roster rename exists for.
 	 *
-	 * The rewrite is one atomic edit over every header occurrence, so it is one
-	 * editor undo, exactly as a mirrored header edit is. The roster half goes
-	 * through `adoptHeaderRename` rather than the plain rename, so the old
-	 * spelling survives as an alias and an editor undo of the rewrite still
-	 * resolves the headers to this performer instead of importing a duplicate.
-	 * The roster is adopted *before* the dispatch, because the re-lint arrives
-	 * from inside it: a large enough rename crosses the import threshold, and an
-	 * extraction run against the old roster would read the freshly written name
-	 * as a stranger.
+	 * Text and the affected roster records share one editor history event. The
+	 * history listener publishes the roster before the snapshot can re-import
+	 * names, retaining the old spelling as an alias without duplicate identities.
+	 * Undo and Redo restore the exact records without replacing later additions.
 	 *
 	 * The toast's Undo is the same rename run in reverse. It recomputes against
 	 * the document as it stands, so pressed after further edits it reverses the
@@ -632,12 +627,25 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			});
 			return;
 		}
-		roster.adoptHeaderRename(id, previousName, trimmed);
-		roster.recolorPerformer(id);
-		editorSession.editor.dispatchAtomic({
-			baseRevision: snapshot.revision,
-			edits: occurrences.map(({ from, to }) => ({ from, to, insert: trimmed }))
-		});
+		const next = {
+			...current,
+			displayName: trimmed,
+			normalizedKey: normalizePerformerKey(trimmed),
+			aliases: [...new SvelteSet([...current.aliases, previousName])].filter(
+				(name) => name !== trimmed
+			),
+			colorId: allocatePerformerColor(
+				trimmed,
+				roster.performers.filter((entry) => entry.id !== id)
+			)
+		};
+		editorSession.editor.dispatchAtomic(
+			{
+				baseRevision: snapshot.revision,
+				edits: occurrences.map(({ from, to }) => ({ from, to, insert: trimmed }))
+			},
+			{ before: [current], after: [next] }
+		);
 		const headers = occurrences.length === 1 ? 'header' : 'headers';
 		const message = `Renamed ${previousName} to ${trimmed} in ${occurrences.length} ${headers}.`;
 		feedback.announce(message);

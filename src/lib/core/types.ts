@@ -930,7 +930,7 @@ export interface EditorHandle {
 	): { ok: true } | { ok: false; message: string; deferred?: true };
 	focus(): void;
 	getSnapshot(): EditorSnapshot;
-	dispatchAtomic(edit: AtomicDocumentEdit): void;
+	dispatchAtomic(edit: AtomicDocumentEdit, rosterChanges?: PerformerRecordDelta): void;
 	/**
 	 * Apply a performer assignment across every linked copy of the section at
 	 * `anchor`, including the header legend that gives mirrored body markup its

@@ -51,8 +51,11 @@ format itself: `docs/performer-tagging.md`
 
 - A rename runs in both directions: `headerRenameFilter` mirrors header edits into the roster
   (`adoptHeaderRename`, alias kept), and `renamePerformer` on the controller is the reverse:
-  one atomic edit over `headerNameAtoms`, roster adopted *before* the dispatch, Undo as the
-  same rename in reverse, `isMirrorableHeaderName` refused out loud. Regressions:
+  one atomic edit over `headerNameAtoms` paired with an invertible affected-record delta.
+  The shared history listener publishes the roster before the snapshot and import, including
+  for legacy Genius drafts without promoting them to rich state. Editor Undo and Redo restore
+  both halves; toast Undo recomputes the reverse rename against current text.
+  Names failing `isMirrorableHeaderName` are refused out loud. Regressions:
   `workbench performer renames` in `workbench.test.ts`.
 - Atomic domain edits (`input.atomic`), including performer assignments and lint fixes, never
   start or continue a header rename. They carry their complete scope; assigning a different
@@ -248,12 +251,13 @@ Six decisions in it:
 - **The rewrite is one atomic edit over every header occurrence** (`headerNameAtoms` filtered to
   the performer, which is the same resolution the forward mirror reads), so it is one editor undo,
   exactly as a mirrored header edit is.
-- **The roster half goes through `adoptHeaderRename`, not the plain record rename**, so the old
-  spelling survives as an alias and an editor undo of the rewrite still resolves the headers to
-  this performer instead of importing a duplicate.
-- **The roster is adopted _before_ the dispatch**, because the re-lint arrives from inside it: a
-  long enough new name crosses the import threshold, and an extraction run against the old roster
-  would read the freshly written name as a stranger and import it as one.
+- **The roster half keeps the previous spelling as an alias.** Legacy Genius now pairs the
+  affected-record delta with the atomic text transaction through the shared editor history owner.
+  This supersedes the original controller-side `adoptHeaderRename` before dispatch: that kept
+  aliases resolvable but left the displayed roster name unchanged on editor Undo.
+- **The roster is published before the snapshot**, by the high-precedence history listener, so
+  extraction sees the matching spelling before it can import a duplicate. Undo and Redo restore
+  only affected records, including their aliases and color, without promoting the legacy draft.
 - **The toast's Undo is the same rename run in reverse**, recomputed against the document as it
   stands. Pressed after further edits it reverses the rename and nothing else. A restored roster
   clone alone would recreate the mismatch this exists to fix, pointed the other way.
