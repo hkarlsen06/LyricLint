@@ -10,6 +10,7 @@
 	import SongFacts, { hasSongFacts } from '../media/SongFacts.svelte';
 	import { pendingMediaActionLabel } from '../media/pending-media-label.js';
 	import { youtubeSearchTerm } from '../state/media-youtube.js';
+	import PassageLanguage from './PassageLanguage.svelte';
 	import ConversionDetails from './ConversionDetails.svelte';
 	import ClipboardReview from './ClipboardReview.svelte';
 
@@ -294,6 +295,8 @@
 			</div>
 		</section>
 	{/if}
+
+	<PassageLanguage {controller} />
 
 	<!--
 		What the attached song is, in the forms somebody filling in a song page

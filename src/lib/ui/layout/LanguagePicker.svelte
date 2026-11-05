@@ -3,51 +3,50 @@
 	import GlobeIcon from 'phosphor-svelte/lib/GlobeIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
-	import { getLanguagePack } from '#lib/languages/registry.js';
-	import { languageSourceInventory } from '#lib/languages/inventory.js';
+	import { languages, languageName } from '#lib/languages/options.js';
 	import { tick } from 'svelte';
-	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
 	let {
-		controller,
-		expandedLabel = false
-	}: { controller: WorkbenchController; expandedLabel?: boolean } = $props();
+		language,
+		recentLanguages: recent = [],
+		onchoose,
+		onopen = () => {},
+		expandedLabel = false,
+		label = 'Lyric language',
+		disabled = false,
+		custom = false,
+		message = '',
+		context = ''
+	}: {
+		language: string;
+		recentLanguages?: readonly string[];
+		onchoose: (tag: string) => boolean | void;
+		onopen?: () => void;
+		expandedLabel?: boolean;
+		label?: string;
+		disabled?: boolean;
+		custom?: boolean;
+		message?: string;
+		context?: string;
+	} = $props();
+	const id = $props.id();
+	let customCode = $state('');
+
 	let dialog: HTMLDialogElement;
 	let trigger: HTMLButtonElement;
 	let searchInput = $state<HTMLInputElement>();
 	let query = $state('');
 	let isOpen = $state(false);
 
-	const languages: readonly (readonly [string, string])[] = [
-		['en', 'English'],
-		['en-US', 'English (United States)'],
-		['en-GB', 'English (United Kingdom)'],
-		...languageSourceInventory
-			.filter((entry) => entry.tag !== 'en')
-			.map((entry) => [entry.tag, entry.language] as const)
-	];
-
 	function normalize(value: string): string {
 		return value.normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase().trim();
 	}
 
-	function languageName(tag: string): string {
-		return (
-			languages.find(([candidate]) => candidate === tag)?.[1] ??
-			getLanguagePack(tag).displayName ??
-			tag
-		);
-	}
-
-	const recentLanguages = $derived(
-		controller.recentLanguages.map((tag) => [tag, languageName(tag)] as const)
-	);
-	const allLanguages = $derived(
-		languages.filter(([tag]) => !controller.recentLanguages.includes(tag))
-	);
+	const recentLanguages = $derived(recent.map((tag) => [tag, languageName(tag)] as const));
+	const allLanguages = $derived(languages.filter(([tag]) => !recent.includes(tag)));
 	const searchableLanguages = $derived([
 		...recentLanguages,
-		...languages.filter(([tag]) => !controller.recentLanguages.includes(tag))
+		...languages.filter(([tag]) => !recent.includes(tag))
 	]);
 	const filteredLanguages = $derived.by(() => {
 		const needle = normalize(query);
@@ -57,7 +56,7 @@
 		);
 	});
 
-	const selectedLabel = $derived(languageName(controller.language));
+	const selectedLabel = $derived(languageName(language));
 
 	// What the results say, as one sentence. The no-match case is the visible
 	// message verbatim: a reader who cannot see it is owed the same answer, not a
@@ -69,6 +68,8 @@
 	);
 
 	async function open(): Promise<void> {
+		onopen();
+		customCode = '';
 		query = '';
 		isOpen = true;
 		dialog.showModal();
@@ -82,8 +83,7 @@
 	}
 
 	function choose(tag: string): void {
-		controller.setLanguage(tag);
-		close();
+		if (onchoose(tag) !== false) close();
 	}
 
 	function handleBackdropClick(event: MouseEvent): void {
@@ -104,15 +104,15 @@
 		<button
 			type="button"
 			class="language-option"
-			class:selected={tag === controller.language}
+			class:selected={tag === language}
 			aria-label={name}
-			aria-current={tag === controller.language ? 'true' : undefined}
+			aria-current={tag === language ? 'true' : undefined}
 			onclick={() => choose(tag)}
 		>
 			<span>{name}</span>
 			<span class="language-option__meta">
 				<code>{tag}</code>
-				{#if tag === controller.language}
+				{#if tag === language}
 					<CheckIcon aria-label="Selected" size={16} weight="bold" />
 				{/if}
 			</span>
@@ -125,37 +125,46 @@
 	type="button"
 	class="button button--quiet language-trigger"
 	aria-haspopup="dialog"
-	aria-label={`Lyric language: ${selectedLabel}`}
+	{disabled}
+	aria-label={`${label}: ${selectedLabel}`}
 	onclick={open}
 >
 	<GlobeIcon aria-hidden="true" size={16} weight="bold" />
-	<span aria-hidden="true"
-		>{expandedLabel ? `Language: ${selectedLabel}` : controller.language}</span
-	>
+	<span aria-hidden="true">{expandedLabel ? `Language: ${selectedLabel}` : language}</span>
 </button>
 
 <dialog
 	bind:this={dialog}
 	class="language-dialog"
-	aria-labelledby="language-dialog-title"
+	aria-labelledby={`${id}-title`}
 	onclick={handleBackdropClick}
-	onclose={(event) => (isOpen = event.currentTarget.open)}
+	onclose={(event) => {
+		isOpen = event.currentTarget.open;
+		if (
+			!isOpen &&
+			trigger?.isConnected &&
+			(document.activeElement === document.body ||
+				event.currentTarget.contains(document.activeElement))
+		) {
+			trigger.focus({ preventScroll: true });
+		}
+	}}
 >
 	{#if isOpen}
 		<div class="language-dialog__surface">
 			<div class="language-dialog__header">
-				<strong id="language-dialog-title">Lyric language</strong>
+				<strong id={`${id}-title`}>{label}</strong>
 				<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
 					<XIcon aria-hidden="true" size={16} weight="bold" />
 				</button>
 			</div>
 
-			<label class="language-search" for="language-search-input">
+			<label class="language-search" for={`${id}-search`}>
 				<MagnifyingGlassIcon aria-hidden="true" size={16} weight="bold" />
 				<input
 					bind:this={searchInput}
 					bind:value={query}
-					id="language-search-input"
+					id={`${id}-search`}
 					type="search"
 					placeholder="Search languages"
 					autocomplete="off"
@@ -175,6 +184,26 @@
 			</p>
 
 			<div class="language-results">
+				<p role="status">{message}</p>
+				{#if context}<p class="language-context">{context}</p>{/if}
+				{#if custom}
+					<details>
+						<summary>Custom language code</summary>
+						<label
+							>Language code<input
+								bind:value={customCode}
+								spellcheck="false"
+								placeholder="For example, fr-CA"
+							/></label
+						>
+						<button
+							type="button"
+							class="button"
+							disabled={!customCode}
+							onclick={() => choose(customCode)}>Use custom code</button
+						>
+					</details>
+				{/if}
 				{#if filteredLanguages.length}
 					<ul aria-label="Languages">
 						{#if query.trim().length === 0}
@@ -207,8 +236,14 @@
 </dialog>
 
 <style>
+	.language-context {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
 	.language-trigger {
-		white-space: nowrap;
+		max-width: 100%;
+		white-space: normal;
+		overflow-wrap: anywhere;
 	}
 
 	.language-trigger :global(svg) {
@@ -361,6 +396,10 @@
 		}
 	}
 	@media (pointer: coarse) {
+		.language-results summary {
+			min-height: var(--control-height-touch);
+			align-content: center;
+		}
 		/* Match the scoped field selector: its generated class outranks the
 		   workbench's generic input floor. */
 		.language-search input {

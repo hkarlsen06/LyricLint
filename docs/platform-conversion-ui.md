@@ -129,7 +129,9 @@ falling back to the Review tab after the last decision is resolved.
 | Merge into previous or next section | Keep both bodies in the chosen destination, retaining its label, type and identity; refuse incompatible voice styles |
 | Remove boundary | Remove an unvoiced boundary and keep the lyrics |
 | Delete section and lyrics | Inline confirmation in the existing action slot; delete this section/body/attachments as one undo event |
-| Passage language | Use current document language or choose an explicit override for selected lyrics |
+| Passage language | Direct in Song, above advanced tools. Search the shared language inventory or deliberately enter a custom code for the captured selection. Show the document default separately from the override and content kind. Retained overrides keep Use document language. Changes to draft, profile, revision, lyrics or selection while open refuse with an announcement until reopened. |
+
+The earlier disclosure-only passage-language control and raw-code-only field are superseded. Wording and annotation controls remain deliberate. Cancelling the native language dialog changes no lyrics and returns focus to its trigger.
 
 The directional merge chooses the destination's existing label and type. A merge into the next
 section moves that destination to the removed section's start, so its body includes both sets

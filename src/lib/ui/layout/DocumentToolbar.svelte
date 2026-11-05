@@ -224,7 +224,12 @@
 				<ArrowClockwiseIcon aria-hidden="true" size={16} weight="bold" />
 				{#if phone.current}Redo{/if}
 			</button>
-			<LanguagePicker {controller} expandedLabel={phone.current} />
+			<LanguagePicker
+				language={controller.language}
+				recentLanguages={controller.recentLanguages}
+				onchoose={(tag) => controller.setLanguage(tag)}
+				expandedLabel={phone.current}
+			/>
 			<!-- Reviewing what the copy will change on the page is the step before
 		     copying it, so it sits beside the action it precedes. The component
 		     gates itself on the document being empty. -->

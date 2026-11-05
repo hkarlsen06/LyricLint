@@ -32,7 +32,6 @@
 		model?.sections.some((section) => section.id === activeSection) ? activeSection : undefined
 	);
 	let removeId = $state<string>();
-	let passageLanguage = $state('');
 	let annotationId = $state('');
 	let targetText = $state('');
 
@@ -343,7 +342,7 @@
 				<p>Section tags stay in this draft. Apply them separately when submitting to Musixmatch.</p>
 			</details>
 		</section>
-		{#if model.wrappers.length || model.languageRanges.length || model.forms.length}
+		{#if model.wrappers.length || model.forms.length}
 			<details>
 				<summary>Retained details</summary>
 				{#each model.wrappers as detail (detail.id)}
@@ -386,48 +385,11 @@
 						>
 					</section>
 				{/each}
-				{#each model.languageRanges as range (range.id)}
-					<section class="conversion-section">
-						<h3>Passage language: {range.language}</h3>
-						<p>{model.content.slice(range.from, range.to)}</p>
-						<div class="tool-actions">
-							<button
-								type="button"
-								class="button button--quiet"
-								onclick={() => show(range.from, range.to)}>Show passage</button
-							><button
-								type="button"
-								class="button button--quiet"
-								onclick={() =>
-									controller.applyConversionAction({ kind: 'removeDetail', detailId: range.id })}
-								>Use document language</button
-							>
-						</div>
-					</section>
-				{/each}
 			</details>
 		{/if}
 		{#if selection.from < selection.to}
 			<details class="passage-tools">
 				<summary>Selected passage tools</summary>
-				<section>
-					<label
-						>Passage language<input
-							bind:value={passageLanguage}
-							placeholder="Language code, for example fr"
-						/></label
-					><button
-						type="button"
-						class="button"
-						disabled={!passageLanguage.trim()}
-						onclick={() =>
-							controller.applyConversionAction({
-								kind: 'setPassageLanguage',
-								range: selection,
-								language: passageLanguage
-							})}>Set passage language</button
-					>
-				</section>
 				<section>
 					<h3>Wording and retained annotations</h3>
 					{#if controller.profile === 'musixmatch'}<button

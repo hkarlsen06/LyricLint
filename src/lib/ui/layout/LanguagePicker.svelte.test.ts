@@ -13,7 +13,7 @@ async function search(query: string): Promise<void> {
 	await fireEvent.input(screen.getByRole('searchbox'), { target: { value: query } });
 }
 
-/** The one live region in this dialog, wherever it sits in the markup. */
+/** The search-results live region, outside the list. */
 function status(): HTMLElement {
 	const region = document.querySelector<HTMLElement>('.language-dialog [role="status"]');
 	if (!region) throw new Error('the results status line is not in the document');
@@ -25,7 +25,11 @@ describe('LanguagePicker', () => {
 
 	test('builds language options only while open and resets search with focus on reopening', async () => {
 		const { controller } = createTestWorkbench();
-		await render(LanguagePicker, { controller });
+		await render(LanguagePicker, {
+			language: controller.language,
+			recentLanguages: controller.recentLanguages,
+			onchoose: (tag) => controller.setLanguage(tag)
+		});
 		const trigger = screen.getByRole('button', { name: /^Lyric language:/ });
 		expect(document.querySelector('.language-option')).toBeNull();
 		await openPicker();
@@ -48,7 +52,11 @@ describe('LanguagePicker', () => {
 	// typist wants to hear is how many are left.
 	test('the results list is not a live region, and the count is', async () => {
 		const { controller } = createTestWorkbench();
-		await render(LanguagePicker, { controller });
+		await render(LanguagePicker, {
+			language: controller.language,
+			recentLanguages: controller.recentLanguages,
+			onchoose: (tag) => controller.setLanguage(tag)
+		});
 		await openPicker();
 
 		const list = screen.getByRole('list', { name: 'Languages' });
@@ -61,7 +69,11 @@ describe('LanguagePicker', () => {
 	// that arrives with its text already in it is not an update, and is not read.
 	test('the status line mounts empty and reports each narrowing', async () => {
 		const { controller } = createTestWorkbench();
-		await render(LanguagePicker, { controller });
+		await render(LanguagePicker, {
+			language: controller.language,
+			recentLanguages: controller.recentLanguages,
+			onchoose: (tag) => controller.setLanguage(tag)
+		});
 		await openPicker();
 
 		expect(status().textContent?.trim()).toBe('');

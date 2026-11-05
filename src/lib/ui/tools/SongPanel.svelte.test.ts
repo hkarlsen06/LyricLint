@@ -30,6 +30,7 @@ describe('SongPanel skimmability', () => {
 		// A locally named draft can search for its song before anything is attached.
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Document',
+			'Passage language',
 			'Song metadata',
 			'Genius page'
 		]);
@@ -699,6 +700,7 @@ describe('SongPanel conversion restraint', () => {
 
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Document',
+			'Passage language',
 			'Song metadata',
 			'Genius page',
 			'Sections'
