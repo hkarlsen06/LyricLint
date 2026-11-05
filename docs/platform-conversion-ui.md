@@ -174,8 +174,9 @@ policy mappings. Document settings and Retained details stay collapsed by defaul
 
 Listening decisions show either the quantity form or the instrumental form, selected by the
 request from Review. The other form remains accessible through the named choice controls.
-Saved decisions stay collapsed. Retained-detail Review shows one finding at a time with
-Previous detail and Next detail. Linking keeps per-section operations in Section options.
+Saved decisions stay collapsed. Lyric findings precede retained-detail Review. Retained details
+show one finding at a time, with Previous detail and Next detail only when several remain.
+Linking keeps per-section operations in Section options.
 
 ### Retained details
 

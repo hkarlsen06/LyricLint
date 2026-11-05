@@ -113,7 +113,7 @@
 				</li>
 			{/each}
 		</ul>
-		{#if findings.length}<div class="tool-actions">
+		{#if findings.length > 1}<div class="tool-actions">
 				<button
 					type="button"
 					class="button button--quiet"

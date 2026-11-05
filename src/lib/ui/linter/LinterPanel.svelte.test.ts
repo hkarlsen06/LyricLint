@@ -518,6 +518,44 @@ describe('review continuity', () => {
 
 describe('retained-only review', () => {
 	afterEach(cleanup);
+	test('puts lyric findings before retained decisions without a one-item pager', async () => {
+		const imported = importDocument({
+			text: '[Verse: Mira]\nI counted 2 stars',
+			profile: 'genius',
+			language: 'en'
+		});
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const rendered = renderProfile(imported.value, 'musixmatch');
+		if (!rendered.ok) throw new Error(rendered.refusal.message);
+		const { controller } = createTestWorkbench({
+			text: rendered.value.text,
+			diagnostics: [
+				diagnostic({
+					ruleId: 'mxm.numbers.context',
+					message: 'Confirm this number’s meaning before converting it.',
+					severity: 'manual-review',
+					from: 10,
+					to: 11
+				})
+			]
+		});
+		controller.onSnapshot({
+			...controller.snapshot,
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+		});
+		const view = await render(LinterPanel, { controller });
+		const finding = screen.getByRole('button', { name: 'Review quantity' });
+		const retained = screen.getByRole('region', { name: 'Retained details needing review' });
+		expect(finding.getBoundingClientRect().bottom).toBeLessThan(
+			retained.getBoundingClientRect().top
+		);
+		expect(view.container.querySelector('.diagnostic-list')).toBeTruthy();
+		expect(screen.getByRole('combobox', { name: 'Musixmatch section type' })).toBeVisible();
+		expect(screen.queryByRole('button', { name: 'Previous detail' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Next detail' })).toBeNull();
+		expect(screen.queryByText('No further issues detected.')).toBeNull();
+	});
+
 	test('shows the actionable detail without a duplicate empty state and preserves checker errors', async () => {
 		const imported = importDocument({ text: '[Verse]\nOne', profile: 'genius', language: 'en' });
 		if (!imported.ok) throw new Error(imported.refusal.message);

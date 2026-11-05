@@ -310,7 +310,6 @@
 			{/if}
 		{/snippet}
 
-		<RetainedReview {controller} findings={detailFindings} />
 		{#if !detailFindings.length || controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0 || nativeRulesStatus !== 'ready'}
 			<DiagnosticList
 				overview={mobile && !reviewFocused}
@@ -342,9 +341,10 @@
 				onIgnore={(diagnostic) => controller.ignoreDiagnostic(diagnostic)}
 			/>
 		{/if}
-		{#if controller.visibleDiagnostics.length > 0}
+		{#if controller.visibleDiagnostics.length > 0 && (!detailFindings.length || hiddenByFilters > 0)}
 			<p class="linter-panel__afterword">{afterword}</p>
 		{/if}
+		<RetainedReview {controller} findings={detailFindings} />
 
 		<!-- The drafts the user already has sit at the foot of the column, under
 	     whatever the panel is currently saying about this document. They are a

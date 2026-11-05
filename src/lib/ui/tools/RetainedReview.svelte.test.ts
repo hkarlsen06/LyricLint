@@ -104,7 +104,8 @@ test('reviews one retained detail at a time without moving navigation for long m
 	expect(controller.requestedSection).toEqual({ id: 'two', origin: 'review' });
 	await view.rerender({ controller, findings: findings.slice(0, 1) });
 	expect(message()).toBe(findings[0].message);
-	expect(screen.getByRole('button', { name: 'Next detail' })).toBeDisabled();
+	expect(screen.queryByRole('button', { name: 'Next detail' })).toBeNull();
+	expect(screen.queryByRole('button', { name: 'Previous detail' })).toBeNull();
 });
 
 test('requires Save, resets pending choice between items, and refuses unavailable commits', async () => {
