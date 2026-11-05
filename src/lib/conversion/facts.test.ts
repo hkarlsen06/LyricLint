@@ -72,6 +72,138 @@ function withInterval() {
 }
 
 describe('confirmed scoped conversion facts', () => {
+	it.each(
+		['13', '１３', '١٣', '۱۳'].flatMap((source) =>
+			['13', '１３', '١٣', '۱۳'].map((target) => [source, target])
+		)
+	)('validates source %s independently of chosen output %s', (source, target) => {
+		const text = `[Verse]\nJ'ai compté [${source}](123456) étoiles`;
+		const document = value(
+			importDocument({ text, profile: 'genius', language: 'fr', contentKind: 'original' })
+		);
+		const projection = view(document);
+		const from = projection.text.indexOf(source);
+		const before = JSON.stringify(document);
+		const result = value(
+			resolveDecision(document, projection, {
+				kind: 'confirmQuantity',
+				range: { from, to: from + source.length },
+				facts: { ...quantity('13'), digitForm: target }
+			})
+		);
+		expect(result.projection.text).toBe(`J'ai compté ${target} étoiles`);
+		expect(view(result.document, 'genius').text).toBe(text);
+		expect(result.document.content).toBe(document.content);
+		for (const key of [
+			'owners',
+			'wrappers',
+			'sections',
+			'lines',
+			'links',
+			'voices',
+			'languageRanges'
+		] as const)
+			expect(result.document[key]).toEqual(document[key]);
+		expect(validateModel(result.document).ok).toBe(true);
+		expect(JSON.stringify(document)).toBe(before);
+	});
+
+	it.each([
+		['１４', '13', '13'],
+		['１３', '13', '14'],
+		['０１３', '13', '13'],
+		['１３', '13', '０１３'],
+		['1３', '13', '13'],
+		['１３', '13', '1３'],
+		['13', '13', '014'],
+		['013', '13', '13']
+	])('refuses source %s value %s target %s without mutation', (source, exact, target) => {
+		const document = value(
+			importDocument({
+				text: `[Verse]\nJ'ai compté [${source}](123456) étoiles`,
+				profile: 'genius',
+				language: 'fr',
+				contentKind: 'original'
+			})
+		);
+		const projection = view(document);
+		const from = projection.text.indexOf(source);
+		const before = JSON.stringify({ document, projection });
+		expect(
+			resolveDecision(document, projection, {
+				kind: 'confirmQuantity',
+				range: { from, to: from + source.length },
+				facts: { ...quantity(exact), digitForm: target }
+			}).ok
+		).toBe(false);
+		expect(JSON.stringify({ document, projection })).toBe(before);
+	});
+
+	it('preserves quantity scope, roles and assigned-language refusals across digit styles', () => {
+		const initial = value(
+			importDocument({
+				text: '１３ étoiles',
+				profile: 'genius',
+				language: 'fr',
+				contentKind: 'original'
+			})
+		);
+		const facts = { ...quantity('13'), digitForm: '13' };
+		const attempt = (document: ConversionDocument, from: number, to: number, supplied = facts) => {
+			const projection = view(document);
+			const before = JSON.stringify({ document, projection });
+			const result = resolveDecision(document, projection, {
+				kind: 'confirmQuantity',
+				range: { from, to },
+				facts: supplied
+			});
+			expect(result.ok).toBe(false);
+			expect(JSON.stringify({ document, projection })).toBe(before);
+		};
+		attempt(initial, 0, 1, { ...facts, value: '1', digitForm: '1' });
+		attempt(initial, 1, 2, { ...facts, value: '3', digitForm: '3' });
+		for (const usage of [
+			'date-or-time',
+			'name-or-identifier',
+			'fixed-expression',
+			'phone-or-decade',
+			'unknown'
+		] as const)
+			attempt(initial, 0, 2, { ...facts, usage });
+		for (const pronunciation of ['individual-digits', 'unknown'] as const)
+			attempt(initial, 0, 2, { ...facts, pronunciation });
+		for (const language of ['ar', 'ko', 'fi', 'es']) {
+			const changed = value(
+				resolveDecision(initial, view(initial), { kind: 'setLanguage', language })
+			).document;
+			attempt(changed, 0, 2);
+		}
+		const scoped = value(
+			resolveDecision(initial, view(initial), {
+				kind: 'setPassageLanguage',
+				range: { from: 1, to: 2 },
+				language: 'en'
+			})
+		).document;
+		attempt(scoped, 0, 2);
+		const french = value(
+			resolveDecision(initial, view(initial), { kind: 'setLanguage', language: 'ar' })
+		).document;
+		const assigned = value(
+			resolveDecision(french, view(french), {
+				kind: 'setPassageLanguage',
+				range: { from: 0, to: 2 },
+				language: 'fr'
+			})
+		).document;
+		expect(
+			resolveDecision(assigned, view(assigned), {
+				kind: 'confirmQuantity',
+				range: { from: 0, to: 2 },
+				facts
+			}).ok
+		).toBe(true);
+	});
 	it.each(['\n', '\r\n', '\r'])(
 		'reclassifies one explicitly selected literal marker with %j endings without duplicating it',
 		(ending) => {

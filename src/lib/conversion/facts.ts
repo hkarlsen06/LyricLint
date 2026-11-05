@@ -3,7 +3,7 @@ import { scanPhysicalLines } from '#lib/core/parser.js';
 import {
 	decideInstrumentalRepresentation,
 	decideQuantityRepresentation,
-	parseQuantityInteger,
+	quantitySourceDigits,
 	type InstrumentalIntervalFacts,
 	type QuantityFacts
 } from '#lib/profiles/decisions.js';
@@ -98,12 +98,16 @@ export function resolveFactDecision(
 				'invalid-input',
 				'Confirm the exact selected words as the spoken form of this quantity.'
 			);
-		if (/^[0-9]+$/u.test(selected) && parseQuantityInteger(selected) !== facts.value)
+		if (/^[0-9]+$/u.test(selected) && quantitySourceDigits(selected, facts.value) === undefined)
 			return refuse(
 				'invalid-input',
 				'The selected digits do not match the exact confirmed quantity.'
 			);
-		if (/\p{Nd}/u.test(selected) && !/^[0-9]+$/u.test(selected) && selected !== facts.digitForm)
+		if (
+			/\p{Nd}/u.test(selected) &&
+			!/^[0-9]+$/u.test(selected) &&
+			quantitySourceDigits(selected, facts.value) === undefined
+		)
 			return refuse(
 				'invalid-input',
 				'Confirm the exact digit form of the complete selected quantity.'

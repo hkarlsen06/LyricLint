@@ -432,9 +432,12 @@ never receive invented lyric ranges. Format switches and subsequent edits keep n
 Focused quantity tasks ask “How is this number used?” and “How is it sung?” independently.
 A selected canonical ASCII integer supplies its already-proven exact value without a duplicate
 input. Word forms, noncanonical numbers and non-Latin digits retain the exact-value input.
-“Use custom exact wording” discloses
-optional exact sung words and digit forms; the shared policy and source-match validators still
-refuse unsupported or mismatched facts. Invalid values explain the refusal before preview.
+Required exact sung wording renders directly. “Use custom exact wording” discloses only
+optional output wording and digit styles. The source digits must independently prove the
+confirmed arithmetic value through the policy-owned source-identity validator; an explicitly
+chosen target digit style must prove that same value through target-form validation. Neither
+choice normalizes the authored source or supplies pronunciation. The shared policy and
+source-match validators still refuse unsupported or mismatched facts. Invalid values explain the refusal before preview.
 Censorship requires the heard prefix and an explicit confirmation that the word is censored
 immediately after that prefix. Editing the prefix clears confirmation. Decide later discards
 unfinished input; reopening starts empty. The native checkbox uses the spacing scale for its

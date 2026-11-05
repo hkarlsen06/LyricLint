@@ -205,7 +205,7 @@ test.each(['2', '２'])(
 	'requires French sung wording and proves source digits for %s',
 	async (source) => {
 		const { panel, controller, handle, player } = await setup('[Verse]\n' + source + ' étoiles');
-		controller.setLanguage('fr');
+		controller.applyConversionAction({ kind: 'setLanguage', language: 'fr' });
 		handle.setSelection({ anchor: 0, head: 1 });
 		await fillQuantity(panel);
 		expect(panel.getByLabelText('Exact words as sung (required)')).toBeVisible();
@@ -234,5 +234,27 @@ test('unsupported roles offer a local next action without a conversion or generi
 		'Use Edit in lyrics'
 	);
 	expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
+	player.destroy();
+});
+
+test('previews a chosen ASCII target for full-width French source without changing its annotation', async () => {
+	const source = "[Verse]\nJ'ai compté [１３](123456) étoiles";
+	const { panel, controller, handle, player } = await setup(source);
+	controller.applyConversionAction({ kind: 'setLanguage', language: 'fr' });
+	handle.setSelection({ anchor: 12, head: 14 });
+	await waitFor(() => expect(controller.snapshot.selection.head).toBe(14));
+	await fillQuantity(panel, '13');
+	await fireEvent.click(panel.getByText('Use custom exact wording'));
+	await fireEvent.input(panel.getByLabelText('Digit form, if applicable'), {
+		target: { value: '13' }
+	});
+	const before = JSON.stringify(controller.snapshot.conversion?.model);
+	await fireEvent.click(panel.getByRole('button', { name: 'Preview quantity' }));
+	expect(panel.getByText('Proposed Musixmatch wording: 13')).toBeVisible();
+	expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
+	await fireEvent.click(panel.getByRole('button', { name: 'Apply quantity' }));
+	await waitFor(() => expect(controller.snapshot.text).toBe("J'ai compté 13 étoiles"));
+	controller.switchProfile('genius');
+	expect(handle.getSnapshot().text).toBe(source);
 	player.destroy();
 });
