@@ -657,9 +657,7 @@ describe('SongPanel conversion restraint', () => {
 				editor.handle.switchProfile!('musixmatch');
 				const { container } = await render(SongPanel, { controller });
 				container.style.width = `${width}px`;
-				expect(
-					screen.getByRole('option', { name: '0 musical sections · Choose to edit' })
-				).toBeTruthy();
+				expect(screen.getByRole('option', { name: '0 musical sections' })).toBeTruthy();
 				expect(container.textContent).toContain('2 stanzas');
 				await fireEvent.click(screen.getByText('Add a section', { exact: true }));
 				const insert = screen.getByRole('button', { name: 'Insert boundary at cursor' });
@@ -671,9 +669,7 @@ describe('SongPanel conversion restraint', () => {
 				await waitFor(() =>
 					expect(screen.getByRole('heading', { name: 'Section 1 · Verse' })).toHaveFocus()
 				);
-				expect(
-					screen.getByRole('option', { name: '1 musical section · Choose to edit' })
-				).toBeTruthy();
+				expect(screen.getByRole('option', { name: '1 musical section' })).toBeTruthy();
 				expect(container.textContent).toContain('2 stanzas');
 				const type = screen.getByRole('combobox', { name: 'Section type' });
 				const before = type.getBoundingClientRect();

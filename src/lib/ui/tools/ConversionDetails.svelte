@@ -144,8 +144,9 @@
 						removeId = undefined;
 					}}
 					><option value=""
-						>{model.sections.length} musical {model.sections.length === 1 ? 'section' : 'sections'} ·
-						Choose to edit</option
+						>{model.sections.length} musical {model.sections.length === 1
+							? 'section'
+							: 'sections'}</option
 					>{#each model.sections as section, index (section.id)}<option value={section.id}
 							>Section {index + 1} · {section.type ?? (section.name || 'Type not set')} · {model.content
 								.slice(section.at, model.sections[index + 1]?.at ?? model.content.length)

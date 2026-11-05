@@ -286,21 +286,15 @@
 
 <style>
 	.preferences-panel {
+		display: grid;
 		min-width: 0;
 		grid-template-columns: minmax(0, 1fr);
 		align-content: start;
-	}
-
-	.preferences-panel {
-		display: grid;
-		gap: var(--space-5);
+		gap: var(--space-4);
 	}
 	.preferences-panel > section {
 		margin: 0;
 		min-width: 0;
-	}
-	.preferences-panel > section:has(#backup-heading) {
-		padding-block: var(--space-3);
 	}
 	.preferences-panel > section:has(#backup-heading) h2 {
 		margin-bottom: var(--space-3);
@@ -362,7 +356,7 @@
 	}
 
 	.preferences-panel section + section {
-		margin-top: var(--space-1);
+		margin-top: 0;
 	}
 
 	.preferences-panel h2 {
@@ -381,10 +375,6 @@
 	.preferences-panel p:not(.backup-status--warning),
 	.preferences-panel__disclosure summary span {
 		color: var(--color-text-muted);
-	}
-
-	.preferences-panel > section:first-child:has(.toggle-field) {
-		padding-block: var(--space-4);
 	}
 
 	.preferences-panel .preferences-panel__heading {
