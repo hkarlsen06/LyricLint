@@ -2,9 +2,36 @@ import { invertedEffects } from '@codemirror/commands';
 import { Prec, StateEffect, type Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { PerformerRecord, PerformerRecordDelta } from '#lib/core/types.js';
+import type { ConversionDocument } from '#lib/conversion/model.js';
+import { parseDocument } from '#lib/core/parser.js';
+import { headerNameAtoms } from '#lib/performers/index.js';
 import { editorCallbacksField } from './editor-state.js';
 
 export const conversionRosterEffect = StateEffect.define<PerformerRecordDelta>();
+
+/** Roster-only inverses cannot rewrite identities still named by the rich document. */
+export function changesReferencedPerformers(
+	model: ConversionDocument,
+	roster: readonly PerformerRecord[],
+	delta: PerformerRecordDelta
+): boolean {
+	const changed = new Set(
+		delta.before
+			.filter((record) => {
+				const replacement = delta.after.find((entry) => entry.id === record.id);
+				return !replacement || replacement.displayName !== record.displayName;
+			})
+			.map((record) => record.id)
+	);
+	return (
+		model.voices.some((voice) => voice.performerIds.some((id) => changed.has(id))) ||
+		model.sections.some((section) =>
+			headerNameAtoms(parseDocument(section.header), roster).some(
+				(atom) => atom.performerId !== undefined && changed.has(atom.performerId)
+			)
+		)
+	);
+}
 
 /** Apply only the identities named by the action, retaining independently added performers. */
 export function applyPerformerRecordDelta(
@@ -25,7 +52,7 @@ export function applyPerformerRecordDelta(
 	return [
 		...result,
 		...[...replacements.values()].map((record) => ({ ...record, aliases: [...record.aliases] }))
-	];
+	].sort((left, right) => left.order - right.order);
 }
 
 export function validPerformerRecordDelta(

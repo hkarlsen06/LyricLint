@@ -12,6 +12,7 @@ import {
 } from '#lib/performers/index.js';
 import {
 	applyPerformerRecordDelta,
+	changesReferencedPerformers,
 	validPerformerRecordDelta
 } from '#lib/editor/extensions/conversion-roster.js';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -36,6 +37,7 @@ interface RosterStoreDependencies {
 	scheduleSave: () => void;
 	undoScope: () => string;
 	snapshot: () => EditorSnapshot;
+	applyRichUndo: (delta: PerformerRecordDelta) => boolean;
 }
 
 interface RosterStore {
@@ -68,10 +70,23 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 	let importSuggestions = $state<ImportSuggestion[]>([]);
 
 	const feedback = deps.feedback;
+	let orderScope = deps.undoScope();
+	let nextOrder = deps.initialPerformers.reduce(
+		(next, record) => Math.max(next, record.order + 1),
+		0
+	);
+
+	function retainOrder(): void {
+		const scope = deps.undoScope();
+		const next = performers.reduce((value, record) => Math.max(value, record.order + 1), 0);
+		nextOrder = scope === orderScope ? Math.max(nextOrder, next) : next;
+		orderScope = scope;
+	}
 
 	function setRoster(next: readonly PerformerRecord[]): void {
 		// Keep record order stable so an independent Undo does not edit other identities.
 		performers = cloneRoster(next).sort((left, right) => left.order - right.order);
+		retainOrder();
 		deps.scheduleSave();
 	}
 
@@ -84,18 +99,8 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			} else if (!validPerformerRecordDelta(performers, delta)) {
 				refusal = 'Cannot undo this roster change because an affected performer has changed.';
 			} else {
-				const removed = new SvelteSet(
-					delta.before
-						.filter((record) => !delta.after.some((entry) => entry.id === record.id))
-						.map((record) => record.id)
-				);
-				if (
-					deps
-						.snapshot()
-						.conversion?.model.voices.some((voice) =>
-							voice.performerIds.some((id) => removed.has(id))
-						)
-				)
+				const model = deps.snapshot().conversion?.model;
+				if (model && changesReferencedPerformers(model, performers, delta))
 					refusal =
 						'Cannot undo this roster change while a performer is used in retained voices or legends.';
 			}
@@ -129,7 +134,9 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			message,
 			actionLabel: 'Undo',
 			action: guardUndo(inverse, () => {
-				setRoster(applyPerformerRecordDelta(performers, inverse));
+				if (deps.snapshot().conversion) {
+					if (!deps.applyRichUndo(inverse)) return;
+				} else setRoster(applyPerformerRecordDelta(performers, inverse));
 				feedback.announce('Roster change undone.');
 			})
 		});
@@ -180,6 +187,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 		},
 		reset(roster) {
 			performers = cloneRoster(roster);
+			retainOrder();
 		},
 		importFromSnapshot(snapshot) {
 			const extraction = extractPerformers(snapshot.parsed, performers);
@@ -217,7 +225,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			const additions = extraction.rosterAdditions.map((performer, index) => ({
 				...performer,
 				aliases: [...performer.aliases],
-				order: Math.max(-1, ...performers.map((entry) => entry.order)) + 1 + index
+				order: nextOrder + index
 			}));
 			const names = additions.map((performer) => performer.displayName);
 			const message =
@@ -235,7 +243,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 				normalizedKey: normalizePerformerKey(trimmed),
 				aliases: [],
 				colorId: allocatePerformerColor(trimmed, performers),
-				order: Math.max(-1, ...performers.map((entry) => entry.order)) + 1
+				order: nextOrder
 			};
 			commitRoster([...performers, next], `Added ${trimmed} to the roster.`);
 		},

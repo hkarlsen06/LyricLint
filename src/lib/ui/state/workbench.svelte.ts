@@ -445,7 +445,18 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		idFactory,
 		scheduleSave: draft.keepDraft,
 		undoScope: () => `${draft.draftId}:${rosterSession}`,
-		snapshot: () => editorSession.snapshot
+		snapshot: () => editorSession.snapshot,
+		applyRichUndo(delta) {
+			const result = editorSession.editor.dispatchPerformerRecords?.(
+				delta,
+				editorSession.snapshot.revision
+			);
+			if (result?.ok) return true;
+			const message = result?.message ?? 'The performer history is not ready. Try again.';
+			feedback.announce(message);
+			feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+			return false;
+		}
 	});
 
 	// Grammar checking is on by default: the feedback that prompted the toggle

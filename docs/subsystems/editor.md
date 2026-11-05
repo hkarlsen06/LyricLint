@@ -19,6 +19,10 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   IME changes finish before a queued switch. Undo retains the allocator high-water mark, including
   after save/reload, so a new edit never reuses a retired occurrence's ID. Selection and viewport
   follow occurrence mappings rather than searching for identical words.
+- Roster-only inverses in rich drafts use that same commit boundary and isolated editor
+  history, with an invertible performer delta. They revalidate affected records and refuse
+  changes to retained voice or legend identities. A roster Undo cannot leave older lyric
+  Undo/Redo able to restore an association without its performer record.
 - Displaced section boundaries stay retained metadata with a range-free placement finding. Genius
   withholds their generated headings and Musixmatch withholds their widgets until explicit placement
   at an eligible lyric line start. Literal partial headers remain exact shared text.

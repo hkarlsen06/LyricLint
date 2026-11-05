@@ -152,7 +152,8 @@ import {
 	conversionForState,
 	switchEditorProfile,
 	profileForState,
-	dispatchConversionAction
+	dispatchConversionAction,
+	dispatchPerformerRecords
 } from './extensions/conversion-state.js';
 
 export interface CreateLyricEditorOptions {
@@ -1130,6 +1131,9 @@ export function createLyricEditor(
 		},
 		dispatchConversionAction(action, baseRevision, rosterChanges) {
 			return dispatchConversionAction(view, action, baseRevision, rosterChanges);
+		},
+		dispatchPerformerRecords(rosterChanges, baseRevision) {
+			return dispatchPerformerRecords(view, rosterChanges, baseRevision);
 		},
 		switchProfile(profile) {
 			return switchEditorProfile(view, profile);

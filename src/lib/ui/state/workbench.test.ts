@@ -1437,7 +1437,11 @@ describe('workbench performer imports', () => {
 
 	test('an unreferenced addition still undoes after a rich format switch', () => {
 		const initial = draft('draft-a', 'Moon');
-		const { controller } = setup({ initial });
+		const { controller, editor } = setup({ initial });
+		editor.dispatchPerformerRecords = (delta) => {
+			controller.adoptPerformerRecords(delta);
+			return { ok: true };
+		};
 		controller.addPerformer('Mira');
 		const undo = controller.feedback.toasts.at(-1)!.id;
 		const model = importDocument({
@@ -1450,6 +1454,48 @@ describe('workbench performer imports', () => {
 		controller.onSnapshot({ ...snapshot(initial, 1, conversion.projectionText), conversion });
 		controller.feedback.runToastAction(undo);
 		expect(controller.performers).toEqual([]);
+	});
+
+	test('roster-only rename Undo refuses after the renamed performer gains rich references', () => {
+		const initial = draft('draft-a', 'Moon');
+		const { controller } = setup({ initial });
+		controller.addPerformer('Mira');
+		controller.renamePerformer(controller.performers[0]!.id, 'Luna');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		const model = importDocument({
+			text: '[Verse: Luna]\nMoon',
+			profile: 'genius',
+			performers: controller.performers
+		});
+		if (!model.ok) throw new Error(model.refusal.message);
+		const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+		controller.onSnapshot({ ...snapshot(initial, 1, conversion.projectionText), conversion });
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers[0]?.displayName).toBe('Luna');
+		expect(controller.feedback.announcement).toContain('retained voices or legends');
+		expect(controller.snapshot.conversion?.model.sections[0]?.header).toBe('[Verse: Luna]\n');
+	});
+
+	test.each(['add', 'import'])('restores the last removed performer before a later %s', (kind) => {
+		const initial = draft('draft-a', '');
+		const { controller } = setup({ initial });
+		controller.addPerformer('Mira');
+		controller.addPerformer('Noor');
+		const noor = controller.performers[1]!;
+		controller.removePerformer(noor.id);
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		if (kind === 'add') controller.addPerformer('Lena');
+		else
+			controller.onSnapshot(
+				snapshot(initial, 1, '[Verse: Lena]\nA sufficiently long lyric line for performer import')
+			);
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers.map((entry) => entry.displayName)).toEqual([
+			'Mira',
+			'Noor',
+			'Lena'
+		]);
+		expect(new Set(controller.performers.map((entry) => entry.order)).size).toBe(3);
 	});
 
 	test('removal Undo restores exact identity and position without replacing later edits', () => {

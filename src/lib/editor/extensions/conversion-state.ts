@@ -14,6 +14,7 @@ import { setVoiceGroupsEffect } from './performer-decorations.js';
 import type { PerformerRecord, PerformerRecordDelta, TextEdit } from '#lib/core/types.js';
 import {
 	applyPerformerRecordDelta,
+	changesReferencedPerformers,
 	conversionRosterEffect,
 	conversionRosterHistory,
 	validPerformerRecordDelta
@@ -158,12 +159,16 @@ function importEditorState(state: EditorState) {
 	};
 }
 
-export function dispatchConversionAction(
+type ConversionCommand =
+	| { kind: 'action'; action: ConversionAction; rosterChanges?: PerformerRecordDelta }
+	| { kind: 'roster'; rosterChanges: PerformerRecordDelta };
+
+function dispatchConversionCommand(
 	view: EditorView,
-	action: ConversionAction,
-	baseRevision: number,
-	rosterChanges?: PerformerRecordDelta
+	command: ConversionCommand,
+	baseRevision: number
 ): { ok: true } | { ok: false; message: string } {
+	const { rosterChanges } = command;
 	if (view.composing || view.state.field(editorComposingField))
 		return { ok: false, message: 'Finish composing this character before changing its details.' };
 	if (baseRevision !== view.state.field(editorRevisionField))
@@ -189,15 +194,26 @@ export function dispatchConversionAction(
 				'The performer roster changed or its history handler is unavailable. Review this action again.'
 		};
 	const nextRoster = rosterChanges ? applyPerformerRecordDelta(roster, rosterChanges) : roster;
-	const result = resolveDecision(
-		{
-			...before.envelope.model,
-			nextId: Math.max(before.envelope.model.nextId, view.state.field(allocatorField))
-		},
-		before.projection,
-		action,
-		{ performers: nextRoster }
-	);
+	if (
+		command.kind === 'roster' &&
+		changesReferencedPerformers(before.envelope.model, roster, command.rosterChanges)
+	)
+		return { ok: false, message: 'This roster change would alter a retained voice or legend.' };
+	const result =
+		command.kind === 'action'
+			? resolveDecision(
+					{
+						...before.envelope.model,
+						nextId: Math.max(before.envelope.model.nextId, view.state.field(allocatorField))
+					},
+					before.projection,
+					command.action,
+					{ performers: nextRoster }
+				)
+			: {
+					ok: true as const,
+					value: { document: before.envelope.model, projection: before.projection, changes: [] }
+				};
 	if (!result.ok) return { ok: false, message: result.refusal.message };
 	const next: ConversionState = {
 		envelope: envelopeFor(before.envelope, result.value.document, result.value.projection.text),
@@ -215,10 +231,29 @@ export function dispatchConversionAction(
 			profileProjection.of(true),
 			Transaction.userEvent.of('input.profile.details'),
 			isolateHistory.of('full'),
-			...(action.kind === 'setRecording' ? [Transaction.addToHistory.of(false)] : [])
+			...(command.kind === 'action' && command.action.kind === 'setRecording'
+				? [Transaction.addToHistory.of(false)]
+				: [])
 		]
 	});
 	return { ok: true };
+}
+
+export function dispatchConversionAction(
+	view: EditorView,
+	action: ConversionAction,
+	baseRevision: number,
+	rosterChanges?: PerformerRecordDelta
+): { ok: true } | { ok: false; message: string } {
+	return dispatchConversionCommand(view, { kind: 'action', action, rosterChanges }, baseRevision);
+}
+
+export function dispatchPerformerRecords(
+	view: EditorView,
+	rosterChanges: PerformerRecordDelta,
+	baseRevision: number
+): { ok: true } | { ok: false; message: string } {
+	return dispatchConversionCommand(view, { kind: 'roster', rosterChanges }, baseRevision);
 }
 
 /** A switch is a single history event, including a text-identical switch. */

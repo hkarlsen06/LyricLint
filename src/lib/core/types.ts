@@ -911,6 +911,11 @@ export interface EditorHandle {
 		range: TextRange
 	): { ok: true } | { ok: false; message: string };
 	dismissClipboardReview?(): void;
+	/** Commit a roster-only inverse in the same history as retained lyric associations. */
+	dispatchPerformerRecords?(
+		rosterChanges: PerformerRecordDelta,
+		baseRevision: number
+	): { ok: true } | { ok: false; message: string };
 	isLyricSyncActive?(): boolean;
 	isConversionSectionLocal?(sectionId: string): boolean;
 	toggleConversionSectionLocal?(sectionId: string): boolean;
