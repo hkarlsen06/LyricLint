@@ -12,12 +12,12 @@ afterEach(async () => {
 	await cleanup();
 	for (const dispose of disposers.splice(0)) dispose();
 });
-async function setup() {
-	const { controller } = createTestWorkbench({ text: source });
+async function setup(text = source) {
+	const { controller } = createTestWorkbench({ text });
 	const host = document.createElement('div');
 	document.body.append(host);
 	const editor = createLyricEditor(host, {
-		initialText: source,
+		initialText: text,
 		context: { language: 'en', performers: [], ruleSetVersion: 'test' },
 		callbacks: {
 			onSnapshot: (snapshot) => controller.onSnapshot(snapshot),
@@ -118,3 +118,104 @@ test('native Escape still owns the modal after its focused result disappears', a
 	await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 	expect(controller.snapshot.text).toBe(source);
 });
+
+for (const profile of ['genius', 'musixmatch'] as const) {
+	test.each([
+		{
+			name: 'an override and unassigned words',
+			assignments: [{ from: 0, to: 8, language: 'fr' }],
+			label: 'Mixed languages'
+		},
+		{
+			name: 'different overrides',
+			assignments: [
+				{ from: 0, to: 8, language: 'fr' },
+				{ from: 8, to: source.length, language: 'de' }
+			],
+			label: 'Mixed languages'
+		},
+		{
+			name: 'adjacent overrides in the same language',
+			assignments: [
+				{ from: 0, to: 8, language: 'fr' },
+				{ from: 8, to: source.length, language: 'fr' }
+			],
+			label: 'French'
+		},
+		{
+			name: 'an override matching the document default',
+			assignments: [{ from: 0, to: 8, language: 'en' }],
+			label: 'English'
+		}
+	])(`reports the whole ${profile} selection for $name`, async ({ assignments, label }) => {
+		const { controller, editor } = await setup();
+		for (const { from, to, language } of assignments) {
+			expect(
+				controller.applyConversionAction({
+					kind: 'setPassageLanguage',
+					range: { from, to },
+					language
+				})
+			).toBe(true);
+		}
+		controller.switchProfile(profile);
+		editor.handle.setSelection({ anchor: 0, head: source.length });
+		const before = JSON.stringify(controller.snapshot.conversion?.model);
+		await waitFor(() =>
+			expect(
+				screen.getByRole('button', { name: `Selected passage language: ${label}` })
+			).toBeTruthy()
+		);
+		await open();
+		const current = screen.getByRole('dialog').querySelectorAll('[aria-current="true"]');
+		expect(current).toHaveLength(label === 'Mixed languages' ? 0 : 1);
+		if (label !== 'Mixed languages') expect(current[0].getAttribute('aria-label')).toBe(label);
+		expect(controller.language).toBe('en');
+		expect(controller.snapshot.text).toBe(source);
+		expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
+	});
+}
+
+for (const text of ['Un beau jour', '[Verse]\nUn [beau](12345) jour']) {
+	test.each([
+		{ length: 4, label: 'French' },
+		{ length: 2, label: 'Mixed languages' }
+	])('reports $label inside transformed wording in ' + text, async ({ length, label }) => {
+		const { controller, editor } = await setup(text);
+		const from = text.indexOf('beau');
+		expect(
+			controller.applyConversionAction({
+				kind: 'setPassageLanguage',
+				range: { from, to: from + length },
+				language: 'fr'
+			})
+		).toBe(true);
+		expect(
+			controller.applyConversionAction({
+				kind: 'setForm',
+				profile: 'musixmatch',
+				range: { from, to: from + 4 },
+				text: 'joli'
+			})
+		).toBe(true);
+		controller.switchProfile('musixmatch');
+		expect(controller.snapshot.text).toBe('Un joli jour');
+		editor.handle.setSelection({ anchor: 4, head: 6 });
+		const before = JSON.stringify(controller.snapshot.conversion?.model);
+		await waitFor(() =>
+			expect(
+				screen.getByRole('button', { name: `Selected passage language: ${label}` })
+			).toBeTruthy()
+		);
+		await open();
+		const current = screen.getByRole('dialog').querySelectorAll('[aria-current="true"]');
+		expect(current).toHaveLength(label === 'Mixed languages' ? 0 : 1);
+		await fireEvent.click(screen.getByRole('button', { name: 'German' }));
+		expect(screen.getByRole('dialog').textContent).toContain('Choose a valid language code');
+		expect(controller.snapshot.text).toBe('Un joli jour');
+		expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
+		await userEvent.keyboard('{Escape}');
+		controller.switchProfile('genius');
+		expect(controller.snapshot.text).toBe(text);
+	});
+}

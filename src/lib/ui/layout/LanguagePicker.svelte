@@ -18,7 +18,7 @@
 		message = '',
 		context = ''
 	}: {
-		language: string;
+		language: string | undefined;
 		recentLanguages?: readonly string[];
 		onchoose: (tag: string) => boolean | void;
 		onopen?: () => void;
@@ -56,7 +56,9 @@
 		);
 	});
 
-	const selectedLabel = $derived(languageName(language));
+	const selectedLabel = $derived(
+		language === undefined ? 'Mixed languages' : languageName(language)
+	);
 
 	// What the results say, as one sentence. The no-match case is the visible
 	// message verbatim: a reader who cannot see it is owed the same answer, not a
@@ -130,7 +132,13 @@
 	onclick={open}
 >
 	<GlobeIcon aria-hidden="true" size={16} weight="bold" />
-	<span aria-hidden="true">{expandedLabel ? `Language: ${selectedLabel}` : language}</span>
+	<span aria-hidden="true"
+		>{language === undefined
+			? selectedLabel
+			: expandedLabel
+				? `Language: ${selectedLabel}`
+				: language}</span
+	>
 </button>
 
 <dialog

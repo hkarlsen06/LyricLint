@@ -132,6 +132,11 @@ falling back to the Review tab after the last decision is resolved.
 | Passage language | Direct in Song, above advanced tools. Search the shared language inventory or deliberately enter a custom code for the captured selection. Show the document default separately from the override and content kind. Retained overrides keep Use document language. Changes to draft, profile, revision, lyrics or selection while open refuse with an announcement until reopened. |
 
 The earlier disclosure-only passage-language control and raw-code-only field are superseded. Wording and annotation controls remain deliberate. Cancelling the native language dialog changes no lyrics and returns focus to its trigger.
+The picker reports the effective language of the complete selected lyric range, including
+document-language gaps between overrides. Different languages show Mixed languages with no
+current option. Adjacent overrides in one language still show that language.
+For a selection inside an alternate wording, the display includes the intersected wording
+unit's source range. Assigning a language through only part of that unit still refuses.
 
 The directional merge chooses the destination's existing label and type. A merge into the next
 section moves that destination to the removed section's start, so its body includes both sets

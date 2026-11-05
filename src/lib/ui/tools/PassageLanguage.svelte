@@ -30,16 +30,33 @@
 		!controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery
 	);
 	const model = $derived(controller.snapshot.conversion?.model);
-	const overlaps = $derived.by(() => {
+	const language = $derived.by(() => {
 		const conversion = controller.snapshot.conversion;
-		if (!conversion || range.from === range.to) return [];
+		if (!conversion || range.from === range.to) return controller.language;
 		const projection = renderProfile(conversion.model, conversion.profile);
-		if (!projection.ok) return [];
-		const from = contentOffset(projection.value, range.from, 1);
-		const to = contentOffset(projection.value, range.to, -1);
-		return conversion.model.languageRanges.filter((entry) => entry.from < to && entry.to > from);
+		if (!projection.ok) return undefined;
+		let from = contentOffset(projection.value, range.from, 1);
+		let to = contentOffset(projection.value, range.to, -1);
+		for (const segment of projection.value.segments) {
+			if (segment.kind === 'transformed' && segment.from < range.to && range.from < segment.to) {
+				from = Math.min(from, segment.contentFrom);
+				to = Math.max(to, segment.contentTo);
+			}
+		}
+		if (from >= to) return controller.language;
+		const languages: string[] = [];
+		let at = from;
+		for (const entry of [...conversion.model.languageRanges].sort((a, b) => a.from - b.from)) {
+			const start = Math.max(from, entry.from);
+			const end = Math.min(to, entry.to);
+			if (start >= end) continue;
+			if (at < start) languages.push(conversion.model.defaultLanguage);
+			languages.push(entry.language);
+			at = end;
+		}
+		if (at < to) languages.push(conversion.model.defaultLanguage);
+		return languages.every((tag) => tag === languages[0]) ? languages[0] : undefined;
 	});
-	const current = $derived(overlaps.length === 1 ? overlaps[0] : undefined);
 	function show(from: number, to: number) {
 		const conversion = controller.snapshot.conversion;
 		if (!conversion) return;
@@ -71,14 +88,12 @@
 
 <section class="passage-language">
 	<h2>Passage language</h2>
-	<p>Document default: {languageName(controller.language)}. Content kind is set separately.</p>
+	<p>Document language: {languageName(controller.language)}</p>
 	{#if range.from === range.to}
 		<p>Select lyrics to assign a passage language.</p>
-	{:else if overlaps.length > 1}
-		<p>Multiple passage overrides in selection.</p>
 	{/if}
 	<LanguagePicker
-		language={current?.language ?? controller.language}
+		{language}
 		recentLanguages={controller.recentLanguages}
 		label="Selected passage language"
 		expandedLabel
