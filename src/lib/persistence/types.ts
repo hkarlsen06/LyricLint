@@ -33,7 +33,7 @@ export type {
  */
 export type AutosaveController = Omit<CoreAutosaveController, 'schedule'> & {
 	/** Destructive operation owns this recovery until it restores or discards it. */
-	suspend?(draftId?: string): { restore(): void; discard(): void };
+	suspend?(draftId?: string): { ready?: Promise<void>; restore(): void; discard(): void };
 	noteDraftLoaded?(draftId: string): void;
 	/** Synchronous departure recovery. False means navigation needs a warning. */
 	checkpoint?(): boolean;

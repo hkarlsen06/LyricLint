@@ -56,7 +56,7 @@ function snapshot(draft: DraftRecord, revision = 0): EditorSnapshot {
 		canRedo: false
 	};
 }
-async function setup() {
+async function setup(debounceMs = 60_000) {
 	const database = await openDatabase(`workbench-conflicts-${crypto.randomUUID()}`);
 	databases.push(database);
 	const repository = createDraftRepository(database);
@@ -65,7 +65,7 @@ async function setup() {
 	const mediaRepository = createMediaRepository(database);
 	const storage = createMemorySessionStorage();
 	const checkpoint = createDepartureCheckpoint(() => storage);
-	const autosave = createAutosaveController(repository, { debounceMs: 60_000, checkpoint });
+	const autosave = createAutosaveController(repository, { debounceMs, checkpoint });
 	let current = snapshot(initial);
 	const editor: EditorHandle = {
 		focus() {},
@@ -124,6 +124,204 @@ async function setup() {
 }
 
 describe('actual workbench mutation order across competing writers', () => {
+	it.each(['delete', 'reset'] as const)(
+		'holds new edits until the actual %s outcome, even with no entry save',
+		async (operation) => {
+			for (const pending of [false, true]) {
+				for (const refused of [false, true]) {
+					const run = await setup(10);
+					if (pending) run.edit('[Verse]\nEntry save');
+					const entered = Promise.withResolvers<void>();
+					const release = Promise.withResolvers<void>();
+					const remove =
+						operation === 'delete'
+							? run.repository.delete.bind(run.repository)
+							: run.repository.deleteAll.bind(run.repository);
+					vi.spyOn(
+						run.repository,
+						operation === 'delete' ? 'delete' : 'deleteAll'
+					).mockImplementation(async () => {
+						entered.resolve();
+						await release.promise;
+						if (refused) throw new Error('refused');
+						await remove('song');
+					});
+					const deleting =
+						operation === 'delete'
+							? run.controller.deleteDraft('song')
+							: run.controller.deleteAllDrafts();
+					await entered.promise;
+					run.ignores.ignore('song', 'latest-ignore');
+					run.edit('[Verse]\nDuring deletion');
+					const envelope = run.controller.snapshot.conversion;
+					expect(run.autosave.checkpoint?.()).toBe(false);
+					await new Promise<void>((resolve) => setTimeout(resolve, 30));
+					await run.autosave.flush();
+					const before = (await run.repository.get('song'))?.text;
+					release.resolve();
+					await deleting;
+					await run.autosave.flush();
+					expect(before).toBe('[Verse]\nOriginal');
+					if (refused) {
+						expect((await run.repository.get('song'))?.text).toBe('[Verse]\nDuring deletion');
+						expect((await run.repository.get('song'))?.conversion).toEqual(envelope);
+						expect((await run.database.draftIgnores.get('song'))?.keys).toEqual(['latest-ignore']);
+					} else {
+						expect(await run.repository.get('song')).toBeUndefined();
+						expect(await run.repository.list()).toEqual([]);
+						expect(run.autosave.checkpoint?.()).toBe(true);
+						expect(run.checkpoint.read()).toEqual([]);
+					}
+					run.autosave.cancel();
+					run.player.destroy();
+				}
+			}
+		}
+	);
+
+	it.each(['delete', 'reset'] as const)(
+		'%s waits for issued CAS and preserves only a surviving fork',
+		async (operation) => {
+			for (const fork of [false, true]) {
+				const run = await setup();
+				if (fork) await run.remoteSave();
+				const compare = run.repository.compareAndSave!.bind(run.repository);
+				const started = Promise.withResolvers<void>();
+				const release = Promise.withResolvers<void>();
+				vi.spyOn(run.repository, 'compareAndSave').mockImplementationOnce(async (...args) => {
+					started.resolve();
+					await release.promise;
+					return compare(...args);
+				});
+				const remove =
+					operation === 'delete'
+						? run.repository.delete.bind(run.repository)
+						: run.repository.deleteAll.bind(run.repository);
+				const entered = Promise.withResolvers<void>();
+				const finishDelete = Promise.withResolvers<void>();
+				const deletingSpy = vi
+					.spyOn(run.repository, operation === 'delete' ? 'delete' : 'deleteAll')
+					.mockImplementation(async () => {
+						entered.resolve();
+						await finishDelete.promise;
+						await remove('song');
+					});
+				run.edit('[Verse]\nS1');
+				const saving = run.autosave.flush();
+				await started.promise;
+				run.edit('[Verse]\nS2');
+				const queued = run.autosave.flush();
+				const deleting =
+					operation === 'delete'
+						? run.controller.deleteDraft('song')
+						: run.controller.deleteAllDrafts();
+				await new Promise<void>((resolve) => setTimeout(resolve, 10));
+				expect(deletingSpy).not.toHaveBeenCalled();
+				release.resolve();
+				await Promise.all([saving, queued, entered.promise]);
+				const activeId = run.controller.draftId;
+				run.edit('[Verse]\nS3');
+				await run.autosave.flush();
+				finishDelete.resolve();
+				await deleting;
+				await run.autosave.flush();
+				expect(await run.repository.get('song')).toBeUndefined();
+				if (fork && operation === 'delete') {
+					expect(activeId).not.toBe('song');
+					expect((await run.repository.get(activeId))?.text).toBe('[Verse]\nS3');
+					expect((await recoverStartupDraft(run.repository, run.mediaRepository)).id).toBe(
+						activeId
+					);
+				} else expect(await run.repository.list()).toEqual([]);
+				run.autosave.cancel();
+				run.player.destroy();
+			}
+		}
+	);
+
+	it('restores the newest failed rich save with explicit detach and ignored choices', async () => {
+		const run = await setup();
+		await run.controller.media?.attachFile(new File(['local'], 'local.wav'));
+		await run.autosave.flush();
+		run.edit('[Verse]\nFailed save');
+		const failed = vi
+			.spyOn(run.repository, 'compareAndSave')
+			.mockRejectedValue(new Error('save refused'));
+		await run.autosave.flush();
+		expect(run.autosave.status()).toBe('failed');
+		failed.mockRestore();
+		const entered = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		vi.spyOn(run.repository, 'delete').mockImplementation(async () => {
+			entered.resolve();
+			await release.promise;
+			throw new Error('refused');
+		});
+		const deleting = run.controller.deleteDraft('song');
+		await entered.promise;
+		await run.controller.media?.detach();
+		run.ignores.ignore('song', 'latest-ignore');
+		run.edit('[Verse]\nNewest rich work');
+		const conversion = run.controller.snapshot.conversion;
+		release.resolve();
+		await deleting;
+		expect(run.autosave.checkpoint?.()).toBe(true);
+		expect(run.checkpoint.read()[0]?.sideRecords).toEqual({
+			media: null,
+			ignoredDiagnostics: ['latest-ignore']
+		});
+		await run.autosave.flush();
+		expect((await run.repository.get('song'))?.text).toBe('[Verse]\nNewest rich work');
+		expect((await run.repository.get('song'))?.conversion).toEqual(conversion);
+		expect(await run.mediaRepository.get('song')).toBeUndefined();
+		expect((await run.database.draftIgnores.get('song'))?.keys).toEqual(['latest-ignore']);
+		run.autosave.cancel();
+		run.player.destroy();
+	});
+
+	it.each([false, true])(
+		'serializes navigation across deletion, refusal=%s, while other saves remain independent',
+		async (refused) => {
+			const run = await setup();
+			const other = await run.repository.create({ ...record('[Verse]\nOther'), id: 'other' });
+			const entered = Promise.withResolvers<void>();
+			const release = Promise.withResolvers<void>();
+			const remove = run.repository.delete.bind(run.repository);
+			vi.spyOn(run.repository, 'delete').mockImplementation(async (id) => {
+				entered.resolve();
+				await release.promise;
+				if (refused) throw new Error('refused');
+				await remove(id);
+			});
+			const deleting = run.controller.deleteDraft('song');
+			await entered.promise;
+			const opening = run.controller.openDraft('other');
+			run.edit('[Verse]\nLatest A');
+			run.autosave.schedule({
+				revision: 1,
+				draft: {
+					...other,
+					text: '[Verse]\nOther latest',
+					conversion: record('[Verse]\nOther latest').conversion
+				}
+			});
+			await run.autosave.flush();
+			expect(run.controller.draftId).toBe('song');
+			expect((await run.repository.get('other'))?.text).toBe('[Verse]\nOther latest');
+			release.resolve();
+			await Promise.all([deleting, opening]);
+			expect(run.controller.draftId).toBe('other');
+			run.edit('[Verse]\nLatest B');
+			await run.autosave.flush();
+			expect((await run.repository.get('other'))?.text).toBe('[Verse]\nLatest B');
+			expect((await run.repository.get('song'))?.text).toBe(
+				refused ? '[Verse]\nLatest A' : undefined
+			);
+			run.autosave.cancel();
+			run.player.destroy();
+		}
+	);
+
 	it.each(['reset', 'delete', 'mixed', 'failed-reset'] as const)(
 		'preserves rich pending work through overlapping refused %s operations',
 		async (operation) => {
@@ -219,10 +417,12 @@ describe('actual workbench mutation order across competing writers', () => {
 			await started.promise;
 			run.edit('[Verse]\nS2');
 			const resetting = run.controller.deleteAllDrafts();
-			await deleting.promise;
+			// The destructive operation must wait for the already-issued CAS.
+			await new Promise<void>((resolve) => setTimeout(resolve, 10));
 			if (laterEdit === 'before-fork') run.edit('[Verse]\nS3');
 			releaseSave.resolve();
 			await saving;
+			await deleting.promise;
 			const forkId = run.controller.draftId;
 			expect(forkId).not.toBe('song');
 			if (laterEdit === 'edit') run.edit('[Verse]\nS3');

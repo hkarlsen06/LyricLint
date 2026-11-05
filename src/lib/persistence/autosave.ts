@@ -72,6 +72,8 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
 	if (draft.compareBaseline !== undefined) {
 		copy.compareBaseline = copyCompareBaseline(draft.compareBaseline);
 	}
+	copy.storageGeneration = draft.storageGeneration;
+	copy.storageWriteId = draft.storageWriteId;
 	copyConversionFields(draft, copy);
 
 	return copy;
@@ -94,6 +96,10 @@ export function createAutosaveController(
 	let nextOrder = 0;
 	const pending = new Map<string, PendingSave>();
 	const suspensions = new Set<Map<string, { save: PendingSave; resumeGeneration: number }>>();
+	const suspensionScopes = new Map<
+		Map<string, { save: PendingSave; resumeGeneration: number }>,
+		string | undefined
+	>();
 	const timers = new Map<string, ReturnType<typeof setTimeout>>();
 	const latestRevision = new Map<string, number>();
 	const generations = new Map<string, number>();
@@ -314,25 +320,47 @@ export function createAutosaveController(
 				}
 			});
 		}
-		if (tracked && canceled.size > 0) suspensions.add(canceled);
+		if (tracked) {
+			suspensions.add(canceled);
+			suspensionScopes.set(canceled, draftId);
+		}
 		const discard = () => {
 			suspensions.delete(canceled);
+			suspensionScopes.delete(canceled);
 			canceled.clear();
 		};
-		return {
-			discard,
-			restore() {
-				for (const [id, { save, resumeGeneration }] of canceled) {
-					if (generationFor(id) !== resumeGeneration || latestRevision.has(id)) continue;
-					controller.schedule(save);
-				}
-				discard();
+		const resume = (onlySurvivors: boolean) => {
+			const saves = [...canceled.entries()];
+			discard();
+			for (const [id, { save, resumeGeneration }] of saves) {
+				if (onlySurvivors && (draftId === undefined || id === draftId)) continue;
+				if (
+					generationFor(id) !== resumeGeneration ||
+					(!tracked && latestRevision.has(id)) ||
+					pending.has(id)
+				)
+					continue;
+				controller.schedule(save);
 			}
+		};
+		return {
+			ready: drainQueue,
+			discard: () => {
+				resume(true);
+				if (checkpointWritten) checkpoint();
+			},
+			restore: () => resume(false)
 		};
 	}
 
 	const controller: AutosaveController = {
-		checkpoint,
+		checkpoint() {
+			if (suspensionScopes.size > 0) {
+				options.onCheckpointFailure?.();
+				return false;
+			}
+			return checkpoint();
+		},
 		suspend(draftId) {
 			const recovery = cancellationRecovery(draftId, true);
 			if (draftId === undefined) controller.cancel();
@@ -380,6 +408,19 @@ export function createAutosaveController(
 				next.sideRecords = sideRecords;
 			}
 			next.draft.storageWriteId = randomId();
+			const suspension = [...suspensionScopes].find(
+				([, scope]) => scope === undefined || scope === draftId
+			)?.[0];
+			// An accepted edit of a surviving fork owns its state even if a new
+			// editor session restarted its revision counter, or the save already landed.
+			for (const held of suspensions) {
+				if (held !== suspension) held.delete(draftId);
+			}
+			if (suspension) {
+				suspension.set(draftId, { save: next, resumeGeneration: next.generation });
+				clearDraftTimer(draftId);
+				return;
+			}
 			pending.set(draftId, next);
 			if (checkpointWritten) checkpoint();
 			refreshStatus();

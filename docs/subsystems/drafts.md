@@ -11,9 +11,15 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   deletion keeps those saves canceled. A refused reset keeps the running preferences unchanged.
   The draft store serializes all destructive operations through one queue, including row delete
   versus workspace reset. Each operation owns an autosave suspension and settles it exactly once:
-  restore on refusal, discard as soon as deletion commits. Suspended snapshots follow in-flight
+  restore on refusal, discard deleted saves after committed deletion and editor replacement.
+  The reservation exists even without entry saves and holds new complete snapshots without
+  timers or writes until the outcome. Physical deletion waits for already-issued and queued
+  autosave drains to settle. Draft opening and creation wait for the destructive queue before
+  replacing the editor. Departure refuses its checkpoint while a destructive outcome is pending,
+  so navigation warns instead of claiming held work is recoverable. Suspended snapshots follow in-flight
   conflict copies with their media identity and storage generation. A later edit or cancellation
-  of the adopted copy prevents restoring its older suspended work. Ordinary cancellation keeps
+  of the adopted copy prevents restoring its older suspended work. A successful row deletion
+  resumes held work that forked to a different draft; reset discards all held work. Ordinary cancellation keeps
   its optional restore callback and registers no long-lived suspension.
 
 - A deliberate roster edit keeps a metadata-only draft through the normal guarded save path,

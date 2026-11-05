@@ -389,7 +389,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		};
 	}
 
-	// Every destructive entry point shares one owner, including reset versus row delete.
+	// Destruction and editor replacement share one queue so neither outlives its input.
 	let destructiveQueue = Promise.resolve();
 	function runDestructive<T>(operation: () => Promise<T>): Promise<T> {
 		const result = destructiveQueue.then(operation);
@@ -409,6 +409,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 					? deps.autosave.cancel()
 					: undefined;
 		return {
+			ready: undefined,
 			restore: () => {
 				if (typeof restore === 'function') restore();
 			},
@@ -503,55 +504,59 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				// Keep the previous list.
 			}
 		},
-		async createDraft() {
-			try {
-				await flushPendingSaves();
-				if (deps.autosave.status() === 'failed') {
-					noteSaveStatus('failed');
-					return;
-				}
-			} catch {
-				// Swapping to a fresh draft over a failed flush would abandon the
-				// unsaved work; keep the user where their words still are. The report
-				// is `noteSaveStatus`'s, so this press cannot say it twice.
-				noteSaveStatus('failed');
-				return;
-			}
-			// Nothing is written here. A new draft is empty by definition, and the
-			// first save with text in it is what creates the record and takes over
-			// the current-draft pointer, so a new draft abandoned untouched leaves
-			// nothing behind, and a reload before the first keystroke comes back to
-			// the draft that still has the user's work in it.
-			loadDraft(emptyTransientDraft(), false);
-			await store.refreshDrafts();
-			feedback.announce("New 'scribe created.");
-		},
-		async openDraft(id) {
-			try {
-				await flushPendingSaves();
-				if (deps.autosave.status() === 'failed') {
-					noteSaveStatus('failed');
-					return;
-				}
-				if (id === draftId) return;
-				let draft: DraftRecord | undefined;
+		createDraft() {
+			return runDestructive(async () => {
 				try {
-					draft = await deps.repository.get(id);
+					await flushPendingSaves();
+					if (deps.autosave.status() === 'failed') {
+						noteSaveStatus('failed');
+						return;
+					}
 				} catch {
-					draft = await deps.repository.recoverUnreadable?.(id);
-				}
-				if (!draft) {
-					feedback.announce("That 'scribe is no longer available.");
+					// Swapping to a fresh draft over a failed flush would abandon the
+					// unsaved work; keep the user where their words still are. The report
+					// is `noteSaveStatus`'s, so this press cannot say it twice.
+					noteSaveStatus('failed');
 					return;
 				}
-				await deps.ignoreStore?.reloadDraft?.(draft.id);
-				await deps.repository.setCurrent(draft.id);
-				loadDraft(draft, true);
+				// Nothing is written here. A new draft is empty by definition, and the
+				// first save with text in it is what creates the record and takes over
+				// the current-draft pointer, so a new draft abandoned untouched leaves
+				// nothing behind, and a reload before the first keystroke comes back to
+				// the draft that still has the user's work in it.
+				loadDraft(emptyTransientDraft(), false);
 				await store.refreshDrafts();
-				feedback.announce(`Opened ${draft.title}.`);
-			} catch {
-				reportFailure("That 'scribe could not be opened.");
-			}
+				feedback.announce("New 'scribe created.");
+			});
+		},
+		openDraft(id) {
+			return runDestructive(async () => {
+				try {
+					await flushPendingSaves();
+					if (deps.autosave.status() === 'failed') {
+						noteSaveStatus('failed');
+						return;
+					}
+					if (id === draftId) return;
+					let draft: DraftRecord | undefined;
+					try {
+						draft = await deps.repository.get(id);
+					} catch {
+						draft = await deps.repository.recoverUnreadable?.(id);
+					}
+					if (!draft) {
+						feedback.announce("That 'scribe is no longer available.");
+						return;
+					}
+					await deps.ignoreStore?.reloadDraft?.(draft.id);
+					await deps.repository.setCurrent(draft.id);
+					loadDraft(draft, true);
+					await store.refreshDrafts();
+					feedback.announce(`Opened ${draft.title}.`);
+				} catch {
+					reportFailure("That 'scribe could not be opened.");
+				}
+			});
 		},
 		async renameDraft(id, nextTitle) {
 			const trimmed = nextTitle.trim() || DEFAULT_DRAFT_TITLE;
@@ -608,13 +613,14 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		deleteDraft(id) {
 			return runDestructive(async () => {
 				let canceled: ReturnType<typeof suspendSaves> | undefined;
+				let committed = false;
 				try {
 					const deleted = await deps.repository.get(id);
 					canceled = suspendSaves(id);
+					await canceled.ready;
 					await deps.repository.delete(id);
-					canceled?.discard();
-					canceled = undefined;
-					// Same as the discard above: the rows went with the record, and the
+					committed = true;
+					// The rows went with the record, and the
 					// mirror is what would otherwise go on answering for a deleted draft.
 					deps.ignoreStore?.clearDraft(id, false);
 					if (id === draftId) {
@@ -631,27 +637,35 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 					await store.refreshDrafts();
 					feedback.announce(`Deleted ${deleted?.title ?? "'scribe"}.`);
 				} catch {
-					canceled?.restore();
+					if (!committed) canceled?.restore();
 					reportFailure("The 'scribe could not be deleted.");
+				} finally {
+					if (committed) {
+						if (id === draftId) loadDraft(emptyTransientDraft(), false);
+						canceled?.discard();
+					}
 				}
 			});
 		},
 		deleteAllDrafts() {
 			return runDestructive(async () => {
 				let canceled: ReturnType<typeof suspendSaves> | undefined;
+				let committed = false;
 				try {
 					canceled = suspendSaves();
+					await canceled.ready;
 					await deps.repository.deleteAll();
-					canceled?.discard();
-					canceled = undefined;
+					committed = true;
 					drafts = [];
 					loadDraft(emptyTransientDraft(), false);
 					feedback.announce("All local 'scribes deleted.");
 					return true;
 				} catch {
-					canceled?.restore();
+					if (!committed) canceled?.restore();
 					reportFailure("Local 'scribes could not be deleted.");
 					return false;
+				} finally {
+					if (committed) canceled?.discard();
 				}
 			});
 		}

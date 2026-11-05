@@ -921,12 +921,14 @@ describe('workbench draft safety', () => {
 			const flushing = controller.flushAutosave();
 			try {
 				await started.promise;
-				if (operation === 'delete') await controller.deleteDraft(first.id);
-				else await controller.deleteAllDrafts();
-				expect(autosave.checkpoint?.()).toBe(true);
-				expect(checkpoint.read().map(({ draft }) => draft.text)).toEqual([latest]);
+				const deleting =
+					operation === 'delete' ? controller.deleteDraft(first.id) : controller.deleteAllDrafts();
+				await new Promise<void>((resolve) => setTimeout(resolve, 10));
 				release.resolve();
 				await flushing;
+				await deleting;
+				expect(autosave.checkpoint?.()).toBe(true);
+				expect(checkpoint.read().map(({ draft }) => draft.text)).toEqual([latest]);
 				await controller.flushAutosave();
 				expect((await baseRepository.get(first.id))?.text).toBe(latest);
 			} finally {
