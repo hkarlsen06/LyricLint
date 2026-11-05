@@ -249,11 +249,8 @@
 		<a class="document-toolbar__home" href={resolve('/(site)')} aria-label="LyricLint home">
 			<AppWordmark entrance="handoff" visible={brandRevealed} />
 		</a>
-		<!-- The name of the draft and the list of the other drafts are one control:
-		     typing in it renames this document, and the chevron at its end opens the
-		     ones it could be swapped for. The hamburger this replaced sat at the far
-		     end of the command strip, named nothing, and was nowhere near the draft
-		     it switched. -->
+		<!-- The title and its Open disclosure share a group. Typing renames this
+		     draft; Open chooses another without competing with document commands. -->
 		<div class="draft-switcher">
 			<!-- The `<label for>` is the whole of the name. It carried an identical
 			     `aria-label` beside it, which outranks the element and made the label

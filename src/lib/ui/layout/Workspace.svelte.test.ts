@@ -159,7 +159,7 @@ describe('Workspace and toolbar', () => {
 		// editor itself (ghost control and selection surface).
 		expect(screen.getByRole('button', { name: "New 'scribe" })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
-		expect(screen.getByRole('button', { name: "'Scribes" })).toBeTruthy();
+		expect(screen.getByRole('button', { name: "Open saved 'scribes" })).toBeTruthy();
 		// The left edge is the brand lockup now, and it returns to the marketing home.
 		expect(screen.getByRole('link', { name: 'LyricLint home' })).toHaveAttribute('href', '/');
 		expect(screen.queryByRole('button', { name: 'Open drafts menu' })).toBeNull();
@@ -213,19 +213,18 @@ describe('Workspace and toolbar', () => {
 
 	// The drafts trigger is the draft name's own disclosure now, not a hamburger
 	// at the far end of the command strip.
-	test('the drafts disclosure hangs off the title field and stays icon-only', async () => {
+	test('the draft list names its Open action beside the title field', async () => {
 		const { controller } = createTestWorkbench();
 		await render(DocumentToolbar, { controller });
 
-		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		const trigger = screen.getByRole('button', { name: "Open saved 'scribes" });
 		const switcher = trigger.closest('.draft-switcher');
 		expect(switcher).toBeTruthy();
 		// One control: the field you rename in and the chevron that swaps the draft.
 		expect(within(switcher as HTMLElement).getByLabelText("'Scribe title")).toBe(
 			screen.getByLabelText("'Scribe title")
 		);
-		// The word moved into the accessible name; nothing in the header spells it.
-		expect(trigger.textContent?.trim()).toBe('');
+		expect(trigger.textContent?.trim()).toBe('Open');
 		expect(trigger.getAttribute('aria-expanded')).toBe('false');
 		await userEvent.click(trigger);
 		// `bind:open` rides the details element's `toggle` event, which lands a
@@ -338,7 +337,9 @@ describe('Workspace and toolbar', () => {
 		]);
 		// Navigation between drafts left the strip for the draft's own name, and
 		// creation followed it; neither acts on the document this strip commands.
-		expect(commands!.contains(screen.getByRole('button', { name: "'Scribes" }))).toBe(false);
+		expect(commands!.contains(screen.getByRole('button', { name: "Open saved 'scribes" }))).toBe(
+			false
+		);
 		expect(commands!.contains(screen.getByRole('button', { name: "New 'scribe" }))).toBe(false);
 		expect(commands!.lastElementChild).toBe(copy);
 		// Copy ends the tab order too, not just the visual row.

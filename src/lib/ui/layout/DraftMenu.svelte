@@ -68,19 +68,16 @@
 	     Svelte considers the role redundant, but real browsers expose the styled
 	     summary as generic without it. -->
 	<!-- svelte-ignore a11y_no_redundant_roles -->
-	<!-- A chevron, not a hamburger, and it hangs off the draft's own name rather
-	     than off the far end of the command strip: the field says which draft this
-	     is, and the disclosure beside it says which others there are. Icon only:
-	     the name lives in the accessible name and the native tooltip. -->
+	<!-- Keep the list beside the title, with a visible action instead of an unnamed arrow. -->
 	<summary
-		class="button--quiet icon-button draft-menu__trigger"
+		class="button button--quiet draft-menu__trigger"
 		role="button"
-		aria-label="'Scribes"
-		title="'Scribes"
+		aria-label="Open saved 'scribes"
 		aria-expanded={open}
 		onclick={() => (initialized = true)}
 		bind:this={menuTrigger}
 	>
+		Open
 		<CaretDownIcon class="draft-menu__chevron" aria-hidden="true" size={13} weight="bold" />
 	</summary>
 	{#if initialized}
@@ -215,8 +212,11 @@
 	}
 
 	summary:where(.draft-menu__trigger) {
-		width: 1.5rem;
+		width: auto;
 		min-height: var(--control-height-sm);
+		gap: var(--space-1);
+		padding-inline: var(--space-2);
+		font-size: var(--font-size-sm);
 		margin-inline-end: var(--space-1);
 		color: var(--color-text-muted);
 	}

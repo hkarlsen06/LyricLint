@@ -171,7 +171,7 @@ test('each draft restores its own format and lyrics after immediate reload', asy
 	await page.getByRole('button', { name: 'Lyric format: Musixmatch' }).click();
 	await freshReload(page);
 	expect(await text(page)).toBe('Sun words');
-	await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+	await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 	await page.getByRole('button', { name: /^Moon draft/u }).click();
 	await expect(title).toHaveValue('Moon draft');
 	await freshReload(page);
@@ -180,7 +180,7 @@ test('each draft restores its own format and lyrics after immediate reload', asy
 		'true'
 	);
 	expect(await text(page)).toBe('[Verse]\nMoon words');
-	await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+	await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 	await page.getByRole('button', { name: /^Sun draft/u }).click();
 	await expect(title).toHaveValue('Sun draft');
 	await freshReload(page);

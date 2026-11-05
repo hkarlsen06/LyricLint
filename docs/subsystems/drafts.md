@@ -62,8 +62,10 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   changes the saved records; a no-match result retains the search field, and closing the
   menu clears search and pending row actions. `DraftMenu.svelte.test.ts` pins recovery.
 
-- A uniquely titled draft is one line: glyph commands on the name's own row, muted until hover/focus, each
-  keeping the draft in its accessible name. The confirm takes the trigger's own slot
+- A uniquely titled draft has one identity row with its title, date and Actions disclosure.
+  Only one row reveals its named Rename, Duplicate, Export Scribe and Delete controls below
+  that trigger. Search, another row, Escape and closing the menu abandon pending actions.
+  The confirm takes the trigger's own slot
   (`RemoveButton`, shared by every list that offers a way out of a row) and moves focus onto
   itself; the armed row is the list's state, one question open at a time.
 - An untouched new blank draft is transient. A deliberate clear of saved work is a guarded
@@ -76,7 +78,10 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 - The list caches derived summaries in memory, never on disk. Committed Dexie mutation keys
   invalidate changed drafts; broad changes rebuild the list. Imports and other connections use
   that same invalidation path, and closing the database releases the cache and its subscription.
-- The way into the list is the draft's own name (`.draft-switcher`): field plus chevron, one
+- Duplicate flushes pending edits and opens the new copy through the existing guarded draft
+  loader. The original stays unchanged. A copy that cannot be opened remains saved and the
+  failure is visible and announced. `workbench.test.ts` pins the active copy and independent edits.
+- The way into the list is beside the draft's name (`.draft-switcher`): title field and named Open disclosure, one
   bordered group, popover anchored to the switcher's left edge. Dates are read, not parsed,
   and English like the rest of the chrome.
 - The menu deletes one 'scribe at a time, never all of them. Deleting everything is
@@ -172,6 +177,10 @@ copy; `persistence.test.ts` pins header skipping and the absence of the derived 
 
 ### A draft is one line; untouched new blanks stay transient
 
+The glyph-only draft commands described below were superseded by the single Actions disclosure.
+The resting list remains compact; only the chosen row shows action words. The roster description
+is historical too; its current interaction contract is in `performers.md`.
+
 The drafts menu used to spend two rows on every draft: its name, then `Rename Duplicate Export
 Delete` spelled out underneath. Seven drafts came to twenty-eight words of chrome around seven
 names, the same four repeated down the page, and a column of red `Delete`s warning about nothing.
@@ -189,8 +198,8 @@ row itself no longer pressable while the question is open, and it moves focus on
 because a control that replaces another has to inherit the focus that was on it. **Every list that
 offers a way out of one of its rows shares the component**: the drafts menu, the linter panel's
 recent-drafts list (which is where a returning user actually meets the drafts they want rid of),
-and the performer roster. `label` is all that differs between them, because a draft is deleted and
-a performer is removed from a roster. The armed row is the list's state, never the row's: only one
+and the performer roster. The shared component supports an icon or labelled trigger; the verb
+distinguishes deleting a draft from removing a performer. The armed row is the list's state, never the row's: only one
 question may be open at a time, and closing the surface has to abandon it.
 
 **The roster is the same list, and there the name _is_ the rename.** A performer was two rows as

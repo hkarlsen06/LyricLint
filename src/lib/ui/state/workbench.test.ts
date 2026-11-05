@@ -762,6 +762,14 @@ describe('workbench draft safety', () => {
 		const duplicate = (await repository.list()).find((entry) => entry.id !== first.id);
 		expect(duplicate).toBeDefined();
 		expect((await repository.get(duplicate!.id))?.text).toBe('[Verse]\nLatest edit');
+		expect(controller.draftId).toBe(duplicate!.id);
+		expect(controller.snapshot.text).toBe('[Verse]\nLatest edit');
+		const copy = await repository.get(duplicate!.id);
+		if (!copy) throw new Error('The copied draft is missing.');
+		controller.onSnapshot(snapshot(copy, 1, '[Verse]\nChanged only in the copy'));
+		await controlled.autosave.flush();
+		expect((await repository.get(first.id))?.text).toBe('[Verse]\nLatest edit');
+		expect((await repository.get(copy.id))?.text).toBe('[Verse]\nChanged only in the copy');
 	});
 
 	test('cancels a draft-specific pending write before delete so flush cannot resurrect it', async () => {

@@ -1243,7 +1243,7 @@ test.describe('document editing', () => {
 		await languageDialog.getByPlaceholder('Search languages').fill('French');
 		await languageDialog.getByRole('button', { name: 'French' }).click();
 
-		await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+		await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 		await page.getByRole('button', { name: "New 'scribe" }).click();
 
 		await expect(page.getByRole('button', { name: 'Lyric language: French' })).toBeVisible();
@@ -1352,7 +1352,7 @@ test.describe('document editing', () => {
 		await editor(page).click();
 		await waitForSaved(page);
 
-		await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+		await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 		await page.getByRole('button', { name: "New 'scribe" }).click();
 		await replaceDocument(page, '[Verse]\nSecond draft');
 		await page.getByRole('textbox', { name: "'Scribe title" }).fill('Second');
@@ -1362,10 +1362,10 @@ test.describe('document editing', () => {
 
 		// The row's own control leads with the draft's name; the commands beside it
 		// carry that name too ("Rename First"), so anchor on the start of the label.
-		await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+		await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 		await page.getByRole('button', { name: /^First/u }).click();
 		await expectDocText(page, '[Verse]\nFirst draft');
-		await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+		await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 		await page.getByRole('button', { name: /^Second/u }).click();
 		await expectDocText(page, '[Verse]\nSecond draft');
 

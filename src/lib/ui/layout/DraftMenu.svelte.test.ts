@@ -33,6 +33,11 @@ async function waitForBody(): Promise<void> {
 	await waitFor(() => expect(screen.queryByText("Loading saved 'scribes…")).toBeNull());
 }
 
+async function revealActions(row: HTMLElement): Promise<void> {
+	const trigger = within(row).getByRole('button', { name: /^Actions for / });
+	if (trigger.getAttribute('aria-expanded') !== 'true') await userEvent.click(trigger);
+}
+
 describe('DraftMenu', () => {
 	afterEach(cleanup);
 
@@ -45,7 +50,7 @@ describe('DraftMenu', () => {
 			await render(DraftMenu, {
 				controller: { ...controller, profile: 'musixmatch', importLyrics }
 			});
-			await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+			await fireEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
 			await waitForBody();
 			const trigger = screen.getByRole('button', { name: 'Import…' });
 			const before = trigger.getBoundingClientRect();
@@ -71,7 +76,7 @@ describe('DraftMenu', () => {
 	test('can close before the row module arrives without reopening or taking focus', async () => {
 		const { controller } = createTestWorkbench();
 		await render(DraftMenu, { controller });
-		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		const trigger = screen.getByRole('button', { name: "Open saved 'scribes" });
 		await fireEvent.click(trigger);
 		expect(screen.getByRole('heading', { name: "Saved 'scribes" })).toBeTruthy();
 		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
@@ -97,7 +102,7 @@ describe('DraftMenu', () => {
 		const { controller } = createTestWorkbench({ drafts });
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		const trigger = screen.getByRole('button', { name: "Open saved 'scribes" });
 		expect(document.querySelector('.draft-menu__popover')).toBeNull();
 		await userEvent.click(trigger);
 		await waitForBody();
@@ -126,6 +131,77 @@ describe('DraftMenu', () => {
 		expect(screen.getByRole('button', { name: /^Winter 1/ })).toBeTruthy();
 	});
 
+	test('names row actions once and keeps disclosure, cancellation and focus local', async () => {
+		const base = createTestWorkbench();
+		const { controller } = createTestWorkbench({
+			drafts: [base.initialDraft, secondDraft(), thirdDraft()]
+		});
+		await controller.refreshDrafts();
+		await render(DraftMenu, { controller });
+		const open = screen.getByRole('button', { name: "Open saved 'scribes" });
+		expect(open.textContent).toContain('Open');
+		await userEvent.click(open);
+		await waitForBody();
+		expect(screen.queryByRole('button', { name: /^Rename / })).toBeNull();
+		expect(screen.queryByRole('button', { name: /^Duplicate / })).toBeNull();
+		const second = screen.getByText('Second song').closest('li')!;
+		const third = screen.getByText('Third song').closest('li')!;
+		const actions = within(second).getByRole('button', { name: 'Actions for Second song' });
+		const before = actions.getBoundingClientRect();
+		await revealActions(second);
+		expect(actions.getBoundingClientRect().top).toBe(before.top);
+		expect(actions.getBoundingClientRect().left).toBe(before.left);
+		expect(within(second).getByRole('button', { name: 'Rename Second song' }).textContent).toBe(
+			'Rename'
+		);
+		expect(
+			within(second).getByRole('button', { name: 'Delete Second song' }).textContent?.trim()
+		).toBe('Delete');
+		await revealActions(third);
+		expect(actions.getAttribute('aria-expanded')).toBe('false');
+		expect(screen.getAllByRole('group', { name: /^Actions for / })).toHaveLength(1);
+		await userEvent.click(within(third).getByRole('button', { name: 'Rename Third song' }));
+		const input = within(third).getByRole('textbox', { name: "'Scribe title" });
+		expect(document.activeElement).toBe(input);
+		await userEvent.click(within(third).getByRole('button', { name: 'Cancel' }));
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				within(third).getByRole('button', { name: 'Actions for Third song' })
+			)
+		);
+		expect(controller.drafts.find((draft) => draft.id === 'draft-3')?.title).toBe('Third song');
+	});
+
+	test.each([390, 1200])(
+		'keeps a long-title delete confirmation at its trigger at %i pixels',
+		async (width) => {
+			await page.viewport(width, 844);
+			try {
+				const title = 'Silver compass and the lights beyond the harbour '.repeat(3).trim();
+				const { controller } = createTestWorkbench({ drafts: [{ ...secondDraft(), title }] });
+				await controller.refreshDrafts();
+				await render(DraftMenu, { controller });
+				await userEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
+				await waitForBody();
+				const row = screen.getByText(title, { exact: true }).closest('li')!;
+				await revealActions(row);
+				const trigger = within(row).getByRole('button', { name: `Delete ${title}` });
+				const before = trigger.getBoundingClientRect();
+				await userEvent.click(trigger);
+				const confirm = within(row).getByRole('button', { name: `Delete ${title}` });
+				const after = confirm.getBoundingClientRect();
+				expect(after.left).toBeCloseTo(before.left, 1);
+				expect(after.top).toBeCloseTo(before.top, 1);
+				expect(after.width).toBeCloseTo(before.width, 1);
+				expect(document.activeElement).toBe(confirm);
+				expect(row.querySelector('[aria-live]')?.textContent).toContain(title);
+				expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+			} finally {
+				await page.viewport(800, 600);
+			}
+		}
+	);
+
 	test('opens, renames, duplicates, exports, and deletes a draft', async () => {
 		const exported: Array<{ text: string; filename: string }> = [];
 		const base = createTestWorkbench();
@@ -135,7 +211,7 @@ describe('DraftMenu', () => {
 		});
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await fireEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
 		await waitForBody();
 		const heading = screen.getByRole('heading', { name: "Saved 'scribes", level: 2 });
 		const titlebar = heading.closest('.draft-menu__titlebar');
@@ -147,13 +223,14 @@ describe('DraftMenu', () => {
 
 		await userEvent.click(screen.getByRole('button', { name: /^Second song/ }));
 		expect(controller.draftId).toBe('draft-2');
-		await userEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await userEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
 		await waitForBody();
 		const secondRow = screen.getByText('Second song').closest('li');
 		expect(secondRow).toBeTruthy();
-		// The row's commands are glyphs, so the draft's own name is what carries
-		// them in the accessible tree.
-		await fireEvent.click(within(secondRow!).getByRole('button', { name: 'Export Second song' }));
+		await revealActions(secondRow!);
+		await fireEvent.click(
+			within(secondRow!).getByRole('button', { name: 'Export Scribe for Second song' })
+		);
 		await waitFor(() => expect(exported).toHaveLength(1));
 		expect(exported[0]).toEqual({
 			text: expect.stringContaining('"format": "LYRICLINT_SCRIBE"'),
@@ -168,12 +245,18 @@ describe('DraftMenu', () => {
 		await fireEvent.submit(secondRow!.querySelector('form')!);
 		await waitFor(() => expect(screen.getByText('Bridge notes')).toBeTruthy());
 
-		const renamedRow = screen.getByText('Bridge notes').closest('li');
+		let renamedRow = screen.getByText('Bridge notes').closest('li');
 		expect(renamedRow).toBeTruthy();
+		await revealActions(renamedRow!);
 		await fireEvent.click(
 			within(renamedRow!).getByRole('button', { name: 'Duplicate Bridge notes' })
 		);
 		await waitFor(async () => expect((await repository.list()).length).toBe(3));
+		await waitFor(() => expect(controller.title).toBe('Bridge notes copy'));
+		await userEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
+		await waitForBody();
+		renamedRow = screen.getByText('Bridge notes').closest('li');
+		await revealActions(renamedRow!);
 
 		await fireEvent.click(within(renamedRow!).getByRole('button', { name: 'Delete Bridge notes' }));
 		// The pending confirm is the row's only decision: the other row actions
@@ -207,7 +290,7 @@ describe('DraftMenu', () => {
 		const { controller } = createTestWorkbench({ drafts: [] });
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await fireEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
 		await waitForBody();
 
 		expect(screen.getByText(/No saved 'scribes yet/u)).toBeTruthy();
@@ -219,7 +302,7 @@ describe('DraftMenu', () => {
 		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await fireEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
 		await waitForBody();
 
 		expect(screen.queryByRole('button', { name: /delete all/iu })).toBeNull();
@@ -232,10 +315,11 @@ describe('DraftMenu', () => {
 		});
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await fireEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
 		await waitForBody();
 
 		const row = screen.getByText('Second song').closest('li')!;
+		await revealActions(row);
 		await fireEvent.click(within(row).getByRole('button', { name: 'Delete Second song' }));
 		await fireEvent.click(within(row).getByRole('button', { name: 'Cancel' }));
 
@@ -251,15 +335,17 @@ describe('DraftMenu', () => {
 		});
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await fireEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
 		await waitForBody();
 
 		const second = screen.getByText('Second song').closest('li')!;
 		const third = screen.getByText('Third song').closest('li')!;
+		await revealActions(second);
 		await fireEvent.click(within(second).getByRole('button', { name: 'Delete Second song' }));
+		await revealActions(third);
 		await fireEvent.click(within(third).getByRole('button', { name: 'Delete Third song' }));
 
-		expect(within(second).getByRole('button', { name: 'Delete Second song' })).toBeTruthy();
+		expect(within(second).queryByRole('button', { name: 'Delete Second song' })).toBeNull();
 		expect(within(third).getByRole('button', { name: 'Delete Third song' }).classList).toContain(
 			'remove-button__confirm'
 		);
@@ -270,7 +356,7 @@ describe('DraftMenu', () => {
 		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		const trigger = screen.getByRole('button', { name: "Open saved 'scribes" });
 		await fireEvent.click(trigger);
 		await waitForBody();
 		const menu = trigger.closest('details')!;
@@ -279,6 +365,7 @@ describe('DraftMenu', () => {
 		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
 
 		const row = screen.getByText('Second song').closest('li')!;
+		await revealActions(row);
 		await fireEvent.click(within(row).getByRole('button', { name: 'Delete Second song' }));
 		expect(within(row).getByRole('button', { name: 'Delete Second song' }).classList).toContain(
 			'remove-button__confirm'
@@ -291,6 +378,7 @@ describe('DraftMenu', () => {
 		await fireEvent.click(trigger);
 		await waitForBody();
 		const reopened = screen.getByText('Second song').closest('li')!;
+		await revealActions(reopened);
 		expect(within(reopened).getByRole('button', { name: 'Delete Second song' })).toBeTruthy();
 	});
 
@@ -302,13 +390,14 @@ describe('DraftMenu', () => {
 		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		const trigger = screen.getByRole('button', { name: "Open saved 'scribes" });
 		await fireEvent.click(trigger);
 		await waitForBody();
 		const menu = trigger.closest('details')!;
 		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
 
 		const row = screen.getByText('Second song').closest('li')!;
+		await revealActions(row);
 		await fireEvent.click(within(row).getByRole('button', { name: 'Delete Second song' }));
 
 		await fireEvent.keyDown(menu, { key: 'Escape' });
@@ -323,6 +412,7 @@ describe('DraftMenu', () => {
 		await waitForBody();
 		const reopened = screen.getByText('Second song').closest('li')!;
 		expect(reopened.querySelector('.remove-button__confirm')).toBeNull();
+		await revealActions(reopened);
 		expect(within(reopened).getByRole('button', { name: 'Delete Second song' })).toBeTruthy();
 	});
 
@@ -335,10 +425,11 @@ describe('DraftMenu', () => {
 		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await fireEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
 		await waitForBody();
 
 		const row = screen.getByText('Second song').closest('li')!;
+		await revealActions(row);
 		const region = row.querySelector('[aria-live]')!;
 		expect(region.textContent?.trim()).toBe('');
 
@@ -358,7 +449,7 @@ describe('DraftMenu', () => {
 		const { controller } = createTestWorkbench();
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		const trigger = screen.getByRole('button', { name: "Open saved 'scribes" });
 		await fireEvent.click(trigger);
 		await waitForBody();
 		const menu = trigger.closest('details')!;
@@ -395,7 +486,7 @@ describe('DraftMenu duplicate titles', () => {
 		const { controller, repository } = createTestWorkbench({ drafts });
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
-		await userEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await userEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
 		await waitForBody();
 		expect(screen.getByText('The morning sun')).toBeTruthy();
 		expect(screen.getByText('A winter moon')).toBeTruthy();

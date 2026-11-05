@@ -5,7 +5,8 @@
  * `Rename Remove`) spelled out underneath, the same words repeated down the page
  * until they were the loudest thing in the list.
  *
- * One line, then. The commands are glyphs at the end of the name's own line, and
+ * The draft menu now reveals named commands for one chosen row in its own
+ * component. Other compact lists keep glyphs at the end of the name's line, and
  * they stay quiet until the row is hovered or holds focus: four marks at full
  * strength on every row read as the list's content rather than as what can be
  * done to one entry of it. The hairline between rows went with the second line,

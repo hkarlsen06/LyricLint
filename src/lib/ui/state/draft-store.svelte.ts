@@ -554,7 +554,12 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				if (deps.autosave.status() === 'failed') throw new Error('Unsaved draft');
 				const duplicate = await deps.repository.duplicate(id, deps.idFactory());
 				await store.refreshDrafts();
-				feedback.announce(`Duplicated ${duplicate.title.replace(/ copy$/, '')}.`);
+				await store.openDraft(duplicate.id);
+				if (draftId === duplicate.id) feedback.announce(`Opened ${duplicate.title}.`);
+				else
+					reportFailure(
+						"The copy was saved but could not be opened. Choose it from saved 'scribes."
+					);
 			} catch {
 				reportFailure("The 'scribe could not be duplicated.");
 			}

@@ -23,7 +23,11 @@ export default defineConfig({
 		},
 		{
 			name: 'mobile-webkit',
-			testMatch: ['**/mobile-workbench.spec.ts', '**/immediate-reload.spec.ts'],
+			testMatch: [
+				'**/mobile-workbench.spec.ts',
+				'**/immediate-reload.spec.ts',
+				'**/draft-menu.spec.ts'
+			],
 			use: { ...devices['iPhone 13'], browserName: 'webkit' }
 		}
 	],
