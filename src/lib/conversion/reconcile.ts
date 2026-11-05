@@ -1057,7 +1057,13 @@ function reconcileGenius(
 				((retainedBoundary && !voice.wrapperId) ||
 					(entry.from === voice.from && entry.to === voice.to))
 		);
-		if (!old) return { ...voice, id: allocateId(next, 'voice') };
+		if (!old) {
+			const to =
+				retainedBoundary && !voice.wrapperId && nextSection
+					? Math.min(voice.to, nextSection.at)
+					: voice.to;
+			return { ...voice, from: Math.min(voice.from, to), to, id: allocateId(next, 'voice') };
+		}
 		usedVoices.add(old.id);
 		const mapped =
 			retainedBoundary && !voice.wrapperId ? { ...voice, from: old.from, to: old.to } : voice;

@@ -93,7 +93,7 @@ it('leaves a linked peer local when an interior edit has no exact visible corres
 });
 
 it('keeps the later performer exclusive when its heading becomes literal', () => {
-	const performers: PerformerRecord[] = ['Mira', 'Noor'].map((displayName, order) => ({
+	const performers: PerformerRecord[] = ['Mira', 'Noor', 'Ed'].map((displayName, order) => ({
 		id: displayName.toLowerCase(),
 		displayName,
 		normalizedKey: displayName.toLowerCase(),
@@ -130,4 +130,29 @@ it('keeps the later performer exclusive when its heading becomes literal', () =>
 	expect(restored.voices.map((voice) => voice.id)).toEqual(
 		original.voices.map((voice) => voice.id)
 	);
+	const genius = value(renderProfile(restored, 'genius'));
+	const at = genius.text.indexOf('One');
+	const inserted = value(
+		reconcileEdit(restored, genius, {
+			changes: [{ from: at, to: at, insert: '[Bridge: Ed]\n' }],
+			performers
+		})
+	);
+	expect(inserted.projection.text).toBe(
+		genius.text.slice(0, at) + '[Bridge: Ed]\n' + genius.text.slice(at)
+	);
+	const insertedModel = value(validateModel(JSON.parse(JSON.stringify(inserted.document))));
+	const insertedProjection = value(renderProfile(insertedModel, 'musixmatch'));
+	const insertedRanges = projectedVoiceGroups(insertedModel, insertedProjection);
+	for (const [word, performer] of [
+		['One', 'ed'],
+		['Two', 'noor']
+	]) {
+		const position = insertedProjection.text.indexOf(word);
+		expect(
+			insertedRanges
+				.filter((range) => range.from <= position && position < range.to)
+				.map((range) => range.group.performerIds)
+		).toEqual([[performer]]);
+	}
 });
