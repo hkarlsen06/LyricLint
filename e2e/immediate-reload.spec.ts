@@ -141,9 +141,11 @@ test('failed departure recovery keeps the workbench accessible when an in-app ex
 	await page.getByRole('tab', { name: 'Preferences', exact: true }).click();
 	await page.getByRole('link', { name: 'About LyricLint', exact: true }).click();
 	await expect(page).toHaveURL(/\/workbench\//u);
-	await expect(page.getByRole('group', { name: 'Notification' })).toContainText(
-		'Your latest edits could not be kept for reload'
-	);
+	await expect(
+		page
+			.getByRole('group', { name: 'Notification' })
+			.filter({ hasText: 'Your latest edits could not be kept for reload' })
+	).toBeVisible();
 	await page
 		.getByRole('navigation', { name: 'Workbench views' })
 		.getByRole('button', { name: 'Write', exact: true })
