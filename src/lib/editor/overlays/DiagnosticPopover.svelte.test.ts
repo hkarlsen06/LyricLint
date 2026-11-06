@@ -170,6 +170,65 @@ describe('DiagnosticPopover dismissal', () => {
 		}
 	});
 
+	it('closes a hovered card on Escape while another control keeps focus', async () => {
+		const trigger = outside();
+		trigger.focus();
+		const onDismiss = vi.fn();
+		await render(DiagnosticPopover, {
+			diagnostic: fixableDiagnostic(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn(),
+			onDismiss
+		});
+
+		await userEvent.keyboard('{Escape}');
+
+		expect(onDismiss).toHaveBeenCalledExactlyOnceWith(false);
+		expect(document.activeElement).toBe(trigger);
+	});
+
+	it('leaves an already handled Escape with the focused control', async () => {
+		const trigger = outside();
+		trigger.addEventListener('keydown', (event) => event.preventDefault());
+		trigger.focus();
+		const onDismiss = vi.fn();
+		await render(DiagnosticPopover, {
+			diagnostic: fixableDiagnostic(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn(),
+			onDismiss
+		});
+
+		await userEvent.keyboard('{Escape}');
+
+		expect(onDismiss).not.toHaveBeenCalled();
+	});
+
+	it('leaves Escape with a native modal above the hovered card', async () => {
+		const onDismiss = vi.fn();
+		await render(DiagnosticPopover, {
+			diagnostic: fixableDiagnostic(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn(),
+			onDismiss
+		});
+		const modal = document.createElement('dialog');
+		modal.dataset.outside = '';
+		modal.append(document.createElement('button'));
+		document.body.append(modal);
+		modal.showModal();
+
+		await userEvent.keyboard('{Escape}');
+
+		expect(onDismiss).not.toHaveBeenCalled();
+	});
+
 	it('closes on a press outside and reports that it did not hold focus', async () => {
 		const onDismiss = vi.fn();
 		await render(DiagnosticPopover, {

@@ -80,6 +80,8 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 - One document, one diff: the preview slot belongs to whichever surface mounted last, and a
   surface leaving hands it back (`shownPreviews` in `DiagnosticActions.svelte`).
   `selectDiagnostic` does not clear the preview.
+- A hovered diagnostic also dismisses on Escape while focus remains elsewhere. It preserves
+  that focus and leaves an already handled Escape or a native modal's Escape with its owner.
 - The fix-preview insert widget must override `ignoreEvent` (mousemove only) and resolve
   through `posAtDOM`, or the inserted half of the diff is a dead zone.
 - A live IME/dead-key preedit maps the settled diagnostic underline and diff preview through its

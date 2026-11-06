@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { Diagnostic, DiagnosticFix, SourceReference } from '#lib/core/types.js';
-	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import { dismissOnOutside, modalOwnsEscape } from '#lib/interaction/dismiss.js';
 	import DiagnosticActions from '#lib/diagnostics/DiagnosticActions.svelte';
 	import DiagnosticMeta from '#lib/diagnostics/DiagnosticMeta.svelte';
 	import { dismissOnHoverLeave } from './dismiss-on-hover-leave.js';
@@ -77,13 +77,19 @@
 		onDismiss(root?.contains(document.activeElement) ?? false);
 	}
 
+	function dismissOnEscape(event: KeyboardEvent): void {
+		if (event.key !== 'Escape' || event.defaultPrevented || modalOwnsEscape(event.target)) return;
+		event.preventDefault();
+		dismiss();
+	}
+
 	/**
 	 * `Close` is offered only to the card that was opened with the keyboard. That
 	 * one holds focus and is deliberately exempt from the pointer-leave watcher,
 	 * so without a visible control its only exit is a keystroke nobody announced.
 	 * The hovered card has no such gap (moving away closes it), and a second
 	 * quiet button there would only sit beside `Ignore` looking like it, while
-	 * one of the two silences a rule for the rest of the session.
+	 * one of the two sets aside the finding.
 	 */
 	const closingControl = $derived(takeFocus ? dismiss : undefined);
 
@@ -95,11 +101,12 @@
 	}
 </script>
 
+<svelte:window onkeydown={dismissOnEscape} />
+
 <!-- A role either way, because the label needs one to land on: `aria-label` on a
-     generic `div` is prohibited and simply ignored. Only the card that holds the
-     focus and traps Escape is a dialog; the previewing one is a labelled group,
-     which is what it is: something the pointer revealed and the keyboard can
-     read without having been sent into it. -->
+     generic `div` is prohibited and simply ignored. Only the card that holds
+     focus is a dialog. The previewing card is a labelled group; hovering it
+     does not redirect keyboard focus. Both honor Escape. -->
 <div
 	bind:this={root}
 	class="popover"
