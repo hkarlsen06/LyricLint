@@ -3,7 +3,8 @@ import { copyConversionFields } from './copy.js';
 import {
 	parseConversionEnvelope,
 	parseConversionRecovery,
-	parseOriginalRecovery
+	parseOriginalRecovery,
+	localRecoverySource
 } from './conversion.js';
 import { validateLinkPassages } from '../core/link-record.js';
 import Dexie, { type ObservabilitySet } from 'dexie';
@@ -748,6 +749,17 @@ export function createWorkspaceBackup(
 					]);
 					const occupiedIds = new Set(localDrafts.map((draft) => draft.id));
 					const idMap = new Map<string, string>();
+					const ownership = new Map(backup.appMetadata.map((record) => [record.key, record.value]));
+					for (const draft of backup.drafts) {
+						for (const recovery of [draft.originalRecovery, draft.conversionRecovery]) {
+							if (!recovery) continue;
+							recovery.localSourceDraftId = localRecoverySource({
+								recovery,
+								draftId: draft.id,
+								rememberedOwnerId: ownership.get(`conversionRecovery:${recovery.sourceDraftId}`)
+							});
+						}
+					}
 					const importedDrafts = backup.drafts.map((draft) => {
 						let id = draft.id;
 						while (occupiedIds.has(id)) id = randomId();
@@ -758,10 +770,7 @@ export function createWorkspaceBackup(
 					for (const draft of importedDrafts) {
 						for (const recovery of [draft.originalRecovery, draft.conversionRecovery]) {
 							if (!recovery) continue;
-							const source =
-								recovery.localSourceDraftId === undefined
-									? recovery.sourceDraftId
-									: recovery.localSourceDraftId;
+							const source = recovery.localSourceDraftId;
 							recovery.localSourceDraftId = source ? (idMap.get(source) ?? null) : null;
 						}
 					}

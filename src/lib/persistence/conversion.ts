@@ -30,6 +30,20 @@ export interface OriginalRecovery {
 	reason: string;
 }
 
+/** Legacy provenance becomes local authority only with a remembered owner. */
+export function localRecoverySource({
+	recovery,
+	draftId,
+	rememberedOwnerId
+}: {
+	recovery: Pick<ConversionRecovery, 'sourceDraftId' | 'localSourceDraftId'>;
+	draftId: string;
+	rememberedOwnerId?: string;
+}): string | null {
+	if (recovery.localSourceDraftId !== undefined) return recovery.localSourceDraftId;
+	return rememberedOwnerId === draftId ? (recovery.sourceDraftId ?? null) : null;
+}
+
 export function parseOriginalRecovery(value: unknown, local = true): OriginalRecovery {
 	if (
 		!object(value) ||

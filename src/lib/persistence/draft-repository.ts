@@ -11,7 +11,7 @@ import {
 import type { AppMetadataRecord, DraftCreateInput, DraftRecord, DraftRepository } from './types.js';
 import type { LyricLintDatabase } from './database.js';
 import { DEFAULT_DRAFT_TITLE } from './draft-defaults.js';
-import { createConversionEnvelope } from './conversion.js';
+import { createConversionEnvelope, localRecoverySource } from './conversion.js';
 import { importDocument } from '../conversion/import.js';
 import { profilePolicyVersions } from '../profiles/versions.js';
 
@@ -175,23 +175,47 @@ function currentDraftMetadata(id: string): AppMetadataRecord {
 	};
 }
 
+/** Resolve legacy ownership before a checkpoint or save changes the draft's identity. */
+export async function resolveLocalRecoveryReferences(
+	database: LyricLintDatabase,
+	record: DraftRecord,
+	legacyDraftId = record.id
+): Promise<DraftRecord> {
+	const copy = copyDraft(record);
+	for (const recovery of [copy.originalRecovery, copy.conversionRecovery]) {
+		if (!recovery?.sourceDraftId) continue;
+		const owner =
+			recovery.localSourceDraftId === undefined
+				? await database.appMetadata.get(`conversionRecovery:${recovery.sourceDraftId}`)
+				: undefined;
+		recovery.localSourceDraftId = localRecoverySource({
+			recovery,
+			draftId: legacyDraftId,
+			rememberedOwnerId: owner?.value
+		});
+		if (recovery.localSourceDraftId && !(await database.drafts.get(recovery.localSourceDraftId)))
+			recovery.localSourceDraftId = null;
+	}
+	return copy;
+}
+
 /** Create a serializable draft repository backed by the supplied Dexie database. */
 export function createDraftRepository(database: LyricLintDatabase): DraftRepository {
 	const list = createDraftSummaryReader(database);
-	async function readDraft(record: DraftRecord): Promise<DraftRecord> {
-		const copy = copyDraft(record);
-		for (const recovery of [copy.originalRecovery, copy.conversionRecovery]) {
-			if (!recovery?.sourceDraftId) continue;
-			if (recovery.localSourceDraftId === undefined) {
-				const owner = await database.appMetadata.get(
-					`conversionRecovery:${recovery.sourceDraftId}`
-				);
-				recovery.localSourceDraftId = owner?.value === record.id ? recovery.sourceDraftId : null;
-			}
-			if (recovery.localSourceDraftId && !(await database.drafts.get(recovery.localSourceDraftId)))
-				recovery.localSourceDraftId = null;
+	const readDraft = (record: DraftRecord) => resolveLocalRecoveryReferences(database, record);
+	async function readCommittedDraft(record: DraftRecord, sourceId: string): Promise<DraftRecord> {
+		const resolved = await resolveLocalRecoveryReferences(database, record, sourceId);
+		if (
+			(['originalRecovery', 'conversionRecovery'] as const).some(
+				(kind) => record[kind]?.localSourceDraftId !== resolved[kind]?.localSourceDraftId
+			)
+		) {
+			resolved.storageGeneration = (record.storageGeneration ?? 0) + 1;
+			if (!Number.isSafeInteger(resolved.storageGeneration))
+				throw new Error('Draft generation exhausted.');
+			await database.drafts.put(resolved);
 		}
-		return copy;
+		return resolved;
 	}
 	async function recoverUnreadable(id: string): Promise<DraftRecord | undefined> {
 		return database.transaction(
@@ -374,7 +398,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 				database.mediaHandles,
 				database.draftIgnores,
 				async () => {
-					const record = copyDraft(input);
+					const record = await readDraft(input);
 					const existing = await database.drafts.get(input.id);
 					// A departure checkpoint can outlive the transaction it captured.
 					// Recognize its commit before considering any competing generations.
@@ -383,10 +407,18 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 							existing?.storageWriteId === record.storageWriteId &&
 							(existing.storageGeneration ?? 0) > expectedGeneration
 						)
-							return { sourceId: input.id, draft: copyDraft(existing), conflicted: false };
+							return {
+								sourceId: input.id,
+								draft: await readCommittedDraft(existing, input.id),
+								conflicted: false
+							};
 						const previousFork = await database.drafts.get(`autosave:${record.storageWriteId}`);
 						if (previousFork && previousFork.id !== input.id)
-							return { sourceId: input.id, draft: copyDraft(previousFork), conflicted: true };
+							return {
+								sourceId: input.id,
+								draft: await readCommittedDraft(previousFork, input.id),
+								conflicted: true
+							};
 					}
 					const conflicted =
 						(existing?.storageGeneration ?? 0) !== expectedGeneration ||

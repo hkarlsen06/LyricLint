@@ -87,6 +87,10 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   remembered recovery ownership, never through a matching draft ID alone. Local duplication,
   conflict copies, autosave and departure checkpoints preserve verified associations. Deliberate
   original export refuses unavailable data visibly; Song offers it only with a local association.
+  Legacy archive ownership is checked against its original IDs and remembered owner before
+  remapping. Departure recovery resolves ownership before adopting a predecessor or conflict
+  identity. Replaying an already committed legacy fork records the verified association once,
+  advances its storage generation and leaves later replay idempotent.
 
 - At five saved drafts the menu offers case-insensitive title/full-lyric search. Filtering never
   changes the saved records; a no-match result retains the search field, and closing the

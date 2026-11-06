@@ -1,6 +1,6 @@
 import { copyConversionFields } from './copy.js';
 import { parseWorkspaceBackup } from './backup.js';
-import { createDraftRepository } from './draft-repository.js';
+import { createDraftRepository, resolveLocalRecoveryReferences } from './draft-repository.js';
 import type { LyricLintDatabase } from './database.js';
 import type { DepartureCheckpoint, DepartureSnapshot, SessionStorageLike } from './types.js';
 
@@ -151,7 +151,7 @@ export async function recoverDepartureCheckpoint(
 			let conflicted = false;
 			for (const snapshot of snapshots) {
 				const sourceId = snapshot.draft.id;
-				let draft = snapshot.draft;
+				let draft = await resolveLocalRecoveryReferences(database, snapshot.draft);
 				if (snapshot.precedingWrite) {
 					const preceding = snapshot.precedingWrite;
 					const fork = await database.drafts.get(`autosave:${preceding.id}`);
