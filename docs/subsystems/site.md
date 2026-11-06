@@ -87,6 +87,9 @@ Touches: `src/routes/(site)/+page.svelte`, `src/routes/(site)/+layout.svelte`,
   and past Harper's length threshold a document-wide `Readability` finding plus `dedup: true`
   swallowed everything. The provider de-dups *after* filtering, pinned against real WASM in
   `harper.test.ts`; the filming script asserts exactly one finding.
+- The live demo treats canceled Harper initialization as retryable on a subsequent lyric edit.
+  Cancellation never immediately retries in a departing page. Genuine engine failures still
+  disable grammar checking for that demo instance; native checks continue in both cases.
 - `.site` pins the workbench's own dark scheme value for value, a complete palette, because
   derived tokens inherit substituted values (`--color-control: var(--color-surface)` resolves
   at `:root`). `site-palette.test.ts` walks the derivation graph and strips comments first.

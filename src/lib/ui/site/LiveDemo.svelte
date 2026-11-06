@@ -41,6 +41,7 @@
 	} from '#lib/editor/index.js';
 	import { loadStatisticalLanguageDetector } from '#lib/languages/detect.js';
 	import { getLanguagePack, resolveLanguageTag } from '#lib/languages/registry.js';
+	import { HarperInitializationCanceled } from '#lib/rules/harper-cancellation.js';
 	import {
 		allocatePerformerColor,
 		assignUnknownVoice,
@@ -191,6 +192,7 @@
 				})
 				.catch((error: unknown) => {
 					if (request !== harperRequest || harperUnavailable) return;
+					if (error instanceof HarperInitializationCanceled) return;
 					harperUnavailable = true;
 					console.error('Harper grammar checking is unavailable in the landing demo.', error);
 				});
