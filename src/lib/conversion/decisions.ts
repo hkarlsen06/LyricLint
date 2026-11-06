@@ -54,7 +54,11 @@ export type ConversionAction =
 	| { kind: 'mergePerformer'; fromPerformerId: string; toPerformerId: string }
 	| { kind: 'removePerformer'; performerId: string };
 
-function visibleRange(projection: Projection, range: TextRange): TextRange | undefined {
+function visibleRange(
+	projection: Projection,
+	range: TextRange,
+	purpose: 'structural' | 'language' = 'structural'
+): TextRange | undefined {
 	if (
 		!Number.isSafeInteger(range.from) ||
 		!Number.isSafeInteger(range.to) ||
@@ -66,7 +70,10 @@ function visibleRange(projection: Projection, range: TextRange): TextRange | und
 	if (
 		projection.segments.some(
 			(segment) =>
-				(segment.kind === 'generated' && segment.from < range.to && range.from < segment.to) ||
+				(purpose === 'structural' &&
+					segment.kind === 'generated' &&
+					segment.from < range.to &&
+					range.from < segment.to) ||
 				(segment.kind === 'transformed' &&
 					((segment.from < range.from && range.from < segment.to) ||
 						(segment.from < range.to && range.to < segment.to)))
@@ -811,9 +818,23 @@ export function resolveDecision(
 			break;
 		}
 		case 'setPassageLanguage': {
-			const range = visibleRange(projection, action.range);
+			// Generated syntax has no language ownership; map only the selected sung content.
+			const range = visibleRange(projection, action.range, 'language');
 			if (
 				!range ||
+				!next.content.slice(range.from, range.to).trim() ||
+				!projection.segments.some(
+					(segment) =>
+						segment.kind !== 'generated' &&
+						segment.from < action.range.to &&
+						action.range.from < segment.to &&
+						projection.text
+							.slice(
+								Math.max(segment.from, action.range.from),
+								Math.min(segment.to, action.range.to)
+							)
+							.trim()
+				) ||
 				typeof action.language !== 'string' ||
 				!/^[A-Za-z]{2,8}(?:[-_][A-Za-z0-9]{1,8})*$/u.test(action.language) ||
 				action.language.length > 128

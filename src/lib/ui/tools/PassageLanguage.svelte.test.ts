@@ -240,3 +240,25 @@ for (const text of ['Un beau jour', '[Verse]\nUn [beau](12345) jour']) {
 		expect(controller.snapshot.text).toBe(text);
 	});
 }
+
+test.each([
+	'[Verse: Mira]\nThe [silver 🌙 compass](123456) by the door\nNext English line',
+	'[Verse: Mira]\nMoon and sun\n[Chorus]\nStars'
+])('assigns complete syntax-spanning selections through the controller: %s', async (text) => {
+	const { controller, editor } = await setup(text);
+	editor.handle.setSelection({ anchor: 0, head: text.length });
+	await open();
+	await fireEvent.click(screen.getByRole('button', { name: /^French$/ }));
+	expect(screen.queryByRole('dialog')).toBeNull();
+	expect(controller.snapshot.text).toBe(text);
+	const assigned = controller.snapshot.conversion;
+	expect(assigned?.model.languageRanges).toMatchObject([
+		{ from: 0, to: assigned?.model.content.length, language: 'fr' }
+	]);
+	expect(assigned?.model.defaultLanguage).toBe('en');
+	editor.handle.undo();
+	expect(controller.snapshot.conversion?.model.languageRanges ?? []).toEqual([]);
+	editor.handle.redo();
+	expect(controller.snapshot.conversion).toEqual(assigned);
+	expect(controller.snapshot.text).toBe(text);
+});

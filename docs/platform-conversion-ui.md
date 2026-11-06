@@ -139,6 +139,9 @@ document-language gaps between overrides. Different languages show Mixed languag
 current option. Adjacent overrides in one language still show that language.
 For a selection inside an alternate wording, the display includes the intersected wording
 unit's source range. Assigning a language through only part of that unit still refuses.
+Selecting a complete annotated lyric line or lyrics across section headers assigns the mapped
+sung content while retaining the displayed syntax. Selecting only headers, delimiters or
+whitespace refuses without creating an override.
 
 The directional merge chooses the destination's existing label and type. A merge into the next
 section moves that destination to the removed section's start, so its body includes both sets

@@ -79,7 +79,11 @@ The performer roster remains authoritative on `DraftRecord`; identity changes co
 model using atomic performer-history deltas. The rich document's authoritative default language
 is `ConversionDocument.defaultLanguage`. `DraftRecord.language` is its compatibility copy,
 updated from the committed envelope. They are not two independently mutable language settings.
-Language overrides belong to mapped content ranges.
+Language overrides belong to mapped content ranges. A passage selection may include generated
+headers or annotation/voice delimiters: those have no language ownership and remain exact.
+Assignment maps the selected sung content through the active projection, refusing syntax-only,
+whitespace-only, invalid or empty ranges and partial transformed wording units. This exception
+is metadata-only; structural edit decisions retain their generated-syntax guard.
 
 Store `contentKind: 'original' | 'translation' | 'romanization' | 'unknown'` once in the versioned
 model. Legacy drafts start at `unknown`; locale, script and header spelling cannot establish it.
