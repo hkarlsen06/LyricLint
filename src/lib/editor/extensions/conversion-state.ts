@@ -467,21 +467,35 @@ export function conversionState(
 						: records,
 				transaction.startState.field(editorContextField)?.performers ?? []
 			);
+			const callbacks = transaction.startState.field(editorCallbacksField, false);
+			const nextOrder = callbacks?.getNextPerformerOrder?.() ?? 0;
 			const additions =
 				(transaction.docChanged || ended) &&
 				(!previous || (previous.envelope.profile === 'genius' && !previous.recovery)) &&
-				transaction.startState.field(editorCallbacksField, false)?.onPerformerRecordsChanged
-					? extractCompletePerformers(parseDocument(transaction.newDoc.toString()), roster)
-							.rosterAdditions
+				callbacks?.onPerformerRecordsChanged
+					? extractCompletePerformers(
+							parseDocument(transaction.newDoc.toString()),
+							roster
+						).rosterAdditions.map((record, index) => ({
+							...record,
+							order: Math.max(record.order, nextOrder + index)
+						}))
 					: [];
 			const discovery = additions.length
 				? [conversionRosterEffect.of({ before: [], after: additions })]
 				: [];
+			const pending = transaction.startState.field(compositionChangesField, false);
 			if (!previous)
 				return discovery.length
-					? [transaction, { effects: discovery, sequential: true }]
+					? [
+							transaction,
+							{
+								effects: discovery,
+								userEvent: ended && pending ? 'input.type.compose' : undefined,
+								sequential: true
+							}
+						]
 					: transaction;
-			const pending = transaction.startState.field(compositionChangesField, false);
 			const changes = ended && pending ? pending.compose(transaction.changes) : transaction.changes;
 			const edits: TextEdit[] = [];
 			changes.iterChanges((from, to, _a, _b, inserted) =>

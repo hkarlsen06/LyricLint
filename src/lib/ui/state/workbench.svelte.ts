@@ -145,6 +145,7 @@ export interface WorkbenchController {
 	readonly language: string;
 	readonly recentLanguages: readonly string[];
 	readonly performers: readonly PerformerRecord[];
+	readonly nextPerformerOrder: number;
 	readonly activeTab: RightPanelTab;
 	readonly activeDiagnosticKey?: string;
 	readonly activeDiagnosticRange?: TextRange;
@@ -875,6 +876,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		get performers() {
 			return roster.performers;
+		},
+		get nextPerformerOrder() {
+			return roster.nextPerformerOrder;
 		},
 		get activeTab() {
 			return panel.activeTab;

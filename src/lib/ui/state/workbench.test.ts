@@ -1806,6 +1806,73 @@ describe('workbench performer imports', () => {
 		);
 	});
 
+	test.each(['<i>Noor', '<mark>Noor</mark>'])(
+		'keeps a genuine placeholder-shaped name beside malformed legend %s',
+		async (malformedName) => {
+			const first = draft('draft-a', '');
+			const second = {
+				...draft('draft-b', `[Verse: Unresolved voice 2, ${malformedName}]\nWords stay`),
+				performers: [
+					{
+						id: 'genuine-performer',
+						displayName: 'Unresolved voice 2',
+						normalizedKey: 'unresolved voice 2',
+						aliases: [],
+						colorId: 'plum',
+						order: 0
+					}
+				]
+			};
+			const repository = createInMemoryDraftRepository([first, second]);
+			const controlled = controllableAutosave(repository);
+			const { controller } = setup({ initial: first, repository, autosave: controlled.autosave });
+
+			await controller.openDraft(second.id);
+
+			expect(controller.performers).toEqual(second.performers);
+			expect(controller.snapshot.text).toBe(second.text);
+			await controlled.autosave.flush();
+			expect((await repository.get(second.id))?.performers).toEqual(second.performers);
+		}
+	);
+	test.each(['genius', 'musixmatch'] as const)(
+		'keeps a placeholder-shaped identity referenced by retained %s voices',
+		async (profile) => {
+			const first = draft('draft-a', '');
+			const performers = [
+				{
+					id: 'genuine-performer',
+					displayName: 'Unresolved voice 2',
+					normalizedKey: 'unresolved voice 2',
+					aliases: [],
+					colorId: 'plum',
+					order: 0
+				}
+			];
+			const imported = importDocument({
+				text: '[Verse: Unresolved voice 2]\nWords stay',
+				profile: 'genius',
+				language: 'en',
+				performers
+			});
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const conversion = createConversionEnvelope(imported.value, profile, profilePolicyVersions);
+			const second = { ...draft('draft-b', conversion.projectionText), performers, conversion };
+			const repository = createInMemoryDraftRepository([first, second]);
+			const { controller } = setup({
+				initial: first,
+				repository,
+				onOpenDraft: (record) => ({ ...snapshot(record), conversion: record.conversion })
+			});
+
+			await controller.openDraft(second.id);
+
+			expect(controller.performers).toEqual(performers);
+			expect(controller.snapshot.conversion?.model.voices).toEqual(imported.value.voices);
+			expect(controller.snapshot.text).toBe(conversion.projectionText);
+		}
+	);
+
 	test('follows a header rename in the roster and keeps the old spelling resolvable', () => {
 		const initial = draft('draft-a', '[Verse 1: Avery]\nA line\n\n[Chorus: Avery]\nAnother line');
 		const { controller } = setup({ initial });

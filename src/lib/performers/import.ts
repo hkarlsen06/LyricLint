@@ -68,10 +68,9 @@ export function extractPerformers(
 	const voiceGroups: ImportedVoiceGroup[] = [];
 	const availableRoster: PerformerRecord[] = [...knownRoster];
 	const candidates = document.sections.flatMap((section) =>
-		logicalHeaderGroups(document, section, knownRoster).map((group) => ({
-			section,
-			group
-		}))
+		logicalHeaderGroups(document, section, knownRoster)
+			.filter((group) => decodeLegendText(group.rawNameText).trim().length > 0)
+			.map((group) => ({ section, group }))
 	);
 
 	/*

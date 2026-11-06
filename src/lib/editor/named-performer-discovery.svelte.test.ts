@@ -60,6 +60,7 @@ function mount() {
 	editor.updateCallbacks({
 		onSnapshot: (value) => controller.onSnapshot(value),
 		onPerformerRecordsChanged: (delta) => controller.adoptPerformerRecords(delta),
+		getNextPerformerOrder: () => controller.nextPerformerOrder,
 		onPerformerRenamed: ({ performerId, previousName, displayName }) =>
 			controller.adoptHeaderRename(performerId, previousName, displayName),
 		onAssignRequest: vi.fn(),
@@ -164,6 +165,7 @@ it('completes a new rich header atomically without discovering partial or provis
 	refresh();
 	editor.handle.undo();
 	refresh();
+	expect(editor.handle.getSnapshot().text).toBe('[Verse: Mira]\nLine\n\n[Chorus: Noor');
 	expect(controller.performers.map((record) => record.displayName)).toEqual([
 		'Mira',
 		'Independent'
@@ -172,6 +174,66 @@ it('completes a new rich header atomically without discovering partial or provis
 	refresh();
 	expect(controller.performers.find((record) => record.id === noor.id)).toEqual(noor);
 });
+it('undoes a legacy composition and its discovered identity together', () => {
+	const { editor, controller, refresh } = mount();
+	insert(editor, '[Verse: ]');
+	refresh();
+	editor.view.dispatch({ effects: setComposingEffect.of(true) });
+	editor.view.dispatch({
+		changes: { from: 8, insert: 'No' },
+		userEvent: 'input.type.compose.start',
+		annotations: isolateHistory.of('before')
+	});
+	editor.view.dispatch({
+		changes: { from: 10, insert: 'or' },
+		userEvent: 'input.type.compose'
+	});
+	expect(controller.performers).toEqual([]);
+	editor.view.dispatch({ effects: setComposingEffect.of(false) });
+	refresh();
+	const noor = controller.performers[0]!;
+	expect(noor.displayName).toBe('Noor');
+
+	editor.handle.undo();
+	refresh();
+	expect(editor.handle.getSnapshot().text).toBe('[Verse: ]');
+	expect(controller.performers).toEqual([]);
+	editor.handle.redo();
+	refresh();
+	expect(editor.handle.getSnapshot().text).toBe('[Verse: Noor]');
+	expect(controller.performers).toEqual([noor]);
+	controller.switchProfile('musixmatch');
+	refresh();
+	expect(editor.handle.getSnapshot().conversion?.model.voices[0]?.performerIds).toEqual([noor.id]);
+});
+
+it('keeps a removed performer before identities discovered while its Undo is available', () => {
+	const { editor, controller, refresh } = mount();
+	controller.addPerformer('Mira');
+	refresh();
+	controller.addPerformer('Noor');
+	refresh();
+	const noor = controller.performers[1]!;
+	controller.removePerformer(noor.id);
+	refresh();
+	const removal = controller.feedback.toasts.find(
+		(toast) => toast.message === 'Removed Noor from the roster.'
+	);
+	expect(removal?.action).toBeDefined();
+	insert(editor, '[Verse: Lena]');
+	refresh();
+	removal!.action!();
+	refresh();
+
+	expect(controller.performers.map((record) => record.displayName)).toEqual([
+		'Mira',
+		'Noor',
+		'Lena'
+	]);
+	expect(new Set(controller.performers.map((record) => record.order)).size).toBe(3);
+	expect(controller.performers.find((record) => record.id === noor.id)).toEqual(noor);
+});
+
 it('imports Genius text with its discovered roster before constructing the model', async () => {
 	const { controller, repository } = mount();
 	expect(await controller.importLyrics(new File([fixture], 'Lyrics.txt'), 'genius')).toBe(true);
@@ -204,4 +266,28 @@ it('does not discover a long unfinished or malformed pasted legend', () => {
 	insert(editor, ']');
 	refresh();
 	expect(controller.performers).toEqual([]);
+});
+
+it('keeps an empty styled legend anonymous in native edits and Genius file import', async () => {
+	const { editor, controller, refresh, repository } = mount();
+	const text = '[Verse: <i></i>]\n<i>Line</i>';
+	insert(editor, text);
+	refresh();
+	expect(controller.performers).toEqual([]);
+	expect(editor.handle.getSnapshot().text).toBe(text);
+	controller.switchProfile('musixmatch');
+	refresh();
+	expect(
+		editor.handle.getSnapshot().conversion?.model.voices.flatMap((voice) => voice.performerIds)
+	).toEqual([]);
+	controller.switchProfile('genius');
+	refresh();
+	expect(editor.handle.getSnapshot().text).toBe(text);
+
+	expect(await controller.importLyrics(new File([text], 'Anonymous.txt'), 'genius')).toBe(true);
+	const summary = (await repository.list()).find((record) => record.title === 'Anonymous')!;
+	const saved = (await repository.get(summary.id))!;
+	expect(saved.performers).toEqual([]);
+	expect(saved.conversion?.model.voices.flatMap((voice) => voice.performerIds)).toEqual([]);
+	expect(saved.text).toBe(text);
 });

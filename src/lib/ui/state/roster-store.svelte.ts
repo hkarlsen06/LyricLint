@@ -7,6 +7,7 @@ import type {
 } from '#lib/core/types.js';
 import {
 	allocatePerformerColor,
+	headerNameAtoms,
 	isRetiredUnresolvedVoiceName,
 	normalizePerformerKey,
 	renamedPerformer
@@ -43,6 +44,7 @@ interface RosterStoreDependencies {
 
 interface RosterStore {
 	readonly performers: readonly PerformerRecord[];
+	readonly nextPerformerOrder: number;
 	guardUndo(delta: PerformerRecordDelta, action: () => void): () => void;
 	readonly suggestions: readonly RosterMergeSuggestion[];
 	/** Adopt a stored roster without marking the draft dirty. */
@@ -148,6 +150,9 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 		get performers() {
 			return performers;
 		},
+		get nextPerformerOrder() {
+			return nextOrder;
+		},
 		get suggestions() {
 			const suggestions = new SvelteMap<string, RosterMergeSuggestion>();
 			for (let sourceIndex = 0; sourceIndex < performers.length; sourceIndex += 1) {
@@ -202,16 +207,26 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			// voice whose whole point is having none, and a pressable stranger in
 			// every picker. The state is derived now, but drafts saved while the
 			// minting ran still carry the records, so the same moment that created
-			// them retires them: an exact-named placeholder no extracted group
+			// them retires them: an exact-named placeholder no existing header
 			// references is the artifact and nothing else. One a header genuinely
-			// names stays referenced (extraction resolves the name to the record),
+			// names stays referenced even beside incomplete legend markup,
 			// and one the user renamed no longer matches the name.
 			const referencedIds = new SvelteSet(
-				extraction.voiceGroups.flatMap((group) => group.performerIds)
+				headerNameAtoms(snapshot.parsed, performers).flatMap((atom) =>
+					atom.performerId ? [atom.performerId] : []
+				)
 			);
 			const retired = performers.filter(
 				(performer) =>
-					isRetiredUnresolvedVoiceName(performer.displayName) && !referencedIds.has(performer.id)
+					isRetiredUnresolvedVoiceName(performer.displayName) &&
+					!referencedIds.has(performer.id) &&
+					!(
+						snapshot.conversion &&
+						changesReferencedPerformers(snapshot.conversion.model, performers, {
+							before: [performer],
+							after: []
+						})
+					)
 			);
 			if (retired.length > 0) {
 				const kept = performers.filter((performer) => !retired.includes(performer));

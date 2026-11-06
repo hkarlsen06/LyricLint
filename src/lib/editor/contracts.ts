@@ -170,6 +170,8 @@ interface EditorOverlayCallbacks {
 	onSectionDetailRequest?(sectionId: string): void;
 	/** Apply the same touched performer identities as this history event before publishing its snapshot. */
 	onPerformerRecordsChanged?(delta: import('#lib/core/types.js').PerformerRecordDelta): void;
+	/** First unused roster position, including positions reserved by a pending Undo. */
+	getNextPerformerOrder?(): number;
 	/**
 	 * An audio file was dropped on the document.
 	 *

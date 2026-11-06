@@ -14,7 +14,11 @@ format itself: `docs/performer-tagging.md`
   reconciliation, regardless of inserted text length. Discovery uses the shared legend
   extractor, never lyric words. Its additions travel with the source edit through roster
   history, before snapshot publication; Undo preserves unrelated identities. Incomplete
-  brackets, unsupported legend markup and composition preedit create no identities.
+  brackets, unsupported legend markup, empty styled names and composition preedit create no identities.
+  Composition completion joins discovery to its text history event in legacy and rich drafts.
+  Native discovery reads the roster store's next position, including positions reserved by Undo.
+  Placeholder retirement checks existing header and retained-model references independently
+  of the eligibility to discover new names, so a malformed neighbour cannot delete an identity.
   Discovery does not reassign retained anonymous voices. Genius text-file import supplies
   the discovered roster before constructing its rich model. Pins:
   `named-performer-discovery.svelte.test.ts`.

@@ -871,6 +871,7 @@
 		onAssignRequest: () => {},
 		onAddPerformer: (displayName) => controller.addPerformer(displayName),
 		onPerformerRecordsChanged: (delta) => controller.adoptPerformerRecords(delta),
+		getNextPerformerOrder: () => controller.nextPerformerOrder,
 		onPerformerRenamed: ({ performerId, previousName, displayName }) =>
 			controller.adoptHeaderRename(performerId, previousName, displayName),
 		onSectionDetailRequest: (sectionId) => {
