@@ -180,7 +180,7 @@ test.each([320, 390])(
 		const trayBox = tray.getBoundingClientRect();
 		expect(menuBox.top).toBeLessThan(trayBox.bottom);
 		expect(menuBox.bottom).toBeGreaterThan(trayBox.top);
-		const labels = ["New 'scribe", 'Undo', 'Redo', 'Language: English', 'Compare'];
+		const labels = ["New 'scribe", 'Undo', 'Redo', 'Lyric language: English', 'Compare'];
 		const rows = [...menu.querySelectorAll<HTMLButtonElement>(':scope > button')];
 		expect(rows.map((row) => row.textContent?.trim())).toEqual(labels);
 		for (const row of rows) {
