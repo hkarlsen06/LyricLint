@@ -57,6 +57,9 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   Expanded language controls name their document or passage scope visibly. Long choices keep
   the trigger's height and full accessible name. Search matches English names, catalog
   languages' native names and codes, without changing the reviewed-language policy.
+  The selected-lyrics excerpt is a bounded, labelled keyboard-scrollable region, so long
+  selections do not bury filtered choices. Song owns one section gap, including sections
+  rendered by its child components; child sections do not add another inter-section margin.
   Language options identify language-independent coverage; the dialog and expanded Song
   controls explain the selected language's scope. Review keeps unsupported document and passage
   languages visible even without findings, with reviewed languages and grammar limits in

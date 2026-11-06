@@ -211,7 +211,12 @@
 
 			<div class="language-results">
 				<p role="status">{message}</p>
-				{#if context}<p class="language-context">{context}</p>{/if}
+				{#if context}
+					<!-- svelte-ignore a11y_no_noninteractive_tabindex (The labelled scroll region accepts keyboard navigation.) -->
+					<p class="language-context" role="region" aria-label="Selected lyrics" tabindex="0">
+						{context}
+					</p>
+				{/if}
 				{@render coverage()}
 				{#if custom}
 					<details>
@@ -278,6 +283,8 @@
 	.language-context {
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
+		max-height: 4lh;
+		overflow: auto;
 	}
 	.language-trigger {
 		max-width: 100%;

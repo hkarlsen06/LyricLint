@@ -263,6 +263,27 @@ test.each([360, 390])(
 	}
 );
 
+test.each([360, 390])(
+	'keeps passage language within the ordinary Song section rhythm at %ipx',
+	async (width) => {
+		await page.viewport(width, 844);
+		await mount('[Verse: Mira]\nHéllo 🌙\nOther words stay exact');
+		await fireEvent.click(screen.getByRole('button', { name: 'Tools' }));
+		await fireEvent.click(await screen.findByRole('tab', { name: 'Song' }));
+		await fireEvent.click(await screen.findByText('Language and content type', { exact: true }));
+		const passage = document.querySelector('.passage-language');
+		if (
+			!(passage instanceof HTMLElement) ||
+			!(passage.previousElementSibling instanceof HTMLElement)
+		)
+			throw new Error('The adjacent Song sections are missing.');
+		expect(
+			passage.getBoundingClientRect().top -
+				passage.previousElementSibling.getBoundingClientRect().bottom
+		).toBeLessThanOrEqual(44);
+	}
+);
+
 test('Song fields keep touch targets outside the workspace ancestor', async () => {
 	await page.viewport(390, 844);
 	const imported = importDocument({ text: '[Verse: Mira]\nStay beside me', profile: 'genius' });

@@ -517,12 +517,9 @@
 		display: grid;
 		gap: var(--space-6);
 	}
-	.song-panel > section {
+	.song-panel > :global(section) {
 		margin: 0;
 		min-width: 0;
-	}
-	.song-panel > section + section {
-		margin-top: 0;
 	}
 	.song-panel__delete {
 		margin-top: var(--space-4);

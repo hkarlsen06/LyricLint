@@ -24,6 +24,57 @@ function status(): HTMLElement {
 describe('LanguagePicker', () => {
 	afterEach(cleanup);
 
+	test.each([360, 390, 1280])(
+		'keeps a filtered choice reachable beside a long captured passage at %ipx',
+		async (width) => {
+			await cdp().send('Emulation.setTouchEmulationEnabled', {
+				enabled: width < 500,
+				maxTouchPoints: 1
+			});
+			await page.viewport(width, 844);
+			const context = Array.from({ length: 120 }, (_, i) => `Lyric line ${i + 1} stays exact`).join(
+				'\n'
+			);
+			let chosen: string | undefined;
+			try {
+				await render(LanguagePicker, {
+					props: {
+						language: 'en',
+						context,
+						custom: true,
+						onchoose: (tag) => {
+							chosen = tag;
+						}
+					}
+				});
+				await openPicker();
+				await search('French');
+				await document.fonts.ready;
+				const choice = screen.getByRole('button', { name: 'French' });
+				const bounds = choice.getBoundingClientRect();
+				const dialog = screen.getByRole('dialog').getBoundingClientRect();
+				expect(bounds.bottom).toBeLessThanOrEqual(dialog.bottom);
+				expect(
+					document
+						.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+						?.closest('button')
+				).toBe(choice);
+				const excerpt = screen.getByRole('region', { name: 'Selected lyrics' });
+				expect(excerpt.textContent).toBe(context);
+				await userEvent.tab();
+				expect(excerpt).toHaveFocus();
+				await userEvent.keyboard('{End}');
+				await waitFor(() => expect(excerpt.scrollTop).toBeGreaterThan(0));
+				expect(choice.getBoundingClientRect().y).toBe(bounds.y);
+				await userEvent.click(choice);
+				expect(chosen).toBe('fr');
+			} finally {
+				await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+				await page.viewport(800, 600);
+			}
+		}
+	);
+
 	test.each([360, 390, 1280])('keeps language choices touch-sized at %ipx', async (width) => {
 		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
 		await page.viewport(width, 900);
