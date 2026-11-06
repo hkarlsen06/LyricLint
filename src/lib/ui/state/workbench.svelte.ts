@@ -1,3 +1,5 @@
+import { parseDocument } from '#lib/core/parser.js';
+import { extractCompletePerformers } from '#lib/performers/import.js';
 import type {
 	AutosaveController,
 	AutosaveStatus,
@@ -1295,7 +1297,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 					throw new Error('This lyrics file is too large to import.');
 				const originalText = await file.text();
 				const text = originalText.replace(/\r\n?/g, '\n');
+				const performers =
+					sourceProfile === 'genius'
+						? extractCompletePerformers(parseDocument(text), []).rosterAdditions
+						: [];
 				const model = importDocument({
+					performers,
 					text,
 					profile: sourceProfile,
 					language: controller.language
@@ -1310,7 +1317,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 					text,
 					originalText,
 					language: model.value.defaultLanguage,
-					performers: [],
+					performers,
 					createdAt: timestamp,
 					updatedAt: timestamp,
 					ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion,

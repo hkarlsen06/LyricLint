@@ -1,3 +1,4 @@
+import { applyPerformerRecordDelta, conversionRosterEffect } from './conversion-roster.js';
 import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Transaction } from '@codemirror/state';
 import { parseDocument } from '#lib/core/parser.js';
@@ -21,6 +22,11 @@ export const editorContextField = StateField.define<EditorDisplayContext | undef
 		for (const effect of transaction.effects) {
 			if (effect.is(setEditorContextEffect)) {
 				value = effect.value;
+			} else if (value && effect.is(conversionRosterEffect)) {
+				value = {
+					...value,
+					performers: applyPerformerRecordDelta(value.performers ?? [], effect.value)
+				};
 			}
 		}
 		return value;

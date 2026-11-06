@@ -1,3 +1,5 @@
+import { parseDocument } from '#lib/core/parser.js';
+import { extractCompletePerformers } from '#lib/performers/import.js';
 import { invertedEffects, isolateHistory } from '@codemirror/commands';
 import {
 	ChangeSet,
@@ -449,7 +451,6 @@ export function conversionState(
 		EditorState.transactionFilter.of((transaction) => {
 			const previous = conversionForState(transaction.startState);
 			if (
-				!previous ||
 				transaction.annotation(profileProjection) ||
 				transaction.effects.some((effect) => effect.is(setConversionStateEffect))
 			)
@@ -459,6 +460,27 @@ export function conversionState(
 				(effect) => effect.is(setComposingEffect) && !effect.value
 			);
 			if (composing && !ended) return transaction;
+			const roster = transaction.effects.reduce<readonly PerformerRecord[]>(
+				(records, effect) =>
+					effect.is(conversionRosterEffect)
+						? applyPerformerRecordDelta(records, effect.value)
+						: records,
+				transaction.startState.field(editorContextField)?.performers ?? []
+			);
+			const additions =
+				(transaction.docChanged || ended) &&
+				(!previous || (previous.envelope.profile === 'genius' && !previous.recovery)) &&
+				transaction.startState.field(editorCallbacksField, false)?.onPerformerRecordsChanged
+					? extractCompletePerformers(parseDocument(transaction.newDoc.toString()), roster)
+							.rosterAdditions
+					: [];
+			const discovery = additions.length
+				? [conversionRosterEffect.of({ before: [], after: additions })]
+				: [];
+			if (!previous)
+				return discovery.length
+					? [transaction, { effects: discovery, sequential: true }]
+					: transaction;
 			const pending = transaction.startState.field(compositionChangesField, false);
 			const changes = ended && pending ? pending.compose(transaction.changes) : transaction.changes;
 			const edits: TextEdit[] = [];
@@ -506,13 +528,7 @@ export function conversionState(
 			let next = previous;
 			let additionalChanges: TextEdit[] = [];
 			if (edits.length) {
-				const performers = transaction.effects.reduce<readonly PerformerRecord[]>(
-					(records, effect) =>
-						effect.is(conversionRosterEffect)
-							? applyPerformerRecordDelta(records, effect.value)
-							: records,
-					transaction.startState.field(editorContextField)?.performers ?? []
-				);
+				const performers = [...roster, ...additions];
 				const model = {
 					...previous.envelope.model,
 					nextId: Math.max(
@@ -581,7 +597,8 @@ export function conversionState(
 					userEvent: ended && pending ? 'input.type.compose' : undefined,
 					effects: [
 						setConversionStateEffect.of(next),
-						...metadataEffects(next, transaction.startState.field(editorContextField)?.performers)
+						...discovery,
+						...metadataEffects(next, [...roster, ...additions])
 					],
 					sequential: true
 				}

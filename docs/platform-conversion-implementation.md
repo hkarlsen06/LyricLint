@@ -248,6 +248,9 @@ relative viewport position after widget layout settles.
 ### Ordinary committed edits
 
 1. Read the active projection and actual ordered CodeMirror changes, including their base epoch.
+   For settled Genius source edits, extract complete named headers against the prospective
+   roster before reconciliation. Carry new identities as invertible roster effects in the
+   same transaction; do not use subsequent rendered text to repair retained assignments.
 2. Classify/map the source changes into owned shared operations, materializing any touched
    transformed unit while preserving its exact edited text.
 3. Expand stored linked-passage targets in shared coordinates through the sole `passageTargets`

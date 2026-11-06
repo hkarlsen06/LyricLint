@@ -6,6 +6,11 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 
 ## The rules
 
+- Genius `.txt` import extracts the complete source-header roster before model construction
+  and persists both together. Opening the imported draft must not be the first discovery:
+  reconciliation preserves existing anonymous assignments. Scribe and saved rich drafts
+  keep their retained assignments without a retroactive identity migration.
+
 - A refused delete or reset restores every canceled pending save, including retained failures
   and side records, so departure recovery and a later retry retain the latest work. Successful
   deletion keeps those saves canceled. A refused reset keeps the running preferences unchanged.

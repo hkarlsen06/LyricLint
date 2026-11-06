@@ -1,3 +1,4 @@
+import { extractCompletePerformers } from '#lib/performers/import.js';
 import type {
 	EditorSnapshot,
 	ImportSuggestion,
@@ -6,7 +7,6 @@ import type {
 } from '#lib/core/types.js';
 import {
 	allocatePerformerColor,
-	extractPerformers,
 	isRetiredUnresolvedVoiceName,
 	normalizePerformerKey,
 	renamedPerformer
@@ -191,7 +191,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			retainOrder();
 		},
 		importFromSnapshot(snapshot) {
-			const extraction = extractPerformers(snapshot.parsed, performers);
+			const extraction = extractCompletePerformers(snapshot.parsed, performers);
 			importSuggestions = extraction.suggestions.map((suggestion) => ({
 				...suggestion,
 				importedRange: { ...suggestion.importedRange }

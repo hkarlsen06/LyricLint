@@ -15,6 +15,12 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   to the editor; profile changes never focus the editor or change lyrics for it.
   `native-focus.svelte.test.ts` pins synchronous entry and the pointer/composition boundaries.
 
+- Complete Genius header discovery precedes source reconciliation in the committed editor
+  transaction. Invertible performer effects update the editor context as well as the shell
+  roster before a snapshot publishes, so consecutive native edits and history do not depend
+  on a later shell refresh. Composition waits for its existing committed boundary.
+  `named-performer-discovery.svelte.test.ts` pins controller, renderer and history together.
+
 - Rich drafts keep one `ConversionDocument`. `renderProfile` derives Genius or Musixmatch text
   without allocating IDs, changing authored forms, applying lint fixes or mutating metadata.
   Repeated switches preserve each projection byte for byte; edits reconcile through the

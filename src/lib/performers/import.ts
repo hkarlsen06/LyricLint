@@ -29,7 +29,7 @@ function createRosterAddition(
 		normalizedKey: normalizePerformerKey(displayName),
 		aliases: [],
 		colorId: allocatePerformerColor(displayName, roster),
-		order: roster.length
+		order: Math.max(-1, ...roster.map((record) => record.order)) + 1
 	};
 }
 
@@ -144,4 +144,22 @@ export function extractPerformers(
  */
 export function isRetiredUnresolvedVoiceName(displayName: string): boolean {
 	return /^Unresolved voice [2-4]$/u.test(displayName);
+}
+
+/** Discover identities only after the source header and its legend markup are complete. */
+export function extractCompletePerformers(
+	document: ParsedDocument,
+	knownRoster: readonly PerformerRecord[]
+): ImportExtraction {
+	return extractPerformers(
+		{
+			...document,
+			sections: document.sections.filter(
+				(section) =>
+					section.header?.closed &&
+					section.header.legendGroups.every((group) => group.markupSupported)
+			)
+		},
+		knownRoster
+	);
 }

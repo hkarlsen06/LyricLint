@@ -10,6 +10,15 @@ format itself: `docs/performer-tagging.md`
 
 ## The rules
 
+- Settled Genius source edits discover performers from complete headers before rich
+  reconciliation, regardless of inserted text length. Discovery uses the shared legend
+  extractor, never lyric words. Its additions travel with the source edit through roster
+  history, before snapshot publication; Undo preserves unrelated identities. Incomplete
+  brackets, unsupported legend markup and composition preedit create no identities.
+  Discovery does not reassign retained anonymous voices. Genius text-file import supplies
+  the discovered roster before constructing its rich model. Pins:
+  `named-performer-discovery.svelte.test.ts`.
+
 - The Performers tool shows current lyric voices below the roster, beside its section
   reference. It reads the cached profile voice ranges and the shared caret predicate,
   also used by the caret announcer. For the visible context at a range end, an immediately following voice wins;
