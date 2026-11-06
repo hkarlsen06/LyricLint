@@ -14,6 +14,54 @@ import { createLyricEditor } from '#lib/editor/create-editor.js';
 import SongPanel from './SongPanel.svelte';
 import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 
+describe('SongPanel recovery originals', () => {
+	afterEach(cleanup);
+
+	test.each([
+		{ kind: 'conversionRecovery', available: false },
+		{ kind: 'conversionRecovery', available: true },
+		{ kind: 'originalRecovery', available: false },
+		{ kind: 'originalRecovery', available: true }
+	] as const)(
+		'shows $kind original export only with local ownership ($available)',
+		async ({ kind, available }) => {
+			const text = '[Verse]\nExact latest lyric';
+			const result = importDocument({ text, profile: 'genius', language: 'en' });
+			if (!result.ok) throw new Error(result.refusal.message);
+			const checkpoint = createConversionEnvelope(result.value, 'genius', profilePolicyVersions);
+			const { controller, repository, initialDraft } = createTestWorkbench();
+			const reference = {
+				sourceDraftId: initialDraft.id,
+				localSourceDraftId: available ? initialDraft.id : null,
+				reason: 'These latest lyrics need their retained details restored.'
+			};
+			await repository.create({
+				...initialDraft,
+				id: 'protected-recovery-ui',
+				title: 'Protected recovery',
+				text,
+				...(kind === 'conversionRecovery'
+					? { conversion: checkpoint, conversionRecovery: { ...reference, text, checkpoint } }
+					: { originalRecovery: reference })
+			});
+			await controller.openDraft('protected-recovery-ui');
+			await render(SongPanel, { controller });
+			expect(screen.getByRole('button', { name: 'Export recovery Scribe' })).toBeTruthy();
+			expect(controller.snapshot.text).toBe(text);
+			expect(controller.snapshot[kind]).toMatchObject(reference);
+			const original = screen.queryByRole('button', { name: 'Export original data' });
+			const unavailable = screen.queryByText(/The original data is unavailable in this workspace/u);
+			if (available) {
+				expect(original).toBeTruthy();
+				expect(unavailable).toBeNull();
+			} else {
+				expect(original).toBeNull();
+				expect(unavailable).toBeTruthy();
+			}
+		}
+	);
+});
+
 /*
  * The song half of the split tab. It carries only what is about the
  * transcription in front of the user (its metadata and the files it exports)
