@@ -285,8 +285,6 @@
 		{/if}
 	</section>
 
-	<PassageLanguage {controller} />
-
 	{#if controller.lineAnchorCount > 0}
 		<section>
 			<h2>Timed lyrics</h2>
@@ -343,6 +341,8 @@
 			</div>
 		</section>
 	{/if}
+
+	<PassageLanguage {controller} />
 
 	<!--
 		What the attached song is, in the forms somebody filling in a song page

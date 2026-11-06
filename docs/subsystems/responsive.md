@@ -63,6 +63,8 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   Audio discloses artwork and secondary timing controls in its own surface; wider touch layouts
   show those controls directly. Active sync keeps its controls visible.
   `MediaStrip.svelte.test.ts` pins disclosure, target bounds, and playback focus behavior.
+- Song keeps its file exports, including available timed lyrics, before the growing passage
+  language controls so ordinary exports remain in the first usable phone viewport.
 - The mobile workspace always fits the visual viewport's height and offset, including
   rotation with an already-open keyboard. Pinch zoom keeps the pre-zoom layout. Transport remains in flow. Write/Review/Tools hides while the keyboard is open and
   returns after dismissal; it never rides above the keys. This gives the editor or Assistant
