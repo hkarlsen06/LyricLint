@@ -27,7 +27,7 @@ for (const width of [1280, 360, 390]) {
 			await expect(page.getByRole('textbox', { name: 'Find', exact: true })).toBeHidden();
 			await expect(find).toBeFocused();
 			await expect(find).toHaveAttribute('aria-pressed', 'false');
-			await expect(editor).toHaveText('Song one Song two');
+			await expect(editor.locator('.cm-line')).toHaveText('Song one Song two');
 
 			// The same visible control still opens Find, and Escape returns to typing.
 			await page.keyboard.press('Enter');
@@ -35,7 +35,7 @@ for (const width of [1280, 360, 390]) {
 			await page.keyboard.press('Escape');
 			await expect(editor).toBeFocused();
 			await page.keyboard.type('!');
-			await expect(editor).toHaveText('Song one Song two!');
+			await expect(editor.locator('.cm-line')).toHaveText('Song one Song two!');
 		});
 	});
 }
