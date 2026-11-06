@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PassageLanguage from '../tools/PassageLanguage.svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import { canAssignVoiceGroup } from '#lib/performers/transform.js';
@@ -101,6 +102,7 @@
 	role="group"
 	aria-label="Document actions"
 >
+	{#if !phone.current}<PassageLanguage {controller} controlsOnly contextual />{/if}
 	{#each actions as action (action.id)}
 		<button
 			type="button"

@@ -364,7 +364,6 @@ describe('Workspace and toolbar', () => {
 			undo,
 			redo,
 			language,
-			screen.getByRole('button', { name: 'Selected passage language: English' }),
 			compare,
 			copy
 		]);
@@ -1061,7 +1060,7 @@ describe('Workspace and toolbar', () => {
 
 		const bar = screen.getByRole('group', { name: 'Document actions' });
 		// Three editing commands and the icon-only workspace toggle.
-		expect(bar.querySelectorAll('button')).toHaveLength(4);
+		expect(within(bar).getAllByRole('button')).toHaveLength(4);
 	});
 
 	test('keeps the Preferences exit quiet', async () => {
@@ -1095,7 +1094,7 @@ describe('Workspace and toolbar', () => {
 
 		// The tray keeps the audio control in place across source changes.
 		const bar = screen.getByRole('group', { name: 'Document actions' });
-		expect(bar.querySelectorAll('button')).toHaveLength(5);
+		expect(within(bar).getAllByRole('button')).toHaveLength(5);
 		const note = within(bar).getByRole('button', { name: 'Add audio source' });
 		expect(note.querySelector('svg')).toBeTruthy();
 		expect(note.textContent?.trim()).toBe('');
@@ -1378,4 +1377,27 @@ describe('Workspace and toolbar', () => {
 			}
 		}
 	);
+
+	test('desktop selection language belongs to writing and leaves permanent commands anchored', async () => {
+		const { controller } = createTestWorkbench({
+			text: 'Héllo 🌙\nOther words',
+			selection: { anchor: 0, head: 0 }
+		});
+		await render(Workspace, {
+			controller,
+			editorComponent: MockEditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} }
+		});
+		const section = await screen.findByRole('button', { name: 'Section header' });
+		expect(screen.queryByRole('button', { name: /^Selected passage language:/ })).toBeNull();
+		const before = section.getBoundingClientRect().toJSON();
+		controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 8 } });
+		const selection = await screen.findByRole('button', {
+			name: 'Selected passage language: English'
+		});
+		expect(selection.closest('.editor-actions')).toBeTruthy();
+		expect(selection.closest('.document-toolbar')).toBeNull();
+		expect(screen.getAllByRole('button', { name: /^Selected passage language:/ })).toHaveLength(1);
+		expect(section.getBoundingClientRect().toJSON()).toEqual(before);
+	});
 });

@@ -12,8 +12,9 @@
 
 	let {
 		controller,
-		controlsOnly = false
-	}: { controller: WorkbenchController; controlsOnly?: boolean } = $props();
+		controlsOnly = false,
+		contextual = false
+	}: { controller: WorkbenchController; controlsOnly?: boolean; contextual?: boolean } = $props();
 	const selection = $derived(controller.snapshot.selection);
 	const range = $derived({
 		from: Math.min(selection.anchor, selection.head),
@@ -128,6 +129,7 @@
 		recentLanguages={controller.recentLanguages}
 		label="Selected passage language"
 		expandedLabel
+		hideWhenUnavailable={contextual}
 		triggerLabel={controlsOnly ? 'Selection language' : undefined}
 		showCoverage={!controlsOnly}
 		custom

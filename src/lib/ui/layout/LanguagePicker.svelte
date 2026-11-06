@@ -20,7 +20,8 @@
 		scopeLanguages,
 		message = '',
 		context = '',
-		triggerLabel
+		triggerLabel,
+		hideWhenUnavailable = false
 	}: {
 		language: string | undefined;
 		recentLanguages?: readonly string[];
@@ -35,6 +36,7 @@
 		message?: string;
 		context?: string;
 		triggerLabel?: string;
+		hideWhenUnavailable?: boolean;
 	} = $props();
 	const id = $props.id();
 	let customCode = $state('');
@@ -146,6 +148,7 @@
 	type="button"
 	class="button button--quiet language-trigger"
 	aria-haspopup="dialog"
+	hidden={hideWhenUnavailable && disabled && !isOpen}
 	{disabled}
 	aria-label={`${label}: ${selectedLabel}`}
 	onmousedown={(event) => event.preventDefault()}
@@ -296,6 +299,10 @@
 		overflow-wrap: anywhere;
 		/* The native tap flash can outlive this trigger beneath its opened modal. */
 		-webkit-tap-highlight-color: transparent;
+	}
+
+	.language-trigger[hidden] {
+		display: none;
 	}
 
 	.language-trigger :global(svg) {
