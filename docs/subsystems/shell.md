@@ -153,7 +153,9 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 - Find/replace runs under the tray: CodeMirror panels get `--layer-editor-panel` (never
   `isolation: isolate` on the host), the row reserves `--editor-actions-reserve`, and the
   magnifier is the visible exit, and its pressed state comes from `onSearchOpenChange`, never
-  from the press.
+  from the press. Closing with the magnifier focuses that visible control, including after
+  the last replacement removes the focused Replace command. Escape returns to the editor.
+  `e2e/search-focus.spec.ts` pins both exits with native input at desktop and phone widths.
 - `describeControl`/`ControlTooltip` is the one tooltip: an attachment, never a wrapper; one
   box per application, mounted in `Workspace.svelte`; placement read off the control by
   `placeControlHint`; `aria-hidden` because both facts are already the control's own.

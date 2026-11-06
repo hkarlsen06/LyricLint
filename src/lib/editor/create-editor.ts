@@ -1255,9 +1255,7 @@ export function createLyricEditor(
 		toggleSearch() {
 			if (searchPanelOpen(view.state)) {
 				closeSearchPanel(view);
-				// `closeSearchPanel` moves focus back to the document, which is right
-				// for `Escape` and for the panel's own way out. It is wrong for a press
-				// on the tray: the pointer is up here and the caret was never asked for.
+				// Escape returns to the document. The tray owns focus on its visible exit.
 				return;
 			}
 			openSearchPanel(view);

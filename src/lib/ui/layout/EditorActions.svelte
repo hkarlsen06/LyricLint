@@ -109,7 +109,12 @@
 			aria-keyshortcuts={action.keyshortcuts}
 			aria-pressed={action.id === 'find' ? controller.searchOpen : undefined}
 			onmousedown={(event) => event.preventDefault()}
-			onclick={action.run}
+			onclick={(event) => {
+				action.run();
+				// The last replacement can remove the focused search control.
+				// Keep the visible exit focused even when the panel no longer owns focus.
+				if (action.id === 'find' && !controller.searchOpen) event.currentTarget.focus();
+			}}
 			{@attach describeControl(() => ({ label: action.label, shortcut: action.caption }))}
 		>
 			{#if phone.current}
