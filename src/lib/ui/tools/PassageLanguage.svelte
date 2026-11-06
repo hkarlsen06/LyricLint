@@ -30,11 +30,11 @@
 		!controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery
 	);
 	const model = $derived(controller.snapshot.conversion?.model);
-	const language = $derived.by(() => {
+	const selectionLanguages = $derived.by(() => {
 		const conversion = controller.snapshot.conversion;
-		if (!conversion || range.from === range.to) return controller.language;
+		if (!conversion || range.from === range.to) return [controller.language];
 		const projection = renderProfile(conversion.model, conversion.profile);
-		if (!projection.ok) return undefined;
+		if (!projection.ok) return [];
 		let from = contentOffset(projection.value, range.from, 1);
 		let to = contentOffset(projection.value, range.to, -1);
 		for (const segment of projection.value.segments) {
@@ -43,7 +43,7 @@
 				to = Math.max(to, segment.contentTo);
 			}
 		}
-		if (from >= to) return controller.language;
+		if (from >= to) return [controller.language];
 		const languages: string[] = [];
 		let at = from;
 		for (const entry of [...conversion.model.languageRanges].sort((a, b) => a.from - b.from)) {
@@ -55,8 +55,9 @@
 			at = end;
 		}
 		if (at < to) languages.push(conversion.model.defaultLanguage);
-		return languages.every((tag) => tag === languages[0]) ? languages[0] : undefined;
+		return [...new Set(languages)];
 	});
+	const language = $derived(selectionLanguages.length === 1 ? selectionLanguages[0] : undefined);
 	function show(from: number, to: number) {
 		const conversion = controller.snapshot.conversion;
 		if (!conversion) return;
@@ -94,9 +95,11 @@
 	{/if}
 	<LanguagePicker
 		{language}
+		scopeLanguages={selectionLanguages}
 		recentLanguages={controller.recentLanguages}
 		label="Selected passage language"
 		expandedLabel
+		showCoverage
 		custom
 		disabled={range.from === range.to || !enabled}
 		onopen={() => {

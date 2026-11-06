@@ -207,6 +207,7 @@
 					recentLanguages={controller.recentLanguages}
 					label="Document language"
 					expandedLabel
+					showCoverage
 					disabled={!settingsEnabled}
 					onchoose={(tag) => controller.setLanguage(tag)}
 				/>

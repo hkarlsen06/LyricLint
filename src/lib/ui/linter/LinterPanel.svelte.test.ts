@@ -1,4 +1,4 @@
-import { importDocument, renderProfile } from '#lib/conversion/index.js';
+import { importDocument, renderProfile, resolveDecision } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
@@ -518,6 +518,48 @@ describe('review continuity', () => {
 
 describe('retained-only review', () => {
 	afterEach(cleanup);
+	test.each([false, true])(
+		'keeps unreviewed passage scope visible with findings=%s',
+		async (findings) => {
+			const imported = importDocument({
+				text: 'Bonjour\nOther words',
+				profile: 'genius',
+				language: 'fr'
+			});
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const projection = renderProfile(imported.value, 'genius');
+			if (!projection.ok) throw new Error(projection.refusal.message);
+			const assigned = resolveDecision(imported.value, projection.value, {
+				kind: 'setPassageLanguage',
+				range: { from: 8, to: 19 },
+				language: 'zz-Latn-custom'
+			});
+			if (!assigned.ok) throw new Error(assigned.refusal.message);
+			const { controller } = createTestWorkbench({
+				text: projection.value.text,
+				diagnostics: findings ? [prose(0, 7)] : []
+			});
+			controller.onSnapshot({
+				...controller.snapshot,
+				conversion: createConversionEnvelope(
+					assigned.value.document,
+					'genius',
+					profilePolicyVersions
+				)
+			});
+			const original = JSON.stringify(controller.snapshot.conversion);
+			await render(LinterPanel, { controller });
+			expect(
+				screen.getByText('zz-Latn-custom: language-independent checks and conversion only.')
+			).toBeVisible();
+			await fireEvent.click(screen.getByText('Checking coverage'));
+			expect(screen.getByText('Reviewed language-specific rules: French.')).toBeVisible();
+			expect(
+				screen.getByText('Grammar checking is available only for Genius documents in English.')
+			).toBeVisible();
+			expect(JSON.stringify(controller.snapshot.conversion)).toBe(original);
+		}
+	);
 	test('puts lyric findings before retained decisions without a one-item pager', async () => {
 		const imported = importDocument({
 			text: '[Verse: Mira]\nI counted 2 stars',

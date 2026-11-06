@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { createTestWorkbench } from '../test-utils.js';
 import LanguagePicker from './LanguagePicker.svelte';
 
@@ -23,6 +23,50 @@ function status(): HTMLElement {
 
 describe('LanguagePicker', () => {
 	afterEach(cleanup);
+
+	test.each([360, 390, 1280])('keeps language choices touch-sized at %ipx', async (width) => {
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+		await page.viewport(width, 900);
+		try {
+			expect(matchMedia('(pointer: coarse)').matches).toBe(true);
+			await render(LanguagePicker, { language: 'en', onchoose: () => {} });
+			await openPicker();
+			await document.fonts.ready;
+			for (const row of screen
+				.getByRole('list', { name: 'Languages' })
+				.querySelectorAll('button')) {
+				const bounds = row.getBoundingClientRect();
+				expect(bounds.height).toBeGreaterThanOrEqual(44);
+				expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth);
+			}
+		} finally {
+			await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+			await page.viewport(800, 600);
+		}
+	});
+
+	test('discloses reviewed and custom language limits beside the choice', async () => {
+		const view = await render(LanguagePicker, {
+			language: 'fr-CA',
+			custom: true,
+			showCoverage: true,
+			onchoose: () => {}
+		});
+		expect(screen.getByText('Reviewed language-specific rules for French.')).toBeVisible();
+		await openPicker();
+		expect(screen.getByRole('button', { name: 'Afrikaans' }).textContent).toContain(
+			'Language-independent only'
+		);
+		expect(screen.getByRole('button', { name: 'Afrikaans' })).toHaveAccessibleDescription(
+			'Language-independent only'
+		);
+		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+		await waitFor(() => expect(document.querySelector('.language-option')).toBeNull());
+		await view.rerender({ language: 'zz-Latn-custom' });
+		expect(
+			screen.getByText('zz-Latn-custom: language-independent checks and conversion only.')
+		).toBeVisible();
+	});
 
 	test.each([
 		['français', 'French', 'fr'],

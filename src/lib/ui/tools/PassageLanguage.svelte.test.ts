@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/dom';
+import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
@@ -135,6 +135,14 @@ for (const profile of ['genius', 'musixmatch'] as const) {
 			label: 'Mixed languages'
 		},
 		{
+			name: 'reviewed and unknown overrides',
+			assignments: [
+				{ from: 0, to: 8, language: 'fr' },
+				{ from: 8, to: source.length, language: 'zz-Latn-custom' }
+			],
+			label: 'Mixed languages'
+		},
+		{
 			name: 'adjacent overrides in the same language',
 			assignments: [
 				{ from: 0, to: 8, language: 'fr' },
@@ -166,7 +174,20 @@ for (const profile of ['genius', 'musixmatch'] as const) {
 				screen.getByRole('button', { name: `Selected passage language: ${label}` })
 			).toBeTruthy()
 		);
+		if (assignments.some((assignment) => assignment.language === 'zz-Latn-custom')) {
+			expect(
+				screen.getByText('zz-Latn-custom: language-independent checks and conversion only.')
+			).toBeVisible();
+			expect(screen.getByText('Reviewed language-specific rules for French.')).toBeVisible();
+		}
 		await open();
+		if (assignments.some((assignment) => assignment.language === 'zz-Latn-custom')) {
+			expect(
+				within(screen.getByRole('dialog')).getByText(
+					'zz-Latn-custom: language-independent checks and conversion only.'
+				)
+			).toBeVisible();
+		}
 		const current = screen.getByRole('dialog').querySelectorAll('[aria-current="true"]');
 		expect(current).toHaveLength(label === 'Mixed languages' ? 0 : 1);
 		if (label !== 'Mixed languages') expect(current[0].getAttribute('aria-label')).toBe(label);

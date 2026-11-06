@@ -57,6 +57,7 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   have a stronger workspace-scoped font floor to beat component font shorthands, including
   the Assistant composer. Language search repeats the font floor in its component, where
   Svelte's scoped descendant selector otherwise outranks the shared rule.
+  Language-choice rows repeat the touch-height floor in their scoped component styles.
 - The media strip and visible YouTube frame have stable workspace lifetimes outside the
   editor and tool regions. Switching views never remounts playback. At narrow touch widths,
   Audio discloses artwork and secondary timing controls in its own surface; wider touch layouts

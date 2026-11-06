@@ -276,10 +276,13 @@ Zero findings means `No issues found by the enabled Musixmatch checks` (or Geniu
 provider availability. Audio verification, transcription accuracy and successful submission are
 not inferred. Coverage limitations belong beside the relevant action/reference; avoid a permanent
 global checklist of unverifiable requirements.
-The language picker also contains languages beyond the eight reviewed packs. For those, show
-`Language-independent conversion only` beside the format choice's options and in Review's
-coverage disclosure. Apply only justified language-independent operations/checks, preserve other
-wording, and do not fall back to English. A no-findings state must retain that explicit scope.
+The language picker also contains languages beyond the eight reviewed packs. Mark those choices
+`Language-independent only`. The picker and Song's document and passage controls show the
+current language's checking scope. Review keeps `language-independent checks and conversion only`
+visible for every unreviewed document or passage language, including a no-findings state.
+Its Checking coverage disclosure names the reviewed languages in use and explains that grammar
+checking is available only for Genius documents in English. Apply only justified
+language-independent operations/checks, preserve other wording, and do not fall back to English.
 
 ## 4. Performer and editor capabilities
 

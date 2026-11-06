@@ -4,6 +4,7 @@
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { filterLanguages, languages, languageName } from '#lib/languages/options.js';
+	import { profileLanguage } from '#lib/profiles/languages.js';
 	import { tick } from 'svelte';
 
 	let {
@@ -15,6 +16,8 @@
 		label = 'Lyric language',
 		disabled = false,
 		custom = false,
+		showCoverage = false,
+		scopeLanguages,
 		message = '',
 		context = ''
 	}: {
@@ -26,6 +29,8 @@
 		label?: string;
 		disabled?: boolean;
 		custom?: boolean;
+		showCoverage?: boolean;
+		scopeLanguages?: readonly string[];
 		message?: string;
 		context?: string;
 	} = $props();
@@ -49,6 +54,7 @@
 	const selectedLabel = $derived(
 		language === undefined ? 'Mixed languages' : languageName(language)
 	);
+	const checkingLanguages = $derived(scopeLanguages ?? (language === undefined ? [] : [language]));
 
 	// What the results say, as one sentence. The no-match case is the visible
 	// message verbatim: a reader who cannot see it is owed the same answer, not a
@@ -97,6 +103,16 @@
 	}
 </script>
 
+{#snippet coverage()}
+	{#each checkingLanguages as tag (tag)}
+		<p class="language-coverage">
+			{#if profileLanguage(tag) === 'und'}{languageName(tag)}: language-independent checks and
+				conversion only.
+			{:else}Reviewed language-specific rules for {languageName(tag)}.{/if}
+		</p>
+	{/each}
+{/snippet}
+
 {#snippet languageOption(tag: string, name: string)}
 	<li>
 		<button
@@ -104,10 +120,15 @@
 			class="language-option"
 			class:selected={tag === language}
 			aria-label={name}
+			aria-describedby={profileLanguage(tag) === 'und' ? `${id}-${tag}-coverage` : undefined}
 			aria-current={tag === language ? 'true' : undefined}
 			onclick={() => choose(tag)}
 		>
-			<span>{name}</span>
+			<span
+				>{name}{#if profileLanguage(tag) === 'und'}<small id={`${id}-${tag}-coverage`}
+						>Language-independent only</small
+					>{/if}</span
+			>
 			<span class="language-option__meta">
 				<code>{tag}</code>
 				{#if tag === language}
@@ -136,6 +157,7 @@
 				: language}</span
 	>
 </button>
+{#if showCoverage}{@render coverage()}{/if}
 
 <dialog
 	bind:this={dialog}
@@ -190,9 +212,11 @@
 			<div class="language-results">
 				<p role="status">{message}</p>
 				{#if context}<p class="language-context">{context}</p>{/if}
+				{@render coverage()}
 				{#if custom}
 					<details>
 						<summary>Custom language code</summary>
+						<p>Codes without reviewed rules use language-independent checks and conversion only.</p>
 						<label
 							>Language code<input
 								bind:value={customCode}
@@ -240,6 +264,17 @@
 </dialog>
 
 <style>
+	.language-coverage,
+	.language-option small {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-muted);
+	}
+	.language-option small {
+		display: block;
+	}
+	.language-coverage {
+		overflow-wrap: anywhere;
+	}
 	.language-context {
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
@@ -409,6 +444,9 @@
 		}
 	}
 	@media (pointer: coarse) {
+		.language-option {
+			min-height: var(--control-height-touch);
+		}
 		.language-results summary {
 			min-height: var(--control-height-touch);
 			align-content: center;

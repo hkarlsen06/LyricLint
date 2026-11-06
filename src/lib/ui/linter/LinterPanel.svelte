@@ -11,6 +11,8 @@
 	import RetainedReview from '../tools/RetainedReview.svelte';
 	import { tick } from 'svelte';
 	import ConversionReview from '../tools/ConversionReview.svelte';
+	import { profileLanguage } from '#lib/profiles/languages.js';
+	import { languageName } from '#lib/languages/options.js';
 
 	let {
 		controller,
@@ -103,6 +105,14 @@
 	// Only blame the filters when they are actually what is hiding something;
 	// an otherwise clean draft should read as clean.
 	const detailFindings = $derived(retainedFindings(controller.snapshot));
+	const languages = $derived([
+		...new Set([
+			controller.language,
+			...(controller.snapshot.conversion?.model.languageRanges.map((range) => range.language) ?? [])
+		])
+	]);
+	const unreviewedLanguages = $derived(languages.filter((tag) => profileLanguage(tag) === 'und'));
+	const reviewedLanguages = $derived(languages.filter((tag) => profileLanguage(tag) !== 'und'));
 	const emptyState = $derived.by(() => {
 		if (controller.snapshot.conversionRecovery || controller.snapshot.originalRecovery) {
 			return {
@@ -347,6 +357,22 @@
 			<p class="linter-panel__afterword">{afterword}</p>
 		{/if}
 		<RetainedReview {controller} findings={detailFindings} />
+		{#if !controller.isEmpty}
+			<div class="linter-panel__coverage">
+				{#each unreviewedLanguages as tag (tag)}
+					<p>{languageName(tag)}: language-independent checks and conversion only.</p>
+				{/each}
+				<details>
+					<summary>Checking coverage</summary>
+					{#if reviewedLanguages.length}
+						<p>
+							Reviewed language-specific rules: {reviewedLanguages.map(languageName).join(', ')}.
+						</p>
+					{/if}
+					<p>Grammar checking is available only for Genius documents in English.</p>
+				</details>
+			</div>
+		{/if}
 
 		<!-- The drafts the user already has sit at the foot of the column, under
 	     whatever the panel is currently saying about this document. They are a
@@ -399,6 +425,11 @@
 {/if}
 
 <style>
+	.linter-panel__coverage {
+		padding: var(--space-3);
+		font-size: var(--font-size-sm);
+		color: var(--color-text-muted);
+	}
 	/* A full-height column keeps recent drafts at the foot. Findings are inset
 	   rounded rows, separated by space rather than a ruled grid. */
 	.panel-content.linter-panel {
@@ -612,6 +643,7 @@
 		.linter-panel--focused > .linter-panel__heading,
 		.linter-panel--focused > .linter-panel__filters,
 		.linter-panel--focused > .linter-panel__bulk,
+		.linter-panel--focused > .linter-panel__coverage,
 		.linter-panel--focused > .linter-panel__afterword {
 			display: none;
 		}
