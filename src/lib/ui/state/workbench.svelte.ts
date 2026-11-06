@@ -783,9 +783,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		async exportOriginalRecovery() {
 			const recovery =
 				editorSession.snapshot.originalRecovery ?? editorSession.snapshot.conversionRecovery;
-			const id = recovery?.sourceDraftId;
-			if (!id || !deps.repository.exportRawDraft) return;
+			const id = recovery?.localSourceDraftId;
 			try {
+				if (!id || !deps.repository.exportRawDraft)
+					throw new Error('The original record is unavailable.');
 				const text = await deps.repository.exportRawDraft(id);
 				if (!text) throw new Error('The original record is unavailable.');
 				exportText(text, safeFilename(`${draft.title} original data`, 'json'), 'application/json');

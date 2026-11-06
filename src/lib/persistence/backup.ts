@@ -386,6 +386,13 @@ function remapImportedMetadata(
 	record: AppMetadataRecord,
 	idMap: ReadonlyMap<string, string>
 ): AppMetadataRecord | undefined {
+	if (record.key.startsWith('conversionRecovery:')) {
+		const source = idMap.get(record.key.slice('conversionRecovery:'.length));
+		const recovery = idMap.get(record.value);
+		return source && recovery
+			? { ...record, key: `conversionRecovery:${source}`, value: recovery }
+			: undefined;
+	}
 	if (!record.key.startsWith(ASSISTANT_DRAFT_ACCESS_PREFIX)) return record;
 	const importedId = idMap.get(record.key.slice(ASSISTANT_DRAFT_ACCESS_PREFIX.length));
 	return importedId === undefined
@@ -748,6 +755,16 @@ export function createWorkspaceBackup(
 						idMap.set(draft.id, id);
 						return id === draft.id ? draft : { ...draft, id };
 					});
+					for (const draft of importedDrafts) {
+						for (const recovery of [draft.originalRecovery, draft.conversionRecovery]) {
+							if (!recovery) continue;
+							const source =
+								recovery.localSourceDraftId === undefined
+									? recovery.sourceDraftId
+									: recovery.localSourceDraftId;
+							recovery.localSourceDraftId = source ? (idMap.get(source) ?? null) : null;
+						}
+					}
 					// SAFETY: `parseWorkspaceBackup` refuses a backup whose media names a
 					// draft it does not carry, and the loop above mapped every draft it
 					// carries, so every one of these ids is in `idMap`.

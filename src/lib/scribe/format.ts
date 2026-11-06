@@ -274,11 +274,12 @@ export function serializeScribe(input: ScribeProjectInput): string {
 	if (input.conversionRecovery !== undefined) {
 		scribeDocument.conversionRecovery = parseConversionRecovery(
 			input.conversionRecovery,
-			input.lyrics
+			input.lyrics,
+			false
 		);
 	}
 	if (input.originalRecovery !== undefined)
-		scribeDocument.originalRecovery = parseOriginalRecovery(input.originalRecovery);
+		scribeDocument.originalRecovery = parseOriginalRecovery(input.originalRecovery, false);
 	if (input.conversion !== undefined) {
 		if (input.conversion.model.defaultLanguage !== input.language && !input.conversionRecovery) {
 			throw new ScribeFormatError('The document language and conversion document do not match.');
@@ -371,11 +372,15 @@ export function parseScribe(source: string): ScribeProject {
 		if (value.document.conversionRecovery !== undefined) {
 			scribeDocument.conversionRecovery = parseConversionRecovery(
 				value.document.conversionRecovery,
-				lyrics
+				lyrics,
+				false
 			);
 		}
 		if (value.document.originalRecovery !== undefined)
-			scribeDocument.originalRecovery = parseOriginalRecovery(value.document.originalRecovery);
+			scribeDocument.originalRecovery = parseOriginalRecovery(
+				value.document.originalRecovery,
+				false
+			);
 		if (value.document.conversion !== undefined) {
 			scribeDocument.conversion = parseConversionEnvelope(
 				value.document.conversion,

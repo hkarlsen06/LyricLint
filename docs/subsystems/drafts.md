@@ -77,7 +77,16 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 - Rich backups and Scribe files use version 2; ordinary legacy exports retain version 1. Import
   refuses unknown or mismatched rich state before writing. Reconciliation recovery carries both
   latest visible text and the last valid checkpoint; unreadable originals carry a source-draft
-  reference, and inputs beyond the engine limit retain exact text without inventing a checkpoint.
+  reference as portable provenance, and inputs beyond the engine limit retain exact text without inventing a checkpoint.
+
+- A recovery's `sourceDraftId` is portable provenance, never lookup authority. Its separate
+  `localSourceDraftId` names the original owned by this workspace; null means unavailable.
+  Scribe serialization and parsing clear that association, including hand-edited files. Backups
+  remap associations only to originals carried by the same archive; dangling references become
+  unavailable. Older local recoveries regain an association only through the repository's
+  remembered recovery ownership, never through a matching draft ID alone. Local duplication,
+  conflict copies, autosave and departure checkpoints preserve verified associations. Deliberate
+  original export refuses unavailable data visibly; Song offers it only with a local association.
 
 - At five saved drafts the menu offers case-insensitive title/full-lyric search. Filtering never
   changes the saved records; a no-match result retains the search field, and closing the
@@ -146,6 +155,16 @@ instead of truncating lyrics.
 `departure-checkpoint.test.ts` covers retained failures, stale writers and side records,
 interrupted predecessor writes, repeated recovery, malformed inputs and unreadable rich originals.
 `e2e/immediate-reload.spec.ts` drives native typing and real fresh-document reloads.
+
+### Recovery references cross workspace boundaries
+
+Previously the Scribe and backup copiers preserved `sourceDraftId` as both provenance and a
+local lookup. A foreign ID collision exported an unrelated destination song; backup collision
+remapping also left the recovery pointing to the old ID. The controller regression uses real
+Dexie repositories to reproduce the wrong download. Recovery parsers now preserve local
+associations for internal copies and checkpoints while the Scribe boundary clears them. Backup
+restore remaps carried associations and the repository recovery cache together, without changing
+portable provenance, visible text, checkpoints, reasons or the destination's existing rows.
 
 ### Profile switching keeps one durable document
 

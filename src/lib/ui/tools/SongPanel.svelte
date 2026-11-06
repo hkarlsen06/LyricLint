@@ -165,14 +165,20 @@
 				{(controller.snapshot.conversionRecovery ?? controller.snapshot.originalRecovery)?.reason}
 			</p>
 			<p>
-				Your latest lyrics and the earlier data are preserved separately. Format conversion waits
-				until their associations can be restored.
+				Your latest lyrics are preserved. Format conversion waits until their retained details can
+				be restored.
 			</p>
+			{#if (controller.snapshot.conversionRecovery ?? controller.snapshot.originalRecovery)?.sourceDraftId && !(controller.snapshot.conversionRecovery ?? controller.snapshot.originalRecovery)?.localSourceDraftId}
+				<p>
+					The original data is unavailable in this workspace. A standalone Scribe carries its
+					reference, not its original bytes.
+				</p>
+			{/if}
 			<div class="tool-actions">
 				<button type="button" class="button" onclick={() => controller.exportScribe()}
 					>Export recovery Scribe</button
 				>
-				{#if (controller.snapshot.conversionRecovery ?? controller.snapshot.originalRecovery)?.sourceDraftId}
+				{#if (controller.snapshot.conversionRecovery ?? controller.snapshot.originalRecovery)?.localSourceDraftId}
 					<button type="button" class="button" onclick={() => controller.exportOriginalRecovery()}
 						>Export original data</button
 					>

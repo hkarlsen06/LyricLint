@@ -1,3 +1,9 @@
+import 'fake-indexeddb/auto';
+import Dexie from 'dexie';
+import { indexedDB, IDBKeyRange } from 'fake-indexeddb';
+import { openDatabase, closeDatabase } from '#lib/persistence/database.js';
+import { createDraftRepository } from '#lib/persistence/draft-repository.js';
+import { serializeScribe } from '#lib/scribe/format.js';
 import { parseScribe } from '#lib/scribe/format.js';
 import { importDocument } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
@@ -2148,4 +2154,94 @@ describe('linking navigation origin', () => {
 		expect(controller.linkingFromOverview).toBe(false);
 		expect(controller.linkingComparedHeaders).toBeUndefined();
 	});
+});
+
+test('a transferred recovery cannot export an unrelated local original through the controller', async () => {
+	Dexie.dependencies.indexedDB = indexedDB;
+	Dexie.dependencies.IDBKeyRange = IDBKeyRange;
+	const source = await openDatabase(`recovery-controller-source-${crypto.randomUUID()}`);
+	const destination = await openDatabase(`recovery-controller-destination-${crypto.randomUUID()}`);
+	const controllers: ReturnType<typeof setup>['controller'][] = [];
+	try {
+		const original = draft('foreign-original', '[Verse]\nExact original lyrics');
+		const model = importDocument({ text: original.text, profile: 'genius', language: 'en' });
+		if (!model.ok) throw new Error(model.refusal.message);
+		const conversion = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
+		await source.drafts.add({
+			...original,
+			conversion: { ...conversion, converterVersion: 'future' as '2' }
+		});
+		const sourceRepository = createDraftRepository(source);
+		const recovered = await sourceRepository.recoverUnreadable?.(original.id);
+		expect(recovered?.conversionRecovery?.sourceDraftId).toBe(original.id);
+		if (!recovered) throw new Error('Missing recovery');
+		const localExport = vi.fn();
+		const local = setup({
+			initial: original,
+			repository: sourceRepository,
+			exportText: localExport,
+			onOpenDraft: (record) => ({
+				...snapshot(record),
+				conversion: record.conversion,
+				conversionRecovery: record.conversionRecovery,
+				originalRecovery: record.originalRecovery
+			})
+		});
+		controllers.push(local.controller);
+		await local.controller.openDraft(recovered.id);
+		await local.controller.exportOriginalRecovery();
+		expect(JSON.parse(localExport.mock.calls[0][0])).toMatchObject({
+			id: original.id,
+			text: original.text,
+			conversion: { converterVersion: 'future' }
+		});
+		const file = serializeScribe({
+			title: recovered.title,
+			language: recovered.language,
+			lyrics: recovered.text,
+			conversion: recovered.conversion,
+			conversionRecovery: recovered.conversionRecovery,
+			performers: [],
+			sectionLinks: [],
+			lineAnchors: [],
+			ignoredDiagnostics: []
+		});
+		const repository = createDraftRepository(destination);
+		const unrelated = await repository.create({
+			...draft(original.id),
+			text: 'UNRELATED DESTINATION LYRICS'
+		});
+		const exported = vi.fn();
+		const { controller } = setup({
+			initial: unrelated,
+			repository,
+			exportText: exported,
+			onOpenDraft: (record) => ({
+				...snapshot(record),
+				conversion: record.conversion,
+				conversionRecovery: record.conversionRecovery,
+				originalRecovery: record.originalRecovery
+			})
+		});
+		controllers.push(controller);
+		expect(await controller.importScribe(new File([file], 'recovery.lls'))).toBe(true);
+		expect(controller.snapshot.text).toBe(recovered.text);
+		expect(controller.snapshot.conversionRecovery).toMatchObject({
+			reason: recovered.conversionRecovery?.reason,
+			text: recovered.text,
+			checkpoint: recovered.conversion
+		});
+		await controller.exportOriginalRecovery();
+		expect(exported).not.toHaveBeenCalled();
+		expect(controller.feedback.announcement).toBe(
+			'The original data could not be exported. It has not been changed.'
+		);
+		expect(await destination.drafts.get(original.id)).toEqual(unrelated);
+	} finally {
+		for (const controller of controllers) await controller.flushAutosave();
+		for (const db of [source, destination]) {
+			closeDatabase(db);
+			await Dexie.delete(db.name);
+		}
+	}
 });

@@ -178,6 +178,21 @@ function currentDraftMetadata(id: string): AppMetadataRecord {
 /** Create a serializable draft repository backed by the supplied Dexie database. */
 export function createDraftRepository(database: LyricLintDatabase): DraftRepository {
 	const list = createDraftSummaryReader(database);
+	async function readDraft(record: DraftRecord): Promise<DraftRecord> {
+		const copy = copyDraft(record);
+		for (const recovery of [copy.originalRecovery, copy.conversionRecovery]) {
+			if (!recovery?.sourceDraftId) continue;
+			if (recovery.localSourceDraftId === undefined) {
+				const owner = await database.appMetadata.get(
+					`conversionRecovery:${recovery.sourceDraftId}`
+				);
+				recovery.localSourceDraftId = owner?.value === record.id ? recovery.sourceDraftId : null;
+			}
+			if (recovery.localSourceDraftId && !(await database.drafts.get(recovery.localSourceDraftId)))
+				recovery.localSourceDraftId = null;
+		}
+		return copy;
+	}
 	async function recoverUnreadable(id: string): Promise<DraftRecord | undefined> {
 		return database.transaction(
 			'rw',
@@ -201,7 +216,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 					previous?.text === source.text &&
 					(previous.conversionRecovery || previous.originalRecovery)
 				)
-					return copyDraft(previous);
+					return readDraft(previous);
 				const imported = importDocument({
 					text: source.text,
 					language: typeof source.language === 'string' ? source.language : DEFAULT_LANGUAGE,
@@ -232,10 +247,11 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 									text: source.text,
 									checkpoint: conversion,
 									reason,
-									sourceDraftId: id
+									sourceDraftId: id,
+									localSourceDraftId: id
 								}
 							}
-						: { originalRecovery: { sourceDraftId: id, reason } })
+						: { originalRecovery: { sourceDraftId: id, localSourceDraftId: id, reason } })
 				});
 				const [media, ignores] = await Promise.all([
 					database.mediaHandles.get(id),
@@ -304,7 +320,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			const readable: DraftRecord[] = [];
 			for (const record of records) {
 				try {
-					readable.push(copyDraft(record));
+					readable.push(await readDraft(record));
 				} catch {
 					const recovery = await recoverUnreadable(record.id).catch(() => undefined);
 					if (recovery && !readable.some((entry) => entry.id === recovery.id))
@@ -316,7 +332,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 
 		async get(id) {
 			const record = await database.drafts.get(id);
-			return record === undefined ? undefined : copyDraft(record);
+			return record === undefined ? undefined : readDraft(record);
 		},
 
 		async create(input) {
@@ -446,7 +462,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			// press opens which 'scribe, and the announcement after a duplicate
 			// already strips this suffix to name what was copied.
 			const duplicate = copyDraft({
-				...source,
+				...(await readDraft(source)),
 				id: newId,
 				title: `${source.title} copy`,
 				createdAt: timestamp,

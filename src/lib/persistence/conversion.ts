@@ -20,14 +20,17 @@ export interface ConversionRecovery {
 	checkpoint: ConversionEnvelope;
 	reason: string;
 	sourceDraftId?: string;
+	/** Local association; null explicitly marks provenance without original bytes. */
+	localSourceDraftId?: string | null;
 }
 
 export interface OriginalRecovery {
 	sourceDraftId: string;
+	localSourceDraftId?: string | null;
 	reason: string;
 }
 
-export function parseOriginalRecovery(value: unknown): OriginalRecovery {
+export function parseOriginalRecovery(value: unknown, local = true): OriginalRecovery {
 	if (
 		!object(value) ||
 		typeof value.sourceDraftId !== 'string' ||
@@ -37,10 +40,16 @@ export function parseOriginalRecovery(value: unknown): OriginalRecovery {
 	) {
 		throw new ConversionStorageError('The original-data recovery reference is invalid.');
 	}
-	return { sourceDraftId: value.sourceDraftId, reason: value.reason };
+	const recovery: OriginalRecovery = { sourceDraftId: value.sourceDraftId, reason: value.reason };
+	copyLocalAssociation(value, recovery, local);
+	return recovery;
 }
 
-export function parseConversionRecovery(value: unknown, expectedText: string): ConversionRecovery {
+export function parseConversionRecovery(
+	value: unknown,
+	expectedText: string,
+	local = true
+): ConversionRecovery {
 	if (
 		!object(value) ||
 		value.text !== expectedText ||
@@ -56,7 +65,24 @@ export function parseConversionRecovery(value: unknown, expectedText: string): C
 	};
 	if (value.sourceDraftId !== undefined)
 		recovery.sourceDraftId = parseOriginalRecovery(value).sourceDraftId;
+	copyLocalAssociation(value, recovery, local);
 	return recovery;
+}
+
+function copyLocalAssociation(
+	value: StoredConversionFields,
+	recovery: { localSourceDraftId?: string | null },
+	local: boolean
+): void {
+	if (
+		value.localSourceDraftId !== undefined &&
+		value.localSourceDraftId !== null &&
+		(typeof value.localSourceDraftId !== 'string' || !value.localSourceDraftId)
+	)
+		throw new ConversionStorageError('The local original-data association is invalid.');
+	if (!local) recovery.localSourceDraftId = null;
+	else if (value.localSourceDraftId === null || typeof value.localSourceDraftId === 'string')
+		recovery.localSourceDraftId = value.localSourceDraftId;
 }
 
 export class ConversionStorageError extends Error {
@@ -80,6 +106,7 @@ interface StoredConversionFields {
 	checkpoint?: unknown;
 	reason?: unknown;
 	sourceDraftId?: unknown;
+	localSourceDraftId?: unknown;
 }
 function object(value: unknown): value is StoredConversionFields {
 	return value !== null && typeof value === 'object' && !Array.isArray(value);
