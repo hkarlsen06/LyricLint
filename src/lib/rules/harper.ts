@@ -167,35 +167,26 @@ interface HarperProjection {
 	maskedUnits: boolean[];
 }
 
-function markRange(mask: Uint8Array, range: TextRange): void {
+const foreignLanguageMask = 2;
+
+function markRange(mask: Uint8Array, range: TextRange, value = 1): void {
 	const from = Math.max(0, Math.min(mask.length, range.from));
 	const to = Math.max(from, Math.min(mask.length, range.to));
-	mask.fill(1, from, to);
+	mask.fill(value, from, to);
 }
 
 /**
  * Give Harper the complete lyric flow while hiding Genius structure.
  *
- * Harper reports UTF-16 indices, as do LyricLint and CodeMirror. Replacing every masked scalar with exactly one space retains
- * scalar count, while `originalOffsets` maps every result back without changing
- * or normalizing the canonical document.
+ * Harper reports UTF-16 indices, as do LyricLint and CodeMirror. Each masked
+ * scalar becomes a space or paragraph boundary; `originalOffsets` maps results
+ * back to the unchanged canonical document.
  */
 export function projectLyricsForHarper(
 	document: ParsedDocument,
 	context?: Pick<RuleContext, 'language' | 'languageRanges'>
 ): HarperProjection {
 	const mask = new Uint8Array(document.text.length);
-	if (context) {
-		const { ranges, languageAt, withinLanguage } = languageOwnership(document.text, context);
-		for (const range of ranges) {
-			if (resolveLanguageTag(range.language) !== 'en') markRange(mask, range);
-		}
-		// A masked half-word must not become a new English spelling candidate.
-		for (const token of document.text.matchAll(/[\p{L}\p{M}\p{N}'’]+/gu)) {
-			const range = { from: token.index, to: token.index + token[0].length };
-			if (!withinLanguage(range.from, range.to, languageAt(range.from))) markRange(mask, range);
-		}
-	}
 
 	for (const section of document.sections) {
 		if (section.header) {
@@ -231,6 +222,20 @@ export function projectLyricsForHarper(
 		}
 	}
 
+	// Language boundaries take precedence over overlapping structural masks.
+	if (context) {
+		const { ranges, languageAt, withinLanguage } = languageOwnership(document.text, context);
+		for (const range of ranges) {
+			if (resolveLanguageTag(range.language) !== 'en') markRange(mask, range, foreignLanguageMask);
+		}
+		// A masked half-word must not become a new English spelling candidate.
+		for (const token of document.text.matchAll(/[\p{L}\p{M}\p{N}'’]+/gu)) {
+			const range = { from: token.index, to: token.index + token[0].length };
+			if (!withinLanguage(range.from, range.to, languageAt(range.from)))
+				markRange(mask, range, foreignLanguageMask);
+		}
+	}
+
 	let projected = '';
 	const originalOffsets = [0];
 	const maskedUnits: boolean[] = [];
@@ -240,15 +245,19 @@ export function projectLyricsForHarper(
 		const width = codePoint !== undefined && codePoint > 0xffff ? 2 : 1;
 		const scalar = document.text.slice(offset, offset + width);
 		let masked = false;
+		let foreignLanguage = false;
 		for (let unit = offset; unit < offset + width; unit += 1) {
-			masked ||= mask[unit] === 1;
+			masked ||= mask[unit] !== 0;
+			foreignLanguage ||= mask[unit] === foreignLanguageMask;
 		}
 
 		// Physical line endings still delimit Harper's sentences and paragraphs.
-		const replacement = masked && scalar !== '\r' && scalar !== '\n' ? ' ' : scalar;
+		// An excluded phrase must not join its English neighbors into a new clause.
+		const replacement =
+			masked && scalar !== '\r' && scalar !== '\n' ? (foreignLanguage ? '\u2029' : ' ') : scalar;
 		projected += replacement;
 		for (let unit = 1; unit <= replacement.length; unit += 1) {
-			maskedUnits.push(masked && replacement === ' ');
+			maskedUnits.push(masked && (replacement === ' ' || replacement === '\u2029'));
 			originalOffsets.push(offset + (unit === replacement.length ? width : unit));
 		}
 		offset += width;

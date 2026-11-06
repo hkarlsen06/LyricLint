@@ -27,7 +27,10 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   withheld. Whole-document language mismatch detection treats explicit multilingual text as
   inconclusive; section checks still see the complete document for structural context.
   Harper receives `projectionPolicyContext` ranges, masks non-English passages and split tokens,
-  and rejects findings or edits spanning different owners. The installed Harper API returns
+  and separates their grammar context with projection-only paragraph boundaries. Removing a
+  foreign phrase must not create a new English clause from its neighbors. English spelling on
+  either side and grammar in unaffected passages remain checked.
+  It rejects findings or edits spanning different owners. The installed Harper API returns
   UTF-16 spans (its internal Rust span is scalar-based); projection mapping indexes the public
   UTF-16 span, including after emoji. Eligibility stays English Genius. Unreviewed languages
   supply no lexical-standardization evidence; the Cuz meaning gate specifically requires English.

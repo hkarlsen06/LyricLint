@@ -15,6 +15,40 @@ const context: RuleContext = {
 };
 
 describe('passage language checking boundary', () => {
+	it.each(['fr', 'zz-Latn-custom'])(
+		'does not join English grammar across a masked %s phrase',
+		async (language) => {
+			const [{ LocalLinter }, { binary }] = await Promise.all([
+				import('harper.js'),
+				import('harper.js/binary')
+			]);
+			const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
+			try {
+				for (const text of [
+					'She et moi have a beutiful plan.\nI has a room.',
+					'[Verse]\n😀 She <i>et moi</i> have a beutiful plan.\nI has a room.',
+					'She <span>et moi</span> have a beutiful plan.\nI has a room.'
+				]) {
+					const from = text.indexOf('et moi');
+					const findings = await provider.lint({
+						text,
+						document: parseDocument(text),
+						language: 'en',
+						languageRanges: [{ from, to: from + 6, language }],
+						performers: [],
+						revision: 0
+					});
+					const words = findings.map((finding) => text.slice(finding.from, finding.to));
+					expect(words).not.toContain('have');
+					expect(words).toContain('beutiful');
+					expect(words).toContain('has');
+				}
+			} finally {
+				await provider.dispose();
+			}
+		}
+	);
+
 	it.each(['zz-Latn-custom', 'fr'])('keeps English neighbors outside %s overrides', (language) => {
 		const text = 'Cuz you stay\nCuz I stay';
 		const findings = runRules(parseDocument(text), {
