@@ -8,6 +8,7 @@ import MockEditorPane from './MockEditorPane.svelte';
 
 const text = '[Verse]\nI has counted every streetlight';
 afterEach(async () => {
+	vi.useRealTimers();
 	await cleanup();
 });
 
@@ -92,18 +93,47 @@ test('runs real browser worker grammar in the workbench', async () => {
 test('retains true empty coverage and the ready engine across a canceled departure', async () => {
 	const { controller } = createTestWorkbench({ text: '[Verse]\nI have counted every streetlight' });
 	controller.setLanguage('en');
-	const provider = createHarperDiagnosticProvider();
+	const native = await import('#lib/rules/engine.js');
+	const detectorPublished = Promise.withResolvers<void>();
+	const runRules = vi.fn<typeof native.runRules>((...args) => {
+		const result = native.runRules(...args);
+		if (runRules.mock.calls.length === 2) detectorPublished.resolve();
+		return result;
+	});
+	const createEngine = vi.fn(createWorkerEngine);
+	const provider = createHarperDiagnosticProvider(createEngine);
 	const lint = vi.spyOn(provider, 'lint');
+	vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 	const view = await render(Workspace, {
 		controller,
 		editorComponent: MockEditorPane,
-		harperProvider: provider
+		harperProvider: provider,
+		loadNativeRules: async () => ({ runRules })
 	});
-	await waitFor(() => expect(screen.getByText('No issues found')).toBeTruthy(), { timeout: 15000 });
+	// The 40-character fixture starts the detector at 150ms. Its completion
+	// republishes native rules and invalidates any earlier grammar request.
+	await vi.advanceTimersByTimeAsync(150);
+	await detectorPublished.promise;
+	await vi.advanceTimersByTimeAsync(250);
+	vi.useRealTimers();
+	await screen.findByText('No issues found', {}, { timeout: 15000 });
 	expect(await lint.mock.results[0]?.value).toEqual([]);
+	expect(lint).toHaveBeenCalledOnce();
+	vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 	window.dispatchEvent(new Event('beforeunload'));
 	await fireEvent.keyDown(window, { key: 'Shift' });
-	await new Promise((resolve) => setTimeout(resolve, 350));
+	await vi.advanceTimersByTimeAsync(350);
+	vi.useRealTimers();
+	expect(screen.getByText('No issues found')).toBeTruthy();
 	expect(lint).toHaveBeenCalledOnce();
+	expect(createEngine).toHaveBeenCalledOnce();
+	await fireEvent.input(screen.getByRole('textbox', { name: 'Lyrics editor' }), {
+		target: { value: text }
+	});
+	await waitFor(() =>
+		expect(controller.snapshot.diagnostics.some((d) => d.ruleId === 'grammar.harper')).toBe(true)
+	);
+	expect(lint).toHaveBeenCalledTimes(2);
+	expect(createEngine).toHaveBeenCalledOnce();
 	await view.unmount();
 });

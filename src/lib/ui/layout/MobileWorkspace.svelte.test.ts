@@ -339,7 +339,14 @@ test('the keyboard gives its space to writing and restores navigation only after
 
 test('fixing the last mobile finding returns focus to the visible Review control', async () => {
 	await page.viewport(390, 844);
-	await mount('[Verse]\nImma go');
+	const completed = Promise.withResolvers<[]>();
+	const lint = vi.fn(() => completed.promise);
+	const { controller } = createTestWorkbench({ text: '[Verse]\nImma go' });
+	await render(Workspace, {
+		controller,
+		editorComponent: MockEditorPane,
+		harperProvider: { lint, dispose: async () => {} }
+	});
 	const review = within(screen.getByRole('navigation', { name: 'Workbench views' })).getByRole(
 		'button',
 		{ name: /^Review/ }
@@ -350,7 +357,20 @@ test('fixing the last mobile finding returns focus to the visible Review control
 	fix.focus();
 	await fireEvent.click(fix);
 	await waitFor(() => expect(document.activeElement).toBe(review));
-	expect(screen.getByText('No issues found')).toBeTruthy();
+	// Focus belongs to the removed finding, not to the later grammar answer.
+	expect(screen.getByText('Checking lyrics…')).toBeTruthy();
+	expect(screen.queryByText('No issues found')).toBeNull();
+	await waitFor(() =>
+		expect(lint).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				text: "[Verse]\nI'ma go"
+			})
+		)
+	);
+	expect(review).toHaveFocus();
+	completed.resolve([]);
+	await screen.findByText('No issues found');
+	expect(review).toHaveFocus();
 });
 
 test('revealing an ignored finding opens its lyrics without restoring it or focusing typing', async () => {
