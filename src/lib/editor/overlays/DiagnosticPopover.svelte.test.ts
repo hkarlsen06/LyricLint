@@ -6,6 +6,7 @@ import { render } from 'vitest-browser-svelte';
 import '#lib/ui/styles/global.css';
 import type { Diagnostic } from '#lib/core/types.js';
 import DiagnosticPopover from './DiagnosticPopover.svelte';
+import { bindTransportShortcuts } from '#lib/ui/state/media-shortcuts.js';
 
 function fixableDiagnostic(): Diagnostic {
 	return {
@@ -228,6 +229,45 @@ describe('DiagnosticPopover dismissal', () => {
 
 		expect(onDismiss).not.toHaveBeenCalled();
 	});
+
+	it.each([
+		{ source: 'attached', transportFirst: true },
+		{ source: 'pending', transportFirst: true },
+		{ source: 'attached', transportFirst: false },
+		{ source: 'pending', transportFirst: false }
+	])(
+		'dismisses before $source audio, transportFirst=$transportFirst',
+		async ({ source, transportFirst }) => {
+			const trigger = outside();
+			trigger.focus();
+			const onDismiss = vi.fn();
+			const transport = vi.fn(() => source === 'attached');
+			const load = vi.fn(() => true);
+			const bind = () => bindTransportShortcuts({ transport, load, mediaSession: null });
+			let unbind = () => {};
+			try {
+				if (transportFirst) unbind = bind();
+				await render(DiagnosticPopover, {
+					diagnostic: fixableDiagnostic(),
+					onPreviewFix: vi.fn(),
+					onCancelPreview: vi.fn(),
+					onApplyFix: vi.fn(),
+					onIgnore: vi.fn(),
+					onDismiss
+				});
+				if (!transportFirst) unbind = bind();
+
+				await userEvent.keyboard('{Escape}');
+
+				expect(onDismiss).toHaveBeenCalledExactlyOnceWith(false);
+				expect(transport).not.toHaveBeenCalled();
+				expect(load).not.toHaveBeenCalled();
+				expect(document.activeElement).toBe(trigger);
+			} finally {
+				unbind();
+			}
+		}
+	);
 
 	it('closes on a press outside and reports that it did not hold focus', async () => {
 		const onDismiss = vi.fn();

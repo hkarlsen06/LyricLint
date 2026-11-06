@@ -285,9 +285,9 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 	}
 
 	// Escape and Shift+Escape are the reach-for keys, and unlike the triad they
-	// defer to everything: this listener is in the bubble phase, so every
-	// surface-level Escape handler in the window has already run and either
-	// prevented the default or stopped the event before it arrives here. What
+	// defer to surfaces: this window-bubble fallback runs after target and
+	// document handlers have prevented the default or stopped the event.
+	// Transient surfaces use that earlier phase rather than window binding order. What
 	// reaches this is an Escape nobody else wanted, the caret sitting in the
 	// document, which is precisely the press that means "stop the tape".
 	function handleEscape(event: Event): void {

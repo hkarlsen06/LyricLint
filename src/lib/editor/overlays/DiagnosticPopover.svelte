@@ -101,7 +101,7 @@
 	}
 </script>
 
-<svelte:window onkeydown={dismissOnEscape} />
+<svelte:document onkeydown={dismissOnEscape} />
 
 <!-- A role either way, because the label needs one to land on: `aria-label` on a
      generic `div` is prohibited and simply ignored. Only the card that holds

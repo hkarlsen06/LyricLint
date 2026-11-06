@@ -82,6 +82,7 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   `selectDiagnostic` does not clear the preview.
 - A hovered diagnostic also dismisses on Escape while focus remains elsewhere. It preserves
   that focus and leaves an already handled Escape or a native modal's Escape with its owner.
+  Document-bubble dismissal precedes the window transport fallback regardless of binding order.
 - The fix-preview insert widget must override `ignoreEvent` (mousemove only) and resolve
   through `posAtDOM`, or the inserted half of the diff is a dead zone.
 - A live IME/dead-key preedit maps the settled diagnostic underline and diff preview through its

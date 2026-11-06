@@ -46,6 +46,8 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
   `Ctrl-Alt-` universal); the reach-for keys are the `Escape` family (bare toggles,
   `Shift+Esc` back, `Alt+Esc` forward): bubble phase, standing down on `defaultPrevented`,
   while a native modal is active, or on presses targeted inside other dialogs.
+  Diagnostic popovers dismiss at document bubble, before this window fallback, so attachment
+  timing cannot change which action owns Escape.
   The toolbar and transport share `modalOwnsEscape`, including after modal content loses focus.
   `Edit this section only` stays active while
   attached audio takes Escape; without audio, that mode can claim Escape to exit.
