@@ -129,6 +129,31 @@ test.each([
 	}
 });
 
+test.each(['Document language: English', 'Selection language: English'])(
+	'native option Escape restores the nested %s trigger before closing Document',
+	async (command) => {
+		await page.viewport(390, 844);
+		const { controller } = createTestWorkbench({
+			text: 'The words',
+			selection: { anchor: 0, head: 3 }
+		});
+		await render(DocumentToolbar, { controller });
+		const documentControl = await screen.findByRole('button', { name: 'Document' });
+		await userEvent.click(documentControl);
+		const trigger = screen.getByRole('button', { name: command });
+		await userEvent.click(trigger);
+		await userEvent.keyboard('{ArrowDown}');
+		expect(document.activeElement?.classList.contains('language-option')).toBe(true);
+		await userEvent.keyboard('{Escape}');
+		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+		expect(document.activeElement).toBe(trigger);
+		expect(documentControl).toHaveAttribute('aria-expanded', 'true');
+		await userEvent.keyboard('{Escape}');
+		expect(documentControl).toHaveAttribute('aria-expanded', 'false');
+		expect(documentControl).toHaveFocus();
+	}
+);
+
 test('names touch editing actions and preserves the selection before opening assignment', async () => {
 	await page.viewport(390, 844);
 	const { controller, calls } = createTestWorkbench({

@@ -25,6 +25,7 @@ export default defineConfig({
 			name: 'mobile-webkit',
 			testMatch: [
 				'**/mobile-workbench.spec.ts',
+				'**/language-dialog.spec.ts',
 				'**/immediate-reload.spec.ts',
 				'**/draft-menu.spec.ts'
 			],

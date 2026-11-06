@@ -218,6 +218,35 @@ describe('LanguagePicker', () => {
 		expect(controller.language).toBe('fr-CA');
 	});
 
+	test.each([false, true])(
+		'restores a hidden closing trigger unless focus moved elsewhere (moved %s)',
+		async (moved) => {
+			const editor = document.createElement('textarea');
+			const outside = document.createElement('button');
+			outside.textContent = 'Another action';
+			document.body.append(editor, outside);
+			try {
+				await render(LanguagePicker, { language: 'en', onchoose: () => {} });
+				const trigger = screen.getByRole('button', { name: /^Lyric language:/ });
+				editor.focus();
+				await userEvent.click(trigger);
+				await userEvent.keyboard('{ArrowDown}');
+				trigger.style.visibility = 'hidden';
+				await userEvent.keyboard('{Escape}');
+				await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+				if (moved) outside.focus();
+				trigger.style.visibility = 'visible';
+				await waitFor(() => expect(moved ? outside : trigger).toHaveFocus());
+				await new Promise(requestAnimationFrame);
+				await new Promise(requestAnimationFrame);
+				expect(moved ? outside : trigger).toHaveFocus();
+			} finally {
+				editor.remove();
+				outside.remove();
+			}
+		}
+	);
+
 	test('builds language options only while open and resets search with focus on reopening', async () => {
 		const { controller } = createTestWorkbench();
 		await render(LanguagePicker, {

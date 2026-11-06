@@ -6,7 +6,7 @@
 	import { filterLanguages, languages, languageName } from '#lib/languages/options.js';
 	import { profileLanguage } from '#lib/profiles/languages.js';
 	import { isLanguageTag } from '#lib/languages/tag.js';
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 
 	let {
 		language,
@@ -50,6 +50,36 @@
 	let searchInput = $state<HTMLInputElement>();
 	let query = $state('');
 	let isOpen = $state(false);
+	let focusFrame = 0;
+	function cancelFocusRestore(): void {
+		if (focusFrame) cancelAnimationFrame(focusFrame);
+		focusFrame = 0;
+	}
+	onDestroy(cancelFocusRestore);
+
+	function restoreTriggerFocus(): void {
+		cancelFocusRestore();
+		const previousFocus = document.activeElement;
+		function restore(): void {
+			focusFrame = 0;
+			if (
+				dialog.open ||
+				!trigger.isConnected ||
+				trigger.disabled ||
+				trigger.getClientRects().length === 0 ||
+				(document.activeElement !== previousFocus &&
+					document.activeElement !== document.body &&
+					!dialog.contains(document.activeElement))
+			)
+				return;
+			if (getComputedStyle(trigger).visibility === 'hidden') {
+				focusFrame = requestAnimationFrame(restore);
+				return;
+			}
+			trigger.focus({ preventScroll: true });
+		}
+		restore();
+	}
 
 	const recentLanguages = $derived(recent.map((tag) => [tag, languageName(tag)] as const));
 	const allLanguages = $derived(languages.filter(([tag]) => !recent.includes(tag)));
@@ -74,6 +104,7 @@
 	);
 
 	async function open(): Promise<void> {
+		cancelFocusRestore();
 		onopen();
 		customCode = '';
 		codeError = '';
@@ -86,7 +117,7 @@
 
 	function close(): void {
 		dialog.close();
-		trigger.focus({ preventScroll: true });
+		restoreTriggerFocus();
 	}
 
 	function choose(tag: string): void {
@@ -197,7 +228,7 @@
 			(document.activeElement === document.body ||
 				event.currentTarget.contains(document.activeElement))
 		) {
-			trigger.focus({ preventScroll: true });
+			restoreTriggerFocus();
 		}
 	}}
 >
