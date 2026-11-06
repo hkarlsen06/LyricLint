@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './guide-input.js';
 
 for (const width of [1440, 390]) {
 	for (const path of ['/guidelines/', '/guidelines/section-headers/']) {
