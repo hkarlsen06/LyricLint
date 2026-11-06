@@ -24,6 +24,41 @@ function status(): HTMLElement {
 describe('LanguagePicker', () => {
 	afterEach(cleanup);
 
+	test.each([
+		['français', 'French', 'fr'],
+		['日本語', 'Japanese', 'ja']
+	])('finds a language by its native name %s', async (query, name, tag) => {
+		let chosen: string | undefined;
+		await render(LanguagePicker, {
+			language: 'en',
+			onchoose: (value) => {
+				chosen = value;
+			}
+		});
+		await openPicker();
+		await search(query);
+		await fireEvent.click(screen.getByRole('button', { name }));
+		expect(chosen).toBe(tag);
+	});
+
+	test('shows the language scope and keeps long choices within the same control', async () => {
+		const view = await render(LanguagePicker, {
+			language: 'es',
+			label: 'Document language',
+			expandedLabel: true,
+			onchoose: () => {}
+		});
+		view.container.style.width = '250px';
+		const trigger = screen.getByRole('button', { name: 'Document language: Spanish' });
+		trigger.style.width = '100%';
+		expect(trigger.textContent).toContain('Document language: Spanish');
+		const height = trigger.getBoundingClientRect().height;
+		await view.rerender({ language: 'zz-Latn-custom', label: 'Selected passage language' });
+		expect(trigger.textContent).toContain('Selected passage language: zz-Latn-custom');
+		expect(trigger.getBoundingClientRect().height).toBe(height);
+		expect(trigger.scrollWidth).toBeLessThanOrEqual(trigger.clientWidth);
+	});
+
 	test('Escape closes a searched picker and returns focus without changing language', async () => {
 		const { controller } = createTestWorkbench();
 		await render(LanguagePicker, {

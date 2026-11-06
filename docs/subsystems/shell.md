@@ -54,6 +54,9 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   Local data explains reset consequences before its action. The warning and reset target stay
   in place through confirmation and cancellation.
   Escape closes a language picker even when its search has text, returning focus to its trigger.
+  Expanded language controls name their document or passage scope visibly. Long choices keep
+  the trigger's height and full accessible name. Search matches English names, catalog
+  languages' native names and codes, without changing the reviewed-language policy.
 
 - The document toolbar exposes a per-draft Genius and Musixmatch buttons that select a destination in one click
   or Enter/Space. A check and pressed state mark the committed format, and both buttons reserve

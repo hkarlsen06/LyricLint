@@ -3,7 +3,7 @@
 	import GlobeIcon from 'phosphor-svelte/lib/GlobeIcon';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
-	import { languages, languageName } from '#lib/languages/options.js';
+	import { filterLanguages, languages, languageName } from '#lib/languages/options.js';
 	import { tick } from 'svelte';
 
 	let {
@@ -38,23 +38,13 @@
 	let query = $state('');
 	let isOpen = $state(false);
 
-	function normalize(value: string): string {
-		return value.normalize('NFKD').replace(/\p{M}/gu, '').toLocaleLowerCase().trim();
-	}
-
 	const recentLanguages = $derived(recent.map((tag) => [tag, languageName(tag)] as const));
 	const allLanguages = $derived(languages.filter(([tag]) => !recent.includes(tag)));
 	const searchableLanguages = $derived([
 		...recentLanguages,
 		...languages.filter(([tag]) => !recent.includes(tag))
 	]);
-	const filteredLanguages = $derived.by(() => {
-		const needle = normalize(query);
-		if (!needle) return searchableLanguages;
-		return searchableLanguages.filter(([tag, name]) =>
-			normalize(`${name} ${tag}`).includes(needle)
-		);
-	});
+	const filteredLanguages = $derived(filterLanguages(searchableLanguages, query));
 
 	const selectedLabel = $derived(
 		language === undefined ? 'Mixed languages' : languageName(language)
@@ -138,11 +128,11 @@
 	onclick={open}
 >
 	<GlobeIcon aria-hidden="true" size={16} weight="bold" />
-	<span aria-hidden="true"
+	<span class="language-trigger__label" aria-hidden="true"
 		>{language === undefined
 			? selectedLabel
 			: expandedLabel
-				? `Language: ${selectedLabel}`
+				? `${label}: ${selectedLabel}`
 				: language}</span
 	>
 </button>
@@ -265,6 +255,13 @@
 	.language-trigger :global(svg) {
 		flex: none;
 		color: var(--color-text-muted);
+	}
+
+	.language-trigger__label {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.language-dialog {
