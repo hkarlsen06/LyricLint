@@ -60,6 +60,55 @@ test('search assigns exact captured codepoints, separate from default; history a
 	expect(controller.snapshot.conversion?.model.languageRanges ?? []).toEqual([]);
 	expect(controller.snapshot.text).toBe(source);
 });
+
+test('keeps the selected language separate from hidden wording through history', async () => {
+	const { controller, editor } = await setup('[Verse]\nMoon Star Sun');
+	controller.switchProfile('musixmatch');
+	expect(
+		controller.applyConversionAction({
+			kind: 'setPassageLanguage',
+			range: { from: 5, to: 9 },
+			language: 'de'
+		})
+	).toBe(true);
+	expect(
+		controller.applyConversionAction({
+			kind: 'setForm',
+			range: { from: 5, to: 9 },
+			profile: 'genius',
+			text: ''
+		})
+	).toBe(true);
+	controller.switchProfile('genius');
+	editor.handle.setSelection({ anchor: 0, head: controller.snapshot.text.length });
+	const before = structuredClone(controller.snapshot.conversion?.model);
+	if (!before) throw new Error('The hidden wording model is missing.');
+	const hiddenLanguage = controller.snapshot.conversion?.model.languageRanges[0];
+	await waitFor(() =>
+		expect(screen.getByRole('button', { name: 'Selected passage language: English' })).toBeTruthy()
+	);
+	await open();
+	await fireEvent.input(screen.getByRole('searchbox'), { target: { value: 'French' } });
+	await fireEvent.click(screen.getByRole('button', { name: 'French' }));
+	await waitFor(() =>
+		expect(screen.getByRole('button', { name: 'Selected passage language: French' })).toBeTruthy()
+	);
+	expect(
+		controller.snapshot.conversion?.model.languageRanges.find((range) => range.language === 'de')
+	).toEqual(hiddenLanguage);
+	expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun');
+	editor.handle.undo();
+	expect(controller.snapshot.conversion?.model).toEqual({ ...before, nextId: expect.any(Number) });
+	expect(controller.snapshot.conversion?.model.nextId).toBeGreaterThanOrEqual(before.nextId);
+	editor.handle.redo();
+	expect(
+		controller.snapshot.conversion?.model.languageRanges.find((range) => range.language === 'de')
+	).toEqual(hiddenLanguage);
+	controller.switchProfile('musixmatch');
+	expect(controller.snapshot.text).toBe('Moon Star Sun');
+	controller.switchProfile('genius');
+	expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun');
+});
 test('custom tags keep boundary validation and native Escape restores trigger without taking editor input', async () => {
 	const { controller, editor } = await setup();
 	await open();

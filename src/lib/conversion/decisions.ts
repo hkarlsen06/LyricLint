@@ -18,7 +18,12 @@ import {
 	type VoiceAssignment,
 	type WrapperRecord
 } from './model.js';
-import { contentOffset, projectOffset, renderProfile } from './projection.js';
+import {
+	contentOffset,
+	projectOffset,
+	renderProfile,
+	selectedContentRanges
+} from './projection.js';
 import { applyTextEdits, reconcileEdit, updateEmptySections } from './reconcile.js';
 import { resolveFactDecision, type FactAction } from './facts.js';
 import {
@@ -819,10 +824,11 @@ export function resolveDecision(
 		}
 		case 'setPassageLanguage': {
 			// Generated syntax has no language ownership; map only the selected sung content.
-			const range = visibleRange(projection, action.range, 'language');
+			const ranges = visibleRange(projection, action.range, 'language')
+				? selectedContentRanges(projection, action.range)
+				: [];
 			if (
-				!range ||
-				!next.content.slice(range.from, range.to).trim() ||
+				!ranges.some((range) => next.content.slice(range.from, range.to).trim()) ||
 				!projection.segments.some(
 					(segment) =>
 						segment.kind !== 'generated' &&
@@ -840,7 +846,11 @@ export function resolveDecision(
 				action.language.length > 128
 			)
 				return invalid('Choose a language for a nonempty lyric passage.');
-			replacePassageLanguages(next, range, [{ ...range, language: action.language }]);
+			replacePassageLanguages(
+				next,
+				ranges,
+				ranges.map((range) => ({ ...range, language: action.language }))
+			);
 			const retained = retainActiveRepresentation(projection, next);
 			if (!retained.ok) return retained;
 			break;

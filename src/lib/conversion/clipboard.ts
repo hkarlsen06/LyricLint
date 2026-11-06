@@ -336,7 +336,7 @@ export function pasteDocument(
 			to: fragment.content.length + at,
 			language: fragment.defaultLanguage
 		});
-	replacePassageLanguages(next, { from: at, to: at + fragment.content.length }, copiedLanguages);
+	replacePassageLanguages(next, [{ from: at, to: at + fragment.content.length }], copiedLanguages);
 	for (const form of fragment.forms) {
 		const owner = ownerFor(form.from, form.to);
 		if (!owner)

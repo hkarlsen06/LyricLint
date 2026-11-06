@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { contentOffset, projectOffset, renderProfile } from '#lib/conversion/index.js';
+	import { selectedContentRanges, projectOffset, renderProfile } from '#lib/conversion/index.js';
 	import { languageName } from '#lib/languages/options.js';
 	import LanguagePicker from '../layout/LanguagePicker.svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
@@ -35,26 +35,28 @@
 		if (!conversion || range.from === range.to) return [controller.language];
 		const projection = renderProfile(conversion.model, conversion.profile);
 		if (!projection.ok) return [];
-		let from = contentOffset(projection.value, range.from, 1);
-		let to = contentOffset(projection.value, range.to, -1);
-		for (const segment of projection.value.segments) {
-			if (segment.kind === 'transformed' && segment.from < range.to && range.from < segment.to) {
-				from = Math.min(from, segment.contentFrom);
-				to = Math.max(to, segment.contentTo);
-			}
-		}
-		if (from >= to) return [controller.language];
+		const ranges = selectedContentRanges(projection.value, range);
+		if (ranges.length === 0) return [controller.language];
 		const languages: string[] = [];
-		let at = from;
-		for (const entry of [...conversion.model.languageRanges].sort((a, b) => a.from - b.from)) {
-			const start = Math.max(from, entry.from);
-			const end = Math.min(to, entry.to);
-			if (start >= end) continue;
-			if (at < start) languages.push(conversion.model.defaultLanguage);
-			languages.push(entry.language);
-			at = end;
+		const overrides = [...conversion.model.languageRanges].sort((a, b) => a.from - b.from);
+		let first = 0;
+		for (const range of ranges) {
+			while (first < overrides.length && overrides[first]!.to <= range.from) first++;
+			let at = range.from;
+			for (
+				let index = first;
+				index < overrides.length && overrides[index]!.from < range.to;
+				index++
+			) {
+				const entry = overrides[index]!;
+				const start = Math.max(range.from, entry.from);
+				const end = Math.min(range.to, entry.to);
+				if (at < start) languages.push(conversion.model.defaultLanguage);
+				languages.push(entry.language);
+				at = end;
+			}
+			if (at < range.to) languages.push(conversion.model.defaultLanguage);
 		}
-		if (at < to) languages.push(conversion.model.defaultLanguage);
 		return [...new Set(languages)];
 	});
 	const language = $derived(selectionLanguages.length === 1 ? selectionLanguages[0] : undefined);

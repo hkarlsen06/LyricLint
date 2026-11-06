@@ -84,6 +84,8 @@ headers or annotation/voice delimiters: those have no language ownership and rem
 Assignment maps the selected sung content through the active projection, refusing syntax-only,
 whitespace-only, invalid or empty ranges and partial transformed wording units. This exception
 is metadata-only; structural edit decisions retain their generated-syntax guard.
+Hidden wording keeps its language ownership and record identity, including at selection
+boundaries and between selected visible spans. Display and assignment share that visible scope.
 
 Store `contentKind: 'original' | 'translation' | 'romanization' | 'unknown'` once in the versioned
 model. Legacy drafts start at `unknown`; locale, script and header spelling cannot establish it.

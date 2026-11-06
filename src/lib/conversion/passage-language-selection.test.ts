@@ -136,9 +136,16 @@ it.each(['genius', 'musixmatch'] as const)(
 		);
 		expect(result.projection.text).toBe(projection.text);
 		expect(result.document.defaultLanguage).toBe('fr');
-		expect(result.document.languageRanges).toMatchObject([
-			{ from: 0, to: model.content.length, language: 'ja' }
-		]);
+		// Musixmatch omits the two French formatting spaces; their source ownership stays French.
+		expect(result.document.languageRanges).toMatchObject(
+			profile === 'genius'
+				? [{ from: 0, to: model.content.length, language: 'ja' }]
+				: [
+						{ from: 0, to: 3, language: 'ja' },
+						{ from: 4, to: 11, language: 'ja' },
+						{ from: 12, to: 13, language: 'ja' }
+					]
+		);
 		expect(value(renderProfile(result.document, 'genius')).text).toBe(
 			'[Couplet]\nQui ?\n🌙 [Là ?](123456)'
 		);
@@ -196,4 +203,52 @@ it('refuses a generated header adjacent to a hidden owned wording', () => {
 		}).ok
 	).toBe(false);
 	expect(hidden.document.languageRanges).toEqual([]);
+});
+
+it.each([
+	[0, 4],
+	[5, 9],
+	[10, 13]
+])('preserves hidden language ownership at %i..%i inside a visible selection', (from, to) => {
+	const source = value(importDocument({ text: '[Verse]\nMoon Star Sun', profile: 'genius' }));
+	const tagged = value(
+		resolveDecision(source, value(renderProfile(source, 'musixmatch')), {
+			kind: 'setPassageLanguage',
+			range: { from, to },
+			language: 'de'
+		})
+	);
+	const hidden = value(
+		resolveDecision(tagged.document, tagged.projection, {
+			kind: 'setForm',
+			range: { from, to },
+			profile: 'genius',
+			text: ''
+		})
+	);
+	const projection = value(renderProfile(hidden.document, 'genius'));
+	const before = JSON.stringify(hidden.document);
+	for (const start of [0, '[Verse]\n'.length]) {
+		const result = value(
+			resolveDecision(hidden.document, projection, {
+				kind: 'setPassageLanguage',
+				range: { from: start, to: projection.text.length },
+				language: 'fr'
+			})
+		);
+		expect(result.document.languageRanges.find((range) => range.language === 'de')).toEqual(
+			hidden.document.languageRanges[0]
+		);
+		for (let at = 0; at < source.content.length; at++) {
+			const language =
+				result.document.languageRanges.find((range) => range.from <= at && at < range.to)
+					?.language ?? result.document.defaultLanguage;
+			expect(language).toBe(from <= at && at < to ? 'de' : 'fr');
+		}
+		expect(result.projection.text).toBe(projection.text);
+		expect(value(renderProfile(result.document, 'musixmatch')).text).toBe('Moon Star Sun');
+		expect(result.document.forms).toEqual(hidden.document.forms);
+		expect(validateModel(result.document).ok).toBe(true);
+	}
+	expect(JSON.stringify(hidden.document)).toBe(before);
 });

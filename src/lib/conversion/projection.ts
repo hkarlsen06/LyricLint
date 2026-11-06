@@ -74,6 +74,18 @@ export function projectOffset(projection: Projection, at: number, affinity: -1 |
 	return (affinity < 0 ? before : after) ?? (at === 0 ? 0 : projection.text.length);
 }
 
+function segmentContentOffset(segment: ProjectionSegment, at: number, affinity: -1 | 1): number {
+	if (segment.kind === 'copied') return segment.contentFrom + at - segment.from;
+	if (segment.kind === 'generated') return segment.contentFrom;
+	return at === segment.from
+		? segment.contentFrom
+		: at === segment.to
+			? segment.contentTo
+			: affinity < 0
+				? segment.contentFrom
+				: segment.contentTo;
+}
+
 /** Offsets are UTF-16 code units. A transformed unit is indivisible. */
 export function contentOffset(projection: Projection, at: number, affinity: -1 | 1 = 1): number {
 	let omittedLower = 0;
@@ -102,17 +114,37 @@ export function contentOffset(projection: Projection, at: number, affinity: -1 |
 		const segment = projection.segments[index]!;
 		if (at < segment.from || at > segment.to) continue;
 		if (at === segment.to && affinity > 0) continue;
-		if (segment.kind === 'copied') return segment.contentFrom + at - segment.from;
-		if (segment.kind === 'generated') return segment.contentFrom;
-		return at === segment.from
-			? segment.contentFrom
-			: at === segment.to
-				? segment.contentTo
-				: affinity < 0
-					? segment.contentFrom
-					: segment.contentTo;
+		return segmentContentOffset(segment, at, affinity);
 	}
 	return projection.segments.at(-1)?.contentTo ?? 0;
+}
+
+/** Visible source ownership, including complete transformed units but excluding hidden gaps. */
+export function selectedContentRanges(projection: Projection, selection: TextRange): TextRange[] {
+	const ranges: TextRange[] = [];
+	for (const segment of projection.segments) {
+		if (
+			segment.kind === 'generated' ||
+			segment.to <= selection.from ||
+			selection.to <= segment.from
+		)
+			continue;
+		const from = segmentContentOffset(
+			segment,
+			segment.kind === 'transformed' ? segment.from : Math.max(segment.from, selection.from),
+			1
+		);
+		const to = segmentContentOffset(
+			segment,
+			segment.kind === 'transformed' ? segment.to : Math.min(segment.to, selection.to),
+			-1
+		);
+		if (from >= to) continue;
+		const previous = ranges.at(-1);
+		if (previous && from <= previous.to) previous.to = Math.max(previous.to, to);
+		else ranges.push({ from, to });
+	}
+	return ranges;
 }
 
 export function mapSelection(
