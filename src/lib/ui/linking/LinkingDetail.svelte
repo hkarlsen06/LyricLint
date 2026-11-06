@@ -366,15 +366,30 @@
 						{item.comparison === 'same' ? '✓ Same lyrics' : '≠ Differs'}
 					</span>
 				{/if}
-				{#if onNavigate}<button
-						id={`${id}-line-${item.headerFrom}`}
-						type="button"
-						class="button button--quiet member__line"
-						onclick={() => onNavigate?.(item.headerFrom)}>Line {item.line}</button
-					>
-				{:else}<span id={`${id}-line-${item.headerFrom}`} class="member__line"
-						>Line {item.line}</span
-					>{/if}
+				<div class="member__actions">
+					{#if onNavigate}<button
+							id={`${id}-line-${item.headerFrom}`}
+							type="button"
+							class="button button--quiet member__line"
+							onclick={() => onNavigate?.(item.headerFrom)}>Line {item.line}</button
+						>
+					{:else}<span id={`${id}-line-${item.headerFrom}`} class="member__line"
+							>Line {item.line}</span
+						>{/if}
+					{#if fromOverview && wasLinked && !membershipLocked && initialHeaders.includes(item.headerFrom)}
+						<button
+							type="button"
+							class="button button--quiet"
+							aria-label={`Unlink ${sectionName(item)}`}
+							onclick={() =>
+								onApply({
+									headers: [item.headerFrom],
+									keepDifferent: [],
+									replaceFromByDifference: []
+								})}>Unlink</button
+						>
+					{/if}
+				</div>
 			</div>
 		{/each}
 	</fieldset>
@@ -710,6 +725,14 @@
 		gap: var(--space-3);
 		flex: 1;
 		min-width: 0;
+	}
+	.member__actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-end;
+		gap: var(--space-2);
+		max-width: 50%;
 	}
 	button.member__line {
 		text-decoration: underline;

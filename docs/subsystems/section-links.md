@@ -20,7 +20,9 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   explicit membership, mirroring, retained variations, exact projections and undo.
   Manage opens one retained group in the shared `LinkingDetail` comparison while the writer
   stays in Musixmatch. Membership stays fixed during wording review; the overview owns linking
-  and each section's Unlink action. `conversionLinkDifferences` supplies projected bounds from
+  and each section's Unlink action. Genius overview Manage exposes a named Unlink control
+  for every existing member, independent of the pending link selection. Unlinking that member
+  preserves the other members' connections and every lyric word. `conversionLinkDifferences` supplies projected bounds from
   retained IDs to the existing alignment and comparison formatter. An explicit wording choice
   uses one atomic `reconcileEdit` action with preplanned edits, preserving unchosen variations, exclusions
   and retained markup. Equal corrected words do not acquire an implicit connection. The task

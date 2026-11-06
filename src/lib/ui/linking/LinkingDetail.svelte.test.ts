@@ -275,6 +275,21 @@ describe('LinkingDetail', () => {
 		await expect.element(page.getByRole('checkbox', { name: /^Chorus 3/ })).not.toBeChecked();
 		expect(view.container.textContent).not.toContain('This section');
 	});
+	it('unlinks a named member directly from overview Manage without changing selected wording', async () => {
+		const { onApply } = await setup(
+			{ fromOverview: true, initialSelected: [20, 40] },
+			false,
+			false
+		);
+		await page.getByRole('checkbox', { name: /^Chorus 2/ }).click();
+		await page.getByRole('checkbox', { name: /^Chorus 3/ }).click();
+		await page.getByRole('button', { name: 'Unlink Chorus 2', exact: true }).click();
+		expect(onApply).toHaveBeenCalledWith({
+			headers: [20],
+			keepDifferent: [],
+			replaceFromByDifference: []
+		});
+	});
 
 	it('uses comparedHeaders as preview selection independently of existing membership', async () => {
 		const { onApply } = await setup({
