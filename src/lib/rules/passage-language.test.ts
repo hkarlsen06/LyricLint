@@ -76,6 +76,27 @@ describe('passage language checking boundary', () => {
 			true
 		);
 	});
+	it.each(['sv', 'da', 'is', 'fo', 'nb', 'nn', 'no'])(
+		'keeps %s guillemets while checking English quotes independently',
+		(language) => {
+			const text = '«Hej»\n“Hello”';
+			for (const scope of [
+				{ language, languageRanges: [{ from: 6, to: text.length, language: 'en' }] },
+				{ language: 'en', languageRanges: [{ from: 0, to: 5, language }] }
+			]) {
+				const findings = runRules(parseDocument(text), { ...context, ...scope }).filter(
+					(finding) => finding.ruleId === 'quotes.typewriter'
+				);
+				expect(findings.map((finding) => text.slice(finding.from, finding.to))).toEqual(['“', '”']);
+				expect(
+					findings
+						.flatMap((finding) => finding.fixes ?? [])
+						.flatMap((fix) => fix.edit.edits)
+						.map((edit) => edit.insert)
+				).toEqual(['"', '"']);
+			}
+		}
+	);
 
 	it('retains structure and removes replacements that cross ownership', () => {
 		const text = '[Verse]\nCuz you stay  here';

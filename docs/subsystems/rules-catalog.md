@@ -22,7 +22,9 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   A finding belongs to the language at its start; findings or fixes crossing a language boundary
   require review and carry no replacement. Ranges are validated before evaluation by `rules/language-ownership.ts`, shared with Harper.
   Raw locale ownership protects boundaries; bounded policy passes retain Genius en-US/en-GB
-  distinctions rather than running once per arbitrary locale. Language-independent checks run
+  distinctions and existing Nordic quote policies rather than running once per arbitrary locale.
+  Quote-policy languages retain their own tag without acquiring another language's spelling rules.
+  Language-independent checks run
   once. Language-dependent findings belong to their starting owner, with cross-owner edits
   withheld. Whole-document language mismatch detection treats explicit multilingual text as
   inconclusive; section checks still see the complete document for structural context.

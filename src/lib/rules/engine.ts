@@ -5,6 +5,7 @@ import { languageOwnership } from './language-ownership.js';
 import { getLanguagePack } from '#lib/languages/registry.js';
 import { languageDependentGeniusRules } from './registry.js';
 import { profileLanguage } from '#lib/profiles/languages.js';
+import { guillemetLanguages } from './catalog/quotes-typewriter.js';
 import { sortDiagnostics } from './results.js';
 export { sortDiagnostics, collectSafeFixes } from './results.js';
 
@@ -63,6 +64,8 @@ export function runRules(
 /** Only reviewed policy distinctions need full-document passes, never arbitrary raw tags. */
 function geniusPolicyLanguage(tag: string): string {
 	if (/^en-(?:us|gb)$/iu.test(tag)) return tag.toLowerCase();
+	const base = tag.toLowerCase().split('-')[0] ?? 'und';
+	if (guillemetLanguages.has(base)) return base;
 	const pack = getLanguagePack(tag);
 	return pack.reviewed ? pack.tag : 'und';
 }
