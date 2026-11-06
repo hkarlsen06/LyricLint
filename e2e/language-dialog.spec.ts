@@ -39,7 +39,24 @@ test('phone language controls regain focus after native option Escape', async ({
 	await page.keyboard.press('Escape');
 	await expect(documentTrigger).toBeFocused();
 	await editor.tap();
-	await page.keyboard.press('ControlOrMeta+a');
+	// The WebKit project emulates iOS, whose editor uses Command on the Linux runner too.
+	await page.keyboard.press(test.info().project.name === 'mobile-webkit' ? 'Meta+a' : 'Control+a');
+	const keyboardSelection = await editor.evaluate((element) => {
+		const selection = window.getSelection();
+		return {
+			platform: navigator.platform,
+			vendor: navigator.vendor,
+			userAgent: navigator.userAgent,
+			active: document.activeElement?.getAttribute('aria-label'),
+			selectedText: selection?.toString(),
+			containsFocus: element.contains(document.activeElement)
+		};
+	});
+	await test.info().attach('native-keyboard-selection', {
+		body: JSON.stringify(keyboardSelection),
+		contentType: 'application/json'
+	});
+	expect(keyboardSelection.selectedText).toBe('Bonjour moon');
 	await documentTrigger.tap();
 	const selection = page.getByRole('button', { name: 'Selection language: French', exact: true });
 	await selection.tap();
