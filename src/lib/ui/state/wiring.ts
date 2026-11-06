@@ -1,6 +1,7 @@
 // Decision record: docs/subsystems/rules-catalog.md, read it before changing this file, and update it with any behavior change.
 import { unaccountedStyledSlots } from '#lib/performers/legend-cleanup.js';
 import { sourceRegistry } from '#lib/rules/data/sources.js';
+import { languageOwnership } from '#lib/rules/language-ownership.js';
 import { profileSourceRegistry } from '#lib/profiles/sources.js';
 import { projectConfirmedFacts } from '#lib/profiles/confirmed-facts.js';
 import { projectedVoiceGroups } from '#lib/conversion/voices.js';
@@ -54,12 +55,50 @@ export function projectionPolicyContext(
 	const rendered = renderProfile(conversion.model, conversion.profile);
 	if (!rendered.ok || rendered.value.text !== snapshot.text) return {};
 	const context: Pick<RuleContext, 'languageRanges' | 'confirmedFacts'> = {};
-	if (conversion.model.languageRanges.length)
-		context.languageRanges = conversion.model.languageRanges.map((range) => ({
-			from: projectOffset(rendered.value, range.from, 1),
-			to: projectOffset(rendered.value, range.to, -1),
-			language: range.language
-		}));
+	if (conversion.model.languageRanges.length) {
+		const ownership = languageOwnership(conversion.model.content, {
+			language: conversion.model.defaultLanguage,
+			languageRanges: conversion.model.languageRanges
+		});
+		const ranges: NonNullable<RuleContext['languageRanges']>[number][] = [];
+		function append(from: number, to: number, language: string) {
+			const previous = ranges.at(-1);
+			if (previous?.to === from && previous.language === language) previous.to = to;
+			else ranges.push({ from, to, language });
+		}
+		let first = 0;
+		for (const segment of rendered.value.segments) {
+			if (segment.kind === 'generated') continue;
+			if (segment.kind === 'transformed') {
+				const sourceLanguage = ownership.languageAt(segment.contentFrom);
+				const language = ownership.withinLanguage(
+					segment.contentFrom,
+					segment.contentTo,
+					sourceLanguage
+				)
+					? sourceLanguage
+					: 'und';
+				if (language !== conversion.model.defaultLanguage)
+					append(segment.from, segment.to, language);
+				continue;
+			}
+			while (first < ownership.ranges.length && ownership.ranges[first]!.to <= segment.contentFrom)
+				first++;
+			for (
+				let index = first;
+				index < ownership.ranges.length && ownership.ranges[index]!.from < segment.contentTo;
+				index++
+			) {
+				const range = ownership.ranges[index]!;
+				append(
+					projectOffset(rendered.value, Math.max(range.from, segment.contentFrom), 1),
+					projectOffset(rendered.value, Math.min(range.to, segment.contentTo), -1),
+					range.language
+				);
+			}
+		}
+		context.languageRanges = ranges;
+	}
 	const facts = projectConfirmedFacts(conversion.model, rendered.value);
 	if (facts.length) context.confirmedFacts = facts;
 	return context;

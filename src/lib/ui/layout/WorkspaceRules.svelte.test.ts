@@ -93,6 +93,57 @@ describe('Workspace native checker startup', () => {
 		expect(controller.snapshot.text).toBe('12 stars and 12 moons.');
 	});
 
+	it('publishes real checking snapshots while preserving hidden language ownership', async () => {
+		const native = await import('#lib/rules/engine.js');
+		const { controller } = createTestWorkbench({ text: '[Verse]\nMoon Star Sun' });
+		controller.setGrammarCheckEnabled(false);
+		await render(Workspace, {
+			controller,
+			editorComponent: EditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} },
+			loadNativeRules: async () => native
+		});
+		await waitFor(() => expect(controller.editor.dispatchConversionAction).toBeTypeOf('function'));
+		controller.switchProfile('musixmatch');
+		expect(
+			controller.applyConversionAction({
+				kind: 'setPassageLanguage',
+				range: { from: 0, to: 13 },
+				language: 'de'
+			})
+		).toBe(true);
+		expect(
+			controller.applyConversionAction({
+				kind: 'setForm',
+				range: { from: 5, to: 9 },
+				profile: 'genius',
+				text: ''
+			})
+		).toBe(true);
+		controller.switchProfile('genius');
+		await waitFor(() => expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun'));
+		const before = controller.snapshot.revision;
+		expect(
+			controller.applyConversionAction({
+				kind: 'setPassageLanguage',
+				range: { from: 0, to: controller.snapshot.text.length },
+				language: 'fr'
+			})
+		).toBe(true);
+		await waitFor(() => expect(controller.snapshot.revision).toBeGreaterThan(before));
+		expect(
+			controller.snapshot.conversion?.model.languageRanges.find((range) => range.language === 'de')
+		).toMatchObject({ from: 5, to: 9 });
+		expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun');
+		controller.switchProfile('musixmatch');
+		await waitFor(() => expect(controller.snapshot.text).toBe('Moon Star Sun'));
+		expect(
+			controller.snapshot.conversion?.model.languageRanges.find((range) => range.language === 'de')
+		).toMatchObject({ from: 5, to: 9 });
+		controller.switchProfile('genius');
+		await waitFor(() => expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun'));
+	});
+
 	it('reruns real native and Harper checks for metadata-only passage language and scope undo/redo', async () => {
 		const native = await import('#lib/rules/engine.js');
 		const { createHarperDiagnosticProvider } = await import('#lib/rules/harper.js');

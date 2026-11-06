@@ -23,6 +23,10 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   require review and carry no replacement. Ranges are validated before evaluation by `rules/language-ownership.ts`, shared with Harper.
   Raw locale ownership protects boundaries; bounded policy passes retain Genius en-US/en-GB
   distinctions and existing Nordic quote policies rather than running once per arbitrary locale.
+  Projection scopes include only visible source segments. Hidden retained language ownership
+  remains in the model without becoming an empty checking range. A transformed wording with
+  mixed source languages is undetermined for checking, rather than borrowing one language for
+  its indivisible visible unit. The checking boundary keeps its strict range validation.
   Quote-policy languages retain their own tag without acquiring another language's spelling rules.
   Language-independent checks run
   once. Language-dependent findings belong to their starting owner, with cross-owner edits
