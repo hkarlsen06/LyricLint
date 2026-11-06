@@ -127,7 +127,8 @@
 		{language}
 		scopeLanguages={selectionLanguages}
 		recentLanguages={controller.recentLanguages}
-		label="Selected passage language"
+		label={controlsOnly ? 'Selection language' : 'Selected passage language'}
+		dialogLabel="Selected passage language"
 		expandedLabel
 		hideWhenUnavailable={contextual}
 		triggerLabel={controlsOnly ? 'Selection language' : undefined}

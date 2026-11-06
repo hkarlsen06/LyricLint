@@ -1389,15 +1389,15 @@ describe('Workspace and toolbar', () => {
 			harperProvider: { lint: async () => [], dispose: async () => {} }
 		});
 		const section = await screen.findByRole('button', { name: 'Section header' });
-		expect(screen.queryByRole('button', { name: /^Selected passage language:/ })).toBeNull();
+		expect(screen.queryByRole('button', { name: /^Selection language:/ })).toBeNull();
 		const before = section.getBoundingClientRect().toJSON();
 		controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 8 } });
 		const selection = await screen.findByRole('button', {
-			name: 'Selected passage language: English'
+			name: 'Selection language: English'
 		});
 		expect(selection.closest('.editor-actions')).toBeTruthy();
 		expect(selection.closest('.document-toolbar')).toBeNull();
-		expect(screen.getAllByRole('button', { name: /^Selected passage language:/ })).toHaveLength(1);
+		expect(screen.getAllByRole('button', { name: /^Selection language:/ })).toHaveLength(1);
 		expect(section.getBoundingClientRect().toJSON()).toEqual(before);
 	});
 });

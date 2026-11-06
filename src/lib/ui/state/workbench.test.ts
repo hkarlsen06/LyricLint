@@ -707,6 +707,37 @@ describe('workbench draft safety', () => {
 		expect((await repository.get(created))?.language).toBe('fr');
 	});
 
+	test.each(['fr CA', '', 'abc' + '-abcdefgh'.repeat(14)])(
+		'refuses invalid document language %j before changing a plain draft',
+		async (language) => {
+			const { controller, repository } = setup({});
+			const recent = [...controller.recentLanguages];
+			const text = controller.snapshot.text;
+			expect(controller.snapshot.conversion).toBeUndefined();
+			const accepted = controller.setLanguage(language);
+			expect(controller.language).toBe('en');
+			expect(accepted).toBe(false);
+			expect(controller.recentLanguages).toEqual(recent);
+			expect(controller.snapshot.text).toBe(text);
+			await controller.flushAutosave();
+			expect((await repository.get(controller.draftId))?.language).toBe('en');
+			expect(controller.feedback.announcement).toContain('valid language code');
+		}
+	);
+
+	test.each(['fr-CA', 'zz-Latn-custom'])(
+		'keeps valid custom document language %s exact on a plain draft',
+		async (language) => {
+			const { controller, repository } = setup({});
+			const text = controller.snapshot.text;
+			expect(controller.setLanguage(language)).toBe(true);
+			await controller.flushAutosave();
+			expect(controller.language).toBe(language);
+			expect(controller.snapshot.text).toBe(text);
+			expect((await repository.get(controller.draftId))?.language).toBe(language);
+		}
+	);
+
 	test('keeps recent languages in deduplicated most-recent-first order', () => {
 		const { controller } = setup({
 			initialRecentLanguages: ['no', 'fr', 'de', 'es', 'ja']

@@ -24,6 +24,7 @@ import type {
 import { conversionReviewAction, type ConversionReviewKind } from '#lib/conversion/review.js';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { resolveLanguageTag } from '#lib/languages/registry.js';
+import { isLanguageTag } from '#lib/languages/tag.js';
 import { randomId } from '#lib/core/random-id.js';
 import type { TimedLyricsFormat } from '#lib/core/timed-lyrics.js';
 import { formatTimedLyrics, timedLyricsExtensions } from '#lib/core/timed-lyrics.js';
@@ -240,7 +241,7 @@ export interface WorkbenchController {
 	setGrammarCheckEnabled(enabled: boolean): void;
 	toggleSeverity(severity: Severity): void;
 	setTitle(title: string): Promise<void>;
-	setLanguage(language: string): void;
+	setLanguage(language: string): boolean;
 	undo(): void;
 	redo(): void;
 	navigateToDiagnostic(
@@ -1130,12 +1131,19 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		toggleSeverity: panel.toggleSeverity,
 		setTitle: draft.setTitle,
 		setLanguage(language) {
+			if (!isLanguageTag(language)) {
+				const message = 'Choose a valid language code.';
+				feedback.announce(message);
+				feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+				return false;
+			}
 			if (
 				editorSession.snapshot.conversion &&
 				!controller.applyConversionAction({ kind: 'setLanguage', language })
 			)
-				return;
+				return false;
 			draft.setLanguage(language);
+			return true;
 		},
 		undo: editorSession.undo,
 		redo: editorSession.redo,

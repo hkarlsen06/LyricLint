@@ -1224,29 +1224,29 @@ test.describe('document editing', () => {
 		});
 		await expect(languageConflict).toHaveCount(0);
 
-		await page.getByRole('button', { name: 'Lyric language: English' }).click();
-		const languageDialog = page.getByRole('dialog', { name: 'Lyric language' });
+		await page.getByRole('button', { name: 'Document language: English' }).click();
+		const languageDialog = page.getByRole('dialog', { name: 'Document language' });
 		await languageDialog.getByPlaceholder('Search languages').fill('Norwegian');
 		await languageDialog.getByRole('button', { name: 'Norwegian' }).click();
 		await expect(languageConflict).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Replace with Vers' })).toBeVisible();
 
-		await page.getByRole('button', { name: 'Lyric language: Norwegian' }).click();
+		await page.getByRole('button', { name: 'Document language: Norwegian' }).click();
 		await languageDialog.getByRole('button', { name: 'English', exact: true }).click();
 		await expect(languageConflict).toHaveCount(0);
 	});
 
 	test('new drafts use the last selected language', async ({ page }) => {
 		await openWorkspace(page);
-		await page.getByRole('button', { name: /^Lyric language:/u }).click();
-		const languageDialog = page.getByRole('dialog', { name: 'Lyric language' });
+		await page.getByRole('button', { name: /^Document language:/u }).click();
+		const languageDialog = page.getByRole('dialog', { name: 'Document language' });
 		await languageDialog.getByPlaceholder('Search languages').fill('French');
 		await languageDialog.getByRole('button', { name: 'French' }).click();
 
 		await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 		await page.getByRole('button', { name: "New 'scribe" }).click();
 
-		await expect(page.getByRole('button', { name: 'Lyric language: French' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Document language: French' })).toBeVisible();
 		await expectDocText(page, '');
 	});
 

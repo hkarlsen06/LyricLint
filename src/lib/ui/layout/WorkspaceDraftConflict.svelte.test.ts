@@ -106,7 +106,7 @@ test('guarded-save identity adoption preserves the mounted editor and native Und
 	);
 	if (!rosterUndo) throw new Error('Adding a performer must offer its Undo.');
 	controller.editor.focus();
-	await userEvent.keyboard(' latest');
+	await userEvent.fill(editor, source + ' latest');
 	await waitFor(() => expect(controller.snapshot.text).toBe(source + ' latest'));
 	const selection = controller.snapshot.selection;
 	const conversion = controller.snapshot.conversion;

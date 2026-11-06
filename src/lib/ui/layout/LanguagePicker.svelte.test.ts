@@ -171,6 +171,53 @@ describe('LanguagePicker', () => {
 		expect(screen.getByRole('searchbox')).toHaveValue('');
 	});
 
+	test('native Escape from a language option returns to its trigger after an editor click', async () => {
+		const editor = document.createElement('textarea');
+		document.body.append(editor);
+		try {
+			await render(LanguagePicker, { language: 'en', onchoose: () => {} });
+			const trigger = screen.getByRole('button', { name: /^Lyric language:/ });
+			editor.focus();
+			await userEvent.click(trigger);
+			await waitFor(() => expect(screen.getByRole('searchbox')).toHaveFocus());
+			await userEvent.keyboard('{ArrowDown}');
+			expect(screen.getByRole('button', { name: 'English' })).toHaveFocus();
+			await userEvent.keyboard('{Escape}');
+			await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+			expect(trigger).toHaveFocus();
+		} finally {
+			editor.remove();
+		}
+	});
+
+	test('refuses invalid custom document codes in place and permits correction', async () => {
+		const { controller } = createTestWorkbench({ text: 'Newly typed lyrics' });
+		await render(LanguagePicker, {
+			language: controller.language,
+			custom: true,
+			onchoose: (tag) => controller.setLanguage(tag)
+		});
+		await openPicker();
+		await fireEvent.click(screen.getByText('Custom language code'));
+		const code = screen.getByRole('textbox', { name: 'Language code' });
+		const submit = screen.getByRole('button', { name: 'Use custom code' });
+		await document.fonts.ready;
+		for (const invalid of ['fr CA', 'abc' + '-abcdefgh'.repeat(14)]) {
+			await userEvent.fill(code, invalid);
+			const before = submit.getBoundingClientRect().toJSON();
+			await userEvent.click(submit);
+			expect(controller.language).toBe('en');
+			expect(screen.getByRole('dialog')).toBeVisible();
+			expect(code).toHaveAttribute('aria-invalid', 'true');
+			expect(screen.getByText('Choose a valid language code.')).toBeVisible();
+			expect(submit.getBoundingClientRect().toJSON()).toEqual(before);
+		}
+		await userEvent.fill(code, 'fr-CA');
+		await userEvent.click(submit);
+		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+		expect(controller.language).toBe('fr-CA');
+	});
+
 	test('builds language options only while open and resets search with focus on reopening', async () => {
 		const { controller } = createTestWorkbench();
 		await render(LanguagePicker, {

@@ -1,6 +1,7 @@
 import { canPlaceSection } from './section-placement.js';
 import { replacePassageLanguages } from './passage-language.js';
 import { parseDocument } from '#lib/core/parser.js';
+import { isLanguageTag } from '#lib/languages/tag.js';
 import type { PerformerRecord, TextEdit, TextRange } from '#lib/core/types.js';
 import { escapeLegendText, serializeLegend, styleTags } from '#lib/serialization/genius-markup.js';
 import { makeVoiceGroupKey } from '#lib/performers/identity.js';
@@ -411,12 +412,7 @@ export function resolveDecision(
 			next.contentKind = action.contentKind;
 			break;
 		case 'setLanguage': {
-			if (
-				typeof action.language !== 'string' ||
-				!/^[A-Za-z]{2,8}(?:[-_][A-Za-z0-9]{1,8})*$/u.test(action.language) ||
-				action.language.length > 128
-			)
-				return invalid('Choose a valid language tag.');
+			if (!isLanguageTag(action.language)) return invalid('Choose a valid language tag.');
 			next.defaultLanguage = action.language;
 			const retained = retainActiveRepresentation(projection, next);
 			if (!retained.ok) return retained;
@@ -841,9 +837,7 @@ export function resolveDecision(
 							)
 							.trim()
 				) ||
-				typeof action.language !== 'string' ||
-				!/^[A-Za-z]{2,8}(?:[-_][A-Za-z0-9]{1,8})*$/u.test(action.language) ||
-				action.language.length > 128
+				!isLanguageTag(action.language)
 			)
 				return invalid('Choose a language for a nonempty lyric passage.');
 			replacePassageLanguages(

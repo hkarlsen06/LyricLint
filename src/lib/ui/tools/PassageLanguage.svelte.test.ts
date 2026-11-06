@@ -38,7 +38,9 @@ async function setup(text = source, controlsOnly = false) {
 	return { controller, editor };
 }
 async function open() {
-	await fireEvent.click(screen.getByRole('button', { name: /^Selected passage language:/ }));
+	await fireEvent.click(
+		screen.getByRole('button', { name: /^(Selected passage|Selection) language:/ })
+	);
 	await waitFor(() => expect(screen.getByRole('searchbox')).toBeTruthy());
 }
 test('search assigns exact captured codepoints, separate from default; history and clear preserve text', async () => {
@@ -311,7 +313,7 @@ test.each([
 
 test('writing control keeps its slot, scope, coverage and stale refusal without Song controls', async () => {
 	const { controller, editor } = await setup(source, true);
-	const trigger = screen.getByRole('button', { name: 'Selected passage language: English' });
+	const trigger = screen.getByRole('button', { name: 'Selection language: English' });
 	expect(trigger.textContent).toContain('Selection language');
 	expect(screen.queryByRole('heading', { name: 'Passage language' })).toBeNull();
 	expect(screen.queryByRole('button', { name: 'Show passage' })).toBeNull();
@@ -343,4 +345,10 @@ test('newly typed Genius lyrics can open writing language before a rich envelope
 	await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 	expect(controller.snapshot.text).toBe('Héllo');
 	expect(controller.snapshot.conversion?.model.languageRanges[0]?.language).toBe('fr');
+});
+
+test('writing language includes its visible label in the accessible control name', async () => {
+	await setup(source, true);
+	const trigger = screen.getByText('Selection language').closest('button');
+	expect(trigger).toHaveAccessibleName('Selection language: English');
 });

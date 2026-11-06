@@ -5,6 +5,7 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { filterLanguages, languages, languageName } from '#lib/languages/options.js';
 	import { profileLanguage } from '#lib/profiles/languages.js';
+	import { isLanguageTag } from '#lib/languages/tag.js';
 	import { tick } from 'svelte';
 
 	let {
@@ -14,6 +15,7 @@
 		onopen = () => {},
 		expandedLabel = false,
 		label = 'Lyric language',
+		dialogLabel,
 		disabled = false,
 		custom = false,
 		showCoverage = false,
@@ -29,6 +31,7 @@
 		onopen?: () => void;
 		expandedLabel?: boolean;
 		label?: string;
+		dialogLabel?: string;
 		disabled?: boolean;
 		custom?: boolean;
 		showCoverage?: boolean;
@@ -40,6 +43,7 @@
 	} = $props();
 	const id = $props.id();
 	let customCode = $state('');
+	let codeError = $state('');
 
 	let dialog: HTMLDialogElement;
 	let trigger: HTMLButtonElement;
@@ -72,6 +76,7 @@
 	async function open(): Promise<void> {
 		onopen();
 		customCode = '';
+		codeError = '';
 		query = '';
 		isOpen = true;
 		dialog.showModal();
@@ -81,11 +86,20 @@
 
 	function close(): void {
 		dialog.close();
-		trigger.focus();
+		trigger.focus({ preventScroll: true });
 	}
 
 	function choose(tag: string): void {
 		if (onchoose(tag) !== false) close();
+	}
+
+	function chooseCustom(): void {
+		if (!isLanguageTag(customCode)) {
+			codeError = 'Choose a valid language code.';
+			return;
+		}
+		codeError = '';
+		choose(customCode);
 	}
 
 	function handleBackdropClick(event: MouseEvent): void {
@@ -171,6 +185,10 @@
 	class="language-dialog"
 	aria-labelledby={`${id}-title`}
 	onclick={handleBackdropClick}
+	oncancel={(event) => {
+		event.preventDefault();
+		close();
+	}}
 	onclose={(event) => {
 		isOpen = event.currentTarget.open;
 		if (
@@ -186,7 +204,7 @@
 	{#if isOpen}
 		<div class="language-dialog__surface">
 			<div class="language-dialog__header">
-				<strong id={`${id}-title`}>{label}</strong>
+				<strong id={`${id}-title`}>{dialogLabel ?? label}</strong>
 				<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
 					<XIcon aria-hidden="true" size={16} weight="bold" />
 				</button>
@@ -232,16 +250,17 @@
 						<label
 							>Language code<input
 								bind:value={customCode}
+								oninput={() => (codeError = '')}
+								aria-invalid={codeError ? 'true' : undefined}
+								aria-describedby={codeError ? `${id}-code-error` : undefined}
 								spellcheck="false"
 								placeholder="For example, fr-CA"
 							/></label
 						>
-						<button
-							type="button"
-							class="button"
-							disabled={!customCode}
-							onclick={() => choose(customCode)}>Use custom code</button
+						<button type="button" class="button" disabled={!customCode} onclick={chooseCustom}
+							>Use custom code</button
 						>
+						<p id={`${id}-code-error`} role="status">{codeError}</p>
 					</details>
 				{/if}
 				{#if filteredLanguages.length}

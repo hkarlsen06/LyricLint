@@ -429,7 +429,7 @@ test('phone review moves between findings and sets an occurrence aside', async (
 test('phone language search keeps the touch font and target floor', async ({ page }) => {
 	await openWorkspace(page);
 	await page.getByRole('button', { name: 'Document', exact: true }).click();
-	await page.getByRole('button', { name: 'Lyric language: English' }).click();
+	await page.getByRole('button', { name: 'Document language: English' }).click();
 	const search = page.getByPlaceholder('Search languages');
 	await expect(search).toBeVisible();
 	const metrics = await search.evaluate((element) => ({
@@ -494,7 +494,9 @@ test('the phone Document menu has named rows that receive taps above the editor 
 	);
 	await expect(menu.getByRole('button', { name: 'Undo', exact: true })).toHaveText('Undo');
 	await expect(menu.getByRole('button', { name: 'Redo', exact: true })).toHaveText('Redo');
-	await expect(menu.getByRole('button', { name: /^Lyric language:/u })).toContainText('English');
+	await expect(
+		menu.getByRole('button', { name: 'Document language: English', exact: true })
+	).toHaveText('Document language');
 	for (const button of await menu.locator(':scope > button:not(:disabled)').all()) {
 		await expect(button).toBeInViewport();
 		expect(
