@@ -14,9 +14,8 @@ export const timedLyricsExtensions = {
 } satisfies Record<TimedLyricsFormat, string>;
 
 /**
- * How long the last cue runs for. Every other cue ends where the next one
- * starts; the last one has nothing after it to end against, and a subtitle with
- * no duration is one some players never draw.
+ * Duration when no later displayed timestamp exists. Simultaneous cues share
+ * the next distinct timestamp, so every exported subtitle has a positive duration.
  */
 const trailingCueSeconds = 3;
 
