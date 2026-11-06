@@ -33,7 +33,7 @@ async function setup(text = source, controlsOnly = false) {
 	});
 	controller.setEditorHandle(editor.handle);
 	controller.onSnapshot(editor.handle.getSnapshot());
-	editor.handle.setSelection({ anchor: 0, head: 8 });
+	editor.handle.setSelection({ anchor: 0, head: Math.min(8, text.length) });
 	await render(PassageLanguage, { controller, controlsOnly });
 	return { controller, editor };
 }
@@ -329,5 +329,18 @@ test('writing control keeps its slot, scope, coverage and stale refusal without 
 	editor.handle.setSelection({ anchor: 8, head: 0 });
 	await fireEvent.click(screen.getByRole('button', { name: 'German' }));
 	expect(screen.getByRole('dialog').textContent).toContain('Close and reopen');
+	expect(controller.snapshot.conversion?.model.languageRanges[0]?.language).toBe('fr');
+});
+
+test('newly typed Genius lyrics can open writing language before a rich envelope exists', async () => {
+	const { controller, editor } = await setup('', true);
+	editor.handle.focus();
+	await userEvent.keyboard('Héllo');
+	editor.handle.setSelection({ anchor: 0, head: 5 });
+	expect(controller.snapshot.conversion).toBeUndefined();
+	await open();
+	await fireEvent.click(screen.getByRole('button', { name: 'French' }));
+	await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+	expect(controller.snapshot.text).toBe('Héllo');
 	expect(controller.snapshot.conversion?.model.languageRanges[0]?.language).toBe('fr');
 });

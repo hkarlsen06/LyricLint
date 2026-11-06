@@ -3,7 +3,8 @@
 		selectedContentRanges,
 		projectOffset,
 		renderProfile,
-		resolveDecision
+		resolveDecision,
+		importDocument
 	} from '#lib/conversion/index.js';
 	import { languageName } from '#lib/languages/options.js';
 	import LanguagePicker from '../layout/LanguagePicker.svelte';
@@ -69,12 +70,21 @@
 	});
 	const eligible = $derived.by(() => {
 		const conversion = controller.snapshot.conversion;
-		if (!enabled || controller.snapshot.composing || !conversion || range.from === range.to)
-			return false;
-		const projection = renderProfile(conversion.model, conversion.profile);
+		if (!enabled || controller.snapshot.composing || range.from === range.to) return false;
+		// Ordinary Genius writing imports lazily on the first semantic action.
+		const imported = conversion
+			? { ok: true as const, value: conversion.model }
+			: importDocument({
+					text: controller.snapshot.text,
+					profile: controller.profile,
+					language: controller.language,
+					performers: controller.performers
+				});
+		if (!imported.ok) return false;
+		const projection = renderProfile(imported.value, controller.profile);
 		return (
 			projection.ok &&
-			resolveDecision(conversion.model, projection.value, {
+			resolveDecision(imported.value, projection.value, {
 				kind: 'setPassageLanguage',
 				range,
 				language: controller.language
