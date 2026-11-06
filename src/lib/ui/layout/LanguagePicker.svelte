@@ -106,6 +106,7 @@
 	async function open(): Promise<void> {
 		cancelFocusRestore();
 		onopen();
+		trigger.focus({ preventScroll: true });
 		customCode = '';
 		codeError = '';
 		query = '';

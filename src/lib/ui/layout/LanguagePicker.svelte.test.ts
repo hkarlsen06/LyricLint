@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { cdp, page, userEvent } from 'vitest/browser';
 import { createTestWorkbench } from '../test-utils.js';
 import LanguagePicker from './LanguagePicker.svelte';
@@ -171,24 +171,31 @@ describe('LanguagePicker', () => {
 		expect(screen.getByRole('searchbox')).toHaveValue('');
 	});
 
-	test('native Escape from a language option returns to its trigger after an editor click', async () => {
-		const editor = document.createElement('textarea');
-		document.body.append(editor);
-		try {
-			await render(LanguagePicker, { language: 'en', onchoose: () => {} });
-			const trigger = screen.getByRole('button', { name: /^Lyric language:/ });
-			editor.focus();
-			await userEvent.click(trigger);
-			await waitFor(() => expect(screen.getByRole('searchbox')).toHaveFocus());
-			await userEvent.keyboard('{ArrowDown}');
-			expect(screen.getByRole('button', { name: 'English' })).toHaveFocus();
-			await userEvent.keyboard('{Escape}');
-			await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-			expect(trigger).toHaveFocus();
-		} finally {
-			editor.remove();
+	test.each(['Escape', 'Close', 'French'])(
+		'closing with %s returns directly to its trigger after an editor click',
+		async (action) => {
+			const editor = document.createElement('textarea');
+			document.body.append(editor);
+			try {
+				await render(LanguagePicker, { language: 'en', onchoose: () => {} });
+				const trigger = screen.getByRole('button', { name: /^Lyric language:/ });
+				editor.focus();
+				await userEvent.click(trigger);
+				await waitFor(() => expect(screen.getByRole('searchbox')).toHaveFocus());
+				await userEvent.keyboard('{ArrowDown}');
+				expect(screen.getByRole('button', { name: 'English' })).toHaveFocus();
+				const editableFocus = vi.fn();
+				editor.addEventListener('focus', editableFocus);
+				if (action === 'Escape') await userEvent.keyboard('{Escape}');
+				else await userEvent.click(screen.getByRole('button', { name: action }));
+				await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+				expect(trigger).toHaveFocus();
+				expect(editableFocus).not.toHaveBeenCalled();
+			} finally {
+				editor.remove();
+			}
 		}
-	});
+	);
 
 	test('refuses invalid custom document codes in place and permits correction', async () => {
 		const { controller } = createTestWorkbench({ text: 'Newly typed lyrics' });
