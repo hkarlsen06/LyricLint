@@ -690,6 +690,30 @@ describe('the timestamp column', () => {
 			if (document.querySelector('.ll-time-cell')) throw new Error('the column is still drawn');
 		});
 	});
+	it.each([1280, 360, 390])(
+		'reserves timing space only while audio is attached at %ipx',
+		async (width) => {
+			await page.viewport(width, 844);
+			try {
+				const { handle } = await mount({ text: lyric, mediaTime: () => 0 });
+				const gutter = document.querySelector<HTMLElement>('.ll-time-gutter')!;
+				const content = document.querySelector<HTMLElement>('.cm-content')!;
+				expect(gutter.getBoundingClientRect().width).toBe(0);
+				const fullWidth = content.getBoundingClientRect().width;
+				handle.setLineAnchors?.([{ line: 2, time: 12 }]);
+				await withColumn(handle);
+				expect(gutter.getBoundingClientRect().width).toBeGreaterThan(0);
+				expect(content.getBoundingClientRect().width).toBeLessThan(fullWidth);
+				handle.setMediaPlayhead?.(undefined);
+				await vi.waitFor(() => expect(gutter.getBoundingClientRect().width).toBe(0));
+				expect(content.getBoundingClientRect().width).toBe(fullWidth);
+				expect(handle.getSnapshot().text).toBe(lyric);
+				expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 12 }]);
+			} finally {
+				await page.viewport(800, 600);
+			}
+		}
+	);
 
 	it('anchors an untimed line to the playhead from a press on its own cell', async () => {
 		const { handle } = await mount({ text: lyric, mediaTime: () => 75 });

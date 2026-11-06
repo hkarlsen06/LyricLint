@@ -1409,8 +1409,9 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 export const lineAnchorTheme = EditorView.baseTheme({
 	// Collapsed until there is a song. `display: none` rather than a zero width,
 	// so the column contributes nothing to the content's measure either.
-	'.cm-editor:not(.ll-has-audio) .ll-time-gutter': {
-		display: 'none'
+	// CodeMirror's gutter display is important, so this conditional override is too.
+	'&:not(.ll-has-audio) .ll-time-gutter': {
+		display: 'none !important'
 	},
 	// CodeMirror clips every gutter column (`.cm-gutter { overflow: hidden }`),
 	// which cut the `−` hanging off the start of the number down to a sliver. This

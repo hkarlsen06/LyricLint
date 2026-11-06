@@ -26,7 +26,8 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
   optionally called (`?.` once dropped a whole synced song into the headless placeholder
   handle), and `bindings.lineAnchors` falls back to the pending list, never `[]`.
   `workbench.test.ts` pins both halves.
-- The timestamp column: the time is the play control; edit and delete glyphs beside timed
+- The timestamp column occupies no space until audio is attached. Detaching audio collapses
+  it while retaining saved line times. With audio attached, the time is the play control, with edit and delete glyphs beside timed
   lines (stamp on untimed, ± pair while editing, step 0.25s, precise `m:ss.cc` only while open); `.ll-time-gutter` is
   `overflow: visible`; the reserve is the widest state written out padding included; the
   inline end is the overlay scrollbar's lane, measured against the scrollport in
