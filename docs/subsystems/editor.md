@@ -114,6 +114,13 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   and composition retain their editing behavior. `e2e/mobile-workbench.spec.ts` pins the
   mobile route; `EditorPane.svelte.test.ts` retains the desktop hover coverage.
 
+- The empty-document ghost uses a natural-width inline-block one line high, with visible
+  overflow for its localized rows. Keep it in flow: Chromium bulk multiline input beside
+  an absolute or zero-width widget can leave a nonterminal BR that becomes an extra
+  document newline. Native and drawn carets remain one row tall; placeholder rows never
+  become lyric or clipboard text. `e2e/placeholder-input.spec.ts` pins exact insertion,
+  including intentional terminal breaks.
+
 - Devices whose primary pointer is coarse keep a visible native caret and selection handles;
   the custom desktop caret layer is hidden with `(pointer: coarse)`. A fine-primary-pointer
   desktop keeps its drawn caret even if a touchscreen is also available.

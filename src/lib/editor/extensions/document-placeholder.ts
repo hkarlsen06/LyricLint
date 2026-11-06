@@ -81,13 +81,8 @@ class DocumentPlaceholderWidget extends WidgetType {
 		return wrap;
 	}
 
-	// A caret beside the ghost stands at the ghost's first row, one row tall.
-	// Taking the widget out of flow (see the theme below) keeps the *native*
-	// caret a single row, because the browser sizes that caret to the line box,
-	// but anything that asks CodeMirror where position 0 is (`coordsAtPos`, and
-	// through it the drawn caret layer) falls back to this widget's own client
-	// rect, which is still four rows tall however it is positioned. So the
-	// widget answers the measurement itself, with the start of its first row.
+	// The inline box occupies one row, while its ghost rows overflow visibly.
+	// Measure the first row for CodeMirror's drawn caret as well.
 	coordsAt(dom: HTMLElement): Rect | null {
 		const firstRow = dom.firstElementChild;
 		if (!firstRow) return null;
@@ -129,31 +124,22 @@ export const documentPlaceholderField = StateField.define<DecorationSet>({
  * editor's background happens to be and lose contrast unpredictably, and this
  * codebase does not carry states in `opacity` anywhere else either.
  *
- * And out of flow: the browser draws the native caret at the height of the line
- * box it stands in, so an inline-block ghost four rows tall gave the empty
- * document a caret four rows tall, a blue bar taller than the text it sat
- * beside, which is the one thing on an empty screen that must not shout. Taken
- * out of flow the ghost keeps its static position (it still starts exactly
- * where the caret is) while line 1's box stays a single row, and the caret with
- * it. The line is the containing block so the ghost scrolls and clips with the
- * document rather than floating over the editor.
- *
- * That only covers the native caret. The drawn caret layer measures through
- * `coordsAtPos`, which falls back to the widget's own client rect and brought
- * the four-row caret back; the widget's `coordsAt` above is the same rule for
- * that path.
+ * Keep a natural-width inline box, as CodeMirror's placeholder does, but cap
+ * its height at one line so the native caret stays one row tall. The remaining
+ * ghost rows overflow visibly. An absolutely positioned widget lets Chromium
+ * bulk insertion leave a nonterminal BR before it, which DOMReader correctly
+ * reads as an extra lyric newline. A zero-width box has the same problem.
  */
 export const documentPlaceholderTheme = EditorView.baseTheme({
-	'.cm-line:has(.ll-placeholder)': {
-		position: 'relative'
-	},
 	// Muted, not disabled: the ghost carries an instruction a first-time user has
 	// to be able to read, and `--color-text-disabled` on `--color-surface` sits
 	// under the 4.5:1 AA floor in both schemes (4.38:1 light, 3.61:1 dark).
 	// Disabled is the tone for text nothing asks anyone to read. Muted clears it
 	// at ~7.3:1 in both and is still plainly not the document's own ink.
 	'.ll-placeholder': {
-		position: 'absolute',
+		display: 'inline-block',
+		verticalAlign: 'top',
+		height: '1lh',
 		color: 'var(--color-text-muted)'
 	},
 	'.ll-placeholder-line': {
