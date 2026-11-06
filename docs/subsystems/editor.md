@@ -9,6 +9,12 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 
 ## The rules
 
+- Native non-pointer focus synchronizes the DOM selection through `EditorView.focus()`
+  before the next key can edit. Pointer entry retains native placement and an active
+  composition retains its own selection. The focus extension keeps this handoff local
+  to the editor; profile changes never focus the editor or change lyrics for it.
+  `native-focus.svelte.test.ts` pins synchronous entry and the pointer/composition boundaries.
+
 - Rich drafts keep one `ConversionDocument`. `renderProfile` derives Genius or Musixmatch text
   without allocating IDs, changing authored forms, applying lint fixes or mutating metadata.
   Repeated switches preserve each projection byte for byte; edits reconcile through the

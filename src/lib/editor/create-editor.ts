@@ -1,3 +1,4 @@
+import { nativeEditorFocus } from './extensions/native-focus.js';
 // Decision record: docs/subsystems/editor.md. Read it before changing this file, and update it with any behavior change.
 import { redo as redoCommand, history, undo as undoCommand } from '@codemirror/commands';
 import {
@@ -790,6 +791,7 @@ export function createLyricEditor(
 	});
 
 	const extensions: Extension[] = [
+		nativeEditorFocus(),
 		history(),
 		// The line number is a wider, always-drawn target than four characters of
 		// muted time, on the side of the document the eye already uses to find a
