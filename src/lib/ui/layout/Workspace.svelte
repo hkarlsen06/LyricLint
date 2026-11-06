@@ -88,7 +88,7 @@
 	let editorHandle = $state<EditorHandle>(placeholderEditor);
 	let editorExpanded = $state(false);
 	let workspaceElement = $state<HTMLElement>();
-	let entranceReadyDraftId = $state<string>();
+	let entranceReadySession = $state<number>();
 	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
 	let navigationHeight = $state(0);
 	$effect(() => {
@@ -249,7 +249,7 @@
 			!editorHandle ||
 			editorHandle === placeholderEditor ||
 			controller.editor !== editorHandle ||
-			entranceReadyDraftId !== controller.draftId ||
+			entranceReadySession !== controller.draftSession ||
 			!editorHandle.dispatchConversionAction
 		)
 			return;
@@ -1429,8 +1429,8 @@
 <main
 	bind:this={workspaceElement}
 	{@attach (node) => {
-		// The attachment effect follows identity, not edits or lint snapshots.
-		if (controller.draftId) return workspaceEntrance(node);
+		// Only a document load starts an entrance; a guarded-save fork keeps this session.
+		if (controller.draftSession) return workspaceEntrance(node);
 	}}
 	class="workspace"
 	class:workspace--expanded={!phone.current && editorExpanded}
@@ -1438,7 +1438,7 @@
 	data-video-floating={floatingVideo}
 	data-review-focused={reviewEditorVisible}
 	data-testid="workspace"
-	data-entrance-pending={entranceReadyDraftId !== controller.draftId}
+	data-entrance-pending={entranceReadySession !== controller.draftSession}
 	data-diagnostics-pending={!controller.isEmpty && nativeRulesStatus === 'pending'}
 >
 	<h1 class="sr-only">LyricLint transcription workbench</h1>
@@ -1465,8 +1465,8 @@
 		/>
 
 		<div class="editor-host" data-testid="editor-region">
-			{#key controller.draftId}
-				{@const mountedDraftId = controller.draftId}
+			{#key controller.draftSession}
+				{@const mountedSession = controller.draftSession}
 				<EditorComponent
 					initialText={controller.snapshot.text}
 					initialConversion={controller.snapshot.conversion}
@@ -1478,7 +1478,7 @@
 					callbacks={editorCallbacks}
 					bind:handle={editorHandle}
 					onready={() => {
-						entranceReadyDraftId = mountedDraftId;
+						entranceReadySession = mountedSession;
 						onready?.();
 					}}
 					{onerror}

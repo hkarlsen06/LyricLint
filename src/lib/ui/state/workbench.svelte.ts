@@ -139,6 +139,8 @@ export interface WorkbenchController {
 	 */
 	readonly canLoadSample: boolean;
 	readonly draftId: string;
+	/** Changes on document load, while guarded-save identity adoption keeps the editor session. */
+	readonly draftSession: number;
 	readonly title: string;
 	readonly geniusUrl: string | undefined;
 	setGeniusUrl(value: string): boolean;
@@ -341,7 +343,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	let knownSectionLinks = $state<readonly SectionLink[]>(deps.initialDraft.sectionLinks ?? []);
 	let pendingProfile = $state<ProfileId | undefined>();
 	let profileSession = $state(0);
-	let rosterSession = 0;
+	let draftSession = $state(1);
 	let conversionScopeRevision = $state(0);
 	let requestedSection = $state<WorkbenchController['requestedSection']>();
 	let requestedConversionReview = $state<ConversionReviewRequest>();
@@ -415,7 +417,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				return editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
 			},
 			onDraftLoaded(nextDraft) {
-				rosterSession += 1;
+				draftSession += 1;
 				pendingProfile = undefined;
 				resetLinking();
 				roster.reset(nextDraft.performers);
@@ -447,7 +449,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		feedback,
 		idFactory,
 		scheduleSave: draft.keepDraft,
-		undoScope: () => `${draft.draftId}:${rosterSession}`,
+		undoScope: () => String(draftSession),
 		snapshot: () => editorSession.snapshot,
 		applyRichUndo(delta) {
 			const result = editorSession.editor.dispatchPerformerRecords?.(
@@ -861,6 +863,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		get draftId() {
 			return draft.draftId;
+		},
+		get draftSession() {
+			return draftSession;
 		},
 		get geniusUrl() {
 			return draft.geniusUrl;

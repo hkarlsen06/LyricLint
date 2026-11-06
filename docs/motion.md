@@ -2,7 +2,8 @@
 
 LyricLint uses native Web Animations through a Svelte attachment in
 `src/lib/ui/layout/workspace-entrance.ts`. `Workspace.svelte` keeps it on the workspace root
-and restarts its lifetime when `controller.draftId` changes. The opacity reveal needs no
+and restarts its lifetime when `controller.draftSession` changes. Adopting a guarded-save
+conflict copy keeps that load session, editor history and entrance. The opacity reveal needs no
 animation-library download. The installed Motion package remains available for effects
 that need it.
 

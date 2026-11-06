@@ -59,6 +59,10 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 - Autosave compares `storageGeneration` within the write transaction. A stale writer creates a
   separate conflict copy with its local ignored choices and media reference in that same
   transaction, then continues under the new ID without replacing the editor or restarting audio.
+  The editor and entrance follow the document load session, not the saved record ID: adopting
+  a conflict copy preserves native history, focus and selection; Open and New start a fresh editor.
+  Roster Undo actions use that same load session, so a save fork keeps them valid while a real
+  document switch still refuses stale actions.
   A failed transaction retains the complete pending snapshot and reports failure. Editor undo
   revisions and timestamps never arbitrate competing writers. Media attachment, detach, title,
   playhead, and ignored-diagnostic changes remain local until that same guarded transaction.
