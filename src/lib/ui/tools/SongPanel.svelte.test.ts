@@ -651,6 +651,33 @@ describe('SongPanel conversion restraint', () => {
 		}
 	);
 
+	test('keeps action focus after a section move and parent refresh, while new navigation still focuses the heading', async () => {
+		const run = await withLiveConversion('[Verse]\nOne\n[Chorus]\nTwo');
+		try {
+			const section = run.controller.snapshot.conversion!.model.sections[1]!;
+			run.controller.editor.setSelection({ anchor: 0, head: 0 });
+			run.controller.openSectionDetails(section.id, 'review');
+			const heading = await screen.findByRole('heading', { name: 'Section 2 · Chorus' });
+			await waitFor(() => expect(heading).toHaveFocus());
+			await fireEvent.click(screen.getByText('More section options'));
+			const move = screen.getByRole('button', { name: 'Move to cursor' });
+			move.focus();
+			await fireEvent.click(move);
+			await run.view.rerender({ controller: run.controller });
+
+			expect(run.controller.snapshot.conversion!.model.content).toBe('One\nTwo');
+			expect(
+				run.controller.snapshot.conversion!.model.sections.find((entry) => entry.id === section.id)
+					?.at
+			).toBe(0);
+			expect(move).toHaveFocus();
+			run.controller.openSectionDetails(section.id, 'review');
+			await waitFor(() => expect(heading).toHaveFocus());
+		} finally {
+			run.dispose();
+		}
+	});
+
 	test('returns focus to the chooser after removing the last boundary and restores its prompt', async () => {
 		const { controller, dispose } = await withLiveConversion('[Verse]\nWords');
 		try {

@@ -115,7 +115,9 @@ returns phone users to Write and focuses its task control; the user's tap decide
 open the editor keyboard.
 
 Retained-section requests carry their Review origin and reopen the requested section on each
-activation, even if another section was expanded in between. A missing-boundaries request opens
+activation, even if another section was expanded in between. Each request focuses once;
+later parent or model refreshes preserve the user's action focus. A new activation of the same
+section still focuses its heading. A missing-boundaries request opens
 and focuses Add a section. Back to Review focuses the surviving retained decision's action,
 falling back to the Review tab after the last decision is resolved.
 

@@ -110,8 +110,11 @@
 			panel?.querySelector<HTMLElement>('#linter-panel-tab');
 		destination?.focus();
 	}
+	let handledSectionRequest: WorkbenchController['requestedSection'];
 	$effect(() => {
 		const request = controller.requestedSection;
+		if (request === handledSectionRequest) return;
+		handledSectionRequest = request;
 		if (!request) return;
 		activeSection = request.id;
 		if (request.id === 'new') addingSection = true;
