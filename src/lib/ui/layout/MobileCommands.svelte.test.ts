@@ -98,7 +98,7 @@ test('leaves Escape to the active modal even when its focused content has disapp
 
 test.each([
 	{ width: 360, command: 'Compare' },
-	{ width: 390, command: 'Lyric language: English' }
+	{ width: 390, command: 'Document language: English' }
 ])('keeps the Document menu out of an active $command dialog', async ({ width, command }) => {
 	await page.viewport(width, 844);
 	const { controller } = createTestWorkbench({ text: '[Verse]\nThe words' });
@@ -124,7 +124,7 @@ test.each([
 	} else {
 		expect(getComputedStyle(menu).visibility).toBe('visible');
 		expect(document.activeElement).toBe(
-			screen.getByRole('button', { name: 'Lyric language: English' })
+			screen.getByRole('button', { name: 'Document language: English' })
 		);
 	}
 });
@@ -180,7 +180,14 @@ test.each([320, 390])(
 		const trayBox = tray.getBoundingClientRect();
 		expect(menuBox.top).toBeLessThan(trayBox.bottom);
 		expect(menuBox.bottom).toBeGreaterThan(trayBox.top);
-		const labels = ["New 'scribe", 'Undo', 'Redo', 'Lyric language: English', 'Compare'];
+		const labels = [
+			"New 'scribe",
+			'Undo',
+			'Redo',
+			'Document language',
+			'Selection language',
+			'Compare'
+		];
 		const rows = [...menu.querySelectorAll<HTMLButtonElement>(':scope > button')];
 		expect(rows.map((row) => row.textContent?.trim())).toEqual(labels);
 		for (const row of rows) {
@@ -194,7 +201,7 @@ test.each([320, 390])(
 			).toBe(true);
 			expect(box.width).toBe(rows[0].getBoundingClientRect().width);
 		}
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
-		expect(screen.getByRole('dialog', { name: 'Lyric language' })).toBeTruthy();
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: English' }));
+		expect(screen.getByRole('dialog', { name: 'Document language' })).toBeTruthy();
 	}
 );

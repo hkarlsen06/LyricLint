@@ -16,6 +16,7 @@
 	import CompareDialog from './CompareDialog.svelte';
 	import DraftMenu from './DraftMenu.svelte';
 	import LanguagePicker from './LanguagePicker.svelte';
+	import PassageLanguage from '../tools/PassageLanguage.svelte';
 	import ProfilePicker from './ProfilePicker.svelte';
 	import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 
@@ -228,8 +229,13 @@
 				language={controller.language}
 				recentLanguages={controller.recentLanguages}
 				onchoose={(tag) => controller.setLanguage(tag)}
-				expandedLabel={phone.current}
+				label="Document language"
+				triggerLabel={phone.current ? 'Document language' : `Document: ${controller.language}`}
+				custom
+				disabled={!!controller.snapshot.conversionRecovery ||
+					!!controller.snapshot.originalRecovery}
 			/>
+			<PassageLanguage {controller} controlsOnly />
 			<!-- Reviewing what the copy will change on the page is the step before
 		     copying it, so it sits beside the action it precedes. The component
 		     gates itself on the document being empty. -->
@@ -577,6 +583,19 @@
 	}
 	.document-toolbar__secondary-actions :global(.button) {
 		white-space: nowrap;
+	}
+	@media (pointer: fine) and (max-width: 46rem) {
+		.document-toolbar__secondary {
+			min-width: 0;
+			flex: 1 1 100%;
+		}
+		.document-toolbar__secondary-actions {
+			flex-wrap: wrap;
+			justify-content: flex-end;
+		}
+	}
+	.document-toolbar__secondary-actions > :global(.language-trigger) {
+		max-width: 12rem;
 	}
 	.document-toolbar__secondary-actions[hidden] {
 		display: none;

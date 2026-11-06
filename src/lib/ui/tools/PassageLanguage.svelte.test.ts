@@ -12,7 +12,7 @@ afterEach(async () => {
 	await cleanup();
 	for (const dispose of disposers.splice(0)) dispose();
 });
-async function setup(text = source) {
+async function setup(text = source, controlsOnly = false) {
 	const { controller } = createTestWorkbench({ text });
 	const host = document.createElement('div');
 	document.body.append(host);
@@ -34,7 +34,7 @@ async function setup(text = source) {
 	controller.setEditorHandle(editor.handle);
 	controller.onSnapshot(editor.handle.getSnapshot());
 	editor.handle.setSelection({ anchor: 0, head: 8 });
-	await render(PassageLanguage, { controller });
+	await render(PassageLanguage, { controller, controlsOnly });
 	return { controller, editor };
 }
 async function open() {
@@ -277,14 +277,11 @@ for (const text of ['Un beau jour', '[Verse]\nUn [beau](12345) jour']) {
 				screen.getByRole('button', { name: `Selected passage language: ${label}` })
 			).toBeTruthy()
 		);
-		await open();
-		const current = screen.getByRole('dialog').querySelectorAll('[aria-current="true"]');
-		expect(current).toHaveLength(label === 'Mixed languages' ? 0 : 1);
-		await fireEvent.click(screen.getByRole('button', { name: 'German' }));
-		expect(screen.getByRole('dialog').textContent).toContain('Choose a valid language code');
-		expect(controller.snapshot.text).toBe('Un joli jour');
+		expect(
+			screen.getByRole('button', { name: `Selected passage language: ${label}` })
+		).toBeDisabled();
 		expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
-		await userEvent.keyboard('{Escape}');
+
 		controller.switchProfile('genius');
 		expect(controller.snapshot.text).toBe(text);
 	});
@@ -310,4 +307,27 @@ test.each([
 	editor.handle.redo();
 	expect(controller.snapshot.conversion).toEqual(assigned);
 	expect(controller.snapshot.text).toBe(text);
+});
+
+test('writing control keeps its slot, scope, coverage and stale refusal without Song controls', async () => {
+	const { controller, editor } = await setup(source, true);
+	const trigger = screen.getByRole('button', { name: 'Selected passage language: English' });
+	expect(trigger.textContent).toContain('Selection language');
+	expect(screen.queryByRole('heading', { name: 'Passage language' })).toBeNull();
+	expect(screen.queryByRole('button', { name: 'Show passage' })).toBeNull();
+	const before = trigger.getBoundingClientRect().toJSON();
+	await open();
+	expect(screen.getByRole('region', { name: 'Selected lyrics' }).textContent?.trim()).toBe(
+		'Héllo 🌙'
+	);
+	expect(screen.getByText('Reviewed language-specific rules for English.')).toBeVisible();
+	await fireEvent.click(screen.getByRole('button', { name: 'French' }));
+	expect(controller.language).toBe('en');
+	await waitFor(() => expect(document.activeElement).toBe(trigger));
+	expect(trigger.getBoundingClientRect().toJSON()).toEqual(before);
+	await open();
+	editor.handle.setSelection({ anchor: 8, head: 0 });
+	await fireEvent.click(screen.getByRole('button', { name: 'German' }));
+	expect(screen.getByRole('dialog').textContent).toContain('Close and reopen');
+	expect(controller.snapshot.conversion?.model.languageRanges[0]?.language).toBe('fr');
 });

@@ -40,6 +40,7 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   selection, retained choice, and focus on the Write control.
 - Portrait and landscape both work. There is no orientation gate or desktop recommendation
   toast. `e2e/lyriclint.spec.ts` pins both orientations and the absence of the recommendation.
+- Document and Selection language remain separate commands within Write, inside the phone Document disclosure. Closing the language modal returns to its trigger; Escape then closes Document and returns to Document without opening the keyboard.
 - Mobile document commands live behind the named Document disclosure; identity, the format
   picker, and Copy or Paste remain visible. The toolbar reserves an identity row and a command
   row, with Document beside the truncated title; switching formats in one click never moves the Copy target. Retained section

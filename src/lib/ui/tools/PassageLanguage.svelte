@@ -1,10 +1,18 @@
 <script lang="ts">
-	import { selectedContentRanges, projectOffset, renderProfile } from '#lib/conversion/index.js';
+	import {
+		selectedContentRanges,
+		projectOffset,
+		renderProfile,
+		resolveDecision
+	} from '#lib/conversion/index.js';
 	import { languageName } from '#lib/languages/options.js';
 	import LanguagePicker from '../layout/LanguagePicker.svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let {
+		controller,
+		controlsOnly = false
+	}: { controller: WorkbenchController; controlsOnly?: boolean } = $props();
 	const selection = $derived(controller.snapshot.selection);
 	const range = $derived({
 		from: Math.min(selection.anchor, selection.head),
@@ -59,6 +67,20 @@
 		}
 		return [...new Set(languages)];
 	});
+	const eligible = $derived.by(() => {
+		const conversion = controller.snapshot.conversion;
+		if (!enabled || controller.snapshot.composing || !conversion || range.from === range.to)
+			return false;
+		const projection = renderProfile(conversion.model, conversion.profile);
+		return (
+			projection.ok &&
+			resolveDecision(conversion.model, projection.value, {
+				kind: 'setPassageLanguage',
+				range,
+				language: controller.language
+			}).ok
+		);
+	});
 	const language = $derived(selectionLanguages.length === 1 ? selectionLanguages[0] : undefined);
 	function show(from: number, to: number) {
 		const conversion = controller.snapshot.conversion;
@@ -89,21 +111,17 @@
 	}
 </script>
 
-<section class="passage-language">
-	<h2>Passage language</h2>
-	<p>Document language: {languageName(controller.language)}</p>
-	{#if range.from === range.to}
-		<p>Select lyrics to assign a passage language.</p>
-	{/if}
+{#snippet picker()}
 	<LanguagePicker
 		{language}
 		scopeLanguages={selectionLanguages}
 		recentLanguages={controller.recentLanguages}
 		label="Selected passage language"
 		expandedLabel
-		showCoverage
+		triggerLabel={controlsOnly ? 'Selection language' : undefined}
+		showCoverage={!controlsOnly}
 		custom
-		disabled={range.from === range.to || !enabled}
+		disabled={!eligible}
 		onopen={() => {
 			captured = {
 				scope,
@@ -117,28 +135,38 @@
 		context={captured?.text}
 		message={message || (stale ? refusal : '')}
 	/>
-	{#each model?.languageRanges ?? [] as override (override.id)}
-		<div>
-			<h3>{languageName(override.language)} ({override.language})</h3>
-			<p class="passage-language__excerpt">{model?.content.slice(override.from, override.to)}</p>
-			<div class="tool-actions">
-				<button
-					type="button"
-					class="button button--quiet"
-					onclick={() => show(override.from, override.to)}>Show passage</button
-				>
-				<button
-					type="button"
-					class="button button--quiet"
-					disabled={!enabled}
-					onclick={() =>
-						controller.applyConversionAction({ kind: 'removeDetail', detailId: override.id })}
-					>Use document language</button
-				>
+{/snippet}
+{#if controlsOnly}
+	{@render picker()}
+{:else}
+	<section class="passage-language">
+		<h2>Passage language</h2>
+		<p>Document language: {languageName(controller.language)}</p>
+		{#if range.from === range.to}<p>Select lyrics to assign a passage language.</p>{/if}
+		{@render picker()}
+		{#each model?.languageRanges ?? [] as override (override.id)}
+			<div>
+				<h3>{languageName(override.language)} ({override.language})</h3>
+				<p class="passage-language__excerpt">{model?.content.slice(override.from, override.to)}</p>
+				<div class="tool-actions">
+					<button
+						type="button"
+						class="button button--quiet"
+						onclick={() => show(override.from, override.to)}>Show passage</button
+					>
+					<button
+						type="button"
+						class="button button--quiet"
+						disabled={!enabled}
+						onclick={() =>
+							controller.applyConversionAction({ kind: 'removeDetail', detailId: override.id })}
+						>Use document language</button
+					>
+				</div>
 			</div>
-		</div>
-	{/each}
-</section>
+		{/each}
+	</section>
+{/if}
 
 <style>
 	.passage-language :global(.language-trigger) {

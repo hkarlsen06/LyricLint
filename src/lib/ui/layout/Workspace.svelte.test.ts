@@ -349,7 +349,7 @@ describe('Workspace and toolbar', () => {
 		const undo = screen.getByRole('button', { name: 'Undo' });
 		const redo = screen.getByRole('button', { name: 'Redo' });
 		const format = screen.getByRole('button', { name: 'Lyric format: Genius' });
-		const language = screen.getByRole('button', { name: 'Lyric language: English' });
+		const language = screen.getByRole('button', { name: 'Document language: English' });
 		// Comparing acts on the whole document, so its trigger belongs to this
 		// strip, beside the contrast action whose press it is the review before.
 		const compare = screen.getByRole('button', { name: 'Compare' });
@@ -364,6 +364,7 @@ describe('Workspace and toolbar', () => {
 			undo,
 			redo,
 			language,
+			screen.getByRole('button', { name: 'Selected passage language: English' }),
 			compare,
 			copy
 		]);
@@ -473,8 +474,8 @@ describe('Workspace and toolbar', () => {
 			).toBe(false)
 		);
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
-		const dialog = screen.getByRole('dialog', { name: 'Lyric language' });
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: English' }));
+		const dialog = screen.getByRole('dialog', { name: 'Document language' });
 		await fireEvent.input(within(dialog).getByPlaceholderText('Search languages'), {
 			target: { value: 'Norwegian' }
 		});
@@ -488,9 +489,9 @@ describe('Workspace and toolbar', () => {
 			).toBe(true)
 		);
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: Norwegian' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: Norwegian' }));
 		await fireEvent.click(
-			within(screen.getByRole('dialog', { name: 'Lyric language' })).getByRole('button', {
+			within(screen.getByRole('dialog', { name: 'Document language' })).getByRole('button', {
 				name: 'English'
 			})
 		);
@@ -700,8 +701,8 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench();
 		await render(DocumentToolbar, { controller });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
-		const dialog = screen.getByRole('dialog', { name: 'Lyric language' });
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: English' }));
+		const dialog = screen.getByRole('dialog', { name: 'Document language' });
 		const options = dialog.querySelectorAll('.language-option');
 		expect(options).toHaveLength(65);
 		expect(within(dialog).getByText('Recent')).toBeTruthy();
@@ -723,10 +724,10 @@ describe('Workspace and toolbar', () => {
 	test('filters languages and restores focus to the trigger when the dialog closes', async () => {
 		const { controller } = createTestWorkbench();
 		await render(DocumentToolbar, { controller });
-		const trigger = screen.getByRole('button', { name: 'Lyric language: English' });
+		const trigger = screen.getByRole('button', { name: 'Document language: English' });
 
 		await fireEvent.click(trigger);
-		const dialog = screen.getByRole('dialog', { name: 'Lyric language' });
+		const dialog = screen.getByRole('dialog', { name: 'Document language' });
 		const search = within(dialog).getByPlaceholderText('Search languages');
 		await waitFor(() => expect(document.activeElement).toBe(search));
 
@@ -744,8 +745,8 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench({ recentLanguages: ['fr', 'no'] });
 		await render(DocumentToolbar, { controller });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
-		let dialog = screen.getByRole('dialog', { name: 'Lyric language' });
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: English' }));
+		let dialog = screen.getByRole('dialog', { name: 'Document language' });
 		let options = within(dialog)
 			.getAllByRole('button')
 			.filter((button) => button.classList.contains('language-option'));
@@ -756,8 +757,8 @@ describe('Workspace and toolbar', () => {
 		]);
 
 		await fireEvent.click(within(dialog).getByRole('button', { name: 'French' }));
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: French' }));
-		dialog = screen.getByRole('dialog', { name: 'Lyric language' });
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: French' }));
+		dialog = screen.getByRole('dialog', { name: 'Document language' });
 		options = within(dialog)
 			.getAllByRole('button')
 			.filter((button) => button.classList.contains('language-option'));

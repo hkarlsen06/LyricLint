@@ -19,7 +19,8 @@
 		showCoverage = false,
 		scopeLanguages,
 		message = '',
-		context = ''
+		context = '',
+		triggerLabel
 	}: {
 		language: string | undefined;
 		recentLanguages?: readonly string[];
@@ -33,6 +34,7 @@
 		scopeLanguages?: readonly string[];
 		message?: string;
 		context?: string;
+		triggerLabel?: string;
 	} = $props();
 	const id = $props.id();
 	let customCode = $state('');
@@ -146,15 +148,17 @@
 	aria-haspopup="dialog"
 	{disabled}
 	aria-label={`${label}: ${selectedLabel}`}
+	onmousedown={(event) => event.preventDefault()}
 	onclick={open}
 >
 	<GlobeIcon aria-hidden="true" size={16} weight="bold" />
 	<span class="language-trigger__label" aria-hidden="true"
-		>{language === undefined
-			? selectedLabel
-			: expandedLabel
-				? `${label}: ${selectedLabel}`
-				: language}</span
+		>{triggerLabel ??
+			(language === undefined
+				? selectedLabel
+				: expandedLabel
+					? `${label}: ${selectedLabel}`
+					: language)}</span
 	>
 </button>
 {#if showCoverage}{@render coverage()}{/if}
