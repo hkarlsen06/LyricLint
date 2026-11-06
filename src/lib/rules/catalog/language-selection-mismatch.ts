@@ -16,6 +16,8 @@ export const languageSelectionMismatchRule: RuleDefinition = {
 	// is still arriving.
 	settlesOn: 'document',
 	check(document, context) {
+		// Explicitly multilingual text is not evidence of a mistaken document default.
+		if (context.languageRanges?.length) return [];
 		const selectedTag = resolveLanguageTag(context.language);
 		const detected = detectSongLanguage(document, context.language);
 		if (!detected || detected.tag === selectedTag) return [];

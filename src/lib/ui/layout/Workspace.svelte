@@ -653,6 +653,7 @@
 
 		harperPending = true;
 		const language = controller.language;
+		const { languageRanges } = projectionPolicyContext(snapshot);
 		const performers = [...controller.performers];
 		harperTimer = setTimeout(() => {
 			harperTimer = undefined;
@@ -661,6 +662,7 @@
 					text: snapshot.text,
 					document: snapshot.parsed,
 					language,
+					languageRanges,
 					performers,
 					revision: snapshot.revision
 				},

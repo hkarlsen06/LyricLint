@@ -208,6 +208,7 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 				nearby(context)
 			),
 		isSufficientContext: (context) =>
+			isEnglishLanguage(context.language) &&
 			/\bcuz\s+(?:i|you|we|they|he|she|it|the|a|an)\b/u.test(nearby(context))
 	},
 	{

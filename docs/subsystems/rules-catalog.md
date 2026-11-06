@@ -18,9 +18,19 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   bound to the current revision; semantic/audio uncertainties and contradictory sources never
   produce automatic rewrites. `musixmatch.test.ts` pins repeated profile selection without
   mutating the parsed input and checks every researched clause against the coverage inventory.
-- Explicit `RuleContext.languageRanges` scope Musixmatch checks inside multilingual lyrics.
+- Explicit `RuleContext.languageRanges` scope both Genius and Musixmatch checks inside multilingual lyrics.
   A finding belongs to the language at its start; findings or fixes crossing a language boundary
-  require review and carry no replacement. Ranges are validated before evaluation.
+  require review and carry no replacement. Ranges are validated before evaluation by `rules/language-ownership.ts`, shared with Harper.
+  Raw locale ownership protects boundaries; bounded policy passes retain Genius en-US/en-GB
+  distinctions rather than running once per arbitrary locale. Language-independent checks run
+  once. Language-dependent findings belong to their starting owner, with cross-owner edits
+  withheld. Whole-document language mismatch detection treats explicit multilingual text as
+  inconclusive; section checks still see the complete document for structural context.
+  Harper receives `projectionPolicyContext` ranges, masks non-English passages and split tokens,
+  and rejects findings or edits spanning different owners. The installed Harper API returns
+  UTF-16 spans (its internal Rust span is scalar-based); projection mapping indexes the public
+  UTF-16 span, including after emoji. Eligibility stays English Genius. Unreviewed languages
+  supply no lexical-standardization evidence; the Cuz meaning gate specifically requires English.
   `profiles/decisions.ts` separately evaluates user-confirmed ordinary quantities and instrumental
   intervals: exact integer values, pronunciation/role facts, current recording identity and
   interval placement are required. Unsupported numeric morphology and contradictory Japanese

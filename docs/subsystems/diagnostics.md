@@ -26,7 +26,7 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 - Genius and Musixmatch diagnostics use separate registries, sources and ignore namespaces.
   A profile change recomputes findings against that projection without applying fixes. Native
-  Musixmatch checks honor explicit language spans; Harper is withheld in Musixmatch until its
+  checks in both profiles honor explicit language spans; Harper is withheld in Musixmatch until its
   behavior is reviewed for that profile. Metadata-only findings appear in retained-detail review
   with a focused section-type form or a Song destination for other metadata, never at a fabricated text offset.
 - Quantity, instrumental, censored-word and repeat findings offer a shared Review action in

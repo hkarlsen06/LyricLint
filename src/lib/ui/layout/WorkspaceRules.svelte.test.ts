@@ -93,6 +93,62 @@ describe('Workspace native checker startup', () => {
 		expect(controller.snapshot.text).toBe('12 stars and 12 moons.');
 	});
 
+	it('reruns real native and Harper checks for metadata-only passage language and scope undo/redo', async () => {
+		const native = await import('#lib/rules/engine.js');
+		const { createHarperDiagnosticProvider } = await import('#lib/rules/harper.js');
+		const [{ LocalLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
+		const text = '[Verse]\nBonjour\nCuz you stay\nI has counted every streetlight';
+		const { controller } = createTestWorkbench({ text });
+		controller.setGrammarCheckEnabled(true);
+		try {
+			await render(Workspace, {
+				controller,
+				editorComponent: EditorPane,
+				harperProvider: provider,
+				loadNativeRules: async () => native
+			});
+			await waitFor(() =>
+				expect(controller.editor.dispatchConversionAction).toBeTypeOf('function')
+			);
+			const bonjour = () =>
+				controller.snapshot.diagnostics.filter((d) => text.slice(d.from, d.to) === 'Bonjour');
+			await waitFor(() => expect(bonjour().length).toBeGreaterThan(0));
+			for (const language of ['zz-Latn-custom', 'fr']) {
+				expect(
+					controller.applyConversionAction({
+						kind: 'setPassageLanguage',
+						range: { from: 8, to: 15 },
+						language
+					})
+				).toBe(true);
+				await waitFor(() => expect(bonjour()).toEqual([]));
+				await waitFor(() =>
+					expect(
+						controller.snapshot.diagnostics.some((d) => text.slice(d.from, d.to) === 'has')
+					).toBe(true)
+				);
+				expect(
+					controller.snapshot.diagnostics.some((d) => d.ruleId === 'spelling.standardized')
+				).toBe(true);
+				expect(controller.snapshot.text).toBe(text);
+				controller.editor.undo();
+				await waitFor(() => expect(bonjour().length).toBeGreaterThan(0));
+				controller.editor.redo();
+				await waitFor(() => expect(bonjour()).toEqual([]));
+				expect(controller.snapshot.text).toBe(text);
+				controller.editor.undo();
+				await waitFor(() => expect(bonjour().length).toBeGreaterThan(0));
+			}
+		} finally {
+			await cleanup();
+			await provider.dispose();
+		}
+	});
+
 	it('never publishes an unlinked-repeat finding while the real editor restores saved links', async () => {
 		const native = await import('#lib/rules/engine.js');
 		const text = ['[Chorus]', 'Go', '', '[Verse]', 'Hey', '', '[Chorus 2]', 'Go'].join('\n');

@@ -1,3 +1,4 @@
+import { languageOwnership } from './language-ownership.js';
 // Decision record: docs/subsystems/rules-catalog.md. Read it before changing this file, and update it with any behavior change.
 import type {
 	Diagnostic,
@@ -5,7 +6,8 @@ import type {
 	ParsedDocument,
 	PerformerRecord,
 	TextEdit,
-	TextRange
+	TextRange,
+	RuleContext
 } from '#lib/core/types.js';
 import { HarperInitializationCanceled } from './harper-cancellation.js';
 import { resolveLanguageTag } from '#lib/languages/registry.js';
@@ -65,6 +67,7 @@ interface HarperDiagnosticRequest {
 	text: string;
 	document: ParsedDocument;
 	language: string;
+	languageRanges?: RuleContext['languageRanges'];
 	performers: readonly PerformerRecord[];
 	revision: number;
 }
@@ -158,10 +161,10 @@ const harperLintConfig: Record<string, boolean> = Object.fromEntries(
 
 interface HarperProjection {
 	text: string;
-	/** Original UTF-16 offset at each projected Unicode-scalar boundary. */
+	/** Original UTF-16 offset at each projected UTF-16 boundary. */
 	originalOffsets: number[];
-	/** Whether each projected scalar stands in for masked document structure. */
-	maskedScalars: boolean[];
+	/** Whether each projected UTF-16 unit stands in for masked document structure. */
+	maskedUnits: boolean[];
 }
 
 function markRange(mask: Uint8Array, range: TextRange): void {
@@ -173,13 +176,26 @@ function markRange(mask: Uint8Array, range: TextRange): void {
 /**
  * Give Harper the complete lyric flow while hiding Genius structure.
  *
- * Harper reports indices in Unicode scalar values; LyricLint and CodeMirror use
- * UTF-16 offsets. Replacing every masked scalar with exactly one space retains
+ * Harper reports UTF-16 indices, as do LyricLint and CodeMirror. Replacing every masked scalar with exactly one space retains
  * scalar count, while `originalOffsets` maps every result back without changing
  * or normalizing the canonical document.
  */
-export function projectLyricsForHarper(document: ParsedDocument): HarperProjection {
+export function projectLyricsForHarper(
+	document: ParsedDocument,
+	context?: Pick<RuleContext, 'language' | 'languageRanges'>
+): HarperProjection {
 	const mask = new Uint8Array(document.text.length);
+	if (context) {
+		const { ranges, languageAt, withinLanguage } = languageOwnership(document.text, context);
+		for (const range of ranges) {
+			if (resolveLanguageTag(range.language) !== 'en') markRange(mask, range);
+		}
+		// A masked half-word must not become a new English spelling candidate.
+		for (const token of document.text.matchAll(/[\p{L}\p{M}\p{N}'’]+/gu)) {
+			const range = { from: token.index, to: token.index + token[0].length };
+			if (!withinLanguage(range.from, range.to, languageAt(range.from))) markRange(mask, range);
+		}
+	}
 
 	for (const section of document.sections) {
 		if (section.header) {
@@ -217,7 +233,7 @@ export function projectLyricsForHarper(document: ParsedDocument): HarperProjecti
 
 	let projected = '';
 	const originalOffsets = [0];
-	const maskedScalars: boolean[] = [];
+	const maskedUnits: boolean[] = [];
 
 	for (let offset = 0; offset < document.text.length;) {
 		const codePoint = document.text.codePointAt(offset);
@@ -231,12 +247,14 @@ export function projectLyricsForHarper(document: ParsedDocument): HarperProjecti
 		// Physical line endings still delimit Harper's sentences and paragraphs.
 		const replacement = masked && scalar !== '\r' && scalar !== '\n' ? ' ' : scalar;
 		projected += replacement;
-		maskedScalars.push(masked && replacement === ' ');
+		for (let unit = 1; unit <= replacement.length; unit += 1) {
+			maskedUnits.push(masked && replacement === ' ');
+			originalOffsets.push(offset + (unit === replacement.length ? width : unit));
+		}
 		offset += width;
-		originalOffsets.push(offset);
 	}
 
-	return { text: projected, originalOffsets, maskedScalars };
+	return { text: projected, originalOffsets, maskedUnits };
 }
 
 function originalRange(projection: HarperProjection, span: HarperSpan): TextRange | undefined {
@@ -251,7 +269,7 @@ function originalRange(projection: HarperProjection, span: HarperSpan): TextRang
 	}
 
 	for (let index = span.start; index < span.end; index += 1) {
-		if (projection.maskedScalars[index]) return undefined;
+		if (projection.maskedUnits[index]) return undefined;
 	}
 
 	const from = projection.originalOffsets[span.start];
@@ -592,6 +610,7 @@ export function createHarperDiagnosticProvider(
 				return [];
 			}
 
+			const ownership = languageOwnership(request.text, request);
 			const harper = await engine();
 			if (!harper || lifetime.signal.aborted) throw new HarperInitializationCanceled();
 			// LyricLint's reviewed Genius policy is authoritative. Teaching
@@ -606,7 +625,7 @@ export function createHarperDiagnosticProvider(
 				importedWordKey = wordKey;
 			}
 
-			const projection = projectLyricsForHarper(request.document);
+			const projection = projectLyricsForHarper(request.document, request);
 			const lints = await harper.lint(projection.text, {
 				language: 'plaintext',
 				// Harper's overlap removal has to run after LyricLint drops prose-only
@@ -621,6 +640,15 @@ export function createHarperDiagnosticProvider(
 					if (!appliesToLyrics(lint)) continue;
 					const diagnostic = convertLint(lint, projection, request.text, request.revision);
 					if (!diagnostic) continue;
+					const owner = ownership.languageAt(diagnostic.from);
+					if (
+						resolveLanguageTag(owner) !== 'en' ||
+						!ownership.withinLanguage(diagnostic.from, diagnostic.to, owner) ||
+						diagnostic.fixes?.some((fix) =>
+							fix.edit.edits.some((edit) => !ownership.withinLanguage(edit.from, edit.to, owner))
+						)
+					)
+						continue;
 					if (
 						diagnostic.ruleId === 'spelling.harper' &&
 						(isApostropheEdgedDictionaryWord(request.text, diagnostic, dictionary) ||

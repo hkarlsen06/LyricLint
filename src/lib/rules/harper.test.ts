@@ -12,13 +12,6 @@ import {
 import { spellingTextingShorthandRule } from './catalog/spelling-texting-shorthand.js';
 import { checkRule } from './rule-test-utils.js';
 
-function scalarOffset(text: string, utf16Offset: number): number {
-	// `Array.from` rather than a spread into a literal: the string is being cut
-	// into Unicode scalars, which is exactly what Harper counts in, and the
-	// spread form reads to a linter as a needless copy of an array.
-	return Array.from(text.slice(0, utf16Offset)).length;
-}
-
 function lintAt(
 	text: string,
 	problem: string,
@@ -32,14 +25,14 @@ function lintAt(
 	} = {}
 ) {
 	const from = text.indexOf(problem);
-	const start = scalarOffset(text, from);
+	const start = from;
 	const replacements =
 		options.replacements ?? (options.replacement === undefined ? [] : [options.replacement]);
 	return {
 		lint_kind: () => options.kind ?? 'Grammar',
 		lint_kind_pretty: () => options.prettyKind ?? 'Grammar',
 		message: () => options.message ?? `Review \`${problem}\`.`,
-		span: () => ({ start, end: start + [...problem].length }),
+		span: () => ({ start, end: start + problem.length }),
 		suggestions: () =>
 			replacements.map((replacement) => ({
 				get_replacement_text: () => replacement,
@@ -70,14 +63,12 @@ function engineReturning(
 }
 
 describe('Harper lyric projection', () => {
-	it('masks headers and performer markup while retaining scalar-to-UTF-16 offsets', () => {
+	it('masks headers and performer markup while retaining projected-to-original UTF-16 offsets', () => {
 		const source = `[Verse: 🎤]\n<i>I dont</i>\nA 😀 example`;
 		const projection = projectLyricsForHarper(parseDocument(source));
 
 		expect(projection.text).toBe(`          \n   I dont    \nA 😀 example`);
-		const projectedExample = [...projection.text].findIndex(
-			(_scalar, index, scalars) => scalars.slice(index, index + 7).join('') === 'example'
-		);
+		const projectedExample = projection.text.indexOf('example');
 		expect(projection.originalOffsets[projectedExample]).toBe(source.indexOf('example'));
 	});
 
@@ -116,7 +107,7 @@ describe('Harper diagnostic provider', () => {
 		expect(createEngine).not.toHaveBeenCalled();
 	});
 
-	it('maps scalar spans after emoji to preview-only UTF-16 fixes', async () => {
+	it('maps UTF-16 spans after emoji to preview-only UTF-16 fixes', async () => {
 		const text = '[Verse]\n😀 This are wrong';
 		const engine = engineReturning((projected) => [
 			lintAt(projected, 'are', {
