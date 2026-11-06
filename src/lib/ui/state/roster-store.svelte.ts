@@ -212,8 +212,8 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			// names stays referenced even beside incomplete legend markup,
 			// and one the user renamed no longer matches the name.
 			const referencedIds = new SvelteSet(
-				headerNameAtoms(snapshot.parsed, performers).flatMap((atom) =>
-					atom.performerId ? [atom.performerId] : []
+				headerNameAtoms(snapshot.parsed, [...performers, ...extraction.rosterAdditions]).flatMap(
+					(atom) => (atom.performerId ? [atom.performerId] : [])
 				)
 			);
 			const retired = performers.filter(

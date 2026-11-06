@@ -1835,6 +1835,42 @@ describe('workbench performer imports', () => {
 			expect((await repository.get(second.id))?.performers).toEqual(second.performers);
 		}
 	);
+	test.each(['', ', <mark>Ed</mark>'])(
+		'keeps a genuine joint-voice member when its partner is discovered during open (%s)',
+		async (malformedNeighbor) => {
+			const first = draft('draft-a', '');
+			const genuine = {
+				id: 'genuine-joint-member',
+				displayName: 'Unresolved voice 2',
+				normalizedKey: 'unresolved voice 2',
+				aliases: ['Original artist spelling'],
+				colorId: 'plum',
+				order: 0
+			};
+			const second = {
+				...draft(
+					'draft-b',
+					`[Verse: Unresolved voice 2 & Noor${malformedNeighbor}]\nWords stay\n\n[Chorus: Noor]\nMore words`
+				),
+				performers: [genuine]
+			};
+			const repository = createInMemoryDraftRepository([first, second]);
+			const controlled = controllableAutosave(repository);
+			const { controller } = setup({ initial: first, repository, autosave: controlled.autosave });
+
+			await controller.openDraft(second.id);
+
+			expect(controller.performers[0]).toEqual(genuine);
+			expect(controller.performers.map((record) => record.displayName)).toEqual([
+				'Unresolved voice 2',
+				'Noor'
+			]);
+			expect(controller.snapshot.text).toBe(second.text);
+			await controlled.autosave.flush();
+			expect((await repository.get(second.id))?.performers).toEqual(controller.performers);
+		}
+	);
+
 	test.each(['genius', 'musixmatch'] as const)(
 		'keeps a placeholder-shaped identity referenced by retained %s voices',
 		async (profile) => {

@@ -18,7 +18,8 @@ format itself: `docs/performer-tagging.md`
   Composition completion joins discovery to its text history event in legacy and rich drafts.
   Native discovery reads the roster store's next position, including positions reserved by Undo.
   Placeholder retirement checks existing header and retained-model references independently
-  of the eligibility to discover new names, so a malformed neighbour cannot delete an identity.
+  of the eligibility to discover new names. Header references use the complete imported roster,
+  so newly discovered joint partners or malformed neighbours cannot delete an identity.
   Discovery does not reassign retained anonymous voices. Genius text-file import supplies
   the discovered roster before constructing its rich model. Pins:
   `named-performer-discovery.svelte.test.ts`.
