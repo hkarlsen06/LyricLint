@@ -336,7 +336,9 @@
 		<legend>{membershipLocked ? 'Linked sections' : 'Sections to link'}</legend>
 		{#each occurrences as item (item.headerFrom)}
 			{@const isSource = !fromOverview && item.headerFrom === currentHeaderFrom}
-			<div class="member">
+			{@const canUnlink =
+				fromOverview && wasLinked && !membershipLocked && initialHeaders.includes(item.headerFrom)}
+			<div class="member" class:member--unlink={canUnlink}>
 				<label class="member__choice">
 					<input
 						type="checkbox"
@@ -376,7 +378,7 @@
 					{:else}<span id={`${id}-line-${item.headerFrom}`} class="member__line"
 							>Line {item.line}</span
 						>{/if}
-					{#if fromOverview && wasLinked && !membershipLocked && initialHeaders.includes(item.headerFrom)}
+					{#if canUnlink}
 						<button
 							type="button"
 							class="button button--quiet"
@@ -733,6 +735,24 @@
 		justify-content: flex-end;
 		gap: var(--space-2);
 		max-width: 50%;
+	}
+	.member--unlink {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		row-gap: var(--space-1);
+	}
+	.member--unlink .member__choice {
+		grid-column: 1;
+		grid-row: 1;
+	}
+	.member--unlink .member__comparison {
+		grid-column: 1;
+		grid-row: 2;
+	}
+	.member--unlink .member__actions {
+		grid-column: 2;
+		grid-row: 1 / span 2;
+		max-width: none;
 	}
 	button.member__line {
 		text-decoration: underline;
