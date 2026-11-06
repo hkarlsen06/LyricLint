@@ -53,6 +53,54 @@ describe('Workspace native checker startup', () => {
 		expect(screen.queryByText('Checking lyrics…')).toBeNull();
 	});
 
+	it.each(['conversionRecovery', 'originalRecovery'] as const)(
+		'opens protected %s without repeatedly publishing checking snapshots',
+		async (kind) => {
+			const { importDocument } = await import('#lib/conversion/index.js');
+			const { createConversionEnvelope } = await import('#lib/persistence/conversion.js');
+			const { profilePolicyVersions } = await import('#lib/profiles/versions.js');
+			const { serializeScribe } = await import('#lib/scribe/format.js');
+			const text = '[Verse: Mira]\nArchived source lyric';
+			const model = importDocument({ text, profile: 'genius', language: 'en' });
+			if (!model.ok) throw new Error(model.refusal.message);
+			const checkpoint = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
+			const reason = 'The original data is retained separately.';
+			const source = serializeScribe({
+				title: 'Protected recovery',
+				lyrics: text,
+				language: 'en',
+				performers: [],
+				lineAnchors: [],
+				sectionLinks: [],
+				ignoredDiagnostics: [],
+				...(kind === 'conversionRecovery'
+					? {
+							conversion: checkpoint,
+							conversionRecovery: { text, checkpoint, reason, sourceDraftId: 'foreign-original' }
+						}
+					: { originalRecovery: { sourceDraftId: 'foreign-original', reason } })
+			});
+			const { controller } = createTestWorkbench();
+			expect(await controller.importScribe(new File([source], 'recovery.lls'))).toBe(true);
+			const native = await import('#lib/rules/engine.js');
+			const loadNativeRules = vi.fn(async () => native);
+			await render(Workspace, {
+				controller,
+				editorComponent: EditorPane,
+				harperProvider: { lint: async () => [], dispose: async () => {} },
+				loadNativeRules
+			});
+			await waitFor(() =>
+				expect(controller.editor.dispatchConversionAction).toBeTypeOf('function')
+			);
+			await nextTask();
+			expect(controller.snapshot.text).toBe(text);
+			expect(controller.snapshot[kind]?.reason).toBe(reason);
+			expect(controller.snapshot.diagnostics).toEqual([]);
+			expect(loadNativeRules).not.toHaveBeenCalled();
+		}
+	);
+
 	it('settles a confirmed quantity without changing its text and restores review on undo', async () => {
 		const native = await import('#lib/rules/engine.js');
 		const { controller } = createTestWorkbench({ text: '12 stars and 12 moons.' });

@@ -739,7 +739,11 @@
 	// The controller owns recovered links before the real editor is attached.
 	// Reading the bindable handle directly here briefly sees its unrestored state.
 	function enrichSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
-		if (snapshot.conversionRecovery || snapshot.originalRecovery) {
+		if (
+			snapshot.conversionRecovery ||
+			snapshot.originalRecovery ||
+			controller.snapshot.originalRecovery
+		) {
 			invalidateHarper();
 			return { ...snapshot, diagnostics: [] };
 		}
@@ -1414,8 +1418,10 @@
 	// diagnostics immediately instead of waiting for the next keystroke.
 	$effect(() => {
 		const current = controller.snapshot;
+		// Protected recovery deliberately has no checking result to memoize.
+		if (current.conversionRecovery || current.originalRecovery || current.composing) return;
 		const key = lintKey(current);
-		if (current.composing || key === lastLintKey) return;
+		if (key === lastLintKey) return;
 		publishSnapshot(current);
 	});
 </script>

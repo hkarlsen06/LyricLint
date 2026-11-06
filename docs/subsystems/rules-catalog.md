@@ -52,6 +52,9 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   Changed ownership, quantity text, language or recording context requires confirmation again;
   diagnostic ignores never supply facts. `confirmed-facts.test.ts` and the real-editor
   `WorkspaceRules.svelte.test.ts` cover scoping, invalidation and text-identical undo.
+- Protected recovery snapshots keep exact visible text without running native or grammar
+  checking. Metadata-driven checking effects leave that state alone rather than republishing
+  it while waiting for a normal checking result.
 - Musixmatch sources retain `platformStanding` independently of Genius's author-role ladder.
   Official platform sources are official for that platform; a linked community supplement does
   not acquire that standing. `profiles/coverage.ts` records every researched clause, its language
