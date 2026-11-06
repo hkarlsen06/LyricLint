@@ -25,7 +25,7 @@ function diagnostic(sourceIds: string[]): Diagnostic {
 		severity: 'warning',
 		from: 0,
 		to: 4,
-		message: 'Lyric lines should not end with a period.',
+		message: 'Consider removing the final period.',
 		explanation: 'Apple Music lyric guidance excludes periods at line endings.',
 		sourceIds
 	};

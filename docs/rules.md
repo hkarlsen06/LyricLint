@@ -23,7 +23,7 @@ The line-ending comma/period check is cross-platform guidance, not a direct Geni
 claim. Apple Music for Artists explicitly disallows both marks at the end of a lyric line.
 Genius's current verified guide does not state that blanket ban; its punctuation annotation
 instead requires question marks for questions and reserves exclamation marks for excitement.
-LyricLint records both sources and keeps removal preview-only.
+LyricLint records both sources, presents removal as a consideration, and keeps it preview-only.
 
 The blank-line-before-header check is a LyricLint readability suggestion, not a direct Genius
 policy claim. The reviewed Genius source establishes that headers sit above distinct song parts

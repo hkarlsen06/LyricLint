@@ -15,6 +15,8 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   full draft context. Action grouping uses draft, rule and decision rather than caption text;
   unrelated findings never gain a shared Undo merely because their copy matches. Undo refuses
   visibly on another draft, preserving its choices and asking the reader to open the original.
+  `rules/names.ts` owns readable labels shared by feedback and the ignored list. A label change
+  never changes stored rule IDs or per-occurrence choices.
 
 - Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
 
