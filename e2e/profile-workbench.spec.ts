@@ -398,13 +398,14 @@ for (const phone of [false, true]) {
 				'Decisions that need listening'
 			])
 				await expect(task.getByText(name, { exact: true })).toHaveCount(0);
-			await expect(task.getByLabel('Earlier source section')).toBeInViewport();
+			await expect(task.getByRole('button', { name: /^Earlier source section/ })).toBeInViewport();
 			const before = await lyrics(page);
-			const options = task.getByLabel('Earlier source section').locator('option');
-			const option = options.filter({ hasText: 'Take my hand and say my name' });
-			const id = await option.getAttribute('value');
-			expect(id).toBeTruthy();
-			await task.getByLabel('Earlier source section').selectOption(id!);
+			await task.getByRole('button', { name: /^Earlier source section/ }).click();
+			const chooser = page.getByRole('dialog', { name: 'Earlier source section', exact: true });
+			await expect(
+				chooser.getByRole('button', { name: /Take my hand and call my name/ })
+			).toBeVisible();
+			await chooser.getByRole('button', { name: /Take my hand and say my name/ }).click();
 			await task.getByLabel('Copies to insert here').fill('1');
 			await task.getByRole('button', { name: 'Preview replacement' }).click();
 			await expect(task.getByLabel('Replacement preview')).toHaveText(

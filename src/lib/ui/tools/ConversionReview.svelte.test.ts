@@ -359,7 +359,9 @@ for (const [rule, title, sourceControl] of [
 		const panel = within(view.container);
 		await waitFor(() => expect(panel.getByRole('heading', { name: title })).toHaveFocus());
 		expect(controller.activeTab).toBe('linter');
-		expect(panel.queryByLabelText('Earlier source section') !== null).toBe(sourceControl);
+		expect(panel.queryByRole('button', { name: /^Earlier source section/ }) !== null).toBe(
+			sourceControl
+		);
 		for (const name of [
 			'Language and content type',
 			'Retained details',
@@ -495,25 +497,35 @@ test('requires fresh confirmation after editing the heard prefix', async () => {
 });
 
 test.each([1280, 360, 390])(
-	'keeps repeat controls anchored and exact long words available at %spx',
+	'reads source versions before choosing and keeps repeat controls anchored at %spx',
 	async (width) => {
 		await page.viewport(width, 900);
-		const opening = '👩🏽‍🚀e\u0301'.repeat(18);
-		const long = [opening, ...Array(26).fill('Lantern '.repeat(55)), 'Final river words'].join(
-			'\n'
-		);
+		const opening = 'We are the neon after rain';
+		const chosen = opening + '\nTake my hand and say my name';
+		const other = opening + '\nTake my hand and call my name';
+		const long = [
+			'👩🏽‍🚀e\u0301'.repeat(90),
+			'W'.repeat(500),
+			...Array(26).fill('Lantern '.repeat(55)),
+			'Final river words'
+		].join('\n');
+		const earlier = Array.from(
+			{ length: 15 },
+			(_, i) => `[Verse ${i + 1}]\nEarlier words ${i + 1}`
+		).join('\n\n');
 		const { panel, controller } = await focusedTask(
-			'[Chorus]\nShort full words\n\n[Chorus]\n' +
-				long +
+			earlier +
 				'\n\n[Chorus]\n' +
-				opening +
-				'\n\n[Verse]\n' +
-				'W'.repeat(500) +
+				chosen +
+				'\n\n[Chorus]\n' +
+				other +
+				'\n\n[An extraordinarily long custom section name for the river]\n' +
+				long +
 				'\n\n[Outro]\nRepeat chorus',
 			'Repeat chorus',
 			'mxm.transcription.repeat-placeholder'
 		);
-		const source = panel.getByLabelText('Earlier source section');
+		const source = panel.getByRole('button', { name: /^Earlier source section/ });
 		const count = panel.getByLabelText('Copies to insert here');
 		const trigger = panel.getByRole('button', { name: 'Preview replacement' });
 		const positions = () =>
@@ -523,60 +535,59 @@ test.each([1280, 360, 390])(
 			});
 		const before = positions();
 		const snapshot = JSON.stringify(controller.snapshot);
-		expect(source).toHaveValue('');
+		expect(source).toHaveTextContent('Choose the version to repeat');
 		expect(count).toHaveValue(null);
 		expect(trigger).toBeDisabled();
-		const options = within(source).getAllByRole('option');
-		expect(options[4].textContent).toBe('Section 4 · ' + 'W'.repeat(12) + '…');
-		expect(options[2].textContent).toBe('Section 2 · ' + '👩🏽‍🚀e\u0301'.repeat(6) + '…');
-		expect(options[3].textContent).toBe('Section 3 · ' + '👩🏽‍🚀e\u0301'.repeat(6) + '…');
-		for (const index of [1, 2, 3, 4, 1, 2]) {
-			await fireEvent.change(source, { target: { value: options[index].getAttribute('value') } });
-			expect(positions()).toEqual(before);
-			if (index === 1) {
-				expect(panel.getByLabelText('Chosen source lyrics').textContent).toBe('Short full words');
-				await fireEvent.input(count, { target: { value: '2' } });
-				await fireEvent.click(trigger);
-				expect(panel.getByLabelText('Replacement preview').textContent).toBe(
-					'Short full words\nShort full words'
-				);
-				expect(panel.queryByText('Full replacement lyrics', { exact: true })).toBeNull();
-			}
-			if (index === 4) {
-				await fireEvent.click(panel.getByText('Full source lyrics', { exact: true }));
-				expect(panel.getByLabelText('Chosen source lyrics').textContent).toBe('W'.repeat(500));
-				await fireEvent.click(panel.getByText('Full source lyrics', { exact: true }));
-			}
-		}
-		for (const value of ['', '0', '1.5', '101']) {
-			await fireEvent.input(count, { target: { value } });
-			await fireEvent.click(trigger);
-			expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
-			expect(positions()).toEqual(before);
-		}
-		await fireEvent.input(count, { target: { value: '2' } });
+		expect(source).toHaveAccessibleName('Earlier source section Choose the version to repeat');
+		const choose = async (words: string) => {
+			await fireEvent.click(source);
+			const dialog = within(panel.getByRole('dialog', { name: 'Earlier source section' }));
+			await fireEvent.click(dialog.getByRole('button', { name: new RegExp(words) }));
+			expect(source).toHaveFocus();
+		};
+		await choose('Take my hand and say my name');
+		expect(positions()).toEqual(before);
+		expect(panel.getByLabelText('Chosen source lyrics').textContent).toBe(chosen);
+		await fireEvent.input(count, { target: { value: '1' } });
 		await fireEvent.click(trigger);
+		expect(panel.getByLabelText('Replacement preview').textContent).toBe(chosen);
+		await fireEvent.click(source);
+		const chooser = panel.getByRole('dialog', { name: 'Earlier source section' });
+		expect(
+			within(chooser).getByRole('button', { name: /Take my hand and say my name/ })
+		).toHaveAttribute('aria-pressed', 'true');
+		await fireEvent.click(
+			within(chooser).getByText('Full source lyrics · Section 18', { exact: true })
+		);
+		expect(
+			within(chooser).getByLabelText(
+				'Section 18 · An extraordinarily long custom section name for the river'
+			).textContent
+		).toBe(long);
+		await fireEvent.click(within(chooser).getByRole('button', { name: 'Close' }));
+		expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
+		expect(count).toHaveValue(1);
 		expect(positions()).toEqual(before);
 		expect(JSON.stringify(controller.snapshot)).toBe(snapshot);
-		expect(panel.getByText('2 copies · 56 lines')).toBeVisible();
-		const fullSource = panel.getByLabelText('Chosen source lyrics');
-		const fullResult = panel.getByLabelText('Replacement preview');
-		expect(fullSource).not.toBeVisible();
-		expect(fullResult).not.toBeVisible();
-		for (const label of ['Full source lyrics', 'Full replacement lyrics']) {
-			await fireEvent.click(panel.getByText(label, { exact: true }));
-			expect(positions()).toEqual(before);
-		}
-		expect(fullSource.textContent).toBe(long);
-		expect(fullResult.textContent).toBe(long + '\n' + long);
-		for (const label of ['Full source lyrics', 'Full replacement lyrics'])
-			await fireEvent.click(panel.getByText(label, { exact: true }));
+		await choose('Take my hand and call my name');
+		expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+		await choose('👩🏽‍🚀');
+		await fireEvent.input(count, { target: { value: '2' } });
+		await fireEvent.click(trigger);
+		await fireEvent.click(panel.getByRole('button', { name: 'Full replacement lyrics' }));
+		const viewer = panel.getByRole('dialog', { name: 'Full replacement lyrics' });
+		expect(within(viewer).getByLabelText('Replacement preview').textContent).toBe(
+			long + '\n' + long
+		);
+		await fireEvent.click(within(viewer).getByRole('button', { name: 'Close' }));
+		expect(positions()).toEqual(before);
+		expect(JSON.stringify(controller.snapshot)).toBe(snapshot);
 		controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 5 } });
 		expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
+		await fireEvent.click(source);
 		controller.onSnapshot({ ...controller.snapshot, revision: controller.snapshot.revision + 1 });
-		await waitFor(() =>
-			expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull()
-		);
+		await waitFor(() => expect(panel.queryByRole('dialog')).toBeNull());
+		expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
 		expect(controller.snapshot.text).toBe(JSON.parse(snapshot).text);
 		expect(controller.snapshot.conversion?.model).toEqual(JSON.parse(snapshot).conversion.model);
 	}

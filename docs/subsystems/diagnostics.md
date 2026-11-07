@@ -21,16 +21,16 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 - Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
 
 - Repeat review keeps source, blank copy count and Preview above variable source context.
-  Native options use the section number and a grapheme-safe short opening; the selected
-  section's complete identity is readable below Preview. Short source lyrics stay fully visible
-  while choosing, and short proposed lyrics stay fully visible after preview. Long text has
-  explicitly named excerpts, with exact full source and
-  replacement disclosures below Apply. The compact proposal precedes Apply and reports the
-  prepared action's copies and actual result lines. Disclosures grow in the panel scrollport,
-  without nested lyric scroll areas. Source annotations, voices and timing are never copied.
-  Before preview, the source context helps choose the version. Once prepared, the proposal
-  is the reading context rather than a second copy of the source excerpt. Full source lyrics
-  remain available below Apply, including for short passages.
+  A native dialog offers readable source rows with the first two lyric lines, including
+  distinguishing second lines. Long rows explicitly name their excerpt and offer exact full
+  source text before choosing. A visible Selected cue and pressed state identify the choice.
+  Opening, inspecting and cancelling never changes the chosen source, count or prepared preview.
+  Choosing a different source invalidates the preview. Source selection never changes the target.
+  The trigger keeps constant wording for a chosen version; complete selected identity follows
+  Preview. Short source and result lyrics remain fully readable in the task. Long text has
+  named excerpts and native full-text viewers with one scrollport each. The result viewer names
+  source, captured target and copy count; closing restores the trigger without editor focus.
+  Apply follows the proposal. Source annotations, voices and timing are never copied.
 
 - Text findings precede retained-detail Review, so a section-tag decision never obstructs a lyric finding. Retained-detail Review presents one finding with Previous detail and Next detail when several remain; a lone detail has no redundant navigation. Listening requests open only the relevant quantity or instrumental form. Song keeps saved decisions in a separate disclosure.
 	Section-type findings offer a named selector and explicit Save in Review without opening Song.

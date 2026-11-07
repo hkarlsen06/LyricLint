@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import {
 		projectOffset,
 		renderProfile,
@@ -111,6 +111,44 @@
 	);
 	let preview = $state<Preview>();
 	const shown = $derived(preview?.basis === basis ? preview : undefined);
+	let dialog: HTMLDialogElement;
+	let surface = $state<'sources' | 'source' | 'result'>();
+	let opener: HTMLButtonElement | undefined;
+	const dialogId = $props.id();
+	function openSurface(kind: NonNullable<typeof surface>, trigger: HTMLButtonElement) {
+		if (!ready) return;
+		// Native modal restoration must return directly to a noneditable control.
+		trigger.focus({ preventScroll: true });
+		opener = trigger;
+		surface = kind;
+		dialog.showModal();
+	}
+	function closeSurface() {
+		if (dialog?.open) dialog.close();
+		surface = undefined;
+		if (opener?.isConnected && !opener.disabled) opener.focus({ preventScroll: true });
+	}
+	onDestroy(() => {
+		if (dialog?.open) dialog.close();
+	});
+	$effect(() => {
+		if (!ready && surface) closeSurface();
+	});
+	function choiceExcerpt(text: string) {
+		const lines = text.split('\n');
+		return (
+			lines
+				.slice(0, 2)
+				.map((line) => {
+					const clipped = opening(line, 160);
+					if (clipped === line) return line;
+					const boundary = clipped.lastIndexOf(' ');
+					return boundary > 0 ? clipped.slice(0, boundary) + '…' : clipped;
+				})
+				.join('\n') + (lines.length > 2 ? '\n…' : '')
+		);
+	}
+
 	async function back() {
 		const panel = container.closest('.right-panel');
 		controller.dismissConversionReview();
@@ -220,14 +258,19 @@
 			/>
 		{:else}
 			{#if request.kind === 'repeat'}
-				<label
-					>Earlier source section<select bind:value={sourceId}
-						><option value="">Choose the version to repeat</option
-						>{#each sources as entry (entry.id)}<option value={entry.id}
-								>Section {entry.number} · {opening(entry.text.replaceAll('\n', ' / '), 12)}</option
-							>{/each}</select
-					></label
-				>
+				<div class="conversion-review__source-field">
+					<span id={`${dialogId}-source-label`}>Earlier source section</span>
+					<button
+						class="button"
+						type="button"
+						aria-labelledby={`${dialogId}-source-label ${dialogId}-source-trigger`}
+						id={`${dialogId}-source-trigger`}
+						aria-haspopup="dialog"
+						onmousedown={(event) => event.preventDefault()}
+						onclick={(event) => openSurface('sources', event.currentTarget)}
+						>{source ? 'Change source version' : 'Choose the version to repeat'}</button
+					>
+				</div>
 				{#if !sources.length}<p>
 						No earlier section is available. Return to Review and edit the placeholder in the
 						lyrics.
@@ -319,25 +362,105 @@
 			</div>
 			{#if request.kind === 'repeat'}
 				{#if source && (shown?.ok || excerpt(source.text) !== source.text)}
-					{#key source.id}
-						<details>
-							<summary>Full source lyrics</summary>
-							<pre aria-label="Chosen source lyrics">{source.text}</pre>
-						</details>
-					{/key}
+					<button
+						class="button button--quiet"
+						type="button"
+						aria-haspopup="dialog"
+						onmousedown={(event) => event.preventDefault()}
+						onclick={(event) => openSurface('source', event.currentTarget)}
+						>Full source lyrics</button
+					>
 				{/if}
 				{#if shown?.ok && excerpt(shown.text) !== shown.text}
-					{#key shown}
-						<details>
-							<summary>Full replacement lyrics</summary>
-							<pre aria-label="Replacement preview">{shown.text}</pre>
-						</details>
-					{/key}
+					<button
+						class="button button--quiet"
+						type="button"
+						aria-haspopup="dialog"
+						onmousedown={(event) => event.preventDefault()}
+						onclick={(event) => openSurface('result', event.currentTarget)}
+						>Full replacement lyrics</button
+					>
 				{/if}
 			{/if}
 		{/if}
 	{/if}
 </section>
+
+<dialog
+	bind:this={dialog}
+	class="repeat-dialog"
+	aria-labelledby={`${dialogId}-title`}
+	onclick={(event) => {
+		if (event.target === dialog) closeSurface();
+	}}
+	oncancel={(event) => {
+		event.preventDefault();
+		event.stopPropagation();
+		closeSurface();
+	}}
+	onclose={(event) => {
+		if (!event.currentTarget.open) surface = undefined;
+	}}
+>
+	{#if surface}
+		<div class="repeat-dialog__surface">
+			<header>
+				<div class="repeat-dialog__context">
+					<h2 id={`${dialogId}-title`}>
+						{surface === 'sources'
+							? 'Earlier source section'
+							: surface === 'source'
+								? 'Full source lyrics'
+								: 'Full replacement lyrics'}
+					</h2>
+					{#if surface !== 'sources'}<p>{source?.label}</p>{/if}
+					{#if surface === 'result'}<p>
+							{target} · {copies}
+							{copies === 1 ? 'copy' : 'copies'}
+						</p>{/if}
+				</div>
+				<button class="button button--quiet" type="button" onclick={closeSurface}>Close</button>
+			</header>
+			<div class="repeat-dialog__body">
+				{#if surface === 'sources'}
+					<ul>
+						{#each sources as entry (entry.id)}
+							<li>
+								<button
+									class="button button--quiet repeat-option"
+									type="button"
+									aria-pressed={sourceId === entry.id}
+									onclick={() => {
+										if (ready) {
+											sourceId = entry.id;
+											closeSurface();
+										}
+									}}
+								>
+									<span>{entry.label}{sourceId === entry.id ? ' · Selected' : ''}</span>
+									{#if choiceExcerpt(entry.text) !== entry.text}<span>Source excerpt</span>{/if}
+									<span class="lyrics">{choiceExcerpt(entry.text)}</span>
+								</button>
+								{#if choiceExcerpt(entry.text) !== entry.text}
+									<details>
+										<summary>Full source lyrics · Section {entry.number}</summary>
+										<pre aria-label={entry.label}>{entry.text}</pre>
+									</details>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					{#if surface === 'result' && shown?.ok}
+						<pre aria-label="Replacement preview">{shown.text}</pre>
+					{:else if surface === 'source' && source}
+						<pre aria-label="Chosen source lyrics">{source.text}</pre>
+					{/if}
+				{/if}
+			</div>
+		</div>
+	{/if}
+</dialog>
 
 <style>
 	.conversion-review {
@@ -389,12 +512,12 @@
 	.conversion-review__actions--choice {
 		grid-template-columns: minmax(0, 1fr) auto;
 	}
-	label {
+	label,
+	.conversion-review__source-field {
 		display: grid;
 		gap: var(--space-1);
 	}
-	input,
-	select {
+	input {
 		font-size: var(--font-size-editor);
 		width: 100%;
 		min-width: 0;
@@ -432,5 +555,66 @@
 	}
 	button {
 		white-space: normal;
+	}
+	.repeat-dialog {
+		width: min(38rem, calc(100vw - var(--space-4)));
+		max-width: none;
+		max-height: none;
+		height: min(42rem, calc(100dvh - var(--space-4)));
+		padding: 0;
+		border: 0;
+		border-radius: var(--radius-overlay);
+		background: var(--color-overlay);
+		color: var(--color-text);
+		box-shadow: var(--shadow-overlay);
+		overflow: hidden;
+	}
+	.repeat-dialog::backdrop {
+		background: var(--color-backdrop);
+	}
+	.repeat-dialog__surface {
+		display: grid;
+		grid-template-rows: auto minmax(0, 1fr);
+		height: 100%;
+	}
+	.repeat-dialog header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding: var(--space-4);
+	}
+	.repeat-dialog__context {
+		min-width: 0;
+		display: grid;
+		gap: var(--space-2);
+		overflow-wrap: anywhere;
+	}
+	.repeat-dialog__body {
+		overflow-y: auto;
+		padding: 0 var(--space-4) var(--space-4);
+		display: grid;
+		align-content: start;
+		gap: var(--space-3);
+	}
+	.repeat-dialog ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: grid;
+		gap: var(--space-4);
+	}
+	.repeat-option {
+		display: grid;
+		gap: var(--space-2);
+		width: 100%;
+		text-align: start;
+		overflow-wrap: anywhere;
+	}
+	.repeat-option[aria-pressed='true'] {
+		background: var(--color-fill);
+	}
+	.repeat-dialog summary {
+		padding: var(--space-2);
 	}
 </style>
