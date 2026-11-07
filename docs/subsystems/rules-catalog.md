@@ -52,6 +52,13 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   Changed ownership, quantity text, language or recording context requires confirmation again;
   diagnostic ignores never supply facts. `confirmed-facts.test.ts` and the real-editor
   `WorkspaceRules.svelte.test.ts` cover scoping, invalidation and text-identical undo.
+- English quantity diagnostics and quantity commits share lexical phrase boundaries in
+  `profiles/quantity-ranges.ts`. Recognized tens, hundreds and thousands stay together across
+  spaces or hyphens, within a lyric line and the selection's language ownership. A component
+  or word fragment cannot be confirmed as the whole quantity. This recognizes a range only;
+  value, role, pronunciation and exact wording still require supplied facts. Markup is not
+  absorbed into a phrase. Unknown forms are never parsed into a value; existing explicitly
+  supplied custom wording and the manual-edit route remain available.
 - Protected recovery snapshots keep exact visible text without running native or grammar
   checking. Metadata-driven checking effects leave that state alone rather than republishing
   it while waiting for a normal checking result.
@@ -63,7 +70,9 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
 - Musixmatch check registration adds the definition in `musixmatch.ts`, its clause mapping in
   `profiles/coverage.ts`, an invented trigger/accepted/ambiguous case in
   `profiles/policy-cases.ts`, focused behavior tests, and a new pinned profile policy version when
-  semantics change. `profiles/reference.test.ts` derives and verifies each public check page;
+  reviewed policy or representation semantics change. A corrective diagnostic-range change
+  increments the rule version without silently changing the stored policy identity: existing
+  conversion envelopes reject unavailable pinned versions. `profiles/reference.test.ts` derives and verifies each public check page;
   the sitemap includes both registries. The four-registration Genius process below remains for
   the existing Genius catalog.
 

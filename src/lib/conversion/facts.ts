@@ -1,5 +1,7 @@
 import type { TextRange } from '#lib/core/types.js';
 import { scanPhysicalLines } from '#lib/core/parser.js';
+import { profileLanguage } from '#lib/profiles/languages.js';
+import { isCompleteEnglishQuantitySelection } from '#lib/profiles/quantity-ranges.js';
 import {
 	decideInstrumentalRepresentation,
 	decideQuantityRepresentation,
@@ -15,7 +17,7 @@ import {
 	type Projection,
 	type ReconciledDocument
 } from './model.js';
-import { contentOffset, renderProfile } from './projection.js';
+import { contentOffset, projectOffset, renderProfile } from './projection.js';
 import { resolveDecision } from './decisions.js';
 import { reconcileEdit } from './reconcile.js';
 
@@ -68,9 +70,10 @@ export function resolveFactDecision(
 			from: contentOffset(projection, action.range.from, -1),
 			to: contentOffset(projection, action.range.to, 1)
 		};
-		const language =
-			next.languageRanges.find((entry) => entry.from <= range.from && range.to <= entry.to)
-				?.language ?? next.defaultLanguage;
+		const assignedLanguage = next.languageRanges.find(
+			(entry) => entry.from <= range.from && range.to <= entry.to
+		);
+		const language = assignedLanguage?.language ?? next.defaultLanguage;
 		if (
 			next.languageRanges.some(
 				(entry) =>
@@ -87,6 +90,26 @@ export function resolveFactDecision(
 				checked.message
 			);
 		const selected = projection.text.slice(action.range.from, action.range.to);
+		if (profileLanguage(language) === 'en') {
+			let from = assignedLanguage?.from ?? 0;
+			let to = assignedLanguage?.to ?? next.content.length;
+			if (!assignedLanguage)
+				for (const entry of next.languageRanges) {
+					if (entry.to <= range.from) from = Math.max(from, entry.to);
+					if (range.to <= entry.from) to = Math.min(to, entry.from);
+				}
+			const start = projectOffset(projection, from, 1);
+			const end = projectOffset(projection, to, -1);
+			if (
+				action.range.from < start ||
+				end < action.range.to ||
+				!isCompleteEnglishQuantitySelection(projection.text.slice(start, end), {
+					from: action.range.from - start,
+					to: action.range.to - start
+				})
+			)
+				return refuse('invalid-input', 'Select the complete quantity, including all of its words.');
+		}
 		if (
 			/\p{Nd}/u.test(selected) &&
 			(/\p{Nd}/u.test(projection.text[action.range.from - 1] ?? '') ||

@@ -36,6 +36,25 @@ function fixedText(text: string, finding: Diagnostic): string {
 		);
 }
 
+describe('complete English quantity findings', () => {
+	it('does not absorb hidden markup into the quantity', () => {
+		expect(has('twenty <i>one</i> stars', 'numbers.context')).toEqual([]);
+		const text = '<i>twenty-one</i> stars';
+		expect(has(text, 'numbers.context').map(({ from, to }) => text.slice(from, to))).toEqual([
+			'twenty-one'
+		]);
+	});
+	it.each(['Twenty-one', 'twenty one', 'one hundred', 'one hundred and twenty-one'])(
+		'captures %s as one whole candidate without inferring its value',
+		(words) => {
+			const text = `We counted ${words} stars`;
+			const candidates = has(text, 'numbers.context');
+			expect(candidates.map(({ from, to }) => text.slice(from, to))).toEqual([words]);
+			expect(candidates[0]?.fixes).toBeUndefined();
+		}
+	);
+});
+
 describe('Musixmatch policy registry', () => {
 	it('keeps all 111 documented clauses with their limits and resolvable sources', () => {
 		const evidence = readFileSync('docs/platform-guidelines-comparison.md', 'utf8');

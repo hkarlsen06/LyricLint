@@ -5,8 +5,8 @@ export const corpus = {
 	formatVersion: 6,
 	profile: 'musixmatch',
 	ruleSetVersion: '2026.09.16.1',
-	generatedAt: '2026-09-16T13:33:02.559Z',
-	contentHash: '4c1d66df270256ad348fa0dc0ad053488cda49e61fc1cf5d239dd99028c4d1a6',
+	generatedAt: '2026-11-07T01:19:40.329Z',
+	contentHash: 'cc24d9bd89f85ba68d30aebc74068c1eb620773bd83601cc66b23bbfb62867a5',
 	rules: [
 		{
 			id: 'mxm.transcription.labels',
@@ -232,7 +232,7 @@ export const corpus = {
 				'Musixmatch generally spells quantities through ten and uses digits above ten, with separate rules for dates, phones, decades, names, fixed expressions and times. Exact times and o’clock differ. A value alone does not prove its role or pronunciation; no numeric rewrite is offered.',
 			fix: 'none',
 			language: 'en',
-			flaggedExample: "At 6 o'clock",
+			flaggedExample: 'Twenty-one stars',
 			acceptedExample: 'At dawn',
 			sourceIds: ['MXM-MAIN']
 		},

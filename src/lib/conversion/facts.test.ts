@@ -33,6 +33,73 @@ function quantity(value: string): QuantityFacts {
 		pronunciation: 'whole-quantity'
 	};
 }
+
+describe('complete English quantity selections', () => {
+	it('bounds recognition by explicit language ownership without loosening cross-language refusal', () => {
+		const initial = imported('twenty one stars');
+		const document = value(
+			resolveDecision(initial, view(initial), {
+				kind: 'setPassageLanguage',
+				range: { from: 7, to: 10 },
+				language: 'fr'
+			})
+		).document;
+		const original = JSON.stringify(document);
+		const english = resolveDecision(document, view(document), {
+			kind: 'confirmQuantity',
+			range: { from: 0, to: 6 },
+			facts: { ...quantity('20'), spokenForm: 'twenty' }
+		});
+		expect(english.ok).toBe(true);
+		const mixed = resolveDecision(document, view(document), {
+			kind: 'confirmQuantity',
+			range: { from: 0, to: 10 },
+			facts: { ...quantity('21'), spokenForm: 'twenty one' }
+		});
+		expect(mixed.ok).toBe(false);
+		expect(JSON.stringify(document)).toBe(original);
+	});
+	it.each([
+		['Twenty-one stars', 0, 6, '20', 'Twenty'],
+		['one hundred stars', 4, 11, '100', 'hundred'],
+		['one hundred and twenty-one stars', 16, 22, '20', 'twenty']
+	] as const)(
+		'refuses a selected component of %s without changing its model',
+		(text, from, to, amount, spokenForm) => {
+			const document = imported(text);
+			const original = JSON.stringify(document);
+			const result = resolveDecision(document, view(document), {
+				kind: 'confirmQuantity',
+				range: { from, to },
+				facts: { ...quantity(amount), spokenForm }
+			});
+			expect(result.ok).toBe(false);
+			expect(JSON.stringify(document)).toBe(original);
+		}
+	);
+	it.each([
+		['Twenty-one', '21'],
+		['twenty one', '21'],
+		['one hundred', '100'],
+		['one hundred and twenty-one', '121'],
+		['two dozen', '24']
+	] as const)(
+		'preserves the source of the explicitly confirmed whole phrase %s',
+		(words, amount) => {
+			const document = imported(`${words} stars`);
+			const result = value(
+				resolveDecision(document, view(document), {
+					kind: 'confirmQuantity',
+					range: { from: 0, to: words.length },
+					facts: { ...quantity(amount), spokenForm: words }
+				})
+			);
+			expect(result.projection.text).toBe(`${amount} stars`);
+			expect(view(result.document, 'genius').text).toBe(`${words} stars`);
+			expect(result.document.decisions.at(-1)).toMatchObject({ from: 0, to: words.length });
+		}
+	);
+});
 function interval(document: ConversionDocument): InstrumentalIntervalFacts {
 	return {
 		language: 'en',

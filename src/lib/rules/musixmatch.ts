@@ -1,4 +1,9 @@
 import { profileLanguage } from '#lib/profiles/languages.js';
+import {
+	englishQuantityPattern,
+	isEnglishQuantityPhrase,
+	needsEnglishQuantityReview
+} from '#lib/profiles/quantity-ranges.js';
 import { hasConfirmedFact } from '#lib/profiles/confirmed-facts.js';
 import { censoredWordCandidate, isMaskedCensorCandidate } from '#lib/profiles/censorship.js';
 import type {
@@ -410,7 +415,7 @@ const interruptionRule: RuleDefinition = {
 
 const numericRule: RuleDefinition = {
 	id: 'mxm.numbers.context',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'manual-review',
 	sourceIds: general,
 	check(document, context) {
@@ -426,9 +431,8 @@ const numericRule: RuleDefinition = {
 				: [];
 			if (lang === 'en')
 				candidates.push(
-					...matchesOutsideMarkup(
-						line,
-						/\b(?:eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)\b/giu
+					...matchesOutsideMarkup(line, englishQuantityPattern).filter(
+						(match) => needsEnglishQuantityReview(match.text) && isEnglishQuantityPhrase(match.text)
 					)
 				);
 			return candidates.flatMap((match) => {

@@ -97,7 +97,7 @@ export const musixmatchPolicyCases: readonly RulePolicyCase[] = [
 	{
 		id: 'mxm.numbers.context',
 		title: 'A number without established context',
-		invalid: "At 6 o'clock",
+		invalid: 'Twenty-one stars',
 		valid: 'At dawn',
 		ambiguous: 'The Seventh Door'
 	},
