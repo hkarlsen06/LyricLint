@@ -347,17 +347,19 @@
 								>{/each}</select
 						></label
 					>
-					<label
-						>Starts at (seconds)<input
-							type="number"
-							min="0"
-							step="0.001"
-							bind:value={start}
-						/></label
-					>
-					<label
-						>Ends at (seconds)<input type="number" min="0" step="0.001" bind:value={end} /></label
-					>
+					<div class="conversion-facts__interval-times">
+						<label
+							>Starts at (seconds)<input
+								type="number"
+								min="0"
+								step="0.001"
+								bind:value={start}
+							/></label
+						>
+						<label
+							>Ends at (seconds)<input type="number" min="0" step="0.001" bind:value={end} /></label
+						>
+					</div>
 					<label class="conversion-facts__check"
 						><input type="checkbox" bind:checked={lyricFree} />I listened to this recording: the
 						entire interval has no qualifying lyrical content, including vocables or joik</label
@@ -453,6 +455,12 @@
 	.conversion-facts__lyrics {
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
+	}
+	.conversion-facts__interval-times {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: end;
+		gap: var(--space-2);
 	}
 	.conversion-facts__check {
 		grid-template-columns: auto 1fr;
