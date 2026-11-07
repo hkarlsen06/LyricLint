@@ -128,6 +128,17 @@ export const enabledRules: readonly RuleDefinition[] = [
 	numbersDecadeApostropheRule
 ];
 
+/** General transcription checks retain their existing IDs, sources and fix ownership. */
+export const sharedTranscriptionRules: readonly RuleDefinition[] = [
+	syntaxUnbalancedParenthesesRule,
+	textInvisibleCharactersRule,
+	textMultipleSpacesRule,
+	punctuationParenthesisSpacingRule,
+	contractionApostropheRule,
+	grammarEnglishPronounIRule,
+	spellingEnglishCommonRule
+];
+
 /** Validate uniqueness and reviewed provenance for every enabled rule. */
 export function validateRuleRegistry(
 	rules: readonly RuleDefinition[] = enabledRules,

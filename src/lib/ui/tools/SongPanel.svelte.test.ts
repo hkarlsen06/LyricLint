@@ -723,6 +723,43 @@ describe('SongPanel conversion restraint', () => {
 		}
 	);
 
+	test('opens the caret section with its inferred type and keeps optional overrides in section options', async () => {
+		const source = '[Verse 1]\nOne\n[Chorus: Mira]\nTwo';
+		const run = await withLiveConversion(source);
+		try {
+			run.controller.editor.setSelection({ anchor: 0, head: 0 });
+			expect(screen.getByRole('heading', { name: 'Section 1 · Verse' })).toBeVisible();
+			expect(screen.getByRole('combobox', { name: 'Section type' })).not.toBeVisible();
+			const text = run.controller.snapshot.text;
+			run.controller.editor.setSelection({
+				anchor: text.indexOf('Two'),
+				head: text.indexOf('Two')
+			});
+			await waitFor(() =>
+				expect(screen.getByRole('heading', { name: 'Section 2 · Chorus' })).toBeVisible()
+			);
+			await fireEvent.click(screen.getByText('More section options'));
+			const picker = screen.getByRole('combobox', { name: 'Section type' });
+			expect(picker).toHaveValue('Chorus');
+			const label = screen.getByRole('textbox', { name: 'Genius section label' });
+			const before = label.getBoundingClientRect();
+			await fireEvent.change(label, { target: { value: 'The quiet return' } });
+			expect(picker).toHaveValue('');
+			expect(label.getBoundingClientRect().top).toBe(before.top);
+			run.controller.undo();
+			await waitFor(() => expect(picker).toHaveValue('Chorus'));
+			await fireEvent.change(picker, { target: { value: 'Bridge' } });
+			expect(run.controller.geniusText).toBe(source);
+			expect(screen.getByRole('heading', { name: 'Section 2 · Bridge' })).toBeVisible();
+			run.controller.undo();
+			await waitFor(() =>
+				expect(screen.getByRole('heading', { name: 'Section 2 · Chorus' })).toBeVisible()
+			);
+		} finally {
+			run.dispose();
+		}
+	});
+
 	test.each(['previous', 'next'] as const)(
 		'keeps the surviving section selected and focused after merging into %s, with exact Undo',
 		async (direction) => {
@@ -864,9 +901,12 @@ describe('SongPanel conversion restraint', () => {
 				expect(screen.getByRole('option', { name: '1 musical section' })).toBeTruthy();
 				expect(container.textContent).toContain('2 stanzas');
 				const type = screen.getByRole('combobox', { name: 'Section type' });
-				const before = type.getBoundingClientRect();
-				await fireEvent.click(screen.getByText('More section options'));
-				expect(type.getBoundingClientRect().top).toBe(before.top);
+				expect(type).not.toBeVisible();
+				const more = screen.getByText('More section options');
+				const before = more.getBoundingClientRect();
+				await fireEvent.click(more);
+				expect(more.getBoundingClientRect().top).toBe(before.top);
+				expect(type).toBeVisible();
 				const label = screen.getByRole('textbox', { name: 'Genius section label' });
 				expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(
 					container.getBoundingClientRect().right
@@ -910,7 +950,7 @@ describe('SongPanel conversion restraint', () => {
 			);
 			const { container } = await render(SongPanel, { controller });
 			container.style.width = `${width}px`;
-			expect(screen.queryByRole('combobox', { name: 'Section type' })).toBeNull();
+			expect(screen.getByRole('combobox', { name: 'Section type' })).not.toBeVisible();
 			const first = screen.getByRole('combobox', { name: 'Choose a section' });
 			const options = [...first.querySelectorAll('option')];
 			const top = first.getBoundingClientRect().top;
@@ -921,12 +961,12 @@ describe('SongPanel conversion restraint', () => {
 			expect(first.getBoundingClientRect().top).toBe(top);
 			expect(screen.getAllByRole('combobox', { name: 'Section type' })).toHaveLength(1);
 			expect(screen.getByRole('button', { name: 'Move to cursor' })).not.toBeVisible();
+			await fireEvent.click(screen.getByText('More section options'));
 			const field = screen.getByRole('combobox', { name: 'Section type' });
 			expect(parseFloat(getComputedStyle(field).fontSize)).toBeGreaterThanOrEqual(16);
 			expect(field.getBoundingClientRect().right).toBeLessThanOrEqual(
 				container.getBoundingClientRect().right
 			);
-			await fireEvent.click(screen.getByText('More section options'));
 			expect(screen.getByRole('button', { name: 'Move to cursor' })).toBeVisible();
 			await fireEvent.change(first, { target: { value: options[2]!.value } });
 			expect(screen.queryByRole('heading', { name: /Section 1/ })).toBeNull();

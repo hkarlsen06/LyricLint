@@ -165,12 +165,15 @@ describe('PreferencesPanel skimmability', () => {
 describe('PreferencesPanel grammar toggle', () => {
 	afterEach(cleanup);
 
-	test('withholds the unavailable grammar control in Musixmatch without changing the preference', async () => {
+	test('keeps the same grammar preference available in both lyric formats', async () => {
 		const { controller } = createTestWorkbench();
 		const view = await render(PreferencesPanel, {
 			controller: { ...controller, profile: 'musixmatch' }
 		});
-		expect(screen.queryByRole('switch', { name: 'Grammar checking' })).toBeNull();
+		expect(screen.getByRole('switch', { name: 'Grammar checking' })).toHaveAttribute(
+			'aria-checked',
+			'true'
+		);
 		expect(controller.grammarCheckEnabled).toBe(true);
 		await view.rerender({ controller });
 		expect(screen.getByRole('switch', { name: 'Grammar checking' })).toHaveAttribute(

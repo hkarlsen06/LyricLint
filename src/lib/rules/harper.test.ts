@@ -63,6 +63,18 @@ function engineReturning(
 }
 
 describe('Harper lyric projection', () => {
+	it('keeps literal Musixmatch brackets and tags in the grammar input', () => {
+		const source = "[I has a lantern]\n<i>I has a map</i>\n'90s Argentina";
+		const projection = projectLyricsForHarper(parseDocument(source), {
+			profile: 'musixmatch',
+			language: 'en'
+		});
+		expect(projection.text).toBe(source);
+		expect(projection.originalOffsets).toEqual(
+			Array.from({ length: source.length + 1 }, (_, i) => i)
+		);
+	});
+
 	it('masks headers and performer markup while retaining projected-to-original UTF-16 offsets', () => {
 		const source = `[Verse: 🎤]\n<i>I dont</i>\nA 😀 example`;
 		const projection = projectLyricsForHarper(parseDocument(source));
@@ -90,6 +102,29 @@ describe('Harper lyric projection', () => {
 });
 
 describe('Harper diagnostic provider', () => {
+	it('keeps spelling suggestions on words while refusing a numeric-token letter fragment', async () => {
+		const text = "'90s dont";
+		const engine = engineReturning((projected) => [
+			lintAt(projected, 's', { kind: 'Spelling', replacement: 'so' }),
+			lintAt(projected, 'dont', { kind: 'Spelling', replacement: "don't" })
+		]);
+		const provider = createHarperDiagnosticProvider(async () => engine);
+		try {
+			const findings = await provider.lint({
+				text,
+				document: parseDocument(text),
+				profile: 'musixmatch',
+				language: 'en',
+				performers: [],
+				revision: 1
+			});
+			expect(engine.lint.mock.calls[0]?.[0]).toBe(text);
+			expect(findings.map((finding) => text.slice(finding.from, finding.to))).toEqual(['dont']);
+		} finally {
+			await provider.dispose();
+		}
+	});
+
 	it('does not load the English engine for another selected language', async () => {
 		const createEngine = vi.fn(async () => engineReturning(() => []));
 		const provider = createHarperDiagnosticProvider(createEngine);
@@ -187,6 +222,68 @@ describe('Harper diagnostic provider', () => {
 			})
 		).resolves.toEqual([]);
 		expect(engine.importWords).toHaveBeenCalledWith(expect.arrayContaining(['ayy']));
+	});
+
+	it('changes its accepted spelling dictionary with the active profile', async () => {
+		const engine = engineReturning(() => []);
+		const provider = createHarperDiagnosticProvider(async () => engine);
+		const text = 'I have a lantern';
+		try {
+			for (const profile of ['genius', 'musixmatch', 'genius'] as const) {
+				await provider.lint({
+					text,
+					document: parseDocument(text),
+					profile,
+					language: 'en',
+					performers: [],
+					revision: 1
+				});
+			}
+			expect(engine.importWords.mock.calls[0]?.[0]).toContain('ayy');
+			expect(engine.importWords.mock.calls[1]?.[0]).not.toContain('ayy');
+			expect(engine.importWords.mock.calls[1]?.[0]).toContain("I'ma");
+			expect(engine.importWords.mock.calls[2]?.[0]).toEqual(engine.importWords.mock.calls[0]?.[0]);
+			expect(engine.clearWords).toHaveBeenCalledTimes(3);
+		} finally {
+			await provider.dispose();
+		}
+	});
+
+	it('does not mix dictionaries when a new-profile request overlaps the previous request', async () => {
+		const accepted = new Set<string>();
+		const seen: { text: string; acceptsGeniusOnlySpelling: boolean }[] = [];
+		const engine = engineReturning(() => []);
+		engine.clearWords.mockImplementation(async () => {
+			accepted.clear();
+		});
+		engine.importWords.mockImplementation(async (words) => {
+			for (const word of words) accepted.add(word);
+		});
+		engine.lint.mockImplementation(async (text) => {
+			seen.push({ text, acceptsGeniusOnlySpelling: accepted.has('ayy') });
+			return [];
+		});
+		const provider = createHarperDiagnosticProvider(async () => engine);
+		try {
+			await Promise.all(
+				(['genius', 'musixmatch'] as const).map((profile) =>
+					provider.lint({
+						text: profile,
+						document: parseDocument(profile),
+						profile,
+						language: 'en',
+						performers: [],
+						revision: 1
+					})
+				)
+			);
+			expect(seen).toEqual([
+				{ text: 'genius', acceptsGeniusOnlySpelling: true },
+				{ text: 'musixmatch', acceptsGeniusOnlySpelling: false }
+			]);
+		} finally {
+			await provider.dispose();
+		}
 	});
 
 	it('drops a spelling guess whose token joined with its edge apostrophe is a taught word', async () => {
@@ -459,28 +556,32 @@ I heard it calling through the wall`;
 	// The reported failure verbatim: over `'90s Argentina`, real Harper offered
 	// to respell the `s` of a correctly written decade. Driven through the real
 	// WASM because the bug lives in Harper's tokenizer, which no stub reproduces.
-	it('has nothing to say about a correctly written decade', async () => {
-		const text = "[Intro]\n'90s Argentina";
-		const [{ LocalLinter }, { binary }] = await Promise.all([
-			import('harper.js'),
-			import('harper.js/binary')
-		]);
-		const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
+	it.each(['genius', 'musixmatch'] as const)(
+		'has nothing to say about a correctly written decade in %s',
+		async (profile) => {
+			const text = profile === 'genius' ? "[Intro]\n'90s Argentina" : "'90s Argentina";
+			const [{ LocalLinter }, { binary }] = await Promise.all([
+				import('harper.js'),
+				import('harper.js/binary')
+			]);
+			const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
 
-		try {
-			const diagnostics = await provider.lint({
-				text,
-				document: parseDocument(text),
-				language: 'en',
-				performers: [],
-				revision: 9
-			});
+			try {
+				const diagnostics = await provider.lint({
+					text,
+					document: parseDocument(text),
+					profile,
+					language: 'en',
+					performers: [],
+					revision: 9
+				});
 
-			expect(diagnostics).toEqual([]);
-		} finally {
-			await provider.dispose();
+				expect(diagnostics).toEqual([]);
+			} finally {
+				await provider.dispose();
+			}
 		}
-	});
+	);
 
 	it('keeps quiet about lyrics transcribed exactly as performed', async () => {
 		// Every line here drew a finding from the default engine, measured before
@@ -727,48 +828,60 @@ describe('Harper diagnostic merging', () => {
 	// their shared ranges in this merge. Real WASM, beside the other real-WASM
 	// pins: a Harper upgrade that starts or stops claiming the sample's lines
 	// has to fail here rather than quietly change the introduction.
-	it('keeps exactly one Harper finding on the sample transcription', async () => {
-		const [{ sampleDraftLanguage, sampleDraftText }, { loadStatisticalLanguageDetector }] =
-			await Promise.all([import('#lib/ui/sample-draft.js'), import('#lib/languages/detect.js')]);
-		const { currentRuleSet, runRules, sourceRegistry } = await import('./index.js');
-		await loadStatisticalLanguageDetector();
+	it.each(['genius', 'musixmatch'] as const)(
+		'keeps exactly one Harper finding on the %s sample transcription',
+		async (profile) => {
+			const [{ sampleDraftLanguage, sampleDraftText }, { loadStatisticalLanguageDetector }] =
+				await Promise.all([import('#lib/ui/sample-draft.js'), import('#lib/languages/detect.js')]);
+			const { currentRuleSet, runRules, sourceRegistry } = await import('./index.js');
+			await loadStatisticalLanguageDetector();
 
-		const document = parseDocument(sampleDraftText);
-		const native = runRules(document, {
-			language: sampleDraftLanguage,
-			performers: [],
-			sources: sourceRegistry,
-			ruleSetVersion: currentRuleSet.version,
-			revision: 0
-		});
-		const [{ LocalLinter }, { binary }] = await Promise.all([
-			import('harper.js'),
-			import('harper.js/binary')
-		]);
-		const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
-
-		try {
-			const harper = await provider.lint({
-				text: sampleDraftText,
-				document,
+			const { importDocument, renderProfile, parseProjection } =
+				await import('#lib/conversion/index.js');
+			const imported = importDocument({ text: sampleDraftText, profile: 'genius', language: 'en' });
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const projected = renderProfile(imported.value, profile);
+			if (!projected.ok) throw new Error(projected.refusal.message);
+			const text = projected.value.text;
+			const document = parseProjection(imported.value, projected.value);
+			const native = runRules(document, {
+				profile,
 				language: sampleDraftLanguage,
 				performers: [],
+				sources: sourceRegistry,
+				ruleSetVersion: currentRuleSet.version,
 				revision: 0
 			});
-			const surviving = mergeHarperDiagnostics(native, harper).filter((diagnostic) =>
-				diagnostic.ruleId.endsWith('.harper')
-			);
+			const [{ LocalLinter }, { binary }] = await Promise.all([
+				import('harper.js'),
+				import('harper.js/binary')
+			]);
+			const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
 
-			expect(surviving).toHaveLength(1);
-			expect(surviving[0]).toMatchObject({
-				ruleId: 'grammar.harper',
-				from: sampleDraftText.indexOf('has'),
-				to: sampleDraftText.indexOf('has') + 3
-			});
-		} finally {
-			await provider.dispose();
+			try {
+				const harper = await provider.lint({
+					text,
+					document,
+					profile,
+					language: sampleDraftLanguage,
+					performers: [],
+					revision: 0
+				});
+				const surviving = mergeHarperDiagnostics(native, harper).filter((diagnostic) =>
+					diagnostic.ruleId.endsWith('.harper')
+				);
+
+				expect(surviving).toHaveLength(1);
+				expect(surviving[0]).toMatchObject({
+					ruleId: 'grammar.harper',
+					from: text.indexOf('has'),
+					to: text.indexOf('has') + 3
+				});
+			} finally {
+				await provider.dispose();
+			}
 		}
-	});
+	);
 });
 
 describe('Harper initialization lifetime', () => {

@@ -622,7 +622,6 @@
 	function shouldRunHarper(snapshot: EditorSnapshot): boolean {
 		return (
 			!harperUnavailable &&
-			(snapshot.conversion?.profile ?? 'genius') === 'genius' &&
 			controller.grammarCheckEnabled &&
 			resolveLanguageTag(controller.language) === 'en' &&
 			snapshot.text.trim().length > 0
@@ -650,6 +649,7 @@
 
 		harperPending = true;
 		const language = controller.language;
+		const profile = snapshot.conversion?.profile ?? 'genius';
 		const { languageRanges } = projectionPolicyContext(snapshot);
 		const performers = [...controller.performers];
 		harperTimer = setTimeout(() => {
@@ -658,6 +658,7 @@
 				{
 					text: snapshot.text,
 					document: snapshot.parsed,
+					profile,
 					language,
 					languageRanges,
 					performers,

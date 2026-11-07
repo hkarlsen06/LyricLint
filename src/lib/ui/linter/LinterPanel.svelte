@@ -369,7 +369,7 @@
 							Reviewed language-specific rules: {reviewedLanguages.map(languageName).join(', ')}.
 						</p>
 					{/if}
-					<p>Grammar checking is available only for Genius documents in English.</p>
+					<p>Optional English grammar checking is available in both lyric formats.</p>
 				</details>
 			</div>
 		{/if}

@@ -4,8 +4,8 @@ import type { AssistantCorpus } from './rules-context';
 export const corpus = {
 	formatVersion: 6,
 	ruleSetVersion: '2026.09.21.2',
-	generatedAt: '2026-11-06T23:28:46.487Z',
-	contentHash: '102a6857a3935c8a71d991b415534259e2120a57f639fcf4a298c88ff9e291ae',
+	generatedAt: '2026-11-07T16:59:57.552Z',
+	contentHash: '9b35838e8917a00056f7ca449d1809c8327ce3b8aa09053e16ad792e7f79a0e5',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -34,7 +34,7 @@ export const corpus = {
 			severity: 'warning',
 			message: 'This parenthesis is never closed.',
 			explanation:
-				'Parentheses wrap a vocal sitting behind the lead, so every opening mark needs its closing half on the same line. Detecting the imbalance is a product-safety check derived from that convention, not an explicit Genius catalog of every malformed case. Where the mark should close is a judgment about the vocal, so no automatic repair is offered.',
+				'Parentheses wrap a vocal sitting behind the lead, so every opening mark needs its closing half on the same line. Detecting the imbalance is a product-safety check derived from that convention, not an explicit platform catalog of every malformed case. Where the mark should close is a judgment about the vocal, so no automatic repair is offered.',
 			fix: 'none',
 			language: 'en',
 			flaggedExample: '[Verse]\nHold me close (Yeah',
@@ -752,7 +752,7 @@ export const corpus = {
 			severity: 'warning',
 			message: 'This line ends with invisible whitespace.',
 			explanation:
-				'Trailing spaces survive a copy into Genius without ever being visible in the editor. Removing them changes nothing a reader can see, and the parser already treats a whitespace-only line as a blank one, so no section boundary moves.',
+				'Trailing spaces survive copying without ever being visible in the editor. Removing them changes nothing a reader can see, and the parser already treats a whitespace-only line as a blank one, so no section boundary moves.',
 			fix: 'safe',
 			fixLabel: 'Remove trailing whitespace',
 			language: 'en',
@@ -770,7 +770,7 @@ export const corpus = {
 			severity: 'suggestion',
 			message: 'Use one space between these words.',
 			explanation:
-				'Consecutive ordinary spaces between words are mechanically detectable formatting residue. Genius does not state an exact one-space rule, so LyricLint treats this as a text-hygiene suggestion.',
+				'Consecutive ordinary spaces between words are mechanically detectable formatting residue. LyricLint offers this as a text-hygiene suggestion, not a platform rule about every intentional space.',
 			fix: 'safe',
 			fixLabel: 'Use one space',
 			language: 'en',
@@ -1019,7 +1019,7 @@ export const corpus = {
 			severity: 'warning',
 			message: 'Add a space before this parenthesis.',
 			explanation:
-				'A parenthesized vocal is a word of its own, so the parenthesis does not sit flush against the letter beside it. Inserting the space is mechanically safe. This spacing check is derived from how the reviewed ad-lib examples are set, not an explicit Genius rule.',
+				'A parenthesized vocal is a word of its own, so the parenthesis does not sit flush against the letter beside it. Inserting the space is mechanically safe. This spacing check is derived from how the reviewed ad-lib examples are set, not an explicit platform rule.',
 			fix: 'safe',
 			fixLabel: 'Add a space',
 			language: 'en',
@@ -2875,12 +2875,12 @@ export const corpus = {
 	harper: {
 		ruleIds: ['spelling.harper', 'style.harper', 'grammar.harper'],
 		behavior:
-			'Alongside the reviewed Genius rules, LyricLint runs Harper, a local English proofreader, in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper, always suggestions, always citing Harper itself (T-HARPER) rather than a Genius guideline, and a native reviewed rule always wins where the two overlap.',
+			'Alongside the active lyric-format rules, LyricLint runs Harper, a local English proofreader, in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper, always suggestions, always citing Harper itself (T-HARPER) rather than a platform guideline, and a native reviewed rule always wins where the two overlap.',
 		limitations: [
 			'English only; it does not run for the other reviewed languages.',
-			'Its suggestions are general proofreading, not reviewed Genius policy, and have no reference pages.',
+			'Its suggestions are general proofreading, not reviewed platform policy, and have no reference pages.',
 			'Prose-assuming readability measures are filtered out, because lyrics use deliberate fragments, dialect, repetition, and nonstandard spelling.',
-			"It is seeded with the reviewed preferred spellings and the 'scribe’s performer names so it does not fight the Genius-specific rules."
+			"It is seeded with the active profile’s reviewed preferred spellings and the 'scribe’s performer names; Genius-specific spellings are not imported for Musixmatch."
 		]
 	},
 	policyNotes: [

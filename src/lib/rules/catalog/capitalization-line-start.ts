@@ -1,8 +1,6 @@
 import type { RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, replacementFix, visibleLineStart } from './utils.js';
-
-const englishFirstPersonAtStart =
-	/^i(?:['’](?:[mM]|[vV][eE]|[dD]|[lL][lL])(?![\p{L}\p{N}_])|(?!\.[eE]\.)(?![-'’\p{L}\p{N}_]))/u;
+import { startsWithLowercaseEnglishPronounI } from './grammar-english-pronoun-i.js';
 
 export const capitalizationLineStartRule: RuleDefinition = {
 	id: 'capitalization.line-start',
@@ -26,7 +24,8 @@ export const capitalizationLineStartRule: RuleDefinition = {
 					/\p{Ll}\p{Lu}/u.test(firstWord) ||
 					// The language-specific rule owns English first-person I so
 					// the same letter never produces two capitalization findings.
-					(/^en(?:-|$)/iu.test(context.language) && englishFirstPersonAtStart.test(start.text)) ||
+					(/^en(?:-|$)/iu.test(context.language) &&
+						startsWithLowercaseEnglishPronounI(start.text)) ||
 					// Matched against the visible line text, not the first word: the
 					// word pattern stops at the dot in a stylized name like `e.e.`.
 					/^(?:e\.e\.|iPhone|iPad|iOS)/u.test(start.text)

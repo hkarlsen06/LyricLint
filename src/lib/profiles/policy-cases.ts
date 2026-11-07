@@ -69,8 +69,8 @@ export const musixmatchPolicyCases: readonly RulePolicyCase[] = [
 	{
 		id: 'mxm.format.parenthetical-case',
 		title: 'Capitalized backing vocals',
-		invalid: 'We return (Again)',
-		valid: 'We return (again)',
+		invalid: 'We return (Yeah)',
+		valid: 'We return (yeah)',
 		ambiguous: 'We return (I know)'
 	},
 	{

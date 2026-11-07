@@ -555,14 +555,14 @@ describe('retained-only review', () => {
 			await fireEvent.click(screen.getByText('Checking coverage'));
 			expect(screen.getByText('Reviewed language-specific rules: French.')).toBeVisible();
 			expect(
-				screen.getByText('Grammar checking is available only for Genius documents in English.')
+				screen.getByText('Optional English grammar checking is available in both lyric formats.')
 			).toBeVisible();
 			expect(JSON.stringify(controller.snapshot.conversion)).toBe(original);
 		}
 	);
 	test('puts lyric findings before retained decisions without a one-item pager', async () => {
 		const imported = importDocument({
-			text: '[Verse: Mira]\nI counted 2 stars',
+			text: '[Custom verse: Mira]\nI counted 2 stars',
 			profile: 'genius',
 			language: 'en'
 		});
@@ -599,7 +599,11 @@ describe('retained-only review', () => {
 	});
 
 	test('shows the actionable detail without a duplicate empty state and preserves checker errors', async () => {
-		const imported = importDocument({ text: '[Verse]\nOne', profile: 'genius', language: 'en' });
+		const imported = importDocument({
+			text: '[Custom opening]\nOne',
+			profile: 'genius',
+			language: 'en'
+		});
 		if (!imported.ok) throw new Error(imported.refusal.message);
 		const rendered = renderProfile(imported.value, 'musixmatch');
 		if (!rendered.ok) throw new Error(rendered.refusal.message);

@@ -1,5 +1,5 @@
 import type { Diagnostic, ParsedDocument, RuleContext, RuleDefinition } from '#lib/core/types.js';
-import { enabledRules } from './registry.js';
+import { enabledRules, sharedTranscriptionRules } from './registry.js';
 import { languageIndependentMusixmatchRules, musixmatchRules } from './musixmatch.js';
 import { languageOwnership } from './language-ownership.js';
 import { getLanguagePack } from '#lib/languages/registry.js';
@@ -9,12 +9,17 @@ import { guillemetLanguages } from './catalog/quotes-typewriter.js';
 import { sortDiagnostics } from './results.js';
 export { sortDiagnostics, collectSafeFixes } from './results.js';
 
+const musixmatchCheckingRules = [...musixmatchRules, ...sharedTranscriptionRules];
+const languageIndependentSharedRules = new Set(
+	sharedTranscriptionRules.filter((rule) => !languageDependentGeniusRules.has(rule.id))
+);
+
 /** Run a registry synchronously against one immutable parsed document. */
 export function runRules(
 	document: ParsedDocument,
 	context: RuleContext,
 	registry: readonly RuleDefinition[] = context.profile === 'musixmatch'
-		? musixmatchRules
+		? musixmatchCheckingRules
 		: enabledRules
 ): Diagnostic[] {
 	if (context.languageRanges?.length) {
@@ -29,7 +34,7 @@ export function runRules(
 		const diagnostics = registry.flatMap((rule) =>
 			((
 				context.profile === 'musixmatch'
-					? languageIndependentMusixmatchRules.has(rule)
+					? languageIndependentMusixmatchRules.has(rule) || languageIndependentSharedRules.has(rule)
 					: !languageDependentGeniusRules.has(rule.id)
 			)
 				? [undefined]

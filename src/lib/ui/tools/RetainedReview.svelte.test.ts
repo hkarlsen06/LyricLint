@@ -16,6 +16,23 @@ import { profilePolicyVersions } from '#lib/profiles/versions.js';
 
 afterEach(cleanup);
 
+test('does not ask to reconfirm section types already named by Genius headings', () => {
+	const imported = importDocument({
+		text: '[Verse 1]\nOne\n[Chorus: Mira]\nTwo\n[Bridge]\nThree',
+		profile: 'genius',
+		language: 'en'
+	});
+	if (!imported.ok) throw Error(imported.refusal.message);
+	const projection = renderProfile(imported.value, 'musixmatch');
+	if (!projection.ok) throw Error(projection.refusal.message);
+	const { controller } = createTestWorkbench({ text: projection.value.text });
+	controller.onSnapshot({
+		...controller.snapshot,
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
+	expect(retainedFindings(controller.snapshot)).toEqual([]);
+});
+
 test('keeps completion focus when the reviewed section has no visible lyrics', async () => {
 	const imported = importDocument({ text: '[Custom opening]', profile: 'genius' });
 	if (!imported.ok) throw Error(imported.refusal.message);

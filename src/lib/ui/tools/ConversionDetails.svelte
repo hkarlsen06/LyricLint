@@ -4,7 +4,7 @@
 
 	import { parseDocument } from '#lib/core/parser.js';
 	import { tick, untrack } from 'svelte';
-	import { sectionTypeChoices as types } from '#lib/conversion/section-types.js';
+	import { sectionTypeChoices as types, sectionType } from '#lib/conversion/section-types.js';
 	import { contentOffset, projectOffset, renderProfile } from '#lib/conversion/index.js';
 	import type { SectionRecord } from '#lib/conversion/model.js';
 	import type { ConversionAction } from '#lib/conversion/index.js';
@@ -21,16 +21,33 @@
 	let addSectionSummary = $state<HTMLElement>();
 	let activeSection = $state<string>();
 	let sectionOptionsOpen = $state(false);
+	let sectionTypeInOptions = $state(true);
 	$effect(() => {
-		const id = activeSection;
+		const id = selectedSection;
+		sectionTypeInOptions = untrack(() => {
+			const section = model?.sections.find((section) => section.id === id);
+			return !!(section && sectionType(section, model?.defaultLanguage ?? 'und'));
+		});
 		sectionOptionsOpen = untrack(
 			() => model?.sections.find((section) => section.id === id)?.placement === 'unresolved'
 		);
 	});
 	let sectionChooser = $state<HTMLSelectElement>();
 	const selectedSection = $derived(
-		model?.sections.some((section) => section.id === activeSection) ? activeSection : undefined
+		model?.sections.some((section) => section.id === activeSection)
+			? activeSection
+			: projection?.ok
+				? (projection.value.sections.findLast(
+						(section) => section.at <= controller.snapshot.selection.head
+					)?.id ?? model?.sections[0]?.id)
+				: undefined
 	);
+	let previousHead: number | undefined;
+	$effect(() => {
+		const head = controller.snapshot.selection.head;
+		if (previousHead !== undefined && previousHead !== head) activeSection = undefined;
+		previousHead = head;
+	});
 	let removeId = $state<string>();
 	let annotationId = $state('');
 	let targetText = $state('');
@@ -129,6 +146,25 @@
 	});
 </script>
 
+{#snippet typePicker(section: SectionRecord)}
+	<label
+		>Section type
+		<select
+			value={sectionType(section, model?.defaultLanguage ?? 'und') ?? ''}
+			onchange={(event) => {
+				const type = types.find((type) => type === event.currentTarget.value);
+				if (type)
+					controller.applyConversionAction({ kind: 'setSectionType', sectionId: section.id, type });
+			}}
+		>
+			<option value="" disabled>Type not set</option>
+			{#each types as type (type)}<option value={type}
+					>{type === 'PreChorus' ? 'Pre-Chorus' : type}</option
+				>{/each}
+		</select>
+	</label>
+{/snippet}
+
 <div class="conversion-details" bind:this={container}>
 	{#if controller.requestedSection?.origin === 'review'}
 		<button type="button" class="button button--quiet" onclick={backToReview}>Back to Review</button
@@ -150,7 +186,8 @@
 							? 'section'
 							: 'sections'}</option
 					>{#each model.sections as section, index (section.id)}<option value={section.id}
-							>Section {index + 1} · {section.type ?? (section.name || 'Type not set')} · {model.content
+							>Section {index + 1} · {sectionType(section, model.defaultLanguage) ??
+								(section.name || 'Type not set')} · {model.content
 								.slice(section.at, model.sections[index + 1]?.at ?? model.content.length)
 								.trim()
 								.split('\n')[0]}</option
@@ -158,6 +195,7 @@
 				></label
 			>
 			{#each model.sections as section, index (section.id)}
+				{@const type = sectionType(section, model.defaultLanguage)}
 				{@const performers = [
 					...new Set(
 						model.voices
@@ -172,36 +210,21 @@
 							)
 					)
 				].join(', ')}
-				{#if activeSection === section.id}<section
+				{#if selectedSection === section.id}<section
 						class="conversion-section conversion-section--active"
 					>
 						<h3 tabindex="-1" data-section-id={section.id}>
-							Section {index + 1} · {section.type ?? (section.name || 'Type not set')}
+							Section {index + 1} · {type ?? (section.name || 'Type not set')}
 						</h3>
 						{#if performers}<p class="conversion-section__performers">{performers}</p>{/if}
-						{#if activeSection === section.id}
+						{#if selectedSection === section.id}
 							<button type="button" class="button button--quiet" onclick={() => show(section.at)}
 								>Show passage</button
 							>
-							<label
-								>Section type
-								<select
-									value={section.type ?? ''}
-									onchange={(event) =>
-										controller.applyConversionAction({
-											kind: 'setSectionType',
-											sectionId: section.id,
-											type: event.currentTarget.value as NonNullable<SectionRecord['type']>
-										})}
-								>
-									<option value="" disabled>Type not set</option>
-									{#each types as type (type)}<option value={type}
-											>{type === 'PreChorus' ? 'Pre-Chorus' : type}</option
-										>{/each}
-								</select>
-							</label>
+							{#if !sectionTypeInOptions}{@render typePicker(section)}{/if}
 							<details class="conversion-section__advanced" bind:open={sectionOptionsOpen}>
 								<summary>More section options</summary>
+								{#if sectionTypeInOptions}{@render typePicker(section)}{/if}
 								<label
 									>Genius section label
 									<input

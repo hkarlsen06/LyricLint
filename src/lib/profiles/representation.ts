@@ -10,6 +10,30 @@ export interface RepresentationContext {
 	contentKind?: 'original' | 'translation' | 'romanization' | 'unknown';
 }
 
+/** English FAQ examples: ordinary vocalizations keep grammatical lowercase inside a lead line. */
+export function englishBackingVocalCaseEdits(text: string, offset = 0): TextEdit[] {
+	if (/[<>]/u.test(text) || /\([^)\r\n]*\(/u.test(text)) return [];
+	const edits: TextEdit[] = [];
+	for (const match of text.matchAll(
+		/\((Oh|Ooh|Ooo|Ah|Aah|Aha|Yeah|Yep|Hey|Whoa|Woah|Uh|Mm|Mmm|Hmm)(?![\p{L}\p{M}\p{N}_'’-])([^()\r\n]*)\)/gu
+	)) {
+		const before = text.slice(0, match.index).trimEnd();
+		if (!before || /[.!?]["”’']?$/u.test(before)) continue;
+		// Names, acronyms and another sentence inside the phrase remain contextual.
+		if (
+			/[.!?]\s+\p{Lu}/u.test(match[2]) ||
+			/\p{Lu}/u.test(match[2].replace(/\bI(?:['’](?:m|ve|d|ll))?\b/gu, ''))
+		)
+			continue;
+		edits.push({
+			from: offset + match.index + 1,
+			to: offset + match.index + 1 + match[1].length,
+			insert: match[1].toLowerCase()
+		});
+	}
+	return edits;
+}
+
 /** Only unambiguous preceding classes. Ambiguous-width symbols and combining marks stay exact. */
 export function japanesePunctuationWidth(previous: string): 'full' | 'half' | undefined {
 	if (/^[\x21-\x7e\uff61-\uff9f]$/u.test(previous)) return 'half';

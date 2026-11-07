@@ -53,6 +53,39 @@ describe('Workspace native checker startup', () => {
 		expect(screen.queryByText('Checking lyrics…')).toBeNull();
 	});
 
+	it('retains sample spelling, contraction, pronoun and real worker grammar after switching to Musixmatch', async () => {
+		const { sampleDraftText } = await import('#lib/ui/sample-draft.js');
+		const { controller } = createTestWorkbench({ text: sampleDraftText });
+		await render(Workspace, { controller, editorComponent: EditorPane });
+		await waitFor(() => expect(controller.editor.switchProfile).toBeTypeOf('function'));
+		const musixmatch = await screen.findByRole('button', { name: 'Lyric format: Musixmatch' });
+		await fireEvent.click(musixmatch);
+		await waitFor(() => expect(controller.profile).toBe('musixmatch'));
+		await waitFor(
+			() => {
+				const findings = controller.snapshot.diagnostics;
+				for (const id of [
+					'contraction.apostrophe',
+					'spelling.english-common',
+					'grammar.english-pronoun-i',
+					'grammar.harper'
+				]) {
+					expect(
+						findings.some((finding) => finding.ruleId === id),
+						id
+					).toBe(true);
+				}
+			},
+			{ timeout: 20000 }
+		);
+		const grammar = controller.snapshot.diagnostics.find(
+			(finding) => finding.ruleId === 'grammar.harper'
+		);
+		expect(grammar).toMatchObject({ sourceIds: ['T-HARPER'] });
+		if (!grammar) throw new Error('Expected the sample agreement finding');
+		expect(controller.snapshot.text.slice(grammar.from, grammar.to)).toBe('has');
+	});
+
 	it.each(['conversionRecovery', 'originalRecovery'] as const)(
 		'opens protected %s without repeatedly publishing checking snapshots',
 		async (kind) => {

@@ -44,6 +44,9 @@ describe('Musixmatch assistant corpus parity', () => {
 			profileGuidelines.map((entry) => entry.id)
 		);
 		expect(musixmatchCorpus.rules.every((rule) => rule.id.startsWith('mxm.'))).toBe(true);
+		expect(musixmatchCorpus.harper.ruleIds).toEqual([...harperRuleIds]);
+		expect(musixmatchCorpus.sources.some((source) => source.id === 'T-HARPER')).toBe(true);
+		expect(musixmatchCorpus.harper.behavior).not.toContain('not enabled');
 		expect(musixmatchCorpus.languages).toHaveLength(8);
 		for (const entry of musixmatchCorpus.guidance) {
 			const claim = profileGuidelines.find((candidate) => candidate.id === entry.id)!;

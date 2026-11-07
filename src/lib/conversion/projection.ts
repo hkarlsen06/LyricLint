@@ -19,6 +19,7 @@ import {
 	type ProjectionSegment
 } from './model.js';
 import { canRenderSection } from './section-placement.js';
+import { sectionType } from './section-types.js';
 import { validateModel } from './validation.js';
 
 interface Event {
@@ -383,7 +384,8 @@ export function renderProfile(
 			name: section.name,
 			at
 		};
-		if (section.type) projectedSection.type = section.type;
+		const type = sectionType(section, document.defaultLanguage);
+		if (type) projectedSection.type = type;
 		if (segment) {
 			projectedSection.headerFrom = segment.from;
 			projectedSection.headerTo = segment.to;

@@ -104,8 +104,12 @@ same command through `createCallbackProxy`.
 
 ### One section editing surface
 
-Song provides one **Sections** chooser with ordered section names and lyric previews. Choosing a
-section opens one editor for its type, performers and advanced operations. Activating an editor
+Recognized Genius headings supply their Musixmatch type automatically, including supported
+localized headings and numbered verses. Their original labels and performer legends stay exact;
+an explicit type override takes precedence. Unknown or unsupported labels keep a type decision.
+Song opens the section at the caret automatically. Its **Sections** chooser remains available
+for navigation to another section. The recognized type appears in the heading, with an optional
+override inside More section options; only an unknown type needs an immediate picker. Activating an editor
 section control opens Song, chooses that section, and focuses its heading. On phones this goes
 to Tools → Song without opening the keyboard. A return action restores the mapped editor
 passage or the originating Review finding, whichever opened the surface.
@@ -123,7 +127,7 @@ falling back to the Review tab after the last decision is resolved.
 
 | Control | Behavior |
 | --- | --- |
-| Type | Choose an explicit supported profile type; preserve the independent Genius label and performer legend exactly |
+| Type | Reuse the recognized heading automatically; allow an explicit supported override while preserving the independent Genius label and performer legend exactly |
 | Genius section label | Edit the label in More section options without raw source editing; preserve the performer legend and other metadata |
 | Insert section | Require a New section type choice, then insert a boundary with that type and a matching Genius heading; select the new section and focus its editor |
 | Split a section | Use Add a section at a lyric-line boundary; the original identity stays on the original part and the new part receives the explicitly chosen type |
@@ -168,9 +172,9 @@ silently combine their identities or invent blank lyric lines.
 
 ### Compact section editing
 
-Song has one ordered section chooser and one editor for the chosen section. The chooser counts
+Song has one ordered section chooser and one editor for the current section, selected from the caret unless explicitly chosen. The chooser counts
 musical sections with singular/plural grammar; Document counts lyric stanzas separated by blank
-lines, independently of musical boundaries. Type and Show passage are the immediate controls.
+lines, independently of musical boundaries. Show passage is immediate; recognized types need no confirmation.
 More section options grows below its trigger and exposes an editable Genius section label,
 voice passages, boundary moves, merges and confirmed deletion. Label edits change only the
 label, keeping performer legend syntax and retained annotations intact. Type changes never

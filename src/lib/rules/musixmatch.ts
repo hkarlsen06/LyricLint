@@ -21,8 +21,10 @@ import { diagnostic, matchesOutsideMarkup, replacementFix } from './catalog/util
 import { repeatPlaceholderRule } from './catalog/repeat-placeholder.js';
 import {
 	frenchQuestionSpacingEdits,
+	englishBackingVocalCaseEdits,
 	japanesePunctuationEdits
 } from '#lib/profiles/representation.js';
+import { startsWithLowercaseEnglishPronounI } from './catalog/grammar-english-pronoun-i.js';
 export { japanesePunctuationWidth } from '#lib/profiles/representation.js';
 
 const general = ['MXM-MAIN'];
@@ -226,6 +228,11 @@ const lineInitialRule: RuleDefinition = {
 		return lyrics(document).flatMap((line) => {
 			const match = /^\s*["“«「『]*(\p{Ll})/u.exec(line.text);
 			if (!match || /^\s*(?:iPhone|iPad|iOS|e\.e\.)/u.test(line.text)) return [];
+			if (
+				language(context) === 'en' &&
+				startsWithLowercaseEnglishPronounI(line.text.slice(match[0].length - match[1].length))
+			)
+				return [];
 			if (startsWithRetainedCase(line.text)) return [];
 			const from = line.from + match[0].length - match[1].length;
 			const range = { from, to: from + match[1].length };
@@ -302,14 +309,34 @@ const expressiveCaseRule: RuleDefinition = {
 
 const parentheticalRule: RuleDefinition = {
 	id: 'mxm.format.parenthetical-case',
-	version: 1,
-	defaultSeverity: 'manual-review',
+	version: 2,
+	defaultSeverity: 'suggestion',
+	fixability: 'preview',
 	sourceIds: ['MXM-MAIN', 'MXM-EN-Q', 'MXM-ES-I', 'MXM-JA-Q'],
 	check(document, context) {
 		const lang = language(context);
 		if (!['en', 'es', 'ja'].includes(lang)) return [];
-		return lyrics(document).flatMap((line) =>
-			matchesOutsideMarkup(line, /\([^()\r\n]*\)/gu).flatMap((match) => {
+		return lyrics(document).flatMap((line) => {
+			const edits = new Map(
+				(lang === 'en' ? englishBackingVocalCaseEdits(line.text, line.from) : []).map((edit) => [
+					edit.from,
+					edit
+				])
+			);
+			return matchesOutsideMarkup(line, /\([^()\r\n]*\)/gu).flatMap((match) => {
+				const edit = edits.get(match.from + 1);
+				if (edit)
+					return [
+						preview(
+							this,
+							context,
+							edit,
+							'Review capitalization in these backing vocals.',
+							'Ordinary English backing-vocal openings use lowercase inside a lyric line. Pronouns, names and new sentences keep their grammatical capitals.',
+							`Lowercase “${document.text.slice(edit.from, edit.to)}”`,
+							edit.insert
+						)
+					];
 				if (lang === 'ja' && /\p{L}/u.test(match.text))
 					return [
 						review(
@@ -334,8 +361,8 @@ const parentheticalRule: RuleDefinition = {
 						[lang === 'en' ? 'MXM-EN-Q' : 'MXM-ES-I']
 					)
 				];
-			})
-		);
+			});
+		});
 	}
 };
 
@@ -483,7 +510,7 @@ const numericRule: RuleDefinition = {
 	}
 };
 
-const standardizedForms = new Map([
+export const musixmatchStandardizedForms = new Map([
 	['imma', "I'ma"],
 	['ima', "I'ma"],
 	['outa', 'outta'],
@@ -506,7 +533,7 @@ const standardizedRule: RuleDefinition = {
 				/(?<![\p{L}'’])(?:imma|ima|outa|outta|ballin|gon|til)(?![\p{L}'’])/giu
 			).flatMap((match) => {
 				const form = match.text.toLowerCase();
-				const replacement = standardizedForms.get(form);
+				const replacement = musixmatchStandardizedForms.get(form);
 				if (!replacement) return [];
 				const insert =
 					match.text[0] === match.text[0].toUpperCase() && form !== 'imma' && form !== 'ima'

@@ -97,6 +97,13 @@ Formatted stanza boundaries and musical section tags remain distinct. Blank-line
 create provisional layout groups, but does not confirm a musical identity or a one-to-one
 stanza/tag relationship. Enforcing the ten-line stanza limit must not manufacture section tags.
 Song names these counts separately: musical sections in the chooser and lyric stanzas in Document.
+An existing recognized Genius heading supplies its supported Musixmatch type through the shared
+section-type resolver. Exact supported tag names take precedence, including Hook. Otherwise it uses
+the selected language vocabulary with English fallback, preserves
+numbered labels and performer legends, and leaves unsupported/custom or broken headings unresolved.
+This derived metadata does not rewrite stored records or lyric projections. An explicitly stored
+type overrides the heading interpretation. Existing stored documents gain the same behavior without
+a migration or a pinned rendering-policy change.
 Explicit insertion requires a type and uses the existing typed insertion to create its Genius
 heading. Subsequent type changes preserve that independent heading exactly. An explicit label
 edit changes only its name portion, preserving performer legend bytes and retained metadata;

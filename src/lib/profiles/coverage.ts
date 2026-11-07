@@ -659,7 +659,7 @@ export const profileGuidelines: readonly ProfileGuideline[] = [
 		handling: 'check',
 		ruleIds: ['mxm.format.parenthetical-case'],
 		limit:
-			"Confirms a specific difference from Genius's ad-lib initial-capital convention. This is not permission to lowercase proper nouns or English `I`."
+			'Ordinary vocalizations such as Oh and Yeah offer a lowercase preview within a lead line. Names, pronouns, sentence punctuation and uncertain vocal roles retain contextual review.'
 	},
 	{
 		id: 'MX-EN04',

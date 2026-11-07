@@ -1,4 +1,5 @@
 import type { TextRange } from '#lib/core/types.js';
+import { sectionType } from './section-types.js';
 import { scanPhysicalLines } from '#lib/core/parser.js';
 import { profileLanguage } from '#lib/profiles/languages.js';
 import {
@@ -204,18 +205,28 @@ export function resolveFactDecision(
 				checked.message
 			);
 		const before = next.sections.findIndex((section) => section.id === facts.beforeSectionId);
+		const preceding = next.sections[before];
 		const after = next.sections[before + 1];
+		const beforeType = preceding && sectionType(preceding, next.defaultLanguage);
+		const afterType = after && sectionType(after, next.defaultLanguage);
 		if (
 			before < 0 ||
 			after?.id !== facts.afterSectionId ||
-			!next.sections[before]?.type ||
-			!after.type ||
+			!beforeType ||
+			!afterType ||
 			next.sections[before]!.at >= after.at
 		)
 			return refuse(
 				'invalid-input',
 				'Confirm the types of two adjacent sections with lyrics before placing an instrumental interval between them.'
 			);
+		next.sections = next.sections.map((section) =>
+			section === preceding
+				? { ...section, type: beforeType }
+				: section === after
+					? { ...section, type: afterType }
+					: section
+		);
 		if (action.markerRange !== undefined) {
 			const range = action.markerRange;
 			if (

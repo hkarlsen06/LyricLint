@@ -241,6 +241,32 @@ describe('Musixmatch formatting and language exceptions', () => {
 		expect(conflict.fixes).toBeUndefined();
 	});
 
+	it('offers direct corrections for ordinary English backing-vocal openings', () => {
+		for (const [text, expected] of [
+			['We sing (Yeah)', 'We sing (yeah)'],
+			["I'm really hungry (Oh yes I am)", "I'm really hungry (oh yes I am)"],
+			['We sing (Ooh, I know)', 'We sing (ooh, I know)']
+		]) {
+			const [finding] = has(text, 'format.parenthetical-case');
+			expect(finding.fixes?.[0].kind).toBe('preview');
+			expect(fixedText(text, finding)).toBe(expected);
+		}
+		for (const text of [
+			'Are you hungry? (Oh yes)',
+			'We sing (Mira)',
+			'We sing (I know)',
+			'We sing (NASA)',
+			'We sing (Oh Wonder)',
+			'We sing (Ohé)',
+			'We sing (A title (Yeah))',
+			'(Yeah)'
+		]) {
+			expect(
+				has(text, 'format.parenthetical-case').every((finding) => !finding.fixes?.length)
+			).toBe(true);
+		}
+	});
+
 	it('never changes numeric roles, precision or script without semantic evidence', () => {
 		for (const [language, text] of [
 			['en', "At 6 o'clock"],

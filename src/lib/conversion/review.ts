@@ -2,6 +2,7 @@ import { parseDocument } from '#lib/core/parser.js';
 import type { Diagnostic, EditorSnapshot } from '#lib/core/types.js';
 import { hasRepeatHeaderInstruction } from '#lib/rules/catalog/repeat-placeholder.js';
 import { projectOffset, renderProfile } from './projection.js';
+import { sectionType } from './section-types.js';
 
 export type ConversionReviewKind = 'quantity' | 'instrumental' | 'censor' | 'repeat';
 
@@ -59,7 +60,7 @@ export function retainedFindings(
 					sectionId: section.id,
 					message: `Resolve the retained repeat instruction ${section.header}. Open this header in Genius to transcribe the intended repeated lyrics and edit the instruction. No source version or copy count is assumed.`
 				});
-			} else if (!section.type) {
+			} else if (!sectionType(section, conversion.model.defaultLanguage)) {
 				const label = section.header.trim() || section.name || `section ${index + 1}`;
 				const firstLine = projection.value.text
 					.slice(

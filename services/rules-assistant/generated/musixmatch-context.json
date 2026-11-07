@@ -2,8 +2,8 @@
 	"formatVersion": 6,
 	"profile": "musixmatch",
 	"ruleSetVersion": "2026.09.16.1",
-	"generatedAt": "2026-11-07T01:19:40.329Z",
-	"contentHash": "cc24d9bd89f85ba68d30aebc74068c1eb620773bd83601cc66b23bbfb62867a5",
+	"generatedAt": "2026-11-07T16:59:58.271Z",
+	"contentHash": "e43523b1b8689b5ea9ff091db26f144bc117404b78ee9c6bc3bb751ecab2fdd6",
 	"rules": [
 		{
 			"id": "mxm.transcription.labels",
@@ -148,14 +148,15 @@
 			"title": "Capitalized backing vocals",
 			"group": "mxm",
 			"groupTitle": "Musixmatch",
-			"severity": "manual-review",
+			"severity": "suggestion",
 			"message": "Review capitalization in these backing vocals.",
-			"explanation": "Musixmatch normally uses grammatical case inside backing-vocal parentheses. A name, a new sentence, or another vocal role can justify the capital; do not lowercase all parenthetical lyrics.",
-			"fix": "none",
+			"explanation": "Ordinary English backing-vocal openings use lowercase inside a lyric line. Pronouns, names and new sentences keep their grammatical capitals.",
+			"fix": "preview",
+			"fixLabel": "Lowercase “Yeah”",
 			"language": "en",
-			"flaggedExample": "We return (Again)",
-			"acceptedExample": "We return (again)",
-			"sourceIds": ["MXM-EN-Q"]
+			"flaggedExample": "We return (Yeah)",
+			"acceptedExample": "We return (yeah)",
+			"sourceIds": ["MXM-MAIN", "MXM-EN-Q", "MXM-ES-I", "MXM-JA-Q"]
 		},
 		{
 			"id": "mxm.punctuation.line-ending",
@@ -1195,7 +1196,7 @@
 			"authority": "external",
 			"sourceIds": ["MXM-EN-Q"],
 			"relatedRuleIds": ["mxm.format.parenthetical-case"],
-			"note": "Confirms a specific difference from Genius's ad-lib initial-capital convention. This is not permission to lowercase proper nouns or English `I`.",
+			"note": "Ordinary vocalizations such as Oh and Yeah offer a lowercase preview within a lead line. Names, pronouns, sentence punctuation and uncertain vocal roles retain contextual review.",
 			"languages": ["en"],
 			"handling": "check"
 		},
@@ -1856,6 +1857,62 @@
 	],
 	"sources": [
 		{
+			"id": "G-ADD-SONGS",
+			"pageTitle": "How to Add Songs to Genius",
+			"sectionTitle": "Index of lyric accuracy and formatting guidance",
+			"url": "https://genius.com/Genius-how-to-add-songs-to-genius-annotated",
+			"lastVerifiedAt": "2026-08-17",
+			"authority": "staff"
+		},
+		{
+			"id": "G-ADLIBS",
+			"pageTitle": "Ad-libs",
+			"sectionTitle": "Parenthesize and capitalize ad-libs",
+			"url": "https://genius.com/9257397",
+			"lastVerifiedAt": "2026-08-12",
+			"authority": "staff"
+		},
+		{
+			"id": "G-CAPS",
+			"pageTitle": "Conventional capitalization",
+			"sectionTitle": "Lyric-line capitalization with contextual exceptions",
+			"url": "https://genius.com/15545679",
+			"lastVerifiedAt": "2026-08-12",
+			"authority": "staff"
+		},
+		{
+			"id": "G-CONTRACTIONS",
+			"pageTitle": "Contraction apostrophes",
+			"sectionTitle": "Write apostrophes in clear contractions",
+			"url": "https://genius.com/9290803",
+			"lastVerifiedAt": "2026-08-12",
+			"authority": "staff"
+		},
+		{
+			"id": "L-EN-COMMON",
+			"pageTitle": "Commonly Misspelled Words",
+			"sectionTitle": "Frequent English misspellings including definitely and tomorrow",
+			"url": "https://www.merriam-webster.com/grammar/commonly-misspelled-words",
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
+		},
+		{
+			"id": "L-EN-MORE",
+			"pageTitle": "More Commonly Misspelled Words",
+			"sectionTitle": "Frequent English misspellings including separate and achieve",
+			"url": "https://www.merriam-webster.com/grammar/more-commonly-misspelled-words/_not-seperate-seprate-seperet_",
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
+		},
+		{
+			"id": "L-EN-TOP50",
+			"pageTitle": "Spelling: Top 50 spelling mistakes in English",
+			"sectionTitle": "High-frequency learner misspellings including definately, freind, untill and recieve",
+			"url": "https://dictionary.cambridge.org/grammar/british-grammar/spelling-top-50-spelling-mistakes-in-english",
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
+		},
+		{
 			"id": "MXM-BULK",
 			"pageTitle": "Lyrics bulk submission",
 			"sectionTitle": "Official partner submission documentation",
@@ -2074,6 +2131,14 @@
 			"authority": "external",
 			"platform": "musixmatch",
 			"platformStanding": "official"
+		},
+		{
+			"id": "T-HARPER",
+			"pageTitle": "Harper",
+			"sectionTitle": "Version 2.4.0 local English grammar and spelling engine",
+			"url": "https://github.com/Automattic/harper",
+			"lastVerifiedAt": "2026-07-26",
+			"authority": "external"
 		}
 	],
 	"languages": [
@@ -2127,12 +2192,18 @@
 		}
 	],
 	"harper": {
-		"ruleIds": [],
-		"behavior": "Harper is not enabled in the Musixmatch profile.",
-		"limitations": ["Genius proofreading dictionaries are not Musixmatch policy."]
+		"ruleIds": ["spelling.harper", "style.harper", "grammar.harper"],
+		"behavior": "Alongside the active lyric-format rules, LyricLint runs Harper, a local English proofreader, in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper, always suggestions, always citing Harper itself (T-HARPER) rather than a platform guideline, and a native reviewed rule always wins where the two overlap.",
+		"limitations": [
+			"English only; it does not run for the other reviewed languages.",
+			"Its suggestions are general proofreading, not reviewed platform policy, and have no reference pages.",
+			"Prose-assuming readability measures are filtered out, because lyrics use deliberate fragments, dialect, repetition, and nonstandard spelling.",
+			"It is seeded with the active profile’s reviewed preferred spellings and the 'scribe’s performer names; Genius-specific spellings are not imported for Musixmatch."
+		]
 	},
 	"policyNotes": [
 		"Use only this Musixmatch corpus. Official Musixmatch source standing is independent of Genius staff/editorial authority; community supplements remain advisory.",
+		"Shared transcription checks (syntax.unbalanced-parentheses, text.invisible-characters, text.multiple-spaces, punctuation.parenthesis-spacing, contraction.apostrophe, grammar.english-pronoun-i, spelling.english-common) retain their original sources and are general text or grammar suggestions, not additional Musixmatch platform rules. Do not treat their Genius-derived provenance as Musixmatch authority.",
 		"Every clause records its language scope, handling and remaining limits. A syntactic check is not full verification. Unresolved source conflicts, audio evidence, numeric meaning and unknown words never justify a guessed edit.",
 		"Switching is a deterministic, lossless local representation operation. The assistant never runs conversion and must not reinterpret switching as permission to edit lyrics.",
 		"No complete Arabic or Korean language-specific policy has been established by the inspected sources. Do not claim that generic checks or an English fallback fill this gap.",

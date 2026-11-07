@@ -36,6 +36,7 @@ import type {
 } from './assistant-corpus-types.js';
 import { policyCases } from './catalog/policy-cases.js';
 import { currentRuleSet } from './data/rule-set.js';
+import { sharedTranscriptionRules } from './registry.js';
 import { sourceRegistry } from './data/sources.js';
 import { harperRuleIds } from './harper.js';
 import { ruleLookupTables } from './lookup-tables.js';
@@ -54,16 +55,16 @@ export type { AssistantCorpus } from './assistant-corpus-types.js';
 export const CORPUS_FORMAT_VERSION = 6;
 
 const HARPER_BEHAVIOR =
-	'Alongside the reviewed Genius rules, LyricLint runs Harper, a local English proofreader, ' +
+	'Alongside the active lyric-format rules, LyricLint runs Harper, a local English proofreader, ' +
 	'in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper, ' +
-	'always suggestions, always citing Harper itself (T-HARPER) rather than a Genius guideline, ' +
+	'always suggestions, always citing Harper itself (T-HARPER) rather than a platform guideline, ' +
 	'and a native reviewed rule always wins where the two overlap.';
 
 const HARPER_LIMITATIONS = [
 	'English only; it does not run for the other reviewed languages.',
-	'Its suggestions are general proofreading, not reviewed Genius policy, and have no reference pages.',
+	'Its suggestions are general proofreading, not reviewed platform policy, and have no reference pages.',
 	'Prose-assuming readability measures are filtered out, because lyrics use deliberate fragments, dialect, repetition, and nonstandard spelling.',
-	"It is seeded with the reviewed preferred spellings and the 'scribe’s performer names so it does not fight the Genius-specific rules."
+	"It is seeded with the active profile’s reviewed preferred spellings and the 'scribe’s performer names; Genius-specific spellings are not imported for Musixmatch."
 ];
 
 /** Sections of docs/rules.md that bear on rule interpretation. The catalog
@@ -156,7 +157,18 @@ export function buildAssistantCorpusContent(
 				languages: [...entry.languages],
 				handling: entry.handling
 			})),
-			sources: profileSources.map(corpusSource).sort((a, b) => a.id.localeCompare(b.id, 'en')),
+			sources: [
+				...profileSources,
+				...[
+					...new Set(['T-HARPER', ...sharedTranscriptionRules.flatMap((rule) => rule.sourceIds)])
+				].map((id) => {
+					const source = sourceRegistry.get(id);
+					if (!source) throw new Error(`Missing shared transcription source ${id}`);
+					return source;
+				})
+			]
+				.map(corpusSource)
+				.sort((a, b) => a.id.localeCompare(b.id, 'en')),
 			languages: reviewedLanguagePacks.map((pack) => ({
 				tag: pack.tag,
 				displayName: pack.displayName,
@@ -167,12 +179,13 @@ export function buildAssistantCorpusContent(
 				headerTerms: []
 			})),
 			harper: {
-				ruleIds: [],
-				behavior: 'Harper is not enabled in the Musixmatch profile.',
-				limitations: ['Genius proofreading dictionaries are not Musixmatch policy.']
+				ruleIds: [...harperRuleIds],
+				behavior: HARPER_BEHAVIOR,
+				limitations: HARPER_LIMITATIONS
 			},
 			policyNotes: [
 				'Use only this Musixmatch corpus. Official Musixmatch source standing is independent of Genius staff/editorial authority; community supplements remain advisory.',
+				`Shared transcription checks (${sharedTranscriptionRules.map((rule) => rule.id).join(', ')}) retain their original sources and are general text or grammar suggestions, not additional Musixmatch platform rules. Do not treat their Genius-derived provenance as Musixmatch authority.`,
 				'Every clause records its language scope, handling and remaining limits. A syntactic check is not full verification. Unresolved source conflicts, audio evidence, numeric meaning and unknown words never justify a guessed edit.',
 				'Switching is a deterministic, lossless local representation operation. The assistant never runs conversion and must not reinterpret switching as permission to edit lyrics.',
 				'No complete Arabic or Korean language-specific policy has been established by the inspected sources. Do not claim that generic checks or an English fallback fill this gap.',

@@ -7,7 +7,7 @@ const letterOrDigit = /[\p{L}\p{M}\p{N}]/u;
 const explanation =
 	'A parenthesized vocal is a word of its own, so the parenthesis does not sit flush against ' +
 	'the letter beside it. Inserting the space is mechanically safe. This spacing check is ' +
-	'derived from how the reviewed ad-lib examples are set, not an explicit Genius rule.';
+	'derived from how the reviewed ad-lib examples are set, not an explicit platform rule.';
 
 export const punctuationParenthesisSpacingRule: RuleDefinition = {
 	id: 'punctuation.parenthesis-spacing',

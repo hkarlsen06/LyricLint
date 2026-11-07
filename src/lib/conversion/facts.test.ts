@@ -139,6 +139,20 @@ function withInterval() {
 }
 
 describe('confirmed scoped conversion facts', () => {
+	it('uses recognized neighboring headings without asking for their types again', () => {
+		const document = imported('[Verse]\nOne\n\n[Chorus]\nTwo');
+		const original = structuredClone(document);
+		const result = value(
+			resolveDecision(document, view(document), {
+				kind: 'confirmInstrumentalInterval',
+				facts: interval(document)
+			})
+		);
+		expect(result.document.sections.map((section) => section.type)).toEqual(['Verse', 'Chorus']);
+		expect(validateModel(result.document).ok).toBe(true);
+		expect(view(result.document, 'genius').text).toBe('[Verse]\nOne\n\n[Chorus]\nTwo');
+		expect(document).toEqual(original);
+	});
 	it.each(
 		['13', '１３', '١٣', '۱۳'].flatMap((source) =>
 			['13', '１３', '١٣', '۱۳'].map((target) => [source, target])

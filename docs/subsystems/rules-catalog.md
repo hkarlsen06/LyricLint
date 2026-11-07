@@ -11,9 +11,11 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   `Chorus ×2` and `Chorus 2×` are punctuation, so their recognition does not require a word
   boundary beside the sign. The source version and copy count remain explicit user decisions.
 
-- `RuleContext.profile` selects an isolated registry; omitted means Genius for existing callers.
-  Musixmatch findings have `mxm.*` identifiers and their own sources. `getRule` resolves both
-  registries, while `enabledRules` and the existing Genius manifest keep their original scope.
+- `RuleContext.profile` selects the platform-policy registry; omitted means Genius for existing
+  callers. Musixmatch policy findings have `mxm.*` identifiers and their own sources. Shared
+  transcription checks run beside those policies with their original IDs and citations.
+  `getRule` resolves both registries, while `enabledRules` and the existing Genius manifest
+  keep their original scope.
   A profile switch does not apply diagnostic fixes. Musixmatch fixes are explicit previews,
   bound to the current revision; semantic/audio uncertainties and contradictory sources never
   produce automatic rewrites. `musixmatch.test.ts` pins repeated profile selection without
@@ -38,7 +40,14 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   either side and grammar in unaffected passages remain checked.
   It rejects findings or edits spanning different owners. The installed Harper API returns
   UTF-16 spans (its internal Rust span is scalar-based); projection mapping indexes the public
-  UTF-16 span, including after emoji. Eligibility stays English Genius. Unreviewed languages
+  UTF-16 span, including after emoji. English grammar checking is available in both lyric
+  formats. Its dictionary follows the active profile; Genius-specific spellings are not
+  imported for Musixmatch. Dictionary replacement and linting share one serialized engine
+  turn, so an overlapping old-profile request cannot contaminate the new profile's dictionary.
+  Literal Musixmatch brackets and tags are not masked as Genius
+  syntax. Its decade tokens also remain in the grammar input; a spelling guess at a letter
+  fragment attached to digits cannot replace the complete alphanumeric token. This boundary
+  refusal does not classify or convert numbers. Unreviewed languages
   supply no lexical-standardization evidence; the Cuz meaning gate specifically requires English.
   `profiles/decisions.ts` separately evaluates user-confirmed ordinary quantities and instrumental
   intervals: exact integer values, pronunciation/role facts, current recording identity and
@@ -65,6 +74,12 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
 - Protected recovery snapshots keep exact visible text without running native or grammar
   checking. Metadata-driven checking effects leave that state alone rather than republishing
   it while waiting for a normal checking result.
+- General transcription checks run in both profiles through `sharedTranscriptionRules`:
+  whitespace hygiene, balanced and spaced parentheses, English contractions, first-person I
+  and common English spelling. They retain their existing IDs, sources, language boundaries
+  and fix tiers. They are separate from the Musixmatch policy registry and do not acquire
+  official platform provenance. Profile-specific punctuation, number, header and slang rules
+  remain separate. `shared-checking.test.ts` and real Harper sample checks pin the distinction.
 - Musixmatch sources retain `platformStanding` independently of Genius's author-role ladder.
   Official platform sources are official for that platform; a linked community supplement does
   not acquire that standing. `profiles/coverage.ts` records every researched clause, its language
@@ -662,9 +677,10 @@ What stays on is deliberate too. The its/it's and missing-possessive-apostrophe 
 same standard punctuation `contraction.apostrophe` already enforces natively, so refusing it would
 be the catalog disagreeing with itself. What remains open is the slang Harper's dictionary simply
 lacks (`finna`, `shawty`, `hunnid`, `gon'` all drew spelling guesses in the same probes), which is
-a curation question for the reviewed spellings or a taught lexicon, not a filter. And a per-user
-toggle for Harper as a whole is a settings surface this workbench does not have yet; the audit
-removes what is wrong for everyone, and only that.
+a curation question for the reviewed spellings or a taught lexicon, not a filter. The original
+audit predated the persisted Grammar checking control now available in Preferences. That
+control enables the same provider in either English lyric format; the profile still owns its
+accepted dictionary and the audit's transcription refusals remain in force.
 
 Implementation: `disabledHarperLints`, `appliesToLyrics`, `isMarkedGDrop` and `elisionMarkFixes`
 in `src/lib/rules/harper.ts`, and the pins in `harper.test.ts` (the stub tests for the ordering,
