@@ -13,23 +13,31 @@
 	const current = $derived(findings[position]);
 	let container = $state<HTMLElement>();
 	let heading = $state<HTMLHeadingElement>();
-	let choice = $state<NonNullable<SectionRecord['type']> | ''>('');
-	let choiceFor = $state('');
+	let pending = $state<{
+		id: string;
+		revision: number;
+		type: NonNullable<SectionRecord['type']>;
+	}>();
 	let reviewedFor = $state('');
 	const reviewOwner = $derived(`${controller.draftId}:${controller.profile}`);
 	const hasSections = $derived((controller.snapshot.conversion?.model.sections.length ?? 0) > 0);
 	const currentId = $derived(current ? `${reviewOwner}:${current.id}` : undefined);
-	const chosen = $derived(choiceFor === currentId ? choice : '');
+	const staleChoice = $derived(
+		pending !== undefined &&
+			pending.id === currentId &&
+			pending.revision !== controller.snapshot.revision
+	);
+	const chosen = $derived(pending?.id === currentId && !staleChoice ? (pending?.type ?? '') : '');
 	// Capture focus before a keyed decision leaves, including edits and Undo outside this form.
 	$effect.pre(() => {
 		const id = currentId;
+		const selectedType = chosen;
 		untrack(() => {
 			if (id) reviewedFor = reviewOwner;
 			const active = document.activeElement;
 			const owned = active instanceof HTMLElement && container?.contains(active);
-			choiceFor = id ?? '';
-			choice = '';
-			if (owned)
+			if (pending?.id !== id) pending = undefined;
+			if (owned && !selectedType)
 				void tick().then(() => {
 					if (!active.isConnected || (active instanceof HTMLButtonElement && active.disabled))
 						heading?.focus({ preventScroll: true });
@@ -47,6 +55,7 @@
 			})
 		)
 			return;
+		pending = undefined;
 		controller.feedback.announce('Section type saved.');
 		await tick();
 		heading?.focus({ preventScroll: true });
@@ -81,8 +90,11 @@
 									value={chosen}
 									onchange={(event) => {
 										const value = event.currentTarget.value;
-										choiceFor = currentId ?? '';
-										choice = sectionTypeChoices.find((type) => type === value) ?? '';
+										const type = sectionTypeChoices.find((type) => type === value);
+										pending =
+											currentId && type
+												? { id: currentId, revision: controller.snapshot.revision, type }
+												: undefined;
 									}}
 								>
 									<option value="">Choose a section type</option>
@@ -128,6 +140,7 @@
 					onclick={() => (selected = position + 1)}>Next detail</button
 				>
 			</div>{/if}
+		{#if staleChoice}<p role="status">The document changed. Choose the section type again.</p>{/if}
 	</section>
 {/if}
 

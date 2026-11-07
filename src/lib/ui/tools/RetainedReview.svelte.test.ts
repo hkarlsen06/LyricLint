@@ -4,7 +4,13 @@ import { afterEach, expect, test } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
 import RetainedReview from './RetainedReview.svelte';
 import { retainedFindings, type RetainedFinding } from '#lib/conversion/review.js';
-import { importDocument, renderProfile, resolveDecision } from '#lib/conversion/index.js';
+import {
+	importDocument,
+	reconcileEdit,
+	renderProfile,
+	resolveDecision
+} from '#lib/conversion/index.js';
+import { parseDocument } from '#lib/core/parser.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
 
@@ -129,6 +135,63 @@ test('requires Save, resets pending choice between items, and refuses unavailabl
 	expect(screen.getByRole('heading', { name: 'Retained details (0)' })).toHaveFocus();
 	await view.rerender({ controller, findings });
 	expect(select()).toHaveValue('');
+});
+
+test('expires a prepared section choice after an edit while retaining selection-only choices', async () => {
+	const imported = importDocument({
+		text: '[Custom opening: Mira]\n[Returning refrain: Noor]\nStay beside me',
+		profile: 'genius'
+	});
+	if (!imported.ok) throw Error(imported.refusal.message);
+	const projection = renderProfile(imported.value, 'musixmatch');
+	if (!projection.ok) throw Error(projection.refusal.message);
+	const { controller } = createTestWorkbench({ text: projection.value.text });
+	controller.onSnapshot({
+		...controller.snapshot,
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
+	const view = await render(RetainedReview, {
+		controller,
+		findings: retainedFindings(controller.snapshot)
+	});
+	const select = screen.getByRole('combobox', { name: 'Musixmatch section type' });
+	const save = screen.getByRole('button', { name: 'Save section type' });
+	await fireEvent.change(select, { target: { value: 'Verse' } });
+	controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 2, head: 2 } });
+	await view.rerender({ controller, findings: retainedFindings(controller.snapshot) });
+	expect(select).toHaveValue('Verse');
+	expect(save).toBeEnabled();
+	const before = save.getBoundingClientRect().toJSON();
+	save.focus();
+	const text = 'Current words stay exact';
+	const edited = reconcileEdit(imported.value, projection.value, {
+		changes: [{ from: 0, to: projection.value.text.length, insert: text }]
+	});
+	if (!edited.ok) throw Error(edited.refusal.message);
+	controller.onSnapshot({
+		...controller.snapshot,
+		revision: controller.snapshot.revision + 1,
+		text,
+		parsed: parseDocument(text),
+		conversion: createConversionEnvelope(edited.value.document, 'musixmatch', profilePolicyVersions)
+	});
+	await view.rerender({ controller, findings: retainedFindings(controller.snapshot) });
+	expect(select).toHaveValue('');
+	expect(save).toBeDisabled();
+	expect(screen.getByRole('status')).toHaveTextContent(
+		'The document changed. Choose the section type again.'
+	);
+	expect(screen.getByRole('heading', { name: 'Retained details (2)' })).toHaveFocus();
+	expect(save.getBoundingClientRect().toJSON()).toEqual(before);
+	await fireEvent.submit(save.closest('form')!);
+	expect(controller.snapshot.conversion?.model).toEqual(edited.value.document);
+	expect(controller.feedback.announcement).toBe('');
+	await fireEvent.change(select, { target: { value: 'Chorus' } });
+	expect(select).toHaveValue('Chorus');
+	expect(save).toBeEnabled();
+	expect(screen.queryByRole('status')).toBeNull();
+	expect(controller.snapshot.text).toBe(text);
+	expect(controller.snapshot.conversion?.model).toEqual(edited.value.document);
 });
 
 for (const header of ['Chorus x2', 'Repeat Chorus', 'Chorus 2x', 'Chorus x 2']) {
