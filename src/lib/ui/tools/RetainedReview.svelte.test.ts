@@ -76,11 +76,48 @@ test('identifies retained sections by their header and lyric, including empty bo
 	const findings = retainedFindings(controller.snapshot);
 	const view = await render(RetainedReview, { controller, findings });
 	const message = () => view.container.querySelector('[aria-live="polite"]')?.textContent;
-	expect(message()).toContain('[Custom opening: Mira] (empty section)');
+	expect(message()).toContain('[Custom opening: Mira] (no visible lyrics)');
 	await fireEvent.click(screen.getByRole('button', { name: 'Next detail' }));
-	expect(message()).toContain('[The return: Noor], with retained opening “Stay beside me”');
+	expect(message()).toContain('[The return: Noor], beginning “Stay beside me”');
 	expect(screen.getByRole('combobox', { name: 'Musixmatch section type' })).toBeVisible();
 	expect(screen.queryByRole('button', { name: 'Review in Song' })).toBeNull();
+});
+
+test('identifies retained sections by their active wording after a format-specific change', async () => {
+	const source = '[First: Mira]\nI said [****](123456) tonight\n\n[Second: Noor]\nStay beside me';
+	const imported = importDocument({ text: source, profile: 'genius' });
+	if (!imported.ok) throw Error(imported.refusal.message);
+	const projection = renderProfile(imported.value, 'musixmatch');
+	if (!projection.ok) throw Error(projection.refusal.message);
+	const from = projection.value.text.indexOf('****');
+	const changed = resolveDecision(imported.value, projection.value, {
+		kind: 'confirmCensoredToken',
+		range: { from, to: from + 4 },
+		heardPrefix: 'f',
+		audioCensored: true
+	});
+	if (!changed.ok) throw Error(changed.refusal.message);
+	const { controller } = createTestWorkbench({ text: changed.value.projection.text });
+	controller.onSnapshot({
+		...controller.snapshot,
+		conversion: createConversionEnvelope(
+			changed.value.document,
+			'musixmatch',
+			profilePolicyVersions
+		)
+	});
+	const view = await render(RetainedReview, {
+		controller,
+		findings: retainedFindings(controller.snapshot)
+	});
+	const message = () => view.container.querySelector('[aria-live="polite"]')?.textContent;
+	expect(message()).toContain('[First: Mira], beginning “I said f- tonight”');
+	await fireEvent.click(screen.getByRole('button', { name: 'Next detail' }));
+	expect(message()).toContain('[Second: Noor], beginning “Stay beside me”');
+	const original = renderProfile(changed.value.document, 'genius');
+	if (!original.ok) throw Error(original.refusal.message);
+	expect(original.value.text).toBe(source);
+	expect(changed.value.document.content).toContain('I said **** tonight');
 });
 
 test('reviews one retained detail at a time without moving navigation for long messages', async () => {

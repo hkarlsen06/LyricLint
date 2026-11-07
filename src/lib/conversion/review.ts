@@ -1,7 +1,7 @@
 import { parseDocument } from '#lib/core/parser.js';
 import type { Diagnostic, EditorSnapshot } from '#lib/core/types.js';
 import { hasRepeatHeaderInstruction } from '#lib/rules/catalog/repeat-placeholder.js';
-import { renderProfile } from './projection.js';
+import { projectOffset, renderProfile } from './projection.js';
 
 export type ConversionReviewKind = 'quantity' | 'instrumental' | 'censor' | 'repeat';
 
@@ -61,8 +61,15 @@ export function retainedFindings(
 				});
 			} else if (!section.type) {
 				const label = section.header.trim() || section.name || `section ${index + 1}`;
-				const firstLine = conversion.model.content
-					.slice(section.at, conversion.model.sections[index + 1]?.at)
+				const firstLine = projection.value.text
+					.slice(
+						projectOffset(projection.value, section.at, 1),
+						projectOffset(
+							projection.value,
+							conversion.model.sections[index + 1]?.at ?? conversion.model.content.length,
+							-1
+						)
+					)
 					.trim()
 					.split('\n')[0]!;
 				const characters = [...firstLine];
@@ -71,7 +78,7 @@ export function retainedFindings(
 					kind: 'section-type',
 					id: `section-type:${section.id}`,
 					sectionId: section.id,
-					message: `Choose a Musixmatch tag for ${label}${excerpt ? `, with retained opening “${excerpt}”` : ' (empty section)'}.`
+					message: `Choose a Musixmatch tag for ${label}${excerpt ? `, beginning “${excerpt}”` : ' (no visible lyrics)'}.`
 				});
 			}
 		}

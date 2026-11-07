@@ -321,6 +321,8 @@
 		}
 	}
 	.conversion-review__preview {
+		--inline-diff-padding: var(--space-1);
+		--inline-diff-gap: var(--space-2);
 		display: grid;
 		gap: var(--space-2);
 		margin-block: var(--space-2);
