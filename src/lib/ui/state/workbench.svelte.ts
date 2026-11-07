@@ -106,9 +106,10 @@ export interface WorkbenchController {
 	dismissConversionReview(): void;
 	openConversionReview(diagnostic: Diagnostic): void;
 	editRetainedRepeatHeader(sectionId: string): void;
-	readonly conversionPassageRequest: number;
+	readonly conversionPassageRequest:
+		{ readonly range: TextRange; readonly intent: 'view' | 'edit' } | undefined;
 	openSectionDetails(sectionId: string, origin?: 'editor' | 'review'): void;
-	showConversionPassage(range: TextRange): void;
+	showConversionPassage(range: TextRange, intent?: 'view' | 'edit'): void;
 	applyConversionAction(
 		action: import('#lib/conversion/decisions.js').ConversionAction,
 		rosterChanges?: PerformerRecordDelta
@@ -348,7 +349,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	let conversionScopeRevision = $state(0);
 	let requestedSection = $state<WorkbenchController['requestedSection']>();
 	let requestedConversionReview = $state<ConversionReviewRequest>();
-	let conversionPassageRequest = $state(0);
+	let conversionPassageRequest = $state<WorkbenchController['conversionPassageRequest']>();
 	let linkingHeaderFrom = $state<number | undefined>();
 	let linkingFromOverview = $state(false);
 	let linkingComparedHeaders = $state<readonly number[] | undefined>();
@@ -728,7 +729,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			}
 			controller.switchProfile('genius');
 			if (controller.profile !== 'genius') return;
-			controller.showConversionPassage({ from: section.headerFrom, to: section.headerTo });
+			controller.showConversionPassage({ from: section.headerFrom, to: section.headerTo }, 'edit');
 		},
 		dismissConversionReview() {
 			requestedConversionReview = undefined;
@@ -744,10 +745,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			requestedConversionReview = undefined;
 			panel.setActiveTab('song');
 		},
-		showConversionPassage(range) {
+		showConversionPassage(range, intent = 'view') {
 			editorSession.editor.setSelection({ anchor: range.from, head: range.to });
 			editorSession.editor.revealRange(range);
-			conversionPassageRequest += 1;
+			conversionPassageRequest = { range: { ...range }, intent };
 		},
 		prepareInterpretation(sourceProfile) {
 			const { anchor, head } = editorSession.snapshot.selection;

@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
-import { cdp, page } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
@@ -165,7 +165,12 @@ test.each([360, 390])(
 		expect(controller.requestedConversionReview).toBeUndefined();
 		expect(controller.snapshot.selection).toEqual({ anchor: range.from, head: range.to });
 		expect(screen.getByTestId('editor-region')).toBe(editor);
-		expect(document.activeElement).not.toBe(screen.getByLabelText('Lyrics editor'));
+		await waitFor(() => expect(screen.getByLabelText('Lyrics editor')).toHaveFocus());
+		const before = controller.snapshot.text;
+		await userEvent.keyboard('two');
+		await waitFor(() => expect(controller.snapshot.text).toBe('I counted two stars'));
+		controller.undo();
+		await waitFor(() => expect(controller.snapshot.text).toBe(before));
 	}
 );
 

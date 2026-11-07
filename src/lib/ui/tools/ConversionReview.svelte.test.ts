@@ -1,13 +1,17 @@
 import { fireEvent, within, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test } from 'vitest';
+import { page } from 'vitest/browser';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
 import { importDocument, renderProfile, reconcileEdit } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import LinterPanel from '../linter/LinterPanel.svelte';
 
-afterEach(cleanup);
+afterEach(async () => {
+	await cleanup();
+	await page.viewport(1280, 900);
+});
 
 async function focusedTask(
 	text: string,
@@ -64,7 +68,7 @@ test('shows one exact lyric context and prefills only the selected integer, with
 	await fireEvent.click(panel.getByRole('button', { name: 'Edit in lyrics' }));
 	expect(controller.requestedConversionReview).toBeUndefined();
 	expect(controller.editor.getSnapshot().selection).toEqual({ anchor: range.from, head: range.to });
-	expect(controller.conversionPassageRequest).toBe(1);
+	expect(controller.conversionPassageRequest).toEqual({ range, intent: 'edit' });
 });
 
 test('previews the resulting lyric line below a stable quantity trigger without changing the lyrics', async () => {
@@ -92,6 +96,59 @@ test('previews the resulting lyric line below a stable quantity trigger without 
 	expect(panel.queryByLabelText('Replacement preview')).toBeNull();
 	expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
 });
+
+for (const width of [1280, 360, 390]) {
+	test.each([
+		['en', 'one hundred and eighty seven thousand six hundred and fifty four'],
+		['fr', 'cent quatre vingt sept mille six cent cinquante quatre']
+	])(
+		'keeps long %s sung wording readable and rejects hard line breaks at ' + width + 'px',
+		async (language, words) => {
+			await page.viewport(width, 844);
+			const source = language === 'en' ? '187654' : words;
+			const { panel, controller } = await focusedTask(
+				`[Verse]\nI counted ${source} stars`,
+				source,
+				undefined,
+				language
+			);
+			await fireEvent.change(panel.getByLabelText('How is this number used?'), {
+				target: { value: 'ordinary-cardinal' }
+			});
+			if (language === 'fr')
+				await fireEvent.input(panel.getByLabelText('Exact whole-number value'), {
+					target: { value: '187654' }
+				});
+			await fireEvent.change(panel.getByLabelText('How is it sung?'), {
+				target: { value: 'whole-quantity' }
+			});
+			if (language === 'en')
+				await fireEvent.click(panel.getByText('Use custom exact wording', { exact: true }));
+			const field = panel.getByRole('textbox', { name: /^Exact words as sung/ });
+			const trigger = panel.getByRole('button', { name: 'Preview quantity' });
+			const before = trigger.getBoundingClientRect().toJSON();
+			await fireEvent.input(field, { target: { value: words } });
+			expect(field).toHaveValue(words);
+			expect(parseFloat(getComputedStyle(field).fontSize)).toBeGreaterThanOrEqual(16);
+			expect(field.scrollWidth).toBeLessThanOrEqual(field.clientWidth);
+			expect(field.scrollHeight).toBeLessThanOrEqual(field.clientHeight);
+			expect(field.getBoundingClientRect().right).toBeLessThanOrEqual(width);
+			expect(trigger.getBoundingClientRect().toJSON()).toEqual(before);
+			await fireEvent.click(trigger);
+			expect(panel.getByLabelText('Replacement preview')).toHaveTextContent(
+				'I counted 187654 stars'
+			);
+			expect(controller.snapshot.text).toBe(`I counted ${source} stars`);
+			await fireEvent.input(field, { target: { value: words + '\nextra' } });
+			expect(panel.queryByLabelText('Replacement preview')).toBeNull();
+			expect(panel.queryByRole('button', { name: 'Apply quantity' })).toBeNull();
+			expect(trigger).toBeDisabled();
+			expect(panel.getByRole('status').textContent).toContain(
+				'without digits, line breaks or markup'
+			);
+		}
+	);
+}
 
 test('explains an uninitialized unsupported quantity before a preview can be requested', async () => {
 	const { panel } = await focusedTask('[Verse]\nMy number is 007', '007');

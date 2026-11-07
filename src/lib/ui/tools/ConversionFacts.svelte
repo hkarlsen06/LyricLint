@@ -260,13 +260,17 @@
 							>
 							{#if pronunciation === 'whole-quantity' && wordingRequirement === 'required'}
 								<label
-									>Exact words as sung (required)<input bind:value={spokenForm} required /></label
+									>Exact words as sung (required)<textarea bind:value={spokenForm} rows="4" required
+									></textarea></label
 								>
 							{/if}
 							{#if pronunciation === 'whole-quantity'}<details>
 									<summary>Use custom exact wording</summary>
 									{#if wordingRequirement === 'optional'}
-										<label>Exact words as sung<input bind:value={spokenForm} /></label>
+										<label
+											>Exact words as sung<textarea bind:value={spokenForm} rows="4"
+											></textarea></label
+										>
 									{/if}
 									<label
 										>Digit form, if applicable<input
@@ -284,9 +288,6 @@
 									></label
 								>
 							{/if}
-							{#if !candidate.canApply && !valueGuidance && pronunciation !== 'unknown'}
-								<p role="status">{candidate.message}</p>
-							{/if}
 							<button
 								type="button"
 								class="button"
@@ -299,6 +300,9 @@
 										quantityBasis
 									))}>Preview quantity</button
 							>
+							{#if !candidate.canApply && !valueGuidance && pronunciation !== 'unknown'}
+								<p role="status">{candidate.message}</p>
+							{/if}
 						{:else if usage !== 'unknown'}
 							<p role="status">
 								This is not an ordinary quantity conversion. Use Edit in lyrics to follow the policy
@@ -430,12 +434,17 @@
 		gap: var(--space-1);
 	}
 	.conversion-facts input,
+	.conversion-facts textarea,
 	.conversion-facts select {
 		font-size: var(--font-size-editor);
 		width: 100%;
 		max-width: 100%;
 		min-width: 0;
 		box-sizing: border-box;
+	}
+	.conversion-facts textarea {
+		padding: var(--control-padding-block) var(--control-padding-inline);
+		resize: vertical;
 	}
 	.conversion-facts__lyrics {
 		white-space: pre-wrap;

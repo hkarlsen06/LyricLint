@@ -29,10 +29,10 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
 - A focused conversion task uses the panel's full phone height. Its exact lyric-line excerpt
   marks the target in bold, and Edit in lyrics returns to Write with that range selected.
   The real editor stays mounted and hidden during the task, retaining history and playback;
-  Back to Review restores the ordinary finding and its editor context. A retained repeat header opens its exact Genius range in Write. Passage handoffs restore selection after Write becomes visible and focus the Write control without opening the keyboard. Quantity tasks use
+  Back to Review restores the ordinary finding and its editor context. A retained repeat header opens its exact Genius range in Write. Passage handoffs restore their captured selection after Write becomes visible. Explicit Edit in lyrics and Edit header actions focus the editor for immediate typing; Show passage and comparison navigation focus the Write control without opening the keyboard. Quantity tasks use
   an exact selected canonical ASCII integer without a duplicate value field or assumptions about
   meaning or pronunciation. Other source forms retain the exact-value field. Custom exact
-  output stays in a named disclosure; required sung words are visible and labelled required. The policy owner proves source digit identity against the supplied exact value without a duplicate digit field. Apply quantity names the deliberate lyric change.
+  output stays in a named disclosure; required sung words are visible and labelled required. Exact sung wording wraps in a four-row, vertically resizable field; its value still must describe one lyric line. The policy owner proves source digit identity against the supplied exact value without a duplicate digit field. Apply quantity names the deliberate lyric change.
   Conversion task disclosures keep a full touch-height row as their contents expand below.
   `MobileWorkspace.svelte.test.ts` pins the single scroll region and edit handoff.
 - Revealing a saved ignored or accepted finding opens its passage in Write without restoring

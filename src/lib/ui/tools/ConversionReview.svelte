@@ -108,7 +108,7 @@
 	function editPassage() {
 		const range = request.range;
 		controller.dismissConversionReview();
-		controller.showConversionPassage(range);
+		controller.showConversionPassage(range, 'edit');
 	}
 	function prepare() {
 		if (!ready || !projection?.ok || !conversion) return;

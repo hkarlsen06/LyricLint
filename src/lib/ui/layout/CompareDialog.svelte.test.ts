@@ -174,7 +174,10 @@ describe('CompareDialog', () => {
 		// there rather than selecting: the press aimed at a line to edit.
 		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 }));
 		expect(calls.revealed.at(-1)).toEqual({ from: 8, to: 8 });
-		expect(controller.conversionPassageRequest).toBe(1);
+		expect(controller.conversionPassageRequest).toEqual({
+			range: { from: 8, to: 8 },
+			intent: 'view'
+		});
 	});
 
 	test('a tap resolves to the character under it, not the start of the line', async () => {
