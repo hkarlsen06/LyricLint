@@ -63,7 +63,7 @@ for (const width of [1440, 390]) {
 				const retained = page.getByRole('region', { name: 'Retained details needing review' });
 				await expect(retained.locator('[aria-live="polite"]')).toContainText('Place the retained');
 				await retained.getByRole('button', { name: 'Review in Song' }).click();
-				await expect(page.locator('h3[data-section-id]')).toBeFocused();
+				await expect(page.locator('[data-section-id]')).toBeFocused();
 				const move = page.getByRole('button', { name: 'Move to cursor', exact: true });
 				await expect(move).toBeVisible();
 				await expect(move).toBeEnabled();

@@ -9,45 +9,31 @@
 	import type { SectionRecord } from '#lib/conversion/model.js';
 	import type { ConversionAction } from '#lib/conversion/index.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	let { controller }: { controller: WorkbenchController } = $props();
+	let { controller, onclose }: { controller: WorkbenchController; onclose: () => void } = $props();
 	const conversion = $derived(controller.snapshot.conversion);
 	const model = $derived(conversion?.model);
 	const projection = $derived(
 		conversion ? renderProfile(conversion.model, conversion.profile) : undefined
 	);
 
-	let addingSection = $state(false);
 	let newSectionType = $state('');
-	let addSectionSummary = $state<HTMLElement>();
-	let activeSection = $state<string>();
+	let newSectionHeading = $state<HTMLElement>();
 	let sectionOptionsOpen = $state(false);
-	let sectionTypeInOptions = $state(true);
 	$effect(() => {
 		const id = selectedSection;
-		sectionTypeInOptions = untrack(() => {
-			const section = model?.sections.find((section) => section.id === id);
-			return !!(section && sectionType(section, model?.defaultLanguage ?? 'und'));
-		});
 		sectionOptionsOpen = untrack(
 			() => model?.sections.find((section) => section.id === id)?.placement === 'unresolved'
 		);
 	});
-	let sectionChooser = $state<HTMLSelectElement>();
 	const selectedSection = $derived(
-		model?.sections.some((section) => section.id === activeSection)
-			? activeSection
+		controller.requestedSection
+			? model?.sections.find((section) => section.id === controller.requestedSection?.id)?.id
 			: projection?.ok
 				? (projection.value.sections.findLast(
 						(section) => section.at <= controller.snapshot.selection.head
 					)?.id ?? model?.sections[0]?.id)
 				: undefined
 	);
-	let previousHead: number | undefined;
-	$effect(() => {
-		const head = controller.snapshot.selection.head;
-		if (previousHead !== undefined && previousHead !== head) activeSection = undefined;
-		previousHead = head;
-	});
 	let removeId = $state<string>();
 	let annotationId = $state('');
 	let targetText = $state('');
@@ -97,7 +83,7 @@
 			(section) => !previousIds.has(section.id)
 		);
 		if (created) {
-			activeSection = created.id;
+			controller.openSectionDetails(created.id, controller.requestedSection?.origin);
 			await tick();
 			container
 				.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(created.id)}"]`)
@@ -109,17 +95,22 @@
 		const destination =
 			action.targetSectionId ?? model?.sections[index - 1]?.id ?? model?.sections[index + 1]?.id;
 		if (!controller.applyConversionAction(action)) return;
-		activeSection = destination;
+		if (!destination) {
+			onclose();
+			return;
+		}
+		controller.openSectionDetails(destination, controller.requestedSection?.origin);
 		removeId = undefined;
 		await tick();
 		const heading = destination
 			? container.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(destination)}"]`)
 			: undefined;
-		(heading ?? sectionChooser)?.focus();
+		heading?.focus();
 	}
 
 	async function backToReview() {
 		const panel = container.closest('.right-panel');
+		controller.dismissSectionDetails();
 		controller.setActiveTab('linter');
 		await tick();
 		const destination =
@@ -132,11 +123,11 @@
 		const request = controller.requestedSection;
 		if (request === handledSectionRequest) return;
 		handledSectionRequest = request;
+		removeId = undefined;
 		if (!request) return;
-		activeSection = request.id;
-		if (request.id === 'new') addingSection = true;
+		if (request.id === 'new') newSectionType = '';
 		void tick().then(() => {
-			if (request.id === 'new') addSectionSummary?.focus({ preventScroll: true });
+			if (request.id === 'new') newSectionHeading?.focus({ preventScroll: true });
 			else
 				container
 					?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(request.id)}"]`)
@@ -166,65 +157,61 @@
 {/snippet}
 
 <div class="conversion-details" bind:this={container}>
-	{#if controller.requestedSection?.origin === 'review'}
-		<button type="button" class="button button--quiet" onclick={backToReview}>Back to Review</button
-		>
+	{#if controller.requestedSection}
+		{#if controller.requestedSection.origin === 'review'}
+			<button type="button" class="button button--quiet" onclick={backToReview}
+				>Back to Review</button
+			>
+		{:else}
+			<button type="button" class="button button--quiet" onclick={onclose}>Back to Song</button>
+		{/if}
 	{/if}
 	{#if model && enabled}
-		<section class="section-editor">
-			<h2>Sections</h2>
-			<label
-				>Choose a section<select
-					bind:this={sectionChooser}
-					value={selectedSection ?? ''}
-					onchange={(event) => {
-						activeSection = event.currentTarget.value || undefined;
-						removeId = undefined;
-					}}
-					><option value=""
-						>{model.sections.length} musical {model.sections.length === 1
-							? 'section'
-							: 'sections'}</option
-					>{#each model.sections as section, index (section.id)}<option value={section.id}
-							>Section {index + 1} · {sectionType(section, model.defaultLanguage) ??
-								(section.name || 'Type not set')} · {model.content
-								.slice(section.at, model.sections[index + 1]?.at ?? model.content.length)
-								.trim()
-								.split('\n')[0]}</option
-						>{/each}</select
-				></label
-			>
-			{#each model.sections as section, index (section.id)}
-				{@const type = sectionType(section, model.defaultLanguage)}
-				{@const performers = [
-					...new Set(
-						model.voices
-							.filter((voice) => voice.sectionId === section.id)
-							.flatMap((voice) =>
-								voice.performerIds.map(
-									(id) =>
-										controller.performers.find((performer) => performer.id === id)?.displayName ??
-										voice.rawNameText ??
-										'Unknown performer'
+		{#if !controller.requestedSection}
+			<div class="tool-actions">
+				{#if selectedSection}<button
+						type="button"
+						class="button button--quiet"
+						onclick={() => {
+							const id = selectedSection;
+							if (id) controller.openSectionDetails(id);
+						}}>Edit current section</button
+					>{/if}
+				<button
+					type="button"
+					class="button button--quiet"
+					onclick={() => controller.openSectionDetails('new')}>Add section at cursor</button
+				>
+			</div>
+		{:else if controller.requestedSection.id !== 'new' && !selectedSection}
+			<p role="status">This section is no longer in the draft.</p>
+		{:else if controller.requestedSection.id !== 'new'}
+			<section class="section-editor">
+				{#each model.sections as section, index (section.id)}
+					{@const type = sectionType(section, model.defaultLanguage)}
+					{@const performers = [
+						...new Set(
+							model.voices
+								.filter((voice) => voice.sectionId === section.id)
+								.flatMap((voice) =>
+									voice.performerIds.map(
+										(id) =>
+											controller.performers.find((performer) => performer.id === id)?.displayName ??
+											voice.rawNameText ??
+											'Unknown performer'
+									)
 								)
-							)
-					)
-				].join(', ')}
-				{#if selectedSection === section.id}<section
-						class="conversion-section conversion-section--active"
-					>
-						<h3 tabindex="-1" data-section-id={section.id}>
-							Section {index + 1} · {type ?? (section.name || 'Type not set')}
-						</h3>
-						{#if performers}<p class="conversion-section__performers">{performers}</p>{/if}
-						{#if selectedSection === section.id}
-							<button type="button" class="button button--quiet" onclick={() => show(section.at)}
-								>Show passage</button
-							>
-							{#if !sectionTypeInOptions}{@render typePicker(section)}{/if}
-							<details class="conversion-section__advanced" bind:open={sectionOptionsOpen}>
-								<summary>More section options</summary>
-								{#if sectionTypeInOptions}{@render typePicker(section)}{/if}
+						)
+					].join(', ')}
+					{#if selectedSection === section.id}<section
+							class="conversion-section conversion-section--active"
+						>
+							<h2 tabindex="-1" data-section-id={section.id}>
+								Section {index + 1} · {type ?? (section.name || 'Type not set')}
+							</h2>
+							{#if performers}<p class="conversion-section__performers">{performers}</p>{/if}
+							{#if selectedSection === section.id}
+								{@render typePicker(section)}
 								<label
 									>Genius section label
 									<input
@@ -244,115 +231,119 @@
 										}}
 									/>
 								</label>
-								{#each model.voices.filter((voice) => voice.sectionId === section.id) as voice (voice.id)}
-									<p>
-										{voice.performerIds
-											.map(
-												(id) =>
-													controller.performers.find((performer) => performer.id === id)
-														?.displayName ?? 'Unknown performer'
-											)
-											.join(' & ') ||
-											voice.rawNameText ||
-											'Unknown voice'}: {model.content.slice(voice.from, voice.to)}
-									</p>
+								<details class="conversion-section__advanced" bind:open={sectionOptionsOpen}>
+									<summary>Boundary and voice options</summary>
+									{#each model.voices.filter((voice) => voice.sectionId === section.id) as voice (voice.id)}
+										<p>
+											{voice.performerIds
+												.map(
+													(id) =>
+														controller.performers.find((performer) => performer.id === id)
+															?.displayName ?? 'Unknown performer'
+												)
+												.join(' & ') ||
+												voice.rawNameText ||
+												'Unknown voice'}: {model.content.slice(voice.from, voice.to)}
+										</p>
+										<div class="tool-actions">
+											<button
+												type="button"
+												class="button button--quiet"
+												onclick={() => show(voice.from, voice.to)}>Show voice passage</button
+											><button
+												type="button"
+												class="button button--quiet"
+												onclick={() =>
+													controller.applyConversionAction({
+														kind: 'removeDetail',
+														detailId: voice.id
+													})}>Remove voice assignment</button
+											>
+										</div>
+									{/each}
 									<div class="tool-actions">
 										<button
 											type="button"
 											class="button button--quiet"
-											onclick={() => show(voice.from, voice.to)}>Show voice passage</button
-										><button
-											type="button"
-											class="button button--quiet"
 											onclick={() =>
 												controller.applyConversionAction({
-													kind: 'removeDetail',
-													detailId: voice.id
-												})}>Remove voice assignment</button
+													kind: 'moveSection',
+													sectionId: section.id,
+													at: controller.snapshot.selection.head
+												})}
+											disabled={!projection?.ok ||
+												!canPlaceSection(
+													model,
+													contentOffset(projection.value, controller.snapshot.selection.head, 1)
+												)}>Move to cursor</button
 										>
+										{#if !model.voices.some((voice) => voice.sectionId === section.id)}<button
+												type="button"
+												class="button button--quiet"
+												onclick={() =>
+													removeSection({
+														kind: 'removeSection',
+														sectionId: section.id
+													})}>Remove boundary</button
+											>{/if}
+										{#if model.sections[index - 1]}<button
+												type="button"
+												class="button button--quiet"
+												onclick={() =>
+													removeSection({
+														kind: 'removeSection',
+														sectionId: section.id,
+														targetSectionId: model.sections[index - 1].id
+													})}>Merge into previous section</button
+											>{/if}
+										{#if model.sections[index + 1]}<button
+												type="button"
+												class="button button--quiet"
+												onclick={() =>
+													removeSection({
+														kind: 'removeSection',
+														sectionId: section.id,
+														targetSectionId: model.sections[index + 1].id
+													})}>Merge into next section</button
+											>{/if}
 									</div>
-								{/each}
-								<div class="tool-actions">
-									<button
-										type="button"
-										class="button button--quiet"
-										onclick={() =>
-											controller.applyConversionAction({
-												kind: 'moveSection',
-												sectionId: section.id,
-												at: controller.snapshot.selection.head
-											})}
-										disabled={!projection?.ok ||
-											!canPlaceSection(
-												model,
-												contentOffset(projection.value, controller.snapshot.selection.head, 1)
-											)}>Move to cursor</button
-									>
-									{#if !model.voices.some((voice) => voice.sectionId === section.id)}<button
+									<div class="tool-actions">
+										<button
 											type="button"
-											class="button button--quiet"
-											onclick={() =>
-												removeSection({
-													kind: 'removeSection',
-													sectionId: section.id
-												})}>Remove boundary</button
-										>{/if}
-									{#if model.sections[index - 1]}<button
-											type="button"
-											class="button button--quiet"
-											onclick={() =>
-												removeSection({
+											class:button--contrast={removeId === section.id}
+											class="button"
+											onclick={() => {
+												if (removeId !== section.id) {
+													removeId = section.id;
+													controller.feedback.announce(
+														'Confirm deletion of this section and its lyrics.'
+													);
+													return;
+												}
+												void removeSection({
 													kind: 'removeSection',
 													sectionId: section.id,
-													targetSectionId: model.sections[index - 1].id
-												})}>Merge into previous section</button
-										>{/if}
-									{#if model.sections[index + 1]}<button
-											type="button"
-											class="button button--quiet"
-											onclick={() =>
-												removeSection({
-													kind: 'removeSection',
-													sectionId: section.id,
-													targetSectionId: model.sections[index + 1].id
-												})}>Merge into next section</button
-										>{/if}
-								</div>
-								<div class="tool-actions">
-									<button
-										type="button"
-										class:button--contrast={removeId === section.id}
-										class="button"
-										onclick={() => {
-											if (removeId !== section.id) {
-												removeId = section.id;
-												controller.feedback.announce(
-													'Confirm deletion of this section and its lyrics.'
-												);
-												return;
-											}
-											void removeSection({
-												kind: 'removeSection',
-												sectionId: section.id,
-												deleteLyrics: true
-											});
-										}}
-										>{removeId === section.id
-											? 'Confirm deletion'
-											: 'Delete section and lyrics'}</button
-									>
-									{#if removeId === section.id}<button
-											type="button"
-											class="button button--quiet"
-											onclick={() => (removeId = undefined)}>Cancel</button
-										>{/if}
-								</div>
-							</details>
-						{/if}
-					</section>{/if}
-			{/each}
-			<details bind:open={addingSection}>
-				<summary bind:this={addSectionSummary}>Add a section</summary>
+													deleteLyrics: true
+												});
+											}}
+											>{removeId === section.id
+												? 'Confirm deletion'
+												: 'Delete section and lyrics'}</button
+										>
+										{#if removeId === section.id}<button
+												type="button"
+												class="button button--quiet"
+												onclick={() => (removeId = undefined)}>Cancel</button
+											>{/if}
+									</div>
+								</details>
+							{/if}
+						</section>{/if}
+				{/each}
+			</section>
+		{:else}
+			<section class="section-editor">
+				<h2 tabindex="-1" bind:this={newSectionHeading}>Add a section</h2>
 				<label
 					>New section type
 					<select bind:value={newSectionType}>
@@ -366,110 +357,114 @@
 					>Insert boundary at cursor</button
 				>
 				<p>Section tags stay in this draft. Apply them separately when submitting to Musixmatch.</p>
-			</details>
-		</section>
-		{#if model.wrappers.length || model.forms.length}
-			<details>
-				<summary>Retained details</summary>
-				{#each model.wrappers as detail (detail.id)}
-					<section class="conversion-section">
-						<h3>
-							{detail.kind === 'annotation'
-								? `Genius annotation ${detail.annotationId}`
-								: `Genius voice style ${detail.styleSlot}`}
-						</h3>
-						<p>{model.content.slice(detail.from, detail.to)}</p>
-						<div class="tool-actions">
+			</section>
+		{/if}
+		{#if !controller.requestedSection}
+			{#if model.wrappers.length || model.forms.length}
+				<details>
+					<summary>Retained details</summary>
+					{#each model.wrappers as detail (detail.id)}
+						<section class="conversion-section">
+							<h3>
+								{detail.kind === 'annotation'
+									? `Genius annotation ${detail.annotationId}`
+									: `Genius voice style ${detail.styleSlot}`}
+							</h3>
+							<p>{model.content.slice(detail.from, detail.to)}</p>
+							<div class="tool-actions">
+								<button
+									type="button"
+									class="button button--quiet"
+									onclick={() => show(detail.from, detail.to)}>Show passage</button
+								><button
+									type="button"
+									class="button button--quiet"
+									onclick={() =>
+										controller.applyConversionAction({ kind: 'removeDetail', detailId: detail.id })}
+									>Remove detail</button
+								>
+							</div>
+						</section>
+					{/each}
+					{#each model.forms as form (form.id)}
+						<section class="conversion-section">
+							<h3>{form.profile === 'genius' ? 'Genius' : 'Musixmatch'} wording</h3>
+							<p>{form.text || 'Omitted in this format'}</p>
 							<button
 								type="button"
 								class="button button--quiet"
-								onclick={() => show(detail.from, detail.to)}>Show passage</button
+								onclick={() => show(form.from, form.to)}>Show passage</button
 							><button
 								type="button"
 								class="button button--quiet"
 								onclick={() =>
-									controller.applyConversionAction({ kind: 'removeDetail', detailId: detail.id })}
-								>Remove detail</button
+									controller.applyConversionAction({ kind: 'removeDetail', detailId: form.id })}
+								>Remove wording choice</button
+							>
+						</section>
+					{/each}
+				</details>
+			{/if}
+			{#if selection.from < selection.to}
+				<details class="passage-tools">
+					<summary>Selected passage tools</summary>
+					<section>
+						<h3>Wording and retained annotations</h3>
+						{#if controller.profile === 'musixmatch'}<button
+								type="button"
+								class="button"
+								onclick={() => controller.prepareInterpretation('genius')}
+								>Interpret as Genius formatting</button
+							>{/if}
+						<p class="conversion-details__lyrics">{selectedText}</p>
+						<label
+							>{targetProfile === 'genius' ? 'Genius' : 'Musixmatch'} wording<textarea
+								bind:value={targetText}
+								rows="2"></textarea></label
+						>
+						<p>
+							This keeps a wording choice for the selected passage. It does not confirm its meaning
+							or compliance with the guidelines.
+						</p>
+						<div class="tool-actions">
+							<button
+								type="button"
+								class="button"
+								onclick={() =>
+									controller.applyConversionAction({
+										kind: 'setForm',
+										profile: targetProfile,
+										range: selection,
+										text: targetText
+									})}>Save this wording</button
+							><button
+								type="button"
+								class="button button--quiet"
+								onclick={() =>
+									controller.applyConversionAction({ kind: 'keepForm', range: selection })}
+								>Keep current wording</button
 							>
 						</div>
-					</section>
-				{/each}
-				{#each model.forms as form (form.id)}
-					<section class="conversion-section">
-						<h3>{form.profile === 'genius' ? 'Genius' : 'Musixmatch'} wording</h3>
-						<p>{form.text || 'Omitted in this format'}</p>
-						<button
-							type="button"
-							class="button button--quiet"
-							onclick={() => show(form.from, form.to)}>Show passage</button
-						><button
-							type="button"
-							class="button button--quiet"
-							onclick={() =>
-								controller.applyConversionAction({ kind: 'removeDetail', detailId: form.id })}
-							>Remove wording choice</button
+						<label
+							>Genius annotation ID<input inputmode="numeric" bind:value={annotationId} /></label
 						>
-					</section>
-				{/each}
-			</details>
-		{/if}
-		{#if selection.from < selection.to}
-			<details class="passage-tools">
-				<summary>Selected passage tools</summary>
-				<section>
-					<h3>Wording and retained annotations</h3>
-					{#if controller.profile === 'musixmatch'}<button
-							type="button"
-							class="button"
-							onclick={() => controller.prepareInterpretation('genius')}
-							>Interpret as Genius formatting</button
-						>{/if}
-					<p class="conversion-details__lyrics">{selectedText}</p>
-					<label
-						>{targetProfile === 'genius' ? 'Genius' : 'Musixmatch'} wording<textarea
-							bind:value={targetText}
-							rows="2"></textarea></label
-					>
-					<p>
-						This keeps a wording choice for the selected passage. It does not confirm its meaning or
-						compliance with the guidelines.
-					</p>
-					<div class="tool-actions">
 						<button
 							type="button"
 							class="button"
+							disabled={!/^\d+$/u.test(annotationId)}
 							onclick={() =>
 								controller.applyConversionAction({
-									kind: 'setForm',
-									profile: targetProfile,
+									kind: 'attachAnnotation',
 									range: selection,
-									text: targetText
-								})}>Save this wording</button
-						><button
-							type="button"
-							class="button button--quiet"
-							onclick={() =>
-								controller.applyConversionAction({ kind: 'keepForm', range: selection })}
-							>Keep current wording</button
+									annotationId
+								})}>Attach annotation to selection</button
 						>
-					</div>
-					<label>Genius annotation ID<input inputmode="numeric" bind:value={annotationId} /></label>
-					<button
-						type="button"
-						class="button"
-						disabled={!/^\d+$/u.test(annotationId)}
-						onclick={() =>
-							controller.applyConversionAction({
-								kind: 'attachAnnotation',
-								range: selection,
-								annotationId
-							})}>Attach annotation to selection</button
-					>
-				</section>
-			</details>
+					</section>
+				</details>
+			{/if}
 		{/if}
 	{/if}
-	{#if showDecisions}
+	{#if showDecisions && !controller.requestedSection}
 		<ConversionFacts {controller} savedOnly />
 	{/if}
 </div>

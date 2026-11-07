@@ -263,9 +263,11 @@ test.each([360, 390])(
 			expect(rect.height).toBeGreaterThanOrEqual(44);
 			expect(rect.right).toBeLessThanOrEqual(width);
 		}
-		expect(screen.getByRole('textbox', { name: 'Genius page link' })).toHaveValue(
+		expect(screen.getByRole('link', { name: 'Open Genius page' })).toHaveAttribute(
+			'href',
 			controller.geniusUrl
 		);
+		expect(screen.getByRole('textbox', { name: 'Genius page link' })).not.toBeVisible();
 		expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
 	}
 );
@@ -305,26 +307,28 @@ test('Song fields keep touch targets outside the workspace ancestor', async () =
 	const view = await render(SongPanel, { controller });
 	view.container.style.height = '550px';
 	view.container.style.overflowY = 'auto';
-	const chooser = screen.getByRole('combobox', { name: 'Choose a section' });
-	await fireEvent.change(chooser, { target: { value: imported.value.sections[0]!.id } });
-	await fireEvent.click(screen.getByText('More section options'));
+	await fireEvent.click(screen.getByText('Advanced tools', { exact: true }));
+	const reference = screen.getByRole('textbox', { name: 'Genius page link' });
+	expect(reference).toBeVisible();
+	expect(reference.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+	expect(parseFloat(getComputedStyle(reference).fontSize)).toBeGreaterThanOrEqual(16);
+	controller.openSectionDetails(imported.value.sections[0]!.id, 'review');
+	await waitFor(() => {
+		const task = view.container.querySelector('.conversion-details')!;
+		const bounds = view.container.getBoundingClientRect();
+		expect(task.getBoundingClientRect().top).toBeGreaterThanOrEqual(bounds.top);
+		expect(task.getBoundingClientRect().bottom).toBeLessThanOrEqual(bounds.bottom);
+	});
+	expect(document.activeElement).toBe(view.container.querySelector('[data-section-id]'));
 	for (const control of [
-		chooser,
 		screen.getByRole('combobox', { name: 'Section type' }),
-		screen.getByRole('textbox', { name: 'Genius page link' })
+		screen.getByRole('textbox', { name: 'Genius section label' })
 	]) {
 		expect(control).toBeVisible();
 		expect(control.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
 		expect(parseFloat(getComputedStyle(control).fontSize)).toBeGreaterThanOrEqual(16);
 	}
-	controller.openSectionDetails(imported.value.sections[0]!.id, 'review');
-	await waitFor(() => {
-		const task = view.container.querySelector('.conversion-details')!;
-		expect(
-			Math.abs(task.getBoundingClientRect().top - view.container.getBoundingClientRect().top)
-		).toBeLessThanOrEqual(1);
-	});
-	expect(document.activeElement).toBe(view.container.querySelector('[data-section-id]'));
+	expect(screen.queryByRole('combobox', { name: 'Choose a section', hidden: true })).toBeNull();
 });
 
 test('the keyboard gives its space to writing and restores navigation only after dismissal', async () => {

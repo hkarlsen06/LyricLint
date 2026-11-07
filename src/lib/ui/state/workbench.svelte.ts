@@ -109,6 +109,7 @@ export interface WorkbenchController {
 	readonly conversionPassageRequest:
 		{ readonly range: TextRange; readonly intent: 'view' | 'edit' } | undefined;
 	openSectionDetails(sectionId: string, origin?: 'editor' | 'review'): void;
+	dismissSectionDetails(): void;
 	showConversionPassage(range: TextRange, intent?: 'view' | 'edit'): void;
 	applyConversionAction(
 		action: import('#lib/conversion/decisions.js').ConversionAction,
@@ -744,6 +745,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			requestedSection = { id: sectionId, origin };
 			requestedConversionReview = undefined;
 			panel.setActiveTab('song');
+		},
+		dismissSectionDetails() {
+			requestedSection = undefined;
 		},
 		showConversionPassage(range, intent = 'view') {
 			editorSession.editor.setSelection({ anchor: range.from, head: range.to });

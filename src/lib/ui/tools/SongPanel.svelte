@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import { tick } from 'svelte';
 	import { normalizeGeniusUrl } from '#lib/core/genius-url.js';
 	import youtubeIcon from '#lib/assets/youtube-icon.svg';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
@@ -29,6 +30,23 @@
 	let confirmClearDocument = $state(false);
 	let clearButton = $state<HTMLButtonElement>();
 	let timedLyricsFormat = $state<TimedLyricsFormat>('lrc');
+	let advancedOpen = $state(false);
+	let advancedSummary = $state<HTMLElement>();
+	let handledSectionRequest: WorkbenchController['requestedSection'];
+	let handledToolsDraft: string | undefined;
+	$effect(() => {
+		const request = controller.requestedSection;
+		const draft = controller.draftId;
+		if (request === handledSectionRequest && draft === handledToolsDraft) return;
+		handledSectionRequest = request;
+		handledToolsDraft = draft;
+		advancedOpen = false;
+	});
+	async function closeSectionDetails() {
+		controller.dismissSectionDetails();
+		await tick();
+		advancedSummary?.focus();
+	}
 	const settingsEnabled = $derived(
 		!controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery
 	);
@@ -199,171 +217,176 @@
 			</div>
 		</section>
 	{/if}
-	<section>
-		<h2>Document</h2>
-		{#if documentCounts.length > 0}
-			<!-- The draft in one run of facts, over the files it turns into: what
+	{#if controller.requestedSection}
+		{#key controller.draftId}
+			<ConversionDetails {controller} onclose={closeSectionDetails} />
+		{/key}
+	{:else}
+		<section>
+			<h2>Document</h2>
+			{#if documentCounts.length > 0}
+				<!-- The draft in one run of facts, over the files it turns into: what
 			     would be exported, in the order it would be counted. -->
-			<p>{documentCounts.join(' · ')}</p>
-		{/if}
-		<div class="tool-actions">
-			<button type="button" class="button" onclick={() => controller.exportDraft()}>
-				Export .txt
-			</button>
-			<button type="button" class="button" onclick={() => controller.exportScribe()}>
-				Export Scribe
-			</button>
-		</div>
-		<p>
-			.txt: {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics. Scribe: both formats
-			and all editable details.
-		</p>
-		<details>
-			<summary>Language and content type</summary>
-			<div class="document-settings">
-				<LanguagePicker
-					language={controller.language}
-					recentLanguages={controller.recentLanguages}
-					label="Document language"
-					expandedLabel
-					showCoverage
-					disabled={!settingsEnabled}
-					onchoose={(tag) => controller.setLanguage(tag)}
-				/>
-				<label
-					>Content type
-					<select
-						disabled={!settingsEnabled}
-						value={controller.snapshot.conversion?.model.contentKind ?? 'unknown'}
-						onchange={(event) => {
-							const value = event.currentTarget.value;
-							const kind = contentKinds.find((entry) => entry.value === value);
-							if (kind)
-								controller.applyConversionAction({
-									kind: 'setContentKind',
-									contentKind: kind.value
-								});
-						}}
-					>
-						{#each contentKinds as kind (kind.value)}
-							<option value={kind.value}>{kind.label}</option>
-						{/each}
-					</select>
-				</label>
+				<p>{documentCounts.join(' · ')}</p>
+			{/if}
+			<div class="tool-actions">
+				<button type="button" class="button" onclick={() => controller.exportDraft()}>
+					Export .txt
+				</button>
+				<button type="button" class="button" onclick={() => controller.exportScribe()}>
+					Export Scribe
+				</button>
 			</div>
-		</details>
-		<!--
+			<p>
+				.txt: {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics. Scribe: both formats
+				and all editable details.
+			</p>
+			<details>
+				<summary>Language and content type</summary>
+				<div class="document-settings">
+					<LanguagePicker
+						language={controller.language}
+						recentLanguages={controller.recentLanguages}
+						label="Document language"
+						expandedLabel
+						showCoverage
+						disabled={!settingsEnabled}
+						onchoose={(tag) => controller.setLanguage(tag)}
+					/>
+					<label
+						>Content type
+						<select
+							disabled={!settingsEnabled}
+							value={controller.snapshot.conversion?.model.contentKind ?? 'unknown'}
+							onchange={(event) => {
+								const value = event.currentTarget.value;
+								const kind = contentKinds.find((entry) => entry.value === value);
+								if (kind)
+									controller.applyConversionAction({
+										kind: 'setContentKind',
+										contentKind: kind.value
+									});
+							}}
+						>
+							{#each contentKinds as kind (kind.value)}
+								<option value={kind.value}>{kind.label}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+			</details>
+			<!--
 			The document-scoped delete lives in the section about the document it
 			clears, disclosed separately from the exports. The toolbar carries only
 			the commands used on every visit. Quiet until pressed, confirm in
 			place, in the same shape as the line-timings delete below.
 		-->
-		{#if clearable}
-			<details
-				class="song-panel__delete"
-				{@attach dismissOnOutside(() => (confirmClearDocument = false))}
-				ontoggle={(event) => {
-					if (!event.currentTarget.open) confirmClearDocument = false;
-				}}
-			>
-				<summary>Clear this transcription</summary>
-				<div class="clear-decision">
-					<button
-						bind:this={clearButton}
-						type="button"
-						class="button {confirmClearDocument ? 'button--danger' : 'button--quiet'}"
-						onclick={() => {
-							if (!confirmClearDocument) {
-								confirmClearDocument = true;
-								controller.feedback.announce(
-									'Confirm clearing the lyrics and every retained detail.'
-								);
-								return;
-							}
-							if (controller.applyConversionAction({ kind: 'clearDocument' }))
-								confirmClearDocument = false;
-						}}
-						>{confirmClearDocument
-							? 'Delete lyrics and details'
-							: 'Clear lyrics and retained details…'}</button
-					>
-					{#if confirmClearDocument}<button
-							type="button"
-							class="button button--quiet"
-							onclick={() => {
-								confirmClearDocument = false;
-								clearButton?.focus();
-							}}>Cancel</button
-						>{/if}
-					<p class:sr-only={!confirmClearDocument} aria-live="polite">
-						{#if confirmClearDocument}Delete the lyrics and every retained detail on this
-							transcription? Exports already made are untouched.{/if}
-					</p>
-				</div>
-			</details>
-		{/if}
-	</section>
-
-	{#if controller.lineAnchorCount > 0}
-		<section>
-			<h2>Timed lyrics</h2>
-			<div class="tool-actions">
-				<label class="sr-only" for="timed-lyrics-format">Timed lyrics format</label>
-				<select id="timed-lyrics-format" bind:value={timedLyricsFormat}>
-					<option value="lrc">LRC</option>
-					<option value="srt">SRT</option>
-					<option value="vtt">VTT</option>
-				</select>
-				<button
-					type="button"
-					class="button"
-					onclick={() => controller.exportTimedLyrics(timedLyricsFormat)}
+			{#if clearable}
+				<details
+					class="song-panel__delete"
+					{@attach dismissOnOutside(() => (confirmClearDocument = false))}
+					ontoggle={(event) => {
+						if (!event.currentTarget.open) confirmClearDocument = false;
+					}}
 				>
-					Export timings
-				</button>
-			</div>
-			<p>
-				{controller.lineAnchorCount} timed {controller.lineAnchorCount === 1 ? 'line' : 'lines'}, in
-				time order, without the markup a player cannot read.
-			</p>
-			<div aria-live="polite">
-				{#if confirmClearAnchors}
-					<p class="danger-text">
-						Delete {controller.lineAnchorCount} line {controller.lineAnchorCount === 1
-							? 'timing'
-							: 'timings'} on this transcription? The lyrics are untouched.
-					</p>
-					<div class="tool-actions">
+					<summary>Clear this transcription</summary>
+					<div class="clear-decision">
 						<button
+							bind:this={clearButton}
 							type="button"
-							class="button button--danger"
+							class="button {confirmClearDocument ? 'button--danger' : 'button--quiet'}"
 							onclick={() => {
-								controller.clearLineAnchors();
-								confirmClearAnchors = false;
-							}}>Delete line timings</button
+								if (!confirmClearDocument) {
+									confirmClearDocument = true;
+									controller.feedback.announce(
+										'Confirm clearing the lyrics and every retained detail.'
+									);
+									return;
+								}
+								if (controller.applyConversionAction({ kind: 'clearDocument' }))
+									confirmClearDocument = false;
+							}}
+							>{confirmClearDocument
+								? 'Delete lyrics and details'
+								: 'Clear lyrics and retained details…'}</button
 						>
-						<button
-							type="button"
-							class="button button--quiet"
-							onclick={() => (confirmClearAnchors = false)}>Cancel</button
-						>
+						{#if confirmClearDocument}<button
+								type="button"
+								class="button button--quiet"
+								onclick={() => {
+									confirmClearDocument = false;
+									clearButton?.focus();
+								}}>Cancel</button
+							>{/if}
+						<p class:sr-only={!confirmClearDocument} aria-live="polite">
+							{#if confirmClearDocument}Delete the lyrics and every retained detail on this
+								transcription? Exports already made are untouched.{/if}
+						</p>
 					</div>
-				{:else}
-					<div class="tool-actions tool-actions--flush">
-						<button
-							type="button"
-							class="button button--quiet danger-text"
-							onclick={() => (confirmClearAnchors = true)}>Delete line timings…</button
-						>
-					</div>
-				{/if}
-			</div>
+				</details>
+			{/if}
 		</section>
-	{/if}
 
-	<PassageLanguage {controller} />
+		{#if controller.lineAnchorCount > 0}
+			<section>
+				<h2>Timed lyrics</h2>
+				<div class="tool-actions">
+					<label class="sr-only" for="timed-lyrics-format">Timed lyrics format</label>
+					<select id="timed-lyrics-format" bind:value={timedLyricsFormat}>
+						<option value="lrc">LRC</option>
+						<option value="srt">SRT</option>
+						<option value="vtt">VTT</option>
+					</select>
+					<button
+						type="button"
+						class="button"
+						onclick={() => controller.exportTimedLyrics(timedLyricsFormat)}
+					>
+						Export timings
+					</button>
+				</div>
+				<p>
+					{controller.lineAnchorCount} timed {controller.lineAnchorCount === 1 ? 'line' : 'lines'},
+					in time order, without the markup a player cannot read.
+				</p>
+				<div aria-live="polite">
+					{#if confirmClearAnchors}
+						<p class="danger-text">
+							Delete {controller.lineAnchorCount} line {controller.lineAnchorCount === 1
+								? 'timing'
+								: 'timings'} on this transcription? The lyrics are untouched.
+						</p>
+						<div class="tool-actions">
+							<button
+								type="button"
+								class="button button--danger"
+								onclick={() => {
+									controller.clearLineAnchors();
+									confirmClearAnchors = false;
+								}}>Delete line timings</button
+							>
+							<button
+								type="button"
+								class="button button--quiet"
+								onclick={() => (confirmClearAnchors = false)}>Cancel</button
+							>
+						</div>
+					{:else}
+						<div class="tool-actions tool-actions--flush">
+							<button
+								type="button"
+								class="button button--quiet danger-text"
+								onclick={() => (confirmClearAnchors = true)}>Delete line timings…</button
+							>
+						</div>
+					{/if}
+				</div>
+			</section>
+		{/if}
 
-	<!--
+		<PassageLanguage {controller} />
+
+		<!--
 		What the attached song is, in the forms somebody filling in a song page
 		elsewhere has to paste: its facts, its cover and its link.
 
@@ -373,149 +396,158 @@
 		contacts anyone: the facts and the cover's address arrived on the read that
 		named the song, and the link is derived from the id the draft already stores.
 	-->
-	{#if artwork || videoUrl || listedFacts || searchName}
-		<section>
-			<!-- No sentence under the heading. `Song metadata` over a column of
+		{#if artwork || videoUrl || listedFacts || searchName}
+			<section>
+				<!-- No sentence under the heading. `Song metadata` over a column of
 			     labelled facts and self-describing commands is already the whole
 			     of what a paragraph there would have said. -->
-			<h2>Song metadata</h2>
-			{#if details && listedFacts}
-				<SongFacts {details} feedback={controller.feedback} />
-			{/if}
-			<div class="tool-actions" class:song-metadata-actions--after-facts={details && listedFacts}>
-				{#if controller.media?.pendingName}
-					<button
-						type="button"
-						class="button"
-						disabled={controller.media.busy}
-						onclick={() => void controller.media?.reconnect()}
-					>
-						{pendingMediaActionLabel(controller.media.pendingSource)}
-					</button>
+				<h2>Song metadata</h2>
+				{#if details && listedFacts}
+					<SongFacts {details} feedback={controller.feedback} />
 				{/if}
-				{#if searchName && !videoUrl}
-					<a
-						class="button"
-						href={`https://www.youtube.com/results?search_query=${encodeURIComponent(searchName)}`}
-						target="_blank"
-						rel="noopener noreferrer"
-					>
-						<img class="youtube-logo" src={youtubeIcon} width="20" height="15" alt="" />
-						Search YouTube
-					</a>
-				{/if}
-				{#if videoUrl}
-					<button type="button" class="button" onclick={() => copyVideoUrl(videoUrl)}>
-						Copy YouTube link
-					</button>
-				{/if}
-				{#if artwork}
-					<ArtworkActions
-						{artwork}
-						name={controller.media?.player.name}
-						announce={(message) => controller.feedback.announce(message)}
-					/>
-				{/if}
-			</div>
-		</section>
-	{/if}
-
-	<section>
-		<h2>Genius page</h2>
-		<div class="genius-page-row">
-			{#key controller.draftId}
-				<label class="sr-only" for="genius-page-url">Genius page link</label>
-				<input
-					id="genius-page-url"
-					class="genius-page-input"
-					type="url"
-					placeholder="https://genius.com/Artist-song-lyrics"
-					bind:value={geniusUrl}
-					oninput={(event) => event.currentTarget.setCustomValidity('')}
-					onchange={(event) => {
-						const accepted = controller.setGeniusUrl(geniusUrl);
-						event.currentTarget.setCustomValidity(
-							accepted ? '' : 'Enter a valid Genius page link.'
-						);
-						if (!accepted) event.currentTarget.reportValidity();
-					}}
-				/>
-			{/key}
-			<div class="tool-actions genius-page-actions">
-				{#if geniusPage}
-					<!-- eslint-disable svelte/no-navigation-without-resolve -- normalizeGeniusUrl validates this external page link. -->
-					<a
-						class="button button--quiet button--flush"
-						href={geniusPage}
-						target="_blank"
-						rel="noopener noreferrer"
-						aria-label="Open Genius page"><span aria-hidden="true">↗</span></a
-					>
-					<!-- eslint-enable svelte/no-navigation-without-resolve -->
-				{/if}
-			</div>
-		</div>
-	</section>
-
-	{#key controller.draftId}<ConversionDetails {controller} />{/key}
-
-	<!-- The caret line remains the single accessible timing editor. File output is above. -->
-	{#if timing}
-		<section>
-			<h2>Timing line {timing.line}</h2>
-			<p>{timing.text}</p>
-			<form
-				class="line-timing-form"
-				onsubmit={(event) => {
-					event.preventDefault();
-					if (exactTime !== undefined) controller.setCurrentLineTime(exactTime);
-				}}
-			>
-				<label for="current-line-time">Time in seconds</label>
-				<div class="tool-actions">
-					<input
-						class="line-timing-input"
-						id="current-line-time"
-						type="number"
-						min="0"
-						step="0.01"
-						required
-						bind:value={exactTime}
-						placeholder="Not timed"
-					/>
-					<button type="submit" class="button" disabled={exactTime === undefined}>Set time</button>
+				<div class="tool-actions" class:song-metadata-actions--after-facts={details && listedFacts}>
+					{#if controller.media?.pendingName}
+						<button
+							type="button"
+							class="button"
+							disabled={controller.media.busy}
+							onclick={() => void controller.media?.reconnect()}
+						>
+							{pendingMediaActionLabel(controller.media.pendingSource)}
+						</button>
+					{/if}
+					{#if searchName && !videoUrl}
+						<a
+							class="button"
+							href={`https://www.youtube.com/results?search_query=${encodeURIComponent(searchName)}`}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							<img class="youtube-logo" src={youtubeIcon} width="20" height="15" alt="" />
+							Search YouTube
+						</a>
+					{/if}
+					{#if videoUrl}
+						<button type="button" class="button" onclick={() => copyVideoUrl(videoUrl)}>
+							Copy YouTube link
+						</button>
+					{/if}
+					{#if artwork}
+						<ArtworkActions
+							{artwork}
+							name={controller.media?.player.name}
+							announce={(message) => controller.feedback.announce(message)}
+						/>
+					{/if}
 				</div>
-			</form>
-			<div class="tool-actions">
-				{#if timing.time !== undefined}
-					<button
-						type="button"
-						class="button"
-						disabled={timing.time === 0}
-						onclick={() => controller.setCurrentLineTime(Math.max(0, timing.time! - 0.25))}
-						>Earlier 0.25s</button
-					>
-					<button
-						type="button"
-						class="button"
-						onclick={() => controller.setCurrentLineTime(timing.time! + 0.25)}>Later 0.25s</button
-					>
-					<button
-						type="button"
-						class="button button--quiet"
-						onclick={() => controller.setCurrentLineTime(undefined)}>Clear line time</button
-					>
-				{/if}
-				{#if controller.media?.player.attached}
-					<button
-						type="button"
-						class="button button--quiet"
-						onclick={() => controller.setCurrentLineTime(controller.media!.player.liveTime())}
-						>Use playback time</button
-					>
+			</section>
+		{/if}
+
+		<details class="song-panel__advanced" bind:open={advancedOpen}>
+			<summary bind:this={advancedSummary}>Advanced tools</summary>
+			<div class="song-panel__advanced-content">
+				<section>
+					<h2>Genius page</h2>
+					<div class="genius-page-row">
+						{#key controller.draftId}
+							<label class="sr-only" for="genius-page-url">Genius page link</label>
+							<input
+								id="genius-page-url"
+								class="genius-page-input"
+								type="url"
+								placeholder="https://genius.com/Artist-song-lyrics"
+								bind:value={geniusUrl}
+								oninput={(event) => event.currentTarget.setCustomValidity('')}
+								onchange={(event) => {
+									const accepted = controller.setGeniusUrl(geniusUrl);
+									event.currentTarget.setCustomValidity(
+										accepted ? '' : 'Enter a valid Genius page link.'
+									);
+									if (!accepted) event.currentTarget.reportValidity();
+								}}
+							/>
+						{/key}
+					</div>
+				</section>
+				{#key controller.draftId}<ConversionDetails
+						{controller}
+						onclose={closeSectionDetails}
+					/>{/key}
+
+				<!-- The caret line remains the single accessible timing editor. File output is above. -->
+				{#if timing}
+					<section>
+						<h2>Timing line {timing.line}</h2>
+						<p>{timing.text}</p>
+						<form
+							class="line-timing-form"
+							onsubmit={(event) => {
+								event.preventDefault();
+								if (exactTime !== undefined) controller.setCurrentLineTime(exactTime);
+							}}
+						>
+							<label for="current-line-time">Time in seconds</label>
+							<div class="tool-actions">
+								<input
+									class="line-timing-input"
+									id="current-line-time"
+									type="number"
+									min="0"
+									step="0.01"
+									required
+									bind:value={exactTime}
+									placeholder="Not timed"
+								/>
+								<button type="submit" class="button" disabled={exactTime === undefined}
+									>Set time</button
+								>
+							</div>
+						</form>
+						<div class="tool-actions">
+							{#if timing.time !== undefined}
+								<button
+									type="button"
+									class="button"
+									disabled={timing.time === 0}
+									onclick={() => controller.setCurrentLineTime(Math.max(0, timing.time! - 0.25))}
+									>Earlier 0.25s</button
+								>
+								<button
+									type="button"
+									class="button"
+									onclick={() => controller.setCurrentLineTime(timing.time! + 0.25)}
+									>Later 0.25s</button
+								>
+								<button
+									type="button"
+									class="button button--quiet"
+									onclick={() => controller.setCurrentLineTime(undefined)}>Clear line time</button
+								>
+							{/if}
+							{#if controller.media?.player.attached}
+								<button
+									type="button"
+									class="button button--quiet"
+									onclick={() => controller.setCurrentLineTime(controller.media!.player.liveTime())}
+									>Use playback time</button
+								>
+							{/if}
+						</div>
+					</section>
 				{/if}
 			</div>
-		</section>
+		</details>
+		{#if geniusPage}<div class="tool-actions">
+				<!-- eslint-disable svelte/no-navigation-without-resolve -- normalizeGeniusUrl validates this external page link. -->
+				<a
+					class="button button--quiet"
+					href={geniusPage}
+					target="_blank"
+					rel="noopener noreferrer"
+					aria-label="Open Genius page">Genius page</a
+				>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			</div>{/if}
 	{/if}
 </div>
 
@@ -524,6 +556,18 @@
 		min-width: 0;
 		grid-template-columns: minmax(0, 1fr);
 		align-content: start;
+	}
+
+	.song-panel__advanced > summary {
+		min-height: var(--control-height-touch);
+		align-content: center;
+		cursor: pointer;
+		font-weight: var(--font-weight-semibold);
+	}
+	.song-panel__advanced-content {
+		display: grid;
+		gap: var(--space-6);
+		margin-top: var(--space-3);
 	}
 
 	.clear-decision {
@@ -536,7 +580,8 @@
 		display: grid;
 		gap: var(--space-6);
 	}
-	.song-panel > :global(section) {
+	.song-panel > :global(section),
+	.song-panel__advanced-content > :global(section) {
 		margin: 0;
 		min-width: 0;
 	}
@@ -588,20 +633,10 @@
 
 	.genius-page-row {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) var(--control-height-touch);
+		grid-template-columns: minmax(0, 1fr);
 		gap: var(--space-2);
 		align-items: center;
 	}
-	.genius-page-actions {
-		min-height: var(--control-height-touch);
-		margin: 0;
-	}
-	.genius-page-actions a {
-		width: var(--control-height-touch);
-		min-height: var(--control-height-touch);
-		padding: 0;
-	}
-
 	.line-timing-form + .tool-actions {
 		margin-top: var(--space-2);
 	}

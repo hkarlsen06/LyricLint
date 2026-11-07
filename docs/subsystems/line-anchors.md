@@ -33,7 +33,7 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
   inline end is the overlay scrollbar's lane, measured against the scrollport in
   `line-anchoring.svelte.test.ts`. Everything in the gutter is `aria-hidden` all the way
   down. Do not give a gutter control an accessible name and call it done.
-- Song offers the caret's lyric line as an accessible timing surface: exact seconds,
+- Song offers the caret's lyric line inside its deliberately opened Advanced tools as an accessible timing surface: exact seconds,
   quarter-second corrections, playback-time stamping, and clear-one. It uses the same
   stampable-line predicate and anchor effects as the gutter, saving through the existing hook
   (`line-anchoring.svelte.test.ts`, `SongPanel.svelte.test.ts`). Unsaved exact-time input survives
