@@ -98,8 +98,6 @@ export const markupDimField = StateField.define<DecorationSet>({
 export const markupDimTheme = EditorView.baseTheme({
 	'.ll-syntax-dim': {
 		color: 'var(--color-text-muted)',
-		fontFamily: 'var(--font-mono)',
-		// Syntax shares the lyric baseline without enlarging its line box.
-		lineHeight: '0'
+		fontFamily: 'var(--font-mono)'
 	}
 });

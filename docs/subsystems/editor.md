@@ -45,7 +45,7 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   rows for coincident empty sections. Heading syntax uses the mono face and character wrapping;
   a hidden sizing layer preserves its wrapping height in Musixmatch without adding lyrics.
   Literal bracket lines, including nameless headers and headers authored as Musixmatch lyrics,
-  keep ordinary lyric-row geometry. Inline syntax styling cannot enlarge that line box.
+  keep ordinary lyric-row geometry; their brackets inherit the lyric face.
   Coarse-pointer rows retain the control touch floor. The workbench's persistent Section action
   replaces in-document headerless helper rows, which would otherwise appear only in Genius.
   `conversion.svelte.test.ts`, `conversion-identities.svelte.test.ts`,

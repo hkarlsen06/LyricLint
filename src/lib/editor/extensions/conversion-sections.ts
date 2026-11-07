@@ -82,17 +82,29 @@ function boundaries(state: EditorState): DecorationSet {
 	if (conversion?.recovery || !state.field(editorCallbacksField, false)?.onSectionDetailRequest)
 		return Decoration.none;
 	if (!conversion || conversion.envelope.profile === 'genius') {
-		const starts = conversion
-			? conversion.projection.sections.flatMap((section) =>
-					section.headerFrom === undefined ? [] : [section.headerFrom]
+		const currentProjection =
+			conversion?.projection.text === state.doc.toString() ? conversion.projection : undefined;
+		const retainedStarts =
+			currentProjection &&
+			new Set(
+				currentProjection.sections.flatMap((section) =>
+					section.headerFrom === undefined ? [] : [state.doc.lineAt(section.headerFrom).from]
 				)
-			: parsedDocumentForState(state).sections.flatMap((section) =>
-					canRetainSectionHeader(section.header) ? [section.header.from] : []
-				);
+			);
 		return Decoration.set(
-			starts.map((at) =>
-				Decoration.line({ class: 'll-conversion-heading' }).range(state.doc.lineAt(at).from)
-			),
+			parsedDocumentForState(state).sections.flatMap((section) => {
+				const header = section.header;
+				if (!header?.closed) return [];
+				const lineStart = state.doc.lineAt(header.from).from;
+				const retained = retainedStarts
+					? retainedStarts.has(lineStart)
+					: canRetainSectionHeader(header);
+				return [
+					Decoration.line({
+						class: retained ? 'll-conversion-heading' : 'll-conversion-literal-heading'
+					}).range(lineStart)
+				];
+			}),
 			true
 		);
 	}
@@ -147,6 +159,7 @@ export const conversionSectionBoundaries: Extension = [
 	sectionBoundaryField,
 	EditorView.baseTheme({
 		'.cm-content': { '--ll-section-control-height': 'var(--control-height-md)' },
+		'.ll-conversion-literal-heading .ll-syntax-dim': { fontFamily: 'inherit' },
 		'.cm-line.ll-conversion-heading, .ll-conversion-heading-size': {
 			boxSizing: 'border-box',
 			minHeight: 'calc(var(--ll-section-control-height) + 2 * var(--space-1))',

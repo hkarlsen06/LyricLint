@@ -40,6 +40,19 @@ function mount(text: string, width: number, switchToMusixmatch = true) {
 }
 
 describe('retained section boundaries', () => {
+	it('replaces a retained Genius draft with shorter lyrics before projection ranges are refreshed', () => {
+		const { handle, view } = mount(
+			`[Verse]\n${'Moon rises\n'.repeat(10)}[Chorus]\nStars fall`,
+			360
+		);
+		handle.switchProfile!('genius');
+		view.dispatch({
+			changes: { from: 0, to: view.state.doc.length, insert: '[Verse]\nFresh words' }
+		});
+		expect(handle.getSnapshot().text).toBe('[Verse]\nFresh words');
+		expect(handle.getSnapshot().conversionRecovery).toBeUndefined();
+	});
+
 	it.each(['genius', 'musixmatch'] as const)(
 		'keeps literal headers at lyric height when authored in %s',
 		async (profile) => {
