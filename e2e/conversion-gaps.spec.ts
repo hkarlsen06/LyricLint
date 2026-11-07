@@ -47,7 +47,7 @@ for (const width of [1440, 360, 390]) {
 			const plain = (await read(page)).text;
 			await review(page, width < 600);
 			const region = page.getByRole('region', { name: 'Retained details needing review' });
-			await region.getByRole('button', { name: 'Next detail' }).click();
+			await expect(region.getByRole('button', { name: 'Next detail' })).toHaveCount(0);
 			const edit = region.getByRole('button', { name: 'Edit header in Genius' });
 			await expect(edit).toBeVisible();
 			await expect(region.locator('[aria-live="polite"]')).toContainText('[Chorus x2: Noor]');
@@ -77,8 +77,6 @@ for (const width of [1440, 360, 390]) {
 			);
 			expect((await read(page)).text).toBe(plain);
 			await review(page, width < 600);
-			if (!(await edit.isVisible()))
-				await region.getByRole('button', { name: 'Next detail' }).click();
 			await expect(edit).toBeVisible();
 			await page.screenshot({ path: `.audit/repeat-return-${width}.png`, fullPage: true });
 		});
@@ -111,10 +109,7 @@ for (const width of [1440, 360, 390]) {
 			await format(page, 'Musixmatch');
 			await review(page, width < 600);
 			const region = page.getByRole('region', { name: 'Retained details needing review' });
-			for (const type of ['Verse', 'Chorus']) {
-				await region.getByRole('combobox', { name: 'Musixmatch section type' }).selectOption(type);
-				await region.getByRole('button', { name: 'Save section type' }).click();
-			}
+			await expect(region).toHaveCount(0);
 			if (
 				!(await page
 					.getByRole('button', { name: 'Review instrumental interval', exact: true })

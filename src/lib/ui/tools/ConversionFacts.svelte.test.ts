@@ -141,12 +141,10 @@ test.each([false, true])(
 				).toBeVisible()
 			);
 		}
-		for (const [index, section] of controller.snapshot.conversion!.model.sections.entries())
-			controller.applyConversionAction({
-				kind: 'setSectionType',
-				sectionId: section.id,
-				type: index ? 'Chorus' : 'Verse'
-			});
+		expect(
+			controller.snapshot.conversion!.model.sections.every((section) => section.type === undefined)
+		).toBe(true);
+		expect(panel.getByRole('option', { name: 'Verse → Chorus' })).toBeTruthy();
 		await controller.media!.attachFile(new File(['audio'], 'song.mp3', { type: 'audio/mpeg' }));
 		audio.setDuration(60);
 		controller.applyConversionAction({

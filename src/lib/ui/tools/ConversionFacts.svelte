@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, type Snippet } from 'svelte';
+	import { sectionType } from '#lib/conversion/section-types.js';
 	import {
 		contentOffset,
 		renderProfile,
@@ -94,12 +95,18 @@
 	let start = $state<number>();
 	let end = $state<number>();
 	let lyricFree = $state(false);
+	const typedSections = $derived(
+		(model?.sections ?? []).map((section) => ({
+			...section,
+			type: sectionType(section, model?.defaultLanguage ?? 'und')
+		}))
+	);
 	const pairs = $derived(
-		model?.sections.flatMap((section, index, sections) =>
+		typedSections.flatMap((section, index, sections) =>
 			section.type && sections[index + 1]?.type && section.at < sections[index + 1].at
 				? [{ before: section, after: sections[index + 1] }]
 				: []
-		) ?? []
+		)
 	);
 	const pair = $derived(pairs.find((entry) => entry.before.id === beforeId));
 	const recordingId = $derived(controller.media?.recordingId);
