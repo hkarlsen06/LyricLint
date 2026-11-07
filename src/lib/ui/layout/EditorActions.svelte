@@ -103,6 +103,14 @@
 	aria-label="Document actions"
 >
 	{#if !phone.current}<PassageLanguage {controller} controlsOnly contextual />{/if}
+	{#if phone.current && canAssign}
+		<button
+			type="button"
+			class="button--quiet editor-actions__button"
+			onmousedown={(event) => event.preventDefault()}
+			onclick={() => controller.editor.requestPerformerAssignment?.()}>Assign voices</button
+		>
+	{/if}
 	{#each actions as action (action.id)}
 		<button
 			type="button"
@@ -163,14 +171,6 @@
 				/>
 			{/if}
 		</button>
-	{/if}
-	{#if phone.current && canAssign}
-		<button
-			type="button"
-			class="button--quiet editor-actions__button"
-			onmousedown={(event) => event.preventDefault()}
-			onclick={() => controller.editor.requestPerformerAssignment?.()}>Assign voices</button
-		>
 	{/if}
 	{#if onToggleEditor && !phone.current}
 		<button

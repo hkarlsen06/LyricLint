@@ -34,7 +34,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 ## The rules
 
 - Shared writing commands keep their positions when the format changes. The Genius-only unknown
-  marker sits before Section and Find in the right-aligned tray, so its removal cannot move them.
+  marker and contextual voice assignment sit before Section and Find in the right-aligned tray,
+  so their removal cannot move the shared commands.
   Section remains available for the active passage in both formats; the workbench omits the
   additional headerless helper rows inside the document.
 

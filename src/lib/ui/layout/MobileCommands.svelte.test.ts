@@ -188,6 +188,24 @@ test('names touch editing actions and preserves the selection before opening ass
 	await waitFor(() => expect(screen.queryByRole('button', { name: 'Assign voices' })).toBeNull());
 });
 
+test('keeps shared writing commands fixed when selection actions appear or disappear', async () => {
+	await page.viewport(360, 844);
+	const { controller } = createTestWorkbench({
+		text: '[Verse]\nThe words',
+		selection: { anchor: 8, head: 17 }
+	});
+	controller.editor.requestPerformerAssignment = vi.fn();
+	await render(EditorActions, { controller });
+	const controls = ['Section header', 'Find and replace', 'Unknown lyric [?]'].map((name) =>
+		screen.getByRole('button', { name })
+	);
+	const before = controls.map((control) => control.getBoundingClientRect().toJSON());
+	expect(screen.getByRole('button', { name: 'Assign voices' })).toBeTruthy();
+	controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 0 } });
+	await waitFor(() => expect(screen.queryByRole('button', { name: 'Assign voices' })).toBeNull());
+	expect(controls.map((control) => control.getBoundingClientRect().toJSON())).toEqual(before);
+});
+
 test.each([320, 390])(
 	'keeps every named document-menu row above the workspace tray at %ipx',
 	async (width) => {
