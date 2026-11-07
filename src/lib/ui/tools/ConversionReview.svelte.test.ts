@@ -548,6 +548,12 @@ test.each([1280, 360, 390])(
 		await choose('Take my hand and say my name');
 		expect(positions()).toEqual(before);
 		expect(panel.getByLabelText('Chosen source lyrics').textContent).toBe(chosen);
+		for (const value of ['', '0', '1.5', '101']) {
+			await fireEvent.input(count, { target: { value } });
+			await fireEvent.click(trigger);
+			expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+			expect(positions()).toEqual(before);
+		}
 		await fireEvent.input(count, { target: { value: '1' } });
 		await fireEvent.click(trigger);
 		expect(panel.getByLabelText('Replacement preview').textContent).toBe(chosen);
@@ -592,3 +598,23 @@ test.each([1280, 360, 390])(
 		expect(controller.snapshot.conversion?.model).toEqual(JSON.parse(snapshot).conversion.model);
 	}
 );
+
+test('offers direct editing when a repeat placeholder has no earlier source', async () => {
+	const { panel, controller, range } = await focusedTask(
+		'[Outro]\nRepeat chorus',
+		'Repeat chorus',
+		'mxm.transcription.repeat-placeholder'
+	);
+	const text = controller.snapshot.text;
+	const model = JSON.stringify(controller.snapshot.conversion?.model);
+	expect(panel.getByText('No earlier section is available.', { exact: false })).toBeVisible();
+	expect(panel.queryByRole('button', { name: /^Earlier source section/ })).toBeNull();
+	expect(panel.queryByLabelText('Copies to insert here')).toBeNull();
+	expect(panel.queryByRole('button', { name: 'Preview replacement' })).toBeNull();
+	expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+	await fireEvent.click(panel.getByRole('button', { name: 'Edit in lyrics' }));
+	expect(controller.requestedConversionReview).toBeUndefined();
+	expect(controller.conversionPassageRequest).toEqual({ range, intent: 'edit' });
+	expect(controller.snapshot.text).toBe(text);
+	expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(model);
+});

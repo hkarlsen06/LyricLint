@@ -258,33 +258,33 @@
 			/>
 		{:else}
 			{#if request.kind === 'repeat'}
-				<div class="conversion-review__source-field">
-					<span id={`${dialogId}-source-label`}>Earlier source section</span>
-					<button
-						class="button"
-						type="button"
-						aria-labelledby={`${dialogId}-source-label ${dialogId}-source-trigger`}
-						id={`${dialogId}-source-trigger`}
-						aria-haspopup="dialog"
-						onmousedown={(event) => event.preventDefault()}
-						onclick={(event) => openSurface('sources', event.currentTarget)}
-						>{source ? 'Change source version' : 'Choose the version to repeat'}</button
+				{#if sources.length}
+					<div class="conversion-review__source-field">
+						<span id={`${dialogId}-source-label`}>Earlier source section</span>
+						<button
+							class="button"
+							type="button"
+							aria-labelledby={`${dialogId}-source-label ${dialogId}-source-trigger`}
+							id={`${dialogId}-source-trigger`}
+							aria-haspopup="dialog"
+							onmousedown={(event) => event.preventDefault()}
+							onclick={(event) => openSurface('sources', event.currentTarget)}
+							>{source ? 'Change source version' : 'Choose the version to repeat'}</button
+						>
+					</div>
+					<label
+						>Copies to insert here<input
+							type="number"
+							min="1"
+							max="100"
+							step="1"
+							bind:value={copies}
+						/></label
 					>
-				</div>
-				{#if !sources.length}<p>
-						No earlier section is available. Return to Review and edit the placeholder in the
-						lyrics.
-					</p>{/if}
-				<label
-					>Copies to insert here<input
-						type="number"
-						min="1"
-						max="100"
-						step="1"
-						bind:value={copies}
-					/></label
-				>
-				<p>Count every copy at this placeholder, including numbered notation.</p>
+					<p>Count every copy at this placeholder, including numbered notation.</p>
+				{:else}
+					<p>No earlier section is available. Use Edit in lyrics to replace the placeholder.</p>
+				{/if}
 			{:else}
 				<label
 					>Audible prefix (if any)<input
@@ -306,12 +306,12 @@
 				class="conversion-review__actions"
 				class:conversion-review__actions--choice={request.kind === 'censor'}
 			>
-				<button
-					class="button"
-					type="button"
-					disabled={request.kind === 'repeat' ? !source : !listened}
-					onclick={prepare}>Preview replacement</button
-				>
+				{#if request.kind !== 'repeat' || sources.length}<button
+						class="button"
+						type="button"
+						disabled={request.kind === 'repeat' ? !source : !listened}
+						onclick={prepare}>Preview replacement</button
+					>{/if}
 				{#if request.kind === 'censor'}<button
 						class="button button--quiet"
 						type="button"

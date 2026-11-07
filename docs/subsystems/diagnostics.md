@@ -21,6 +21,7 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 - Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
 
 - Repeat review keeps source, blank copy count and Preview above variable source context.
+	With no earlier source, the task offers direct lyric editing without source, count or preview controls.
   A native dialog offers readable source rows with the first two lyric lines, including
   distinguishing second lines. Long rows explicitly name their excerpt and offer exact full
   source text before choosing. A visible Selected cue and pressed state identify the choice.
