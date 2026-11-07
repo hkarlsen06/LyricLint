@@ -124,6 +124,10 @@ for (const width of [1280, 360, 390]) {
 			});
 			if (language === 'en')
 				await fireEvent.click(panel.getByText('Use custom exact wording', { exact: true }));
+			else {
+				expect(panel.getByText('Use custom digit form', { exact: true })).toBeVisible();
+				expect(panel.queryByText('Use custom exact wording', { exact: true })).toBeNull();
+			}
 			const field = panel.getByRole('textbox', { name: /^Exact words as sung/ });
 			const trigger = panel.getByRole('button', { name: 'Preview quantity' });
 			const before = trigger.getBoundingClientRect().toJSON();
@@ -276,7 +280,7 @@ test.each([
 		await fireEvent.change(panel.getByLabelText('How is it sung?'), {
 			target: { value: 'whole-quantity' }
 		});
-		await fireEvent.click(panel.getByText('Use custom exact wording', { exact: true }));
+		await fireEvent.click(panel.getByText('Use custom digit form', { exact: true }));
 		await fireEvent.input(panel.getByLabelText('Exact words as sung (required)'), {
 			target: { value: words }
 		});

@@ -160,6 +160,8 @@ test.each([360, 390])(
 		await fireEvent.click(wording);
 		const edit = screen.getByRole('button', { name: 'Edit in lyrics' });
 		expect(edit.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+		const back = screen.getByRole('button', { name: 'Back to Review' });
+		expect(edit.getBoundingClientRect().top).toBe(back.getBoundingClientRect().top);
 		await fireEvent.click(edit);
 		await waitFor(() => expect(editor.closest('.editor-region')).toBeVisible());
 		expect(controller.requestedConversionReview).toBeUndefined();

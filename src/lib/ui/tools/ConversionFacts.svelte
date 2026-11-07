@@ -265,7 +265,11 @@
 								>
 							{/if}
 							{#if pronunciation === 'whole-quantity'}<details>
-									<summary>Use custom exact wording</summary>
+									<summary
+										>{wordingRequirement === 'required'
+											? 'Use custom digit form'
+											: 'Use custom exact wording'}</summary
+									>
 									{#if wordingRequirement === 'optional'}
 										<label
 											>Exact words as sung<textarea bind:value={spokenForm} rows="4"

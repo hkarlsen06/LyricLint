@@ -159,7 +159,12 @@
 {/snippet}
 
 <section class="conversion-review" bind:this={container} aria-label="Conversion task">
-	<button class="button button--quiet" type="button" onclick={back}>Back to Review</button>
+	<div class="conversion-review__navigation">
+		<button class="button button--quiet" type="button" onclick={back}>Back to Review</button>
+		{#if ready}<button class="button button--quiet" type="button" onclick={editPassage}
+				>Edit in lyrics</button
+			>{/if}
+	</div>
 	<h2 tabindex="-1" bind:this={heading}>{titles[request.kind]}</h2>
 	{#if !ready}
 		<p role="status">
@@ -171,7 +176,6 @@
 		<p class="lyrics" aria-label="Lyric passage">
 			{passage.before}<strong>{target}</strong>{passage.after}
 		</p>
-		<button class="button button--quiet" type="button" onclick={editPassage}>Edit in lyrics</button>
 		{#if request.kind === 'quantity' || request.kind === 'instrumental'}
 			<ConversionFacts
 				{controller}
@@ -266,6 +270,12 @@
 	h3,
 	p {
 		margin: 0;
+	}
+	.conversion-review__navigation {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: var(--space-2);
 	}
 	h2 {
 		font-size: var(--font-size-lg);
