@@ -16,7 +16,7 @@ import {
 import { renderProfile } from './projection.js';
 import { validateModel } from './validation.js';
 import { updateMetadata } from './metadata.js';
-import { sectionContainsWrapper } from './section-placement.js';
+import { canRetainSectionHeader, sectionContainsWrapper } from './section-placement.js';
 
 interface Extraction {
 	from: number;
@@ -78,7 +78,7 @@ export function importDocument(input: ImportInput): EngineResult<ConversionDocum
 		let physicalIndex = 0;
 		for (const section of parsed.sections) {
 			const header = section.header;
-			if (!header?.closed || !header.name.trim()) continue;
+			if (!canRetainSectionHeader(header)) continue;
 			while (physical[physicalIndex] && physical[physicalIndex]!.to < header.to) physicalIndex++;
 			const line = physical[physicalIndex];
 			if (line && line.from <= header.from)

@@ -1,4 +1,4 @@
-import { canRenderSection } from '#lib/conversion/section-placement.js';
+import { canRenderSection, canRetainSectionHeader } from '#lib/conversion/section-placement.js';
 import { StateField, type EditorState, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
 import { conversionForState } from './conversion-state.js';
@@ -82,15 +82,16 @@ function boundaries(state: EditorState): DecorationSet {
 	if (conversion?.recovery || !state.field(editorCallbacksField, false)?.onSectionDetailRequest)
 		return Decoration.none;
 	if (!conversion || conversion.envelope.profile === 'genius') {
+		const starts = conversion
+			? conversion.projection.sections.flatMap((section) =>
+					section.headerFrom === undefined ? [] : [section.headerFrom]
+				)
+			: parsedDocumentForState(state).sections.flatMap((section) =>
+					canRetainSectionHeader(section.header) ? [section.header.from] : []
+				);
 		return Decoration.set(
-			parsedDocumentForState(state).sections.flatMap((section) =>
-				section.header?.closed
-					? [
-							Decoration.line({ class: 'll-conversion-heading' }).range(
-								state.doc.lineAt(section.header.from).from
-							)
-						]
-					: []
+			starts.map((at) =>
+				Decoration.line({ class: 'll-conversion-heading' }).range(state.doc.lineAt(at).from)
 			),
 			true
 		);

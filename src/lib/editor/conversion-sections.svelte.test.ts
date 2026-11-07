@@ -40,6 +40,43 @@ function mount(text: string, width: number, switchToMusixmatch = true) {
 }
 
 describe('retained section boundaries', () => {
+	it.each(['genius', 'musixmatch'] as const)(
+		'keeps literal headers at lyric height when authored in %s',
+		async (profile) => {
+			const text =
+				profile === 'genius'
+					? '[]\nMoon rises\n\n[ ]\nStars fall\n\n[: Mira]\nMorning comes\n\n[Verse]\nSun shines'
+					: '[Verse]\nMoon rises\n\n[Chorus]\nStars fall';
+			const { handle, view } = mount(
+				profile === 'genius' ? text : '',
+				360,
+				profile === 'musixmatch'
+			);
+			if (profile === 'musixmatch') view.dispatch({ changes: { from: 0, insert: text } });
+			const frame = () =>
+				new Promise<void>((resolve) =>
+					requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+				);
+			const positions = () =>
+				['Moon rises', 'Stars fall'].map(
+					(lyric) => view.coordsAtPos(view.state.doc.toString().indexOf(lyric))!.top
+				);
+			await frame();
+			const original = positions();
+			for (const target of profile === 'genius'
+				? (['musixmatch', 'genius'] as const)
+				: (['genius', 'musixmatch'] as const)) {
+				handle.switchProfile!(target);
+				await frame();
+				expect(positions()).toEqual(original);
+				expect(view.dom.querySelectorAll('.ll-conversion-heading')).toHaveLength(
+					target === 'genius' && profile === 'genius' ? 1 : 0
+				);
+			}
+			expect(handle.getSnapshot().text).toBe(text);
+		}
+	);
+
 	it.each([360, 390, 1280])(
 		'keeps lyric positions stable across format switches at %ipx, including wrapped and empty headings',
 		async (width) => {

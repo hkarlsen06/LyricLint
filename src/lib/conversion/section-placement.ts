@@ -1,4 +1,10 @@
 import type { ConversionDocument, SectionRecord, WrapperRecord } from './model.js';
+import type { SectionHeader } from '#lib/core/types.js';
+
+/** Only complete named headers can become retained section boundaries. */
+export function canRetainSectionHeader(header: SectionHeader | undefined): header is SectionHeader {
+	return header?.closed === true && header.name.trim().length > 0;
+}
 
 /** Syntax order distinguishes empty styles from headings at the same lyric offset. */
 export function sectionContainsWrapper(

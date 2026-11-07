@@ -7,6 +7,7 @@ import {
 	type EngineResult
 } from './model.js';
 import { parseDocument, scanPhysicalLines } from '#lib/core/parser.js';
+import { canRetainSectionHeader } from './section-placement.js';
 import { censoredPrefixProblem } from '#lib/profiles/censorship.js';
 import {
 	decideInstrumentalRepresentation,
@@ -249,7 +250,7 @@ export function validateModel(value: unknown): EngineResult<ConversionDocument> 
 		const headerLines = scanPhysicalLines(section.header);
 		const header =
 			headerLines.length === 1 ? parseDocument(section.header).sections[0]?.header : undefined;
-		if (!header?.closed || !header.name.trim() || header.name !== section.name)
+		if (!canRetainSectionHeader(header) || header.name !== section.name)
 			return invalid(
 				'A retained section must contain one complete recognized header and its exact label.'
 			);
