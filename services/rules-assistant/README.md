@@ -14,7 +14,9 @@ Each request selects a bundled profile, policy version and corpus hash together.
 profile remains Genius for older clients. Musixmatch has its own generated corpus containing all
 111 researched clauses, their language limits, provenance and unresolved source scope. Sources
 retain official Musixmatch versus community standing independently of the Genius authority
-ladder. Cross-profile hashes and citations are refused before provider work. The current
+ladder. General transcription checks shared by both formats retain their original rule IDs,
+sources and examples; their inclusion does not give them official Musixmatch standing.
+Cross-profile hashes and inapplicable platform-policy citations are refused. The current
 Musixmatch tool set excludes header-addressed `manage_links`; its stable section metadata stays
 in the local editor.
 

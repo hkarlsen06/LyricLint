@@ -114,7 +114,14 @@ export function buildAssistantCorpusContent(
 	// order, so where an optional key sits is part of the artifact, and an
 	// absent one has to be absent rather than `undefined`. That is why the two
 	// halves either side of `fixLabel` are named: appending it would move it.
-	const rules = ruleReferences(profile).map((reference) => {
+	const sharedIds = new Set(sharedTranscriptionRules.map((rule) => rule.id));
+	const references = [
+		...ruleReferences(profile),
+		...(profile === 'musixmatch'
+			? ruleReferences().filter((reference) => sharedIds.has(reference.id))
+			: [])
+	];
+	const rules = references.map((reference) => {
 		const head = {
 			id: reference.id,
 			slug: reference.slug,

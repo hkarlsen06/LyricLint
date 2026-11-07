@@ -25,7 +25,7 @@ import { sourceRegistry } from './data/sources.js';
 import { standardizedSpellings } from './data/spelling.js';
 import { harperRuleIds } from './harper.js';
 import { ruleLookupTables } from './lookup-tables.js';
-import { enabledRules } from './registry.js';
+import { enabledRules, sharedTranscriptionRules } from './registry.js';
 
 const root = join(__dirname, '../../..');
 const rulesMd = readFileSync(join(root, 'docs/rules.md'), 'utf8');
@@ -43,7 +43,15 @@ describe('Musixmatch assistant corpus parity', () => {
 		expect(musixmatchCorpus.guidance.map((entry) => entry.id)).toEqual(
 			profileGuidelines.map((entry) => entry.id)
 		);
-		expect(musixmatchCorpus.rules.every((rule) => rule.id.startsWith('mxm.'))).toBe(true);
+		const sharedIds = sharedTranscriptionRules.map((rule) => rule.id);
+		expect(
+			musixmatchCorpus.rules.filter((rule) => !rule.id.startsWith('mxm.')).map((rule) => rule.id)
+		).toEqual(committed.rules.filter((rule) => sharedIds.includes(rule.id)).map((rule) => rule.id));
+		for (const id of sharedIds) {
+			expect(musixmatchCorpus.rules.find((rule) => rule.id === id)).toEqual(
+				committed.rules.find((rule) => rule.id === id)
+			);
+		}
 		expect(musixmatchCorpus.harper.ruleIds).toEqual([...harperRuleIds]);
 		expect(musixmatchCorpus.sources.some((source) => source.id === 'T-HARPER')).toBe(true);
 		expect(musixmatchCorpus.harper.behavior).not.toContain('not enabled');

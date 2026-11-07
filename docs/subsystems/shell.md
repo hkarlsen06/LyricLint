@@ -90,7 +90,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 - The document toolbar exposes a per-draft Genius and Musixmatch buttons that select a destination in one click
   or Enter/Space. A check and pressed state mark the committed format, and both buttons reserve
   stable check space. During a pending switch, the committed button shows a cancel cross and
-  cancels the request. Review owns the deliberate current-item retained section-type choice and Save action. Song keeps advanced section editing, voices, annotations,
+  cancels the request. Recognized headings supply their supported section types automatically.
+  Review owns the deliberate type choice and Save action for custom or unsupported labels. Song keeps advanced section editing, voices, annotations,
   language spans, authored forms and explicit conversion decisions. Hidden information is reviewed
   through its metadata location, never through invented lyric underlines. Copy and text export
   always use the active projection; Scribe export preserves the complete document.
@@ -214,7 +215,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   Contextual actions may appear on other surfaces with
   shared behavior and the emphasis described in `DESIGN.md`. `SongPanel.svelte.test.ts` and
   `PreferencesPanel.svelte.test.ts` cover these sections.
-- The grammar-checking section draws only in Genius while the document's language is English
+- The grammar-checking section draws in both lyric formats while the document's language is English
   (`isEnglishLanguage`, the same predicate the catalog rules gate on). Harper refuses every
   other language before its download, so under Norwegian the switch would be an answer that
   cannot be carried out. The app-scoped preference keeps its stored value; only the control

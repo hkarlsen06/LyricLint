@@ -9,7 +9,36 @@ import { validateAnswer } from '../src/schema';
 import { goodTurnstile, makeEnv, makeRequest, providerReturning, requestBody } from './harness';
 
 describe('profile corpus allowlist', () => {
-	it('rejects Genius citations from a Musixmatch answer while accepting its reviewed IDs', () => {
+	it.each([
+		'text.multiple-spaces',
+		'text.invisible-characters',
+		'syntax.unbalanced-parentheses',
+		'punctuation.parenthesis-spacing',
+		'contraction.apostrophe',
+		'grammar.english-pronoun-i',
+		'spelling.english-common'
+	])('accepts the applicable shared check %s in a Musixmatch answer', (id) => {
+		const context = createCorpusCatalog([genius, musixmatch]).resolve(
+			musixmatch.ruleSetVersion,
+			musixmatch.contentHash,
+			'musixmatch'
+		)!;
+		const rule = musixmatch.rules.find((rule) => rule.id === id);
+		if (!rule) throw new Error(`Missing shared check ${id}`);
+		expect(() =>
+			validateAnswer(
+				{
+					scope: 'reviewed',
+					blocks: [
+						{ kind: 'prose', text: rule.explanation, ruleIds: [id], sourceIds: rule.sourceIds }
+					]
+				},
+				context.ruleIds,
+				context.sourceIds
+			)
+		).not.toThrow();
+	});
+	it('rejects Genius-only policy citations from a Musixmatch answer while accepting its reviewed IDs', () => {
 		const context = createCorpusCatalog([genius, musixmatch]).resolve(
 			musixmatch.ruleSetVersion,
 			musixmatch.contentHash,
