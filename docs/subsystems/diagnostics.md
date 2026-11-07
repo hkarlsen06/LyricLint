@@ -37,7 +37,10 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 - Quantity, instrumental, censored-word and repeat findings offer a shared Review action in
   both the card and popover. It selects the actual finding, opens only its focused task within Review
   and focuses its heading without opening the typing keyboard. Edit in lyrics then selects the captured passage and focuses the editor for immediate typing. Song retains metadata separately. The preview uses the commit
-  validator and expires when its facts, selection or document revision change. Ignoring a
+  validator and expires when its facts, captured request or document revision change.
+  Moving the live editor selection preserves a focused task's original target and preview;
+  it never retargets Apply. Song's selection-based decision previews expire when that
+  selection changes. Ignoring a
   finding never confirms a semantic fact. `diagnostic-parity.svelte.test.ts` pins the shared
   controls; `e2e/profile-workbench.spec.ts` exercises the quantity workflow.
 
