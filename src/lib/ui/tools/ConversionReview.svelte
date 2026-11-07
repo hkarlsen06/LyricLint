@@ -432,6 +432,7 @@
 									aria-pressed={sourceId === entry.id}
 									onclick={() => {
 										if (ready) {
+											if (sourceId !== entry.id) preview = undefined;
 											sourceId = entry.id;
 											closeSurface();
 										}

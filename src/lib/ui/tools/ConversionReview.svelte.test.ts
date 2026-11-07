@@ -575,8 +575,13 @@ test.each([1280, 360, 390])(
 		expect(count).toHaveValue(1);
 		expect(positions()).toEqual(before);
 		expect(JSON.stringify(controller.snapshot)).toBe(snapshot);
+		await choose('Take my hand and say my name');
+		expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
 		await choose('Take my hand and call my name');
 		expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+		await choose('Take my hand and say my name');
+		expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+		expect(panel.queryByLabelText('Replacement preview')).toBeNull();
 		await choose('👩🏽‍🚀');
 		await fireEvent.input(count, { target: { value: '2' } });
 		await fireEvent.click(trigger);
