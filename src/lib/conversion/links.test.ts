@@ -130,7 +130,7 @@ it('corrects only an explicit wording choice and refuses a changed group without
 	const differences = conversionLinkDifferences(document, projection, sectionIds);
 	expect(differences.map((item) => item.wordings.map((wording) => wording.text))).toEqual([
 		['tight', 'tighht'],
-		['', ' (Oh)']
+		['', ' (oh)']
 	]);
 	const action = {
 		kind: 'reviewLinkDifferences',
@@ -290,7 +290,7 @@ it.each([
 		'Stay home\n\nStay home\n\nStay home'
 	],
 	['[Chorus]\n[Chorus 2]\nWe X\n\n[Chorus 3]\nWe X', 'We ', 'X\n\nX\n\nX'],
-	['[Chorus]\nWe stay here\n\n[Chorus 2]\nWe stay here (Oh)', 'We stay here', ' (Oh)\n\n (Oh)']
+	['[Chorus]\nWe stay here\n\n[Chorus 2]\nWe stay here (Oh)', 'We stay here', ' (oh)\n\n (oh)']
 ])(
 	'atomically corrects and fills while preserving exact old empty occurrences: %s',
 	(source, deletion, expected) => {

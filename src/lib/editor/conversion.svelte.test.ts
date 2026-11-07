@@ -6,6 +6,9 @@ import type { EditorSnapshot, PerformerRecord } from '#lib/core/types.js';
 import type { ConversionEnvelope } from '#lib/persistence/conversion.js';
 import { parseScribe, serializeScribe } from '#lib/scribe/format.js';
 import { setComposingEffect } from './extensions/editor-state.js';
+import { importDocument } from '#lib/conversion/index.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 
 const genius =
 	'[Chorus: Mira & <i>Noor</i>]\nWe follow the [moon](123456)\n<i>Stay beside me</i>\n\n[Chorus: Mira & <i>Noor</i>]\nWe follow the moon\n<i>Stay beside me</i>';
@@ -45,6 +48,57 @@ function mount(
 }
 
 describe('lossless profile transactions', () => {
+	it('automatically renders backing-vocal case with exact history and Scribe reload', () => {
+		const source = '[Verse: Mira]\nStay with me (Yeah)\nSing (Oh yes I am)\nKeep going (I know)';
+		const expected = 'Stay with me (yeah)\nSing (oh yes I am)\nKeep going (I know)';
+		const { handle } = mount(source);
+		expect(handle.switchProfile!('musixmatch')).toEqual({ ok: true });
+		expect(handle.getSnapshot().text).toBe(expected);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(source);
+		handle.redo();
+		expect(handle.getSnapshot().text).toBe(expected);
+		const snapshot = handle.getSnapshot();
+		const serialized = serializeScribe({
+			title: 'Backing vocals',
+			lyrics: snapshot.text,
+			language: 'en',
+			performers: [],
+			lineAnchors: [],
+			sectionLinks: [],
+			ignoredDiagnostics: [],
+			conversion: snapshot.conversion
+		});
+		const restored = parseScribe(serialized);
+		const reopened = mount(restored.document.lyrics, restored.document.conversion);
+		expect(reopened.handle.getSnapshot().text).toBe(expected);
+		expect(reopened.handle.switchProfile!('genius')).toEqual({ ok: true });
+		expect(reopened.handle.getSnapshot().text).toBe(source);
+	});
+
+	it('keeps a saved legacy rendering until switching and restores its renderer on Undo', () => {
+		const source = '[Verse]\nStay with me (Yeah)';
+		const imported = importDocument({ text: source, profile: 'genius', language: 'en' });
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const legacy = createConversionEnvelope(
+			{ ...imported.value, converterVersion: '1' },
+			'musixmatch',
+			profilePolicyVersions
+		);
+		const { handle } = mount(legacy.projectionText, legacy);
+		expect(handle.getSnapshot().text).toBe('Stay with me (Yeah)');
+		expect(handle.switchProfile!('genius')).toEqual({ ok: true });
+		expect(handle.switchProfile!('musixmatch')).toEqual({ ok: true });
+		expect(handle.getSnapshot().text).toBe('Stay with me (yeah)');
+		expect(handle.getSnapshot().conversion?.model.converterVersion).toBe('2');
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(source);
+		expect(handle.getSnapshot().conversion?.model.converterVersion).toBe('1');
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe('Stay with me (Yeah)');
+		expect(handle.getSnapshot().conversion).toEqual(legacy);
+	});
+
 	it('keeps a hidden large insertion bounded and reveals its exact final line', async () => {
 		const { view } = mount('A silver moon rises\nRepeat chorus');
 		const host = view.dom.parentElement!;

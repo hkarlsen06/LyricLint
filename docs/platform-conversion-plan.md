@@ -144,7 +144,7 @@ on unknown-word placeholders. Arabic/Korean dedicated-source coverage remains an
 | Instrumentals | A literal `#INSTRUMENTAL` has specific interior-placement and >15-second requirements | Require supplied duration/placement evidence; never infer silence from blank lines or `[Instrumental]` alone |
 | Hook | A distinct supported tag | Preserve it; Genius's existing Hook→Chorus/Refrain interpretation is not a universal equivalence |
 | Numbers | Digits above ten, with time/date/phone exceptions and word-based o'clock times | Locale-aware rules; names, pronunciation, and unknown contexts require review |
-| Parenthetical vocals | Capitalization follows grammar | No blanket lowercase or uppercase operation |
+| Parenthetical vocals | Capitalization follows grammar | Ordinary English vocalizations inside a lead line can lowercase automatically; names, pronouns, sentence starts and uncertain wording retain contextual review |
 | Punctuation | No terminal commas/non-acronym periods; qualified other endings | Identify acronym/quotation context; do not strip all end punctuation |
 | Non-vocal descriptions | Omitted | Retain recognized descriptions as platform details; ambiguous text stays visible for review |
 | Censoring | Follows heard delivery, with hyphens for cutoffs | Do not manufacture missing letters from Genius masks |
@@ -386,8 +386,12 @@ before mutation when their schema cannot be understood. Optional clipboard piece
 follow the existing validated partial-recovery contract. Never render imported text as HTML.
 
 Store policy and converter versions separately from the model schema. An app update must not
-silently reserialize a draft. Keep the versions needed by supported saved drafts; adopting a new
-conversion version is an explicit previewed operation with retained prior state. If the required
+silently reserialize a draft. Keep the versions needed by supported saved drafts. Model converter
+version 1 retains its saved rendering; version 2 adds conservative English backing-vocal case.
+A deliberate switch into Musixmatch adopts version 2 in the same history event as the rendered
+change. Undo restores the prior renderer and exact text. Loading, copying or exporting an old
+envelope keeps its pinned renderer. Other converter migrations require an explicit preview with
+retained prior state. If the required
 version is unavailable, exact saved text and metadata remain recoverable/exportable, but new
 conversion is unavailable until a reviewed migration can preserve them. Do not fall back to the
 latest converter. Existing rule-version handling must be audited and made explicit per profile.

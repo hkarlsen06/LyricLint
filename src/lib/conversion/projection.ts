@@ -274,7 +274,8 @@ export function renderProfile(
 					profile,
 					sourceProfile: owner.authoredProfile,
 					language,
-					contentKind: document.contentKind
+					contentKind: document.contentKind,
+					converterVersion: document.converterVersion
 				})) {
 					const start = from + edit.from;
 					const end = from + edit.to;

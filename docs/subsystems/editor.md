@@ -195,6 +195,13 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   retains the explicit profile and removes lyrics and retained details in one history event.
   `conversion.svelte.test.ts` and `e2e/mobile-workbench.spec.ts` cover clear and history.
 
+- English Genius-owned backing-vocal openings such as `(Yeah)` and `(Oh yes I am)` lowercase
+  in Musixmatch through the same conservative primitive as the native finding. Genius source
+  bytes, explicit target spellings, names, pronouns and sentence starts remain retained.
+  Saved model converter version 1 keeps its rendering on load; a deliberate switch into
+  Musixmatch adopts version 2 in one history event. Undo restores the prior version and text.
+  `backing-vocal-case.test.ts` and `conversion.svelte.test.ts` cover old envelopes and Scribe reload.
+
 - Hidden editor document changes retain CodeMirror's bounded viewport validation. A large
   insertion must not map the previous whole-document viewport into thousands of mounted
   offscreen lyric lines. The local `@codemirror/view` patch removes its hidden-view bypass;

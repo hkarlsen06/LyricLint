@@ -5,8 +5,8 @@ export const corpus = {
 	formatVersion: 6,
 	profile: 'musixmatch',
 	ruleSetVersion: '2026.09.16.1',
-	generatedAt: '2026-11-07T17:27:05.331Z',
-	contentHash: 'd9c858fb22c44a380b85a1d4f4edd9251752320aa6196bcc0f16505f9b6db2d8',
+	generatedAt: '2026-11-07T18:29:14.276Z',
+	contentHash: 'dc3f89bfa736f45e8129c333d2d27e2d9a6cc564541f76cc8292ce27679dfcfe',
 	rules: [
 		{
 			id: 'mxm.transcription.labels',
@@ -1394,7 +1394,7 @@ export const corpus = {
 			authority: 'external',
 			sourceIds: ['MXM-EN-Q'],
 			relatedRuleIds: ['mxm.format.parenthetical-case'],
-			note: 'Ordinary vocalizations such as Oh and Yeah offer a lowercase preview within a lead line. Names, pronouns, sentence punctuation and uncertain vocal roles retain contextual review.',
+			note: 'Ordinary vocalizations such as Oh and Yeah lowercase within a lead line when converting Genius wording, and offer a preview correction for native Musixmatch wording. Names, pronouns, sentence punctuation and uncertain vocal roles retain contextual review.',
 			languages: ['en'],
 			handling: 'check'
 		},

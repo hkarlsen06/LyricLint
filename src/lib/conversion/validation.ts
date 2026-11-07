@@ -118,7 +118,10 @@ function profile(value: unknown): boolean {
 export function validateModel(value: unknown): EngineResult<ConversionDocument> {
 	const invalid = (message: string) => refuse<ConversionDocument>('invalid-input', message);
 	if (!object(value)) return invalid('The converted document must be a plain record.');
-	if (value.schema !== CONVERSION_SCHEMA || value.converterVersion !== CONVERTER_VERSION)
+	if (
+		value.schema !== CONVERSION_SCHEMA ||
+		(value.converterVersion !== '1' && value.converterVersion !== CONVERTER_VERSION)
+	)
 		return refuse('unsupported-version', 'This document needs an unavailable converter version.');
 	if (
 		typeof value.content !== 'string' ||

@@ -659,7 +659,7 @@ export const profileGuidelines: readonly ProfileGuideline[] = [
 		handling: 'check',
 		ruleIds: ['mxm.format.parenthetical-case'],
 		limit:
-			'Ordinary vocalizations such as Oh and Yeah offer a lowercase preview within a lead line. Names, pronouns, sentence punctuation and uncertain vocal roles retain contextual review.'
+			'Ordinary vocalizations such as Oh and Yeah lowercase within a lead line when converting Genius wording, and offer a preview correction for native Musixmatch wording. Names, pronouns, sentence punctuation and uncertain vocal roles retain contextual review.'
 	},
 	{
 		id: 'MX-EN04',

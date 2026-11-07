@@ -290,7 +290,12 @@ export function switchEditorProfile(
 	if (!plan.ok) return { ok: false, message: plan.refusal.message };
 	const projection = plan.value.projection;
 	const next: ConversionState = {
-		envelope: { ...value.envelope, profile, projectionText: projection.text },
+		envelope: {
+			...value.envelope,
+			model: plan.value.document,
+			profile,
+			projectionText: projection.text
+		},
 		projection
 	};
 	// Every selection is mapped independently; the engine owns segment affinity.

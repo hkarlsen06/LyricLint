@@ -11,7 +11,7 @@ import type { ProfileId } from '#lib/profiles/types.js';
 import type { InstrumentalIntervalFacts, QuantityFacts } from '#lib/profiles/decisions.js';
 
 export const CONVERSION_SCHEMA = 1 as const;
-export const CONVERTER_VERSION = '1' as const;
+export const CONVERTER_VERSION = '2' as const;
 /** Checked before scanning. These ceilings describe work, never elapsed time. */
 export const CONVERSION_LIMITS = { text: 1_000_000, records: 100_000, edits: 10_000 } as const;
 export type ContentKind = 'original' | 'translation' | 'romanization' | 'unknown';
@@ -139,7 +139,7 @@ export type ConversionDecision =
 /** One shared string. Syntax records contain delimiters, never copies of enclosed lyrics. */
 export interface ConversionDocument {
 	schema: typeof CONVERSION_SCHEMA;
-	converterVersion: typeof CONVERTER_VERSION;
+	converterVersion: '1' | typeof CONVERTER_VERSION;
 	contentKind: ContentKind;
 	/** Authoritative default for rich documents; DraftRecord.language is its compatibility view. */
 	defaultLanguage: string;

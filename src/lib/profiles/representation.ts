@@ -8,6 +8,8 @@ export interface RepresentationContext {
 	sourceProfile: ProfileId;
 	language: string;
 	contentKind?: 'original' | 'translation' | 'romanization' | 'unknown';
+	/** Saved version 1 documents keep their exact pre-backing-vocal rendering. */
+	converterVersion?: '1' | '2';
 }
 
 /** English FAQ examples: ordinary vocalizations keep grammatical lowercase inside a lead line. */
@@ -98,6 +100,12 @@ export function japanesePunctuationEdits(text: string, offset = 0): TextEdit[] {
 export function representationEdits(text: string, context: RepresentationContext): TextEdit[] {
 	if (context.profile !== 'musixmatch' || context.sourceProfile !== 'genius') return [];
 	const language = profileLanguage(context.language);
+	if (language === 'en')
+		return context.converterVersion === '1'
+			? []
+			: scanPhysicalLines(text).flatMap((line) =>
+					englishBackingVocalCaseEdits(line.text, line.from)
+				);
 	if (language !== 'fr' && language !== 'ja') return [];
 	return scanPhysicalLines(text).flatMap((line) =>
 		language === 'fr'
