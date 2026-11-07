@@ -569,6 +569,12 @@
 		gap: var(--space-6);
 		margin-top: var(--space-3);
 	}
+	@media (pointer: coarse) {
+		.song-panel :global(summary) {
+			min-height: var(--control-height-touch);
+			align-content: center;
+		}
+	}
 
 	.clear-decision {
 		display: grid;

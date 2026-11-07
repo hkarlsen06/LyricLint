@@ -268,6 +268,10 @@ test.each([360, 390])(
 			controller.geniusUrl
 		);
 		expect(screen.getByRole('textbox', { name: 'Genius page link' })).not.toBeVisible();
+		for (const label of ['Language and content type', 'Advanced tools'])
+			expect(
+				screen.getByText(label, { exact: true }).getBoundingClientRect().height
+			).toBeGreaterThanOrEqual(44);
 		expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
 	}
 );
