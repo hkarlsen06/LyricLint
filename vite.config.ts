@@ -48,6 +48,7 @@ const phoneTestFiles = [
 	'src/lib/ui/layout/MobileWorkspace.svelte.test.ts'
 ];
 const mixedInputTestFiles = [
+	'src/lib/editor/conversion-sections.svelte.test.ts',
 	'src/lib/editor/EditorPane.svelte.test.ts',
 	'src/lib/editor/caret-layer.svelte.test.ts',
 	'src/lib/editor/keyboard-commands.svelte.test.ts',

@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent } from '@testing-library/dom';
+import { cdp, page } from 'vitest/browser';
 import { createLyricEditor, type LyricEditorInstance } from './create-editor.js';
 
 const editors: LyricEditorInstance[] = [];
-afterEach(() => {
+afterEach(async () => {
+	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+	await page.viewport(800, 600);
 	for (const editor of editors.splice(0)) {
 		const host = editor.view.dom.parentElement;
 		editor.destroy();
@@ -11,7 +14,7 @@ afterEach(() => {
 	}
 });
 
-function mount(text: string, width: number) {
+function mount(text: string, width: number, switchToMusixmatch = true) {
 	const host = document.createElement('div');
 	host.style.width = `${width}px`;
 	document.body.append(host);
@@ -19,6 +22,7 @@ function mount(text: string, width: number) {
 	const requestLink = vi.fn();
 	const editor = createLyricEditor(host, {
 		initialText: text,
+		sectionGhosts: false,
 		context: { language: 'en', performers: [], ruleSetVersion: 'test' },
 		callbacks: {
 			onSnapshot: vi.fn(),
@@ -31,11 +35,78 @@ function mount(text: string, width: number) {
 		}
 	});
 	editors.push(editor);
-	editor.handle.switchProfile!('musixmatch');
+	if (switchToMusixmatch) editor.handle.switchProfile!('musixmatch');
 	return { ...editor, request, requestLink, host };
 }
 
 describe('retained section boundaries', () => {
+	it.each([360, 390, 1280])(
+		'keeps lyric positions stable across format switches at %ipx, including wrapped and empty headings',
+		async (width) => {
+			await page.viewport(width, 900);
+			await cdp().send('Emulation.setTouchEmulationEnabled', {
+				enabled: width < 500,
+				maxTouchPoints: 1
+			});
+			expect(matchMedia('(pointer: coarse)').matches).toBe(width < 500);
+			const text =
+				'Opening words\n\n[Verse 1: Mira & <i>A performer with a long name</i>]\nMoon rises\n\n' +
+				'[Chorus]\n[Post-Chorus]\nStars fall\n\n' +
+				'[A very long explicitly retained section label that wraps on narrow screens]\nMorning comes';
+			const { handle, view } = mount(text, width, false);
+			const frame = () =>
+				new Promise<void>((resolve) =>
+					requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+				);
+			const positions = () =>
+				['Opening words', 'Moon rises', 'Stars fall', 'Morning comes'].map((lyric) => {
+					const at = view.state.doc.toString().indexOf(lyric);
+					expect(at).toBeGreaterThanOrEqual(0);
+					return view.coordsAtPos(at)!.top;
+				});
+			await frame();
+			const original = positions();
+			for (let repeat = 0; repeat < 3; repeat++) {
+				handle.switchProfile!('musixmatch');
+				await frame();
+				expect(positions().map((top, index) => top - original[index]!)).toEqual([0, 0, 0, 0]);
+				expect(handle.getSnapshot().text).toBe(
+					'Opening words\n\nMoon rises\n\nStars fall\n\nMorning comes'
+				);
+				expect(view.dom.querySelector('.ll-section-ghost')).toBeNull();
+				for (const button of view.dom.querySelectorAll('.ll-conversion-section')) {
+					expect(button.getBoundingClientRect().height).toBeGreaterThanOrEqual(
+						matchMedia('(pointer: coarse)').matches ? 44 : 24
+					);
+				}
+				handle.switchProfile!('genius');
+				await frame();
+				expect(positions()).toEqual(original);
+				expect(handle.getSnapshot().text).toBe(text);
+			}
+		}
+	);
+
+	it('keeps the lyric column fixed when hiding headings takes a long song below 100 lines', async () => {
+		const text = Array.from(
+			{ length: 10 },
+			(_, section) =>
+				`[Verse ${section + 1}]\n${Array.from({ length: 9 }, (_, line) => `Passage ${section} line ${line}`).join('\n')}`
+		).join('\n\n');
+		const { handle, view } = mount(text, 360, false);
+		const frame = () =>
+			new Promise<void>((resolve) =>
+				requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+			);
+		await frame();
+		const original = view.contentDOM.getBoundingClientRect().left;
+		handle.switchProfile!('musixmatch');
+		await frame();
+		expect(Math.abs(view.contentDOM.getBoundingClientRect().left - original)).toBeLessThanOrEqual(
+			1
+		);
+	});
+
 	it('keeps a displaced hidden section out of the authored word and routes review through metadata', () => {
 		const { handle, view } = mount('[Verse]\nOne\n[Chorus]\nTwo', 360);
 		const id = handle.getSnapshot().conversion!.model.sections[1]!.id;

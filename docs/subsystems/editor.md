@@ -41,6 +41,11 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 - Musixmatch section boundaries are editor widgets backed by stable retained IDs. Their controls
   open Song details; they never become copied text. Voice decorations update in the same editor
   transaction as the projection so a native caret cannot jump during asynchronous shell updates.
+  Genius headings and their Musixmatch controls reserve matching section rows, including separate
+  rows for coincident empty sections. Heading syntax uses the mono face and character wrapping;
+  an inaccessible sizing layer preserves its wrapping height in Musixmatch without adding lyrics.
+  Coarse-pointer rows retain the control touch floor. The workbench's persistent Section action
+  replaces in-document headerless helper rows, which would otherwise appear only in Genius.
   `conversion.svelte.test.ts`, `conversion-identities.svelte.test.ts`,
   `conversion-history.svelte.test.ts` and `e2e/profile-workbench.spec.ts` cover switching,
   undo, reload, native typing, selection and scrolled passage continuity.

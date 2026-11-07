@@ -170,15 +170,9 @@ export interface CreateLyricEditorOptions {
 	selectionSettleDelay?: number;
 	/**
 	 * Whether a headerless section offers its `+ Add section header` row. On by
-	 * default, and the workbench never turns it off: there the ghost is how a
-	 * section that has no header gets one, and it costs a row of a document the
-	 * reader is free to scroll.
-	 *
-	 * It is off in the landing page's demo, where the editor is a fixed box a few
-	 * lines tall and the row is a quarter of it. Nothing is lost by dropping it
-	 * there: the sample's header problem is `section.header-prose`, whose fix
-	 * rewrites the line the reader is already looking at, so the repair is on the
-	 * line rather than in a control above it.
+	 * default for standalone editors. The workbench uses its persistent Section
+	 * action instead, so a helper row cannot move lyrics during a format switch.
+	 * The fixed-height landing demo also omits these rows.
 	 */
 	sectionGhosts?: boolean;
 	/**

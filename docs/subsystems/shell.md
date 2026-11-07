@@ -33,6 +33,11 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 ## The rules
 
+- Shared writing commands keep their positions when the format changes. The Genius-only unknown
+  marker sits before Section and Find in the right-aligned tray, so its removal cannot move them.
+  Section remains available for the active passage in both formats; the workbench omits the
+  additional headerless helper rows inside the document.
+
 - Recording invalidation belongs to a captured conversion task. Once its recording changes,
   reselecting the earlier recording does not restore that task's listening confirmation or
   replace its recording-specific refusal with a lyrics-change explanation. Reopening the

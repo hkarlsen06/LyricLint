@@ -1472,6 +1472,7 @@
 					initialSelection={controller.snapshot.selection}
 					initialRevision={controller.snapshot.revision}
 					context={editorContext}
+					sectionGhosts={false}
 					diagnosticsInPanel={phone.current}
 					callbacks={editorCallbacks}
 					bind:handle={editorHandle}

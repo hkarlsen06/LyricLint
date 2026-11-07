@@ -50,14 +50,6 @@
 	const actions = $derived(
 		[
 			{
-				id: 'section',
-				mark: '[+]',
-				label: controller.profile === 'musixmatch' ? 'Section boundary' : 'Section header',
-				caption: mac ? '⇧⌘H' : 'Ctrl+Shift+H',
-				keyshortcuts: mac ? 'Meta+Shift+H' : 'Control+Shift+H',
-				run: () => controller.insertSection()
-			},
-			{
 				// The accessible name keeps the mark, because `[?]` is the thing this
 				// writes and a reader who knows the convention should be able to find the
 				// control by it.
@@ -67,6 +59,14 @@
 				caption: mac ? '⌃⌥U' : 'Ctrl+Alt+U',
 				keyshortcuts: 'Control+Alt+U',
 				run: () => controller.insertUnknownMarker()
+			},
+			{
+				id: 'section',
+				mark: '[+]',
+				label: controller.profile === 'musixmatch' ? 'Section boundary' : 'Section header',
+				caption: mac ? '⇧⌘H' : 'Ctrl+Shift+H',
+				keyshortcuts: mac ? 'Meta+Shift+H' : 'Control+Shift+H',
+				run: () => controller.insertSection()
 			},
 			{
 				// The one command here that writes nothing, which is why it is the one

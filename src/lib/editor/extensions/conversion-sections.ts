@@ -2,13 +2,18 @@ import { canRenderSection } from '#lib/conversion/section-placement.js';
 import { StateField, type EditorState, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
 import { conversionForState } from './conversion-state.js';
-import { editorCallbacksField, isCompositionChange } from './editor-state.js';
+import {
+	editorCallbacksField,
+	isCompositionChange,
+	parsedDocumentForState
+} from './editor-state.js';
 import { pressed } from './widget-press.js';
 import { conversionSectionLocal } from './conversion-scope.js';
 
 interface BoundarySection {
 	id: string;
 	label: string;
+	header: string;
 	empty: boolean;
 	local: boolean;
 }
@@ -25,6 +30,7 @@ class SectionBoundaryWidget extends WidgetType {
 				(section, index) =>
 					section.id === other.sections[index]?.id &&
 					section.label === other.sections[index]?.label &&
+					section.header === other.sections[index]?.header &&
 					section.empty === other.sections[index]?.empty &&
 					section.local === other.sections[index]?.local
 			)
@@ -35,6 +41,12 @@ class SectionBoundaryWidget extends WidgetType {
 		row.className = 'll-conversion-sections';
 		row.contentEditable = 'false';
 		for (const section of this.sections) {
+			const item = document.createElement('div');
+			item.className = 'll-conversion-section-row';
+			const size = document.createElement('span');
+			size.className = 'll-conversion-heading-size';
+			size.dataset.heading = section.header;
+			size.setAttribute('aria-hidden', 'true');
 			const button = document.createElement('button');
 			button.type = 'button';
 			button.className = 'button button--quiet ll-conversion-section';
@@ -55,7 +67,8 @@ class SectionBoundaryWidget extends WidgetType {
 				open();
 			});
 			pressed(button, open);
-			row.append(button);
+			item.append(size, button);
+			row.append(item);
 		}
 		return row;
 	}
@@ -66,13 +79,22 @@ class SectionBoundaryWidget extends WidgetType {
 
 function boundaries(state: EditorState): DecorationSet {
 	const conversion = conversionForState(state);
-	if (
-		!conversion ||
-		conversion.envelope.profile !== 'musixmatch' ||
-		conversion.recovery ||
-		!state.field(editorCallbacksField, false)?.onSectionDetailRequest
-	)
+	if (conversion?.recovery || !state.field(editorCallbacksField, false)?.onSectionDetailRequest)
 		return Decoration.none;
+	if (!conversion || conversion.envelope.profile === 'genius') {
+		return Decoration.set(
+			parsedDocumentForState(state).sections.flatMap((section) =>
+				section.header?.closed
+					? [
+							Decoration.line({ class: 'll-conversion-heading' }).range(
+								state.doc.lineAt(section.header.from).from
+							)
+						]
+					: []
+			),
+			true
+		);
+	}
 	const groups = new Map<number, BoundarySection[]>();
 	for (const section of conversion.projection.sections) {
 		const record = conversion.envelope.model.sections.find((entry) => entry.id === section.id);
@@ -81,6 +103,10 @@ function boundaries(state: EditorState): DecorationSet {
 		group.push({
 			id: section.id,
 			label: section.type ?? section.name ?? 'Section',
+			header: (record?.header ?? `[${section.type ?? section.name ?? 'Section'}]`).replace(
+				/\r?\n$|\r$/u,
+				''
+			),
 			empty: record?.explicitEmpty ?? false,
 			local: conversionSectionLocal(state) === section.id
 		});
@@ -119,23 +145,47 @@ const sectionBoundaryField = StateField.define<DecorationSet>({
 export const conversionSectionBoundaries: Extension = [
 	sectionBoundaryField,
 	EditorView.baseTheme({
+		'.cm-content': { '--ll-section-control-height': 'var(--control-height-md)' },
+		'.cm-line.ll-conversion-heading, .ll-conversion-heading-size': {
+			boxSizing: 'border-box',
+			minHeight: 'calc(var(--ll-section-control-height) + 2 * var(--space-1))',
+			paddingBlock:
+				'max(0px, calc((var(--ll-section-control-height) + 2 * var(--space-1) - 1lh) / 2))',
+			fontFamily: 'var(--font-mono)',
+			fontSize: 'var(--font-size-editor)',
+			lineHeight: 'var(--line-height-editor)',
+			wordBreak: 'break-all'
+		},
 		'.ll-conversion-sections': {
-			display: 'flex',
-			flexWrap: 'wrap',
-			alignItems: 'center',
-			gap: 'var(--space-1)',
-			paddingBlock: 'var(--space-1)',
-			fontFamily: 'var(--font-ui)',
-			fontSize: 'var(--font-size-sm)',
 			userSelect: 'none'
 		},
+		'.ll-conversion-section-row': { display: 'grid' },
+		'.ll-conversion-heading-size': {
+			gridArea: '1 / 1',
+			visibility: 'hidden',
+			whiteSpace: 'break-spaces',
+			overflowWrap: 'anywhere',
+			paddingInlineStart: 'var(--space-1)',
+			paddingInlineEnd: 'max(var(--space-1), calc(100% - var(--measure-editor)))'
+		},
+		'.ll-conversion-heading-size::before': { content: 'attr(data-heading)' },
 		'.ll-conversion-section': {
+			gridArea: '1 / 1',
+			alignSelf: 'center',
+			justifySelf: 'start',
+			marginBlock: 'var(--space-1)',
 			maxWidth: '100%',
 			whiteSpace: 'normal',
 			textAlign: 'start',
 			overflowWrap: 'anywhere',
 			fontFamily: 'var(--font-ui)',
 			fontSize: 'var(--font-size-sm)'
+		},
+		'@media (max-width: 46rem)': {
+			'.cm-content': { '--ll-section-control-height': 'var(--control-height-lg)' }
+		},
+		'@media (pointer: coarse)': {
+			'.cm-content': { '--ll-section-control-height': 'var(--control-height-touch)' }
 		}
 	})
 ];
