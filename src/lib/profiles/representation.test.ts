@@ -15,6 +15,36 @@ const context = {
 
 describe('derived platform typography', () => {
 	it.each([
+		'What',
+		'Whatever',
+		'Which',
+		'Whichever',
+		'Who',
+		'Whoever',
+		'Whom',
+		'Whomever',
+		'Whose',
+		'Where',
+		'Wherever',
+		'When',
+		'Whenever',
+		'Why',
+		'How',
+		'However'
+	])('uses ordinary grammatical case for %s and keeps prior rendering versions pinned', (word) => {
+		const text = `We sing (${word})`;
+		const current = representationEdits(text, { ...context, language: 'en' });
+		expect(apply(text, current)).toBe(`We sing (${word.toLowerCase()})`);
+		for (const converterVersion of ['1', '2'] as const)
+			expect(representationEdits(text, { ...context, language: 'en', converterVersion })).toEqual(
+				[]
+			);
+		expect(
+			representationEdits(`We sing (${word.toLowerCase()})`, { ...context, language: 'en' })
+		).toEqual([]);
+	});
+
+	it.each([
 		['fr', 'Tu reviens ?\r\nTu repars\u00a0?', 'Tu reviens?\r\nTu repars?'],
 		['ja', '帰る?\nGo？！\nまた帰る!!', '帰る？\nGo?!\nまた帰る！！'],
 		['ja', '🎵?\nCafe\u0301?\nｶﾅ？', '🎵?\nCafe\u0301?\nｶﾅ?']

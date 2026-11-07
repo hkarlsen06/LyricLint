@@ -309,7 +309,7 @@ const expressiveCaseRule: RuleDefinition = {
 
 const parentheticalRule: RuleDefinition = {
 	id: 'mxm.format.parenthetical-case',
-	version: 2,
+	version: 3,
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['MXM-MAIN', 'MXM-EN-Q', 'MXM-ES-I', 'MXM-JA-Q'],

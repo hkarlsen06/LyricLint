@@ -120,7 +120,9 @@ export function validateModel(value: unknown): EngineResult<ConversionDocument> 
 	if (!object(value)) return invalid('The converted document must be a plain record.');
 	if (
 		value.schema !== CONVERSION_SCHEMA ||
-		(value.converterVersion !== '1' && value.converterVersion !== CONVERTER_VERSION)
+		(value.converterVersion !== '1' &&
+			value.converterVersion !== '2' &&
+			value.converterVersion !== CONVERTER_VERSION)
 	)
 		return refuse('unsupported-version', 'This document needs an unavailable converter version.');
 	if (

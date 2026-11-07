@@ -243,6 +243,11 @@ describe('Musixmatch formatting and language exceptions', () => {
 
 	it('offers direct corrections for ordinary English backing-vocal openings', () => {
 		for (const [text, expected] of [
+			[
+				'With 2 old tickets and a folded map (Whatever)',
+				'With 2 old tickets and a folded map (whatever)'
+			],
+			['We remember (Whatever Mira said)', 'We remember (whatever Mira said)'],
 			['We sing (Yeah)', 'We sing (yeah)'],
 			["I'm really hungry (Oh yes I am)", "I'm really hungry (oh yes I am)"],
 			['We sing (Ooh, I know)', 'We sing (ooh, I know)']

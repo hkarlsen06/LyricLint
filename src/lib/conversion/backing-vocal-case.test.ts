@@ -22,6 +22,16 @@ function imported(text: string, language = 'en', profile: 'genius' | 'musixmatch
 }
 
 describe('automatic English backing-vocal case', () => {
+	it('lowercases the reported ordinary parenthetical word without changing the rest of the line', () => {
+		const text = 'With 2 old tickets and a folded map (Whatever)';
+		const original = imported(text);
+		const before = JSON.stringify(original);
+		const next = value(planProfileSwitch(original, { from: 'genius', to: 'musixmatch' }));
+		expect(next.projection.text).toBe('With 2 old tickets and a folded map (whatever)');
+		expect(value(renderProfile(next.document, 'genius')).text).toBe(text);
+		expect(JSON.stringify(original)).toBe(before);
+	});
+
 	it('converts ordinary vocalizations and restores the exact Genius wording across repeated switches', () => {
 		const text = '[Verse: Mira]\nStay with me (Yeah)\nI am here (Oh yes I am)\nSing (Ooh)';
 		const original = imported(text);
@@ -94,7 +104,7 @@ describe('automatic English backing-vocal case', () => {
 		const genius = value(planProfileSwitch(restored.model, { from: 'musixmatch', to: 'genius' }));
 		expect(genius.projection.text).toBe(text);
 		const next = value(planProfileSwitch(genius.document, { from: 'genius', to: 'musixmatch' }));
-		expect(next.document.converterVersion).toBe('2');
+		expect(next.document.converterVersion).toBe('3');
 		expect(next.projection.text).toBe('Stay with me (yeah)');
 		expect(next.document.nextId).toBe(original.nextId);
 		expect(next.document.content).toBe(original.content);
@@ -119,10 +129,10 @@ describe('automatic English backing-vocal case', () => {
 	});
 
 	it('keeps carrying clipboard text exact across saved renderer versions', () => {
-		for (const sourceVersion of ['1', '2'] as const)
-			for (const targetVersion of ['1', '2'] as const)
+		for (const sourceVersion of ['1', '2', '3'] as const)
+			for (const targetVersion of ['1', '2', '3'] as const)
 				for (const at of [0, 5, 10]) {
-					const source = { ...imported('Sing (Yeah)'), converterVersion: sourceVersion };
+					const source = { ...imported('Sing (Yeah) (Whatever)'), converterVersion: sourceVersion };
 					const projection = value(renderProfile(source, 'musixmatch'));
 					const fragment = value(
 						sliceDocument(source, projection, { from: 0, to: projection.text.length })
@@ -142,4 +152,21 @@ describe('automatic English backing-vocal case', () => {
 					);
 				}
 	});
+
+	it.each(['1', '2'] as const)(
+		'keeps saved renderer %s exact before adopting grammatical-word case',
+		(version) => {
+			const text = 'With 2 old tickets and a folded map (Whatever)';
+			const legacy = { ...imported(text), converterVersion: version };
+			const saved = createConversionEnvelope(legacy, 'musixmatch', profilePolicyVersions);
+			expect(saved.projectionText).toBe(text);
+			const restored = parseConversionEnvelope(JSON.parse(JSON.stringify(saved)), text);
+			expect(restored).toEqual(saved);
+			const genius = value(planProfileSwitch(restored.model, { from: 'musixmatch', to: 'genius' }));
+			const next = value(planProfileSwitch(genius.document, { from: 'genius', to: 'musixmatch' }));
+			expect(next.document.converterVersion).toBe('3');
+			expect(next.projection.text).toBe('With 2 old tickets and a folded map (whatever)');
+			expect(value(renderProfile(next.document, 'genius')).text).toBe(text);
+		}
+	);
 });

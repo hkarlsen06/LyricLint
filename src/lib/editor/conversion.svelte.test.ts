@@ -49,8 +49,10 @@ function mount(
 
 describe('lossless profile transactions', () => {
 	it('automatically renders backing-vocal case with exact history and Scribe reload', () => {
-		const source = '[Verse: Mira]\nStay with me (Yeah)\nSing (Oh yes I am)\nKeep going (I know)';
-		const expected = 'Stay with me (yeah)\nSing (oh yes I am)\nKeep going (I know)';
+		const source =
+			'[Verse: Mira]\nStay with me (Yeah)\nSing (Oh yes I am)\nKeep going (I know)\nWith 2 old tickets and a folded map (Whatever)';
+		const expected =
+			'Stay with me (yeah)\nSing (oh yes I am)\nKeep going (I know)\nWith 2 old tickets and a folded map (whatever)';
 		const { handle } = mount(source);
 		expect(handle.switchProfile!('musixmatch')).toEqual({ ok: true });
 		expect(handle.getSnapshot().text).toBe(expected);
@@ -90,7 +92,7 @@ describe('lossless profile transactions', () => {
 		expect(handle.switchProfile!('genius')).toEqual({ ok: true });
 		expect(handle.switchProfile!('musixmatch')).toEqual({ ok: true });
 		expect(handle.getSnapshot().text).toBe('Stay with me (yeah)');
-		expect(handle.getSnapshot().conversion?.model.converterVersion).toBe('2');
+		expect(handle.getSnapshot().conversion?.model.converterVersion).toBe('3');
 		handle.undo();
 		expect(handle.getSnapshot().text).toBe(source);
 		expect(handle.getSnapshot().conversion?.model.converterVersion).toBe('1');

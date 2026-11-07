@@ -387,8 +387,9 @@ follow the existing validated partial-recovery contract. Never render imported t
 
 Store policy and converter versions separately from the model schema. An app update must not
 silently reserialize a draft. Keep the versions needed by supported saved drafts. Model converter
-version 1 retains its saved rendering; version 2 adds conservative English backing-vocal case.
-A deliberate switch into Musixmatch adopts version 2 in the same history event as the rendered
+version 1 retains its saved rendering; version 2 adds conservative English vocalization case;
+version 3 also handles grammatical openings such as Whatever. Versions 1 and 2 remain supported.
+A deliberate switch into Musixmatch adopts version 3 in the same history event as the rendered
 change. Undo restores the prior renderer and exact text. Loading, copying or exporting an old
 envelope keeps its pinned renderer. Other converter migrations require an explicit preview with
 retained prior state. If the required

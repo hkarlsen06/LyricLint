@@ -2,29 +2,39 @@ import { profileLanguage } from './languages.js';
 import type { TextEdit } from '#lib/core/types.js';
 import { scanPhysicalLines } from '#lib/core/parser.js';
 import type { ProfileId } from './types.js';
+import { CONVERTER_VERSION, type ConversionDocument } from '#lib/conversion/model.js';
 
 export interface RepresentationContext {
 	profile: ProfileId;
 	sourceProfile: ProfileId;
 	language: string;
 	contentKind?: 'original' | 'translation' | 'romanization' | 'unknown';
-	/** Saved version 1 documents keep their exact pre-backing-vocal rendering. */
-	converterVersion?: '1' | '2';
+	/** Saved documents keep the case rules of their pinned renderer. */
+	converterVersion?: ConversionDocument['converterVersion'];
 }
 
-/** English FAQ examples: ordinary vocalizations keep grammatical lowercase inside a lead line. */
-export function englishBackingVocalCaseEdits(text: string, offset = 0): TextEdit[] {
-	if (/[<>]/u.test(text) || /\([^)\r\n]*\(/u.test(text)) return [];
+const vocalizationOpening = /^(?:Oh|Ooh|Ooo|Ah|Aah|Aha|Yeah|Yep|Hey|Whoa|Woah|Uh|Mm|Mmm|Hmm)$/u;
+/** Closed grammatical words, including indefinite/relative compounds, have ordinary lowercase. */
+const grammaticalOpening =
+	/^(?:What(?:ever)?|Which(?:ever)?|Who(?:ever|m(?:ever)?)?|Whose|Where(?:ver)?|When(?:ever)?|Why|How(?:ever)?)$/u;
+
+/** English backing vocals keep grammatical lowercase inside a lead line. */
+export function englishBackingVocalCaseEdits(
+	text: string,
+	offset = 0,
+	converterVersion: ConversionDocument['converterVersion'] = CONVERTER_VERSION
+): TextEdit[] {
+	if (converterVersion === '1' || /[<>]/u.test(text) || /\([^)\r\n]*\(/u.test(text)) return [];
 	const edits: TextEdit[] = [];
-	for (const match of text.matchAll(
-		/\((Oh|Ooh|Ooo|Ah|Aah|Aha|Yeah|Yep|Hey|Whoa|Woah|Uh|Mm|Mmm|Hmm)(?![\p{L}\p{M}\p{N}_'’-])([^()\r\n]*)\)/gu
-	)) {
+	for (const match of text.matchAll(/\((\p{Lu}\p{Ll}*)(?![\p{L}\p{M}\p{N}_'’-])([^()\r\n]*)\)/gu)) {
+		const vocalization = vocalizationOpening.test(match[1]);
+		if (!vocalization && (converterVersion === '2' || !grammaticalOpening.test(match[1]))) continue;
 		const before = text.slice(0, match.index).trimEnd();
 		if (!before || /[.!?]["”’']?$/u.test(before)) continue;
-		// Names, acronyms and another sentence inside the phrase remain contextual.
+		// A vocalization may be part of a name; grammatical openings can precede names.
 		if (
 			/[.!?]\s+\p{Lu}/u.test(match[2]) ||
-			/\p{Lu}/u.test(match[2].replace(/\bI(?:['’](?:m|ve|d|ll))?\b/gu, ''))
+			(vocalization && /\p{Lu}/u.test(match[2].replace(/\bI(?:['’](?:m|ve|d|ll))?\b/gu, '')))
 		)
 			continue;
 		edits.push({
@@ -104,7 +114,7 @@ export function representationEdits(text: string, context: RepresentationContext
 		return context.converterVersion === '1'
 			? []
 			: scanPhysicalLines(text).flatMap((line) =>
-					englishBackingVocalCaseEdits(line.text, line.from)
+					englishBackingVocalCaseEdits(line.text, line.from, context.converterVersion)
 				);
 	if (language !== 'fr' && language !== 'ja') return [];
 	return scanPhysicalLines(text).flatMap((line) =>
