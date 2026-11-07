@@ -8,6 +8,7 @@
 	} from '#lib/conversion/index.js';
 	import type { WorkbenchController, ConversionReviewRequest } from '../state/workbench.svelte.js';
 	import ConversionFacts from './ConversionFacts.svelte';
+	import { conversionContext } from './conversion-context.js';
 	let {
 		controller,
 		request
@@ -56,6 +57,13 @@
 			after
 		};
 	});
+	const context = $derived(
+		request.kind === 'censor'
+			? conversionContext(passage.before, passage.after)
+			: { ...passage, clipped: false }
+	);
+	let fullLine = $state(false);
+	const previewContext = $derived(fullLine ? passage : context);
 	let sourceId = $state('');
 	let copies = $state<number | undefined>();
 	let heardPrefix = $state('');
@@ -150,12 +158,12 @@
 	<div class="conversion-review__preview">
 		<h3>Proposed lyrics</h3>
 		<p class="lyrics" aria-label="Replacement preview">
-			{passage.before}<strong
+			{previewContext.before}<strong
 				>{lyrics.slice(
 					request.range.from,
 					request.range.to + lyrics.length - controller.snapshot.text.length
 				)}</strong
-			>{passage.after}
+			>{previewContext.after}
 		</p>
 	</div>
 {/snippet}
@@ -176,8 +184,16 @@
 		</p>
 	{:else}
 		<p class="lyrics" aria-label="Lyric passage">
-			{passage.before}<strong>{target}</strong>{passage.after}
+			{context.before}<strong>{target}</strong>{context.after}
 		</p>
+		{#if context.clipped}
+			<details bind:open={fullLine}>
+				<summary>Full lyric line</summary>
+				<p class="lyrics" aria-label="Full lyric passage">
+					{passage.before}<strong>{target}</strong>{passage.after}
+				</p>
+			</details>
+		{/if}
 		{#if request.kind === 'quantity' || request.kind === 'instrumental'}
 			<ConversionFacts
 				{controller}
@@ -215,7 +231,7 @@
 				</p>
 			{:else}
 				<label
-					>Audible prefix<input
+					>Audible prefix (if any)<input
 						bind:value={heardPrefix}
 						oninput={() => (listened = false)}
 					/></label
@@ -289,6 +305,18 @@
 	}
 	h3 {
 		font-size: var(--font-size-md);
+	}
+	details .lyrics {
+		margin-block-start: var(--space-2);
+	}
+	summary {
+		cursor: pointer;
+	}
+	@media (pointer: coarse) {
+		summary {
+			min-height: var(--control-height-touch);
+			align-content: center;
+		}
 	}
 	.conversion-review__preview {
 		display: grid;

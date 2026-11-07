@@ -172,7 +172,9 @@ test('leaves an uncertain censorship decision without changing lyrics or retaine
 		'mxm.transcription.censor-mask'
 	);
 	const before = JSON.stringify(controller.snapshot);
-	await fireEvent.input(panel.getByLabelText('Audible prefix'), { target: { value: 'f' } });
+	await fireEvent.input(panel.getByLabelText('Audible prefix (if any)'), {
+		target: { value: 'f' }
+	});
 	await fireEvent.click(panel.getByRole('button', { name: 'Decide later' }));
 	expect(controller.requestedConversionReview).toBeUndefined();
 	expect(JSON.stringify(controller.snapshot)).toBe(before);
@@ -200,7 +202,9 @@ test.each([1280, 360, 390])(
 		expect(panel.getByText('A fully censored word is shown as a single hyphen.')).toBeVisible();
 		expect(JSON.stringify(controller.snapshot)).toBe(before);
 		const position = preview.getBoundingClientRect().toJSON();
-		await fireEvent.input(panel.getByLabelText('Audible prefix'), { target: { value: 'f' } });
+		await fireEvent.input(panel.getByLabelText('Audible prefix (if any)'), {
+			target: { value: 'f' }
+		});
 		expect(
 			panel.getByRole('checkbox', {
 				name: 'I listened: this word is censored right after the prefix.'
@@ -225,7 +229,9 @@ test.each([
 	);
 	const before = JSON.stringify(controller.snapshot);
 	const trigger = panel.getByRole('button', { name: 'Preview replacement' });
-	await fireEvent.input(panel.getByLabelText('Audible prefix'), { target: { value: prefix } });
+	await fireEvent.input(panel.getByLabelText('Audible prefix (if any)'), {
+		target: { value: prefix }
+	});
 	await fireEvent.click(panel.getByRole('checkbox'));
 	const box = trigger.getBoundingClientRect().toJSON();
 	await fireEvent.click(trigger);
@@ -235,13 +241,70 @@ test.each([
 	expect(JSON.stringify(controller.snapshot)).toBe(before);
 });
 
+test.each([1280, 360, 390])(
+	'keeps the whole censored token in local context and expands the exact full line at %spx',
+	async (width) => {
+		await page.viewport(width, 900);
+		const token = 'f' + '*'.repeat(60);
+		const before = 'I whispered ' + 'toward the silver lantern '.repeat(12);
+		const after = ' beside the river'.repeat(12);
+		const { panel, controller } = await focusedTask(
+			`[Verse: Mira]\n${before}[${token}](123456)${after}`,
+			token,
+			'mxm.transcription.censor-mask'
+		);
+		const model = JSON.stringify(controller.snapshot);
+		const passage = panel.getByLabelText('Lyric passage');
+		const excerpt = passage.textContent;
+		expect(passage.querySelector('strong')?.textContent).toBe(token);
+		expect(excerpt.startsWith('…')).toBe(true);
+		expect(excerpt.endsWith('…')).toBe(true);
+		expect(excerpt.length).toBeLessThan(200);
+		const full = panel.getByLabelText('Full lyric passage');
+		expect(full).not.toBeVisible();
+		await fireEvent.input(panel.getByLabelText('Audible prefix (if any)'), {
+			target: { value: 'sh' }
+		});
+		await fireEvent.click(panel.getByRole('checkbox'));
+		const trigger = panel.getByRole('button', { name: 'Preview replacement' });
+		const position = trigger.getBoundingClientRect().toJSON();
+		await fireEvent.click(trigger);
+		expect(panel.getByLabelText('Replacement preview').textContent).toBe(
+			excerpt.replace(token, 'sh-')
+		);
+		expect(trigger.getBoundingClientRect().toJSON()).toEqual(position);
+		const summary = panel.getByText('Full lyric line', { exact: true });
+		await fireEvent.click(summary);
+		await waitFor(() => expect(full).toBeVisible());
+		expect(full.textContent).toBe(before + token + after);
+		await waitFor(() =>
+			expect(panel.getByLabelText('Replacement preview').textContent).toBe(before + 'sh-' + after)
+		);
+		expect(panel.getByRole('checkbox')).toBeChecked();
+		expect(JSON.stringify(controller.snapshot)).toBe(model);
+		await fireEvent.click(summary);
+		await waitFor(() => expect(full).not.toBeVisible());
+		await waitFor(() =>
+			expect(panel.getByLabelText('Replacement preview').textContent).toBe(
+				excerpt.replace(token, 'sh-')
+			)
+		);
+		expect(trigger.getBoundingClientRect().toJSON()).toEqual(position);
+		expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
+		expect(JSON.stringify(controller.snapshot)).toBe(model);
+		expect(controller.snapshot.conversion?.model.content).toBe(before + token + after);
+	}
+);
+
 test('previews a censored prefix in its lyric line and retires it when the confirmation changes', async () => {
 	const { panel, controller } = await focusedTask(
 		'[Verse]\nI said **** tonight',
 		'****',
 		'mxm.transcription.censor-mask'
 	);
-	await fireEvent.input(panel.getByLabelText('Audible prefix'), { target: { value: 'f' } });
+	await fireEvent.input(panel.getByLabelText('Audible prefix (if any)'), {
+		target: { value: 'f' }
+	});
 	await fireEvent.click(panel.getByRole('checkbox'));
 	const trigger = panel.getByRole('button', { name: 'Preview replacement' });
 	const before = trigger.getBoundingClientRect().toJSON();
@@ -251,6 +314,7 @@ test('previews a censored prefix in its lyric line and retires it when the confi
 	expect(preview.textContent).toBe('I said f- tonight');
 	expect(preview.querySelector('strong')?.textContent).toBe('f-');
 	expect(panel.getByText('No missing letters are inferred.')).toBeVisible();
+	expect(panel.queryByText('Full lyric line', { exact: true })).toBeNull();
 	expect(trigger.getBoundingClientRect().toJSON()).toEqual(before);
 	expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(model);
 	await fireEvent.click(panel.getByRole('checkbox'));
@@ -410,11 +474,15 @@ test('requires fresh confirmation after editing the heard prefix', async () => {
 		'****',
 		'mxm.transcription.censor-mask'
 	);
-	await fireEvent.input(panel.getByLabelText('Audible prefix'), { target: { value: 'f' } });
+	await fireEvent.input(panel.getByLabelText('Audible prefix (if any)'), {
+		target: { value: 'f' }
+	});
 	await fireEvent.click(panel.getByRole('checkbox'));
 	await fireEvent.click(panel.getByRole('button', { name: 'Preview replacement' }));
 	expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeVisible();
-	await fireEvent.input(panel.getByLabelText('Audible prefix'), { target: { value: 'fu' } });
+	await fireEvent.input(panel.getByLabelText('Audible prefix (if any)'), {
+		target: { value: 'fu' }
+	});
 	expect(panel.getByRole('checkbox')).not.toBeChecked();
 	expect(panel.getByRole('button', { name: 'Preview replacement' })).toBeDisabled();
 	expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();

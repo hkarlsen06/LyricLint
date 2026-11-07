@@ -44,13 +44,18 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   mounted and hidden. Quantity values may be prefilled from exact unsigned ASCII digits;
   meaning and pronunciation still require independent confirmation. Role comes first; pronunciation and required exact sung words grow below it. Optional custom output opens deliberately,
   and Apply quantity describes the immediate edit.
-  Quantity and censorship previews show the resulting lyric line below their Preview control,
-  with the replacement emphasized. The original target stays visible for comparison. Invalid
+  Quantity previews show the resulting lyric line below their Preview control,
+  with the replacement emphasized. Censorship shows the same word-aligned local context around
+  the complete original target and replacement. Distant context is elided only in these read-only
+  views; Full lyric line expands the exact original line and the proposed line. Short lines have
+  no disclosure. The original target stays visible for comparison. Invalid
   quantity values get the shared policy guidance beside the field before Preview is available.
   Censorship offers Decide later beside Preview. It returns to the same Review finding without
   changing lyrics, recording listening facts or ignoring the finding.
   With no audible prefix, its listening confirmation explicitly names full-word censorship and
   the preview explains the single hyphen. Typing a prefix changes the listening fact and clears it.
+  The audible prefix label states that it may be absent. Expanding or closing the lyric context
+  preserves the captured target, listening facts and prepared preview without changing lyrics.
 
 - Writing exposes Document language in the toolbar and Selection language at the start of the desktop editor actions tray for an eligible selection. On phones both live inside Document. Selection language reuses PassageLanguage in controls-only form, including eligibility, captured scope, effective languages and stale refusal. Its fixed label keeps selection and long language tags from moving commands. Document language always changes the default, regardless of selection. Song retains its metadata disclosure and passage details.
   Opening captures the selected passage before focusing the trigger and showing the modal. Native close returns to that noneditable control directly; it must not briefly refocus the editor before explicit restoration.
