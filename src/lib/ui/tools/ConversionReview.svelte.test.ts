@@ -585,12 +585,40 @@ test.each([1280, 360, 390])(
 		await choose('👩🏽‍🚀');
 		await fireEvent.input(count, { target: { value: '2' } });
 		await fireEvent.click(trigger);
-		await fireEvent.click(panel.getByRole('button', { name: 'Full replacement lyrics' }));
-		const viewer = panel.getByRole('dialog', { name: 'Full replacement lyrics' });
-		expect(within(viewer).getByLabelText('Replacement preview').textContent).toBe(
-			long + '\n' + long
+		const fullResult = panel.getByRole('button', { name: 'Full replacement lyrics' });
+		const apply = panel.getByRole('button', { name: 'Apply replacement' });
+		expect(fullResult.getBoundingClientRect().top).toBe(apply.getBoundingClientRect().top);
+		expect(fullResult.getBoundingClientRect().right).toBeLessThan(
+			apply.getBoundingClientRect().left
 		);
+		await fireEvent.click(fullResult);
+		const viewer = panel.getByRole('dialog', { name: 'Full replacement lyrics' });
+		const complete = within(viewer).getByLabelText('Replacement preview');
+		expect(complete.textContent).toBe(long + '\n' + long);
+		const scrollport = complete.parentElement!;
+		const destination = within(viewer).getByLabelText('Go to copy');
+		expect(destination).toHaveValue('0');
+		const destinationPosition = destination.getBoundingClientRect().toJSON();
+		await fireEvent.change(destination, { target: { value: '1' } });
+		expect(scrollport.scrollTop).toBeGreaterThan(0);
+		const copyStart = document.createRange();
+		copyStart.setStart(complete.firstChild!, long.length + 1);
+		copyStart.setEnd(complete.firstChild!, long.length + 2);
+		expect(
+			Math.abs(copyStart.getBoundingClientRect().top - scrollport.getBoundingClientRect().top)
+		).toBeLessThan(1);
+		await fireEvent.click(within(viewer).getByRole('button', { name: 'Last line' }));
+		expect(
+			Math.abs(
+				scrollport.scrollHeight - scrollport.scrollTop - scrollport.getBoundingClientRect().height
+			)
+		).toBeLessThan(1);
+		expect(destination.getBoundingClientRect().toJSON()).toEqual(destinationPosition);
+		expect(complete.textContent).toBe(long + '\n' + long);
+		await fireEvent.change(destination, { target: { value: '0' } });
+		expect(scrollport.scrollTop).toBeLessThan(1);
 		await fireEvent.click(within(viewer).getByRole('button', { name: 'Close' }));
+		expect(fullResult).toHaveFocus();
 		expect(positions()).toEqual(before);
 		expect(JSON.stringify(controller.snapshot)).toBe(snapshot);
 		controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 5 } });
@@ -601,6 +629,48 @@ test.each([1280, 360, 390])(
 		expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
 		expect(controller.snapshot.text).toBe(JSON.parse(snapshot).text);
 		expect(controller.snapshot.conversion?.model).toEqual(JSON.parse(snapshot).conversion.model);
+	}
+);
+
+test.each([1, 100])(
+	'navigates the exact %s-copy result while retaining source annotations',
+	async (copies) => {
+		const lines = Array.from(
+			{ length: 8 },
+			(_, index) => `Northern lantern ${index + 1} shines beside the river`
+		);
+		const plain = 'A silver moon rises\n' + lines.join('\n');
+		const { panel, controller } = await focusedTask(
+			'[Chorus]\nA [silver moon](123456) rises\n' + lines.join('\n') + '\n\n[Outro]\nRepeat chorus',
+			'Repeat chorus',
+			'mxm.transcription.repeat-placeholder'
+		);
+		const before = JSON.stringify(controller.snapshot);
+		await fireEvent.click(panel.getByRole('button', { name: /^Earlier source section/ }));
+		const chooser = panel.getByRole('dialog', { name: 'Earlier source section' });
+		await fireEvent.click(within(chooser).getByRole('button', { name: /Northern lantern 1/ }));
+		await fireEvent.input(panel.getByLabelText('Copies to insert here'), {
+			target: { value: String(copies) }
+		});
+		await fireEvent.click(panel.getByRole('button', { name: 'Preview replacement' }));
+		await fireEvent.click(panel.getByRole('button', { name: 'Full replacement lyrics' }));
+		const viewer = panel.getByRole('dialog', { name: 'Full replacement lyrics' });
+		const complete = within(viewer).getByLabelText('Replacement preview');
+		expect(complete.textContent).toBe(Array(copies).fill(plain).join('\n'));
+		if (copies > 1) {
+			const destination = within(viewer).getByLabelText('Go to copy');
+			await fireEvent.change(destination, { target: { value: '99' } });
+			expect(complete.parentElement!.scrollTop).toBeGreaterThan(0);
+			const copyStart = document.createRange();
+			copyStart.setStart(complete.firstChild!, Array(99).fill(plain).join('\n').length + 1);
+			copyStart.setEnd(complete.firstChild!, Array(99).fill(plain).join('\n').length + 2);
+			expect(copyStart.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+				complete.parentElement!.getBoundingClientRect().top - 1
+			);
+		} else expect(within(viewer).queryByLabelText('Go to copy')).toBeNull();
+		await fireEvent.click(within(viewer).getByRole('button', { name: 'Last line' }));
+		expect(complete.textContent).toBe(Array(copies).fill(plain).join('\n'));
+		expect(JSON.stringify(controller.snapshot)).toBe(before);
 	}
 );
 

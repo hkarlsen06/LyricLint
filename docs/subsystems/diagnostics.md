@@ -31,6 +31,11 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   Preview. Short source and result lyrics remain fully readable in the task. Long text has
   named excerpts and native full-text viewers with one scrollport each. The result viewer names
   source, captured target and copy count; closing restores the trigger without editor focus.
+	Full replacement lyrics shares the Apply row, preceding Apply in reading order.
+	The full result remains one exact text node. Go to copy jumps to a prepared copy boundary,
+	and Last line reaches the end without changing the lyrics. Go to copy names the last requested
+	destination rather than tracking manual scrolling. Boundaries use the prepared replacement,
+	not source markup that fresh copies omit.
   Apply follows the proposal. Source annotations, voices and timing are never copied.
 
 - Text findings precede retained-detail Review, so a section-tag decision never obstructs a lyric finding. Retained-detail Review presents one finding with Previous detail and Next detail when several remain; a lone detail has no redundant navigation. Listening requests open only the relevant quantity or instrumental form. Song keeps saved decisions in a separate disclosure.

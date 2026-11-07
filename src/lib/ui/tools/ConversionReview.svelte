@@ -112,6 +112,9 @@
 	let preview = $state<Preview>();
 	const shown = $derived(preview?.basis === basis ? preview : undefined);
 	let dialog: HTMLDialogElement;
+	let resultBody = $state<HTMLDivElement>();
+	let resultText = $state<HTMLPreElement>();
+	let copyDestination = $state(0);
 	let surface = $state<'sources' | 'source' | 'result'>();
 	let opener: HTMLButtonElement | undefined;
 	const dialogId = $props.id();
@@ -120,8 +123,25 @@
 		// Native modal restoration must return directly to a noneditable control.
 		trigger.focus({ preventScroll: true });
 		opener = trigger;
+		copyDestination = 0;
 		surface = kind;
 		dialog.showModal();
+	}
+	function goToCopy(index: number) {
+		if (!shown?.ok || shown.action.kind !== 'replaceRepeatPlaceholder') return;
+		const text = resultText?.firstChild;
+		if (!(text instanceof Text) || !resultBody) return;
+		if (index === 0) {
+			resultBody.scrollTop = 0;
+			return;
+		}
+		// Fresh displayed copies are identical and separated by one newline.
+		const offset = (index * (shown.text.length + 1)) / shown.action.copies;
+		const range = document.createRange();
+		range.setStart(text, offset);
+		range.setEnd(text, offset + 1);
+		resultBody.scrollTop +=
+			range.getBoundingClientRect().top - resultBody.getBoundingClientRect().top;
 	}
 	function closeSurface() {
 		if (dialog?.open) dialog.close();
@@ -351,14 +371,29 @@
 								<pre aria-label="Replacement excerpt">{excerpt(shown.text)}</pre>
 							{/if}
 						{/if}
-						<button
-							class="button button--contrast"
-							type="button"
-							onclick={() => {
-								if (ready && shown?.ok && controller.applyConversionAction(shown.action))
-									void back();
-							}}>Apply replacement</button
-						>{/if}{/if}
+						<div
+							class:conversion-review__proposal-actions={request.kind === 'repeat' &&
+								excerpt(shown.text) !== shown.text}
+						>
+							{#if request.kind === 'repeat' && excerpt(shown.text) !== shown.text}
+								<button
+									class="button button--quiet"
+									type="button"
+									aria-haspopup="dialog"
+									onmousedown={(event) => event.preventDefault()}
+									onclick={(event) => openSurface('result', event.currentTarget)}
+									>Full replacement lyrics</button
+								>
+							{/if}
+							<button
+								class="button button--contrast"
+								type="button"
+								onclick={() => {
+									if (ready && shown?.ok && controller.applyConversionAction(shown.action))
+										void back();
+								}}>Apply replacement</button
+							>
+						</div>{/if}{/if}
 			</div>
 			{#if request.kind === 'repeat'}
 				{#if source && (shown?.ok || excerpt(source.text) !== source.text)}
@@ -369,16 +404,6 @@
 						onmousedown={(event) => event.preventDefault()}
 						onclick={(event) => openSurface('source', event.currentTarget)}
 						>Full source lyrics</button
-					>
-				{/if}
-				{#if shown?.ok && excerpt(shown.text) !== shown.text}
-					<button
-						class="button button--quiet"
-						type="button"
-						aria-haspopup="dialog"
-						onmousedown={(event) => event.preventDefault()}
-						onclick={(event) => openSurface('result', event.currentTarget)}
-						>Full replacement lyrics</button
 					>
 				{/if}
 			{/if}
@@ -404,24 +429,50 @@
 >
 	{#if surface}
 		<div class="repeat-dialog__surface">
-			<header>
-				<div class="repeat-dialog__context">
-					<h2 id={`${dialogId}-title`}>
-						{surface === 'sources'
-							? 'Earlier source section'
-							: surface === 'source'
-								? 'Full source lyrics'
-								: 'Full replacement lyrics'}
-					</h2>
-					{#if surface !== 'sources'}<p>{source?.label}</p>{/if}
-					{#if surface === 'result'}<p>
-							{target} · {copies}
-							{copies === 1 ? 'copy' : 'copies'}
-						</p>{/if}
-				</div>
-				<button class="button button--quiet" type="button" onclick={closeSurface}>Close</button>
-			</header>
-			<div class="repeat-dialog__body">
+			<div>
+				<header>
+					<div class="repeat-dialog__context">
+						<h2 id={`${dialogId}-title`}>
+							{surface === 'sources'
+								? 'Earlier source section'
+								: surface === 'source'
+									? 'Full source lyrics'
+									: 'Full replacement lyrics'}
+						</h2>
+						{#if surface !== 'sources'}<p>{source?.label}</p>{/if}
+						{#if surface === 'result'}<p>
+								{target} · {copies}
+								{copies === 1 ? 'copy' : 'copies'}
+							</p>{/if}
+					</div>
+					<button class="button button--quiet" type="button" onclick={closeSurface}>Close</button>
+				</header>
+				{#if surface === 'result' && shown?.ok && shown.action.kind === 'replaceRepeatPlaceholder'}
+					<div class="repeat-dialog__navigation">
+						{#if shown.action.copies > 1}
+							<label>
+								<span>Go to copy</span>
+								<select
+									bind:value={copyDestination}
+									onchange={(event) => goToCopy(Number(event.currentTarget.value))}
+								>
+									{#each Array.from({ length: shown.action.copies }, (_, index) => index) as index (index)}
+										<option value={index}>{index + 1} of {shown.action.copies}</option>
+									{/each}
+								</select>
+							</label>
+						{/if}
+						<button
+							class="button button--quiet"
+							type="button"
+							onclick={() => {
+								if (resultBody) resultBody.scrollTop = resultBody.scrollHeight;
+							}}>Last line</button
+						>
+					</div>
+				{/if}
+			</div>
+			<div class="repeat-dialog__body" bind:this={resultBody}>
 				{#if surface === 'sources'}
 					<ul>
 						{#each sources as entry (entry.id)}
@@ -453,7 +504,7 @@
 					</ul>
 				{:else}
 					{#if surface === 'result' && shown?.ok}
-						<pre aria-label="Replacement preview">{shown.text}</pre>
+						<pre aria-label="Replacement preview" bind:this={resultText}>{shown.text}</pre>
 					{:else if surface === 'source' && source}
 						<pre aria-label="Chosen source lyrics">{source.text}</pre>
 					{/if}
@@ -512,6 +563,11 @@
 	}
 	.conversion-review__actions--choice {
 		grid-template-columns: minmax(0, 1fr) auto;
+	}
+	.conversion-review__proposal-actions {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-3);
 	}
 	label,
 	.conversion-review__source-field {
@@ -590,6 +646,23 @@
 		display: grid;
 		gap: var(--space-2);
 		overflow-wrap: anywhere;
+	}
+	.repeat-dialog__navigation {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		padding: 0 var(--space-4) var(--space-3);
+	}
+	.repeat-dialog__navigation label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+	.repeat-dialog__navigation select {
+		min-width: 0;
+		font-size: var(--font-size-editor);
 	}
 	.repeat-dialog__body {
 		overflow-y: auto;
