@@ -37,14 +37,21 @@
 		if (active) lastTiming = controller.currentLineTiming;
 		return lastTiming;
 	});
-	const timingLine = $derived(timing?.line);
-	const timingText = $derived(timing?.text);
-	const timingTime = $derived(timing?.time);
-	let exactTime = $derived.by(() => {
-		void controller.draftId;
-		void timingLine;
-		void timingText;
-		return timingTime === undefined ? undefined : Math.round(timingTime * 100) / 100;
+	let exactTime = $state<number>();
+	let timeBasis: { draftId: string; timing: WorkbenchController['currentLineTiming'] } | undefined;
+	$effect(() => {
+		const draftId = controller.draftId;
+		const current = timing;
+		const previous = timeBasis?.timing;
+		if (
+			timeBasis?.draftId === draftId &&
+			previous?.line === current?.line &&
+			previous?.text === current?.text &&
+			previous?.time === current?.time
+		)
+			return;
+		timeBasis = { draftId, timing: current };
+		exactTime = current?.time === undefined ? undefined : Math.round(current.time * 100) / 100;
 	});
 
 	let geniusUrl = $derived.by(() => {

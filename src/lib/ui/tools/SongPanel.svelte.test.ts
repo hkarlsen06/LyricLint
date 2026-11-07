@@ -485,11 +485,12 @@ describe('current line timing controls', () => {
 			};
 			calls.lineAnchors = time === undefined ? [] : [{ line: 2, time }];
 			controller.onLineAnchorsChanged();
-			await render(SongPanel, { controller });
+			const view = await render(SongPanel, { controller });
 			const field = screen.getByRole('spinbutton', { name: 'Time in seconds' });
 			await fireEvent.input(field, { target: { value: '5' } });
 			controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 1, head: 1 } });
 			await tick();
+			await view.rerender({ controller, active: true });
 			await waitFor(() => expect(field).toHaveValue(5));
 			expect(screen.getByRole('button', { name: 'Set time' })).toBeEnabled();
 			await fireEvent.submit(field.closest('form')!);
