@@ -587,6 +587,10 @@ test.each([1280, 360, 390])(
 		await fireEvent.click(trigger);
 		const fullResult = panel.getByRole('button', { name: 'Full replacement lyrics' });
 		const apply = panel.getByRole('button', { name: 'Apply replacement' });
+		const fullSource = panel.getByRole('button', { name: 'Full source lyrics' });
+		expect(fullSource.getBoundingClientRect().bottom).toBeLessThan(
+			fullResult.getBoundingClientRect().top
+		);
 		expect(fullResult.getBoundingClientRect().top).toBe(apply.getBoundingClientRect().top);
 		expect(fullResult.getBoundingClientRect().right).toBeLessThan(
 			apply.getBoundingClientRect().left
@@ -673,6 +677,51 @@ test.each([1, 100])(
 		expect(JSON.stringify(controller.snapshot)).toBe(before);
 	}
 );
+
+test('does not revive a repeat proposal after a copy-count round trip', async () => {
+	const { panel, controller } = await focusedTask(
+		'[Chorus]\nFirst version\n\n[Outro]\nRepeat chorus',
+		'Repeat chorus',
+		'mxm.transcription.repeat-placeholder'
+	);
+	const before = JSON.stringify(controller.snapshot);
+	await fireEvent.click(panel.getByRole('button', { name: /^Earlier source section/ }));
+	const chooser = panel.getByRole('dialog', { name: 'Earlier source section' });
+	await fireEvent.click(within(chooser).getByRole('button', { name: /First version/ }));
+	const count = panel.getByLabelText('Copies to insert here');
+	await fireEvent.input(count, { target: { value: '2' } });
+	await fireEvent.click(panel.getByRole('button', { name: 'Preview replacement' }));
+	expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
+	await fireEvent.input(count, { target: { value: '3' } });
+	expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+	await fireEvent.input(count, { target: { value: '2' } });
+	expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+	await fireEvent.click(panel.getByRole('button', { name: 'Preview replacement' }));
+	expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
+	expect(JSON.stringify(controller.snapshot)).toBe(before);
+});
+
+test('does not revive a censored-word proposal after editing and reconfirming facts', async () => {
+	const { panel, controller } = await focusedTask(
+		'[Verse]\nI said **** tonight',
+		'****',
+		'mxm.transcription.censor-mask'
+	);
+	const before = JSON.stringify(controller.snapshot);
+	const prefix = panel.getByLabelText('Audible prefix (if any)');
+	await fireEvent.input(prefix, { target: { value: 'f' } });
+	await fireEvent.click(panel.getByRole('checkbox'));
+	await fireEvent.click(panel.getByRole('button', { name: 'Preview replacement' }));
+	expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
+	await fireEvent.input(prefix, { target: { value: 'fo' } });
+	expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+	await fireEvent.input(prefix, { target: { value: 'f' } });
+	await fireEvent.click(panel.getByRole('checkbox'));
+	expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+	await fireEvent.click(panel.getByRole('button', { name: 'Preview replacement' }));
+	expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
+	expect(JSON.stringify(controller.snapshot)).toBe(before);
+});
 
 test('offers direct editing when a repeat placeholder has no earlier source', async () => {
 	const { panel, controller, range } = await focusedTask(

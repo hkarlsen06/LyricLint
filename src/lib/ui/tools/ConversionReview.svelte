@@ -111,6 +111,9 @@
 	);
 	let preview = $state<Preview>();
 	const shown = $derived(preview?.basis === basis ? preview : undefined);
+	$effect(() => {
+		if (preview && preview.basis !== basis) preview = undefined;
+	});
 	let dialog: HTMLDialogElement;
 	let resultBody = $state<HTMLDivElement>();
 	let resultText = $state<HTMLPreElement>();
@@ -339,7 +342,19 @@
 					>{/if}
 			</div>
 			{#if request.kind === 'repeat' && source}
-				<p aria-label="Selected source section">{source.label}</p>
+				<div class="conversion-review__selected-source">
+					<p aria-label="Selected source section">{source.label}</p>
+					{#if shown?.ok || excerpt(source.text) !== source.text}
+						<button
+							class="button button--quiet"
+							type="button"
+							aria-haspopup="dialog"
+							onmousedown={(event) => event.preventDefault()}
+							onclick={(event) => openSurface('source', event.currentTarget)}
+							>Full source lyrics</button
+						>
+					{/if}
+				</div>
 				{#if !shown?.ok}
 					{#if excerpt(source.text) === source.text}
 						<pre aria-label="Chosen source lyrics">{source.text}</pre>
@@ -395,18 +410,6 @@
 							>
 						</div>{/if}{/if}
 			</div>
-			{#if request.kind === 'repeat'}
-				{#if source && (shown?.ok || excerpt(source.text) !== source.text)}
-					<button
-						class="button button--quiet"
-						type="button"
-						aria-haspopup="dialog"
-						onmousedown={(event) => event.preventDefault()}
-						onclick={(event) => openSurface('source', event.currentTarget)}
-						>Full source lyrics</button
-					>
-				{/if}
-			{/if}
 		{/if}
 	{/if}
 </section>
@@ -483,7 +486,6 @@
 									aria-pressed={sourceId === entry.id}
 									onclick={() => {
 										if (ready) {
-											if (sourceId !== entry.id) preview = undefined;
 											sourceId = entry.id;
 											closeSurface();
 										}
@@ -568,6 +570,19 @@
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: var(--space-3);
+	}
+	.conversion-review__selected-source {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+	}
+	.conversion-review__selected-source p {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.conversion-review__selected-source button {
+		flex-shrink: 0;
 	}
 	label,
 	.conversion-review__source-field {

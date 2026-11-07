@@ -26,12 +26,15 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   distinguishing second lines. Long rows explicitly name their excerpt and offer exact full
   source text before choosing. A visible Selected cue and pressed state identify the choice.
   Opening, inspecting and cancelling never changes the chosen source, count or prepared preview.
-  Choosing a different source invalidates the preview. Source selection never changes the target.
+  Changed preview facts retire the prepared result, including facts later restored to their
+  earlier values. The same source choice and cancellation preserve it. Source selection never
+  changes the target.
   The trigger keeps constant wording for a chosen version; complete selected identity follows
   Preview. Short source and result lyrics remain fully readable in the task. Long text has
   named excerpts and native full-text viewers with one scrollport each. The result viewer names
   source, captured target and copy count; closing restores the trigger without editor focus.
 	Full replacement lyrics shares the Apply row, preceding Apply in reading order.
+	Full source access sits beside the selected section identity, before the proposal.
 	The full result remains one exact text node. Go to copy jumps to a prepared copy boundary,
 	and Last line reaches the end without changing the lyrics. Go to copy names the last requested
 	destination rather than tracking manual scrolling. Boundaries use the prepared replacement,

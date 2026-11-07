@@ -43,7 +43,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   Source context follows Preview while choosing; the prepared proposal replaces that context.
   Apply follows the readable proposal.
 	The full replacement viewer shares the Apply row and precedes Apply in reading order;
-	full source access follows it. The source chooser also offers
+	full source access sits beside its selected identity before the proposal. The source chooser also offers
   full source inspection before choosing. Native surfaces focus the noneditable opener before
   showModal and restore it directly on dismissal. This is progressive disclosure,
   rather than the combined Preview/Confirm slot used for destructive confirmations.
