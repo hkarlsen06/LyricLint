@@ -132,7 +132,9 @@
 					message:
 						request.kind === 'repeat'
 							? 'Only this placeholder changes. No source annotations, voices or timing are copied.'
-							: 'No missing letters are inferred.',
+							: heardPrefix === ''
+								? 'A fully censored word is shown as a single hyphen.'
+								: 'No missing letters are inferred.',
 					text: result.value.projection.text.slice(
 						request.range.from,
 						request.range.to + result.value.projection.text.length - projection.value.text.length
@@ -219,8 +221,13 @@
 					/></label
 				>
 				<label class="check"
-					><input type="checkbox" bind:checked={listened} />I listened: this word is censored right
-					after the prefix.</label
+					><input type="checkbox" bind:checked={listened} /><span class="check__copy"
+						><span class:check__inactive={heardPrefix !== ''} aria-hidden={heardPrefix !== ''}
+							>I listened: this entire word is censored.</span
+						><span class:check__inactive={heardPrefix === ''} aria-hidden={heardPrefix === ''}
+							>I listened: this word is censored right after the prefix.</span
+						></span
+					></label
 				>
 			{/if}
 			<div
@@ -316,6 +323,16 @@
 		height: var(--space-5);
 		min-height: var(--space-5);
 		margin: 0;
+	}
+	.check__copy {
+		display: grid;
+		min-width: 0;
+	}
+	.check__copy > span {
+		grid-area: 1 / 1;
+	}
+	.check__inactive {
+		visibility: hidden;
 	}
 	pre,
 	.lyrics {

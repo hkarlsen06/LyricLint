@@ -178,6 +178,41 @@ test('leaves an uncertain censorship decision without changing lyrics or retaine
 	expect(JSON.stringify(controller.snapshot)).toBe(before);
 });
 
+test.each([1280, 360, 390])(
+	'asks for the full-word listening fact before a blank-prefix preview at %spx',
+	async (width) => {
+		await page.viewport(width, 900);
+		const { panel, controller } = await focusedTask(
+			'[Verse: Mira]\nI said [****](123456) tonight',
+			'****',
+			'mxm.transcription.censor-mask'
+		);
+		const before = JSON.stringify(controller.snapshot);
+		const preview = panel.getByRole('button', { name: 'Preview replacement' });
+		const fullWord = panel.getByRole('checkbox', {
+			name: 'I listened: this entire word is censored.'
+		});
+		expect(fullWord).not.toBeChecked();
+		expect(preview).toBeDisabled();
+		await fireEvent.click(fullWord);
+		await fireEvent.click(preview);
+		expect(panel.getByLabelText('Replacement preview')).toHaveTextContent('I said - tonight');
+		expect(panel.getByText('A fully censored word is shown as a single hyphen.')).toBeVisible();
+		expect(JSON.stringify(controller.snapshot)).toBe(before);
+		const position = preview.getBoundingClientRect().toJSON();
+		await fireEvent.input(panel.getByLabelText('Audible prefix'), { target: { value: 'f' } });
+		expect(
+			panel.getByRole('checkbox', {
+				name: 'I listened: this word is censored right after the prefix.'
+			})
+		).not.toBeChecked();
+		expect(panel.queryByLabelText('Replacement preview')).toBeNull();
+		expect(preview).toBeDisabled();
+		expect(preview.getBoundingClientRect().toJSON()).toEqual(position);
+		expect(JSON.stringify(controller.snapshot)).toBe(before);
+	}
+);
+
 test.each([
 	['two words', 'Use an audible prefix without spaces or line breaks.'],
 	['f'.repeat(101), 'The audible prefix is too long. Shorten it before previewing.'],

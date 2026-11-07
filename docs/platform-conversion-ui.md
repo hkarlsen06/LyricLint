@@ -455,7 +455,9 @@ chosen target digit style must prove that same value through target-form validat
 choice normalizes the authored source or supplies pronunciation. The shared policy and
 source-match validators still refuse unsupported or mismatched facts. Invalid values explain the refusal before preview.
 Censorship requires the heard prefix and an explicit confirmation that the word is censored
-immediately after that prefix. Editing the prefix clears confirmation. Decide later discards
+immediately after that prefix. An empty prefix instead asks for explicit confirmation that the
+entire word is censored; its preview explains the single-hyphen representation. An empty field
+alone never supplies that listening fact. Editing the prefix clears confirmation. Decide later discards
 unfinished input; reopening starts empty. The native checkbox uses the spacing scale for its
 glyph and retains a full touch-height label, keyboard checking and focus. Context and replacement
 previews wrap the entire lyric line without truncating its surrounding words.

@@ -49,6 +49,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   quantity values get the shared policy guidance beside the field before Preview is available.
   Censorship offers Decide later beside Preview. It returns to the same Review finding without
   changing lyrics, recording listening facts or ignoring the finding.
+  With no audible prefix, its listening confirmation explicitly names full-word censorship and
+  the preview explains the single hyphen. Typing a prefix changes the listening fact and clears it.
 
 - Writing exposes Document language in the toolbar and Selection language at the start of the desktop editor actions tray for an eligible selection. On phones both live inside Document. Selection language reuses PassageLanguage in controls-only form, including eligibility, captured scope, effective languages and stale refusal. Its fixed label keeps selection and long language tags from moving commands. Document language always changes the default, regardless of selection. Song retains its metadata disclosure and passage details.
   Opening captures the selected passage before focusing the trigger and showing the modal. Native close returns to that noneditable control directly; it must not briefly refocus the editor before explicit restoration.
