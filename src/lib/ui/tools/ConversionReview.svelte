@@ -608,6 +608,7 @@
 		display: grid;
 		gap: var(--space-2);
 		width: 100%;
+		justify-content: stretch;
 		text-align: start;
 		overflow-wrap: anywhere;
 	}
