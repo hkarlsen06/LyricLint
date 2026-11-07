@@ -71,7 +71,7 @@ export function retainedFindings(
 					kind: 'section-type',
 					id: `section-type:${section.id}`,
 					sectionId: section.id,
-					message: `Choose a Musixmatch tag for ${label}${excerpt ? `, beginning “${excerpt}”` : ' (empty section)'}.`
+					message: `Choose a Musixmatch tag for ${label}${excerpt ? `, with retained opening “${excerpt}”` : ' (empty section)'}.`
 				});
 			}
 		}

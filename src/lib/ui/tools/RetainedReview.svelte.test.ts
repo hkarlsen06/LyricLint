@@ -78,7 +78,7 @@ test('identifies retained sections by their header and lyric, including empty bo
 	const message = () => view.container.querySelector('[aria-live="polite"]')?.textContent;
 	expect(message()).toContain('[Custom opening: Mira] (empty section)');
 	await fireEvent.click(screen.getByRole('button', { name: 'Next detail' }));
-	expect(message()).toContain('[The return: Noor], beginning “Stay beside me”');
+	expect(message()).toContain('[The return: Noor], with retained opening “Stay beside me”');
 	expect(screen.getByRole('combobox', { name: 'Musixmatch section type' })).toBeVisible();
 	expect(screen.queryByRole('button', { name: 'Review in Song' })).toBeNull();
 });

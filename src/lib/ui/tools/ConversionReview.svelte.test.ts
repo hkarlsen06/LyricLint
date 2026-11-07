@@ -198,7 +198,10 @@ test.each([1280, 360, 390])(
 		expect(preview).toBeDisabled();
 		await fireEvent.click(fullWord);
 		await fireEvent.click(preview);
-		expect(panel.getByLabelText('Replacement preview')).toHaveTextContent('I said - tonight');
+		const comparison = panel.getByLabelText('Replacement preview');
+		expect(comparison.querySelector('del')?.textContent).toBe('****');
+		expect(comparison.querySelector('ins')?.textContent).toBe('-');
+		expect(comparison.textContent).toBe('I said ****- tonight');
 		expect(panel.getByText('A fully censored word is shown as a single hyphen.')).toBeVisible();
 		expect(JSON.stringify(controller.snapshot)).toBe(before);
 		const position = preview.getBoundingClientRect().toJSON();
@@ -242,7 +245,7 @@ test.each([
 });
 
 test.each([1280, 360, 390])(
-	'keeps the whole censored token in local context and expands the exact full line at %spx',
+	'compares the whole censored token beside its replacement even with the full line open at %spx',
 	async (width) => {
 		await page.viewport(width, 900);
 		const token = 'f' + '*'.repeat(60);
@@ -269,26 +272,28 @@ test.each([1280, 360, 390])(
 		const trigger = panel.getByRole('button', { name: 'Preview replacement' });
 		const position = trigger.getBoundingClientRect().toJSON();
 		await fireEvent.click(trigger);
-		expect(panel.getByLabelText('Replacement preview').textContent).toBe(
-			excerpt.replace(token, 'sh-')
-		);
+		const preview = panel.getByLabelText('Replacement preview');
+		expect(preview.querySelector('del')?.textContent).toBe(token);
+		expect(preview.querySelector('ins')?.textContent).toBe('sh-');
+		const original = preview.cloneNode(true) as HTMLElement;
+		original.querySelector('ins')!.remove();
+		expect(original.textContent).toBe(excerpt);
+		const proposed = preview.cloneNode(true) as HTMLElement;
+		proposed.querySelector('del')!.remove();
+		expect(proposed.textContent).toBe(excerpt.replace(token, 'sh-'));
+		const previewHeight = preview.getBoundingClientRect().height;
 		expect(trigger.getBoundingClientRect().toJSON()).toEqual(position);
 		const summary = panel.getByText('Full lyric line', { exact: true });
 		await fireEvent.click(summary);
 		await waitFor(() => expect(full).toBeVisible());
 		expect(full.textContent).toBe(before + token + after);
-		await waitFor(() =>
-			expect(panel.getByLabelText('Replacement preview').textContent).toBe(before + 'sh-' + after)
-		);
+		expect(preview.textContent).toBe(excerpt.replace(token, token + 'sh-'));
+		expect(preview.getBoundingClientRect().height).toBe(previewHeight);
 		expect(panel.getByRole('checkbox')).toBeChecked();
 		expect(JSON.stringify(controller.snapshot)).toBe(model);
 		await fireEvent.click(summary);
 		await waitFor(() => expect(full).not.toBeVisible());
-		await waitFor(() =>
-			expect(panel.getByLabelText('Replacement preview').textContent).toBe(
-				excerpt.replace(token, 'sh-')
-			)
-		);
+		expect(preview.textContent).toBe(excerpt.replace(token, token + 'sh-'));
 		expect(trigger.getBoundingClientRect().toJSON()).toEqual(position);
 		expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
 		expect(JSON.stringify(controller.snapshot)).toBe(model);
@@ -311,8 +316,9 @@ test('previews a censored prefix in its lyric line and retires it when the confi
 	const model = JSON.stringify(controller.snapshot.conversion?.model);
 	await fireEvent.click(trigger);
 	const preview = panel.getByLabelText('Replacement preview');
-	expect(preview.textContent).toBe('I said f- tonight');
-	expect(preview.querySelector('strong')?.textContent).toBe('f-');
+	expect(preview.textContent).toBe('I said ****f- tonight');
+	expect(preview.querySelector('del')?.textContent).toBe('****');
+	expect(preview.querySelector('ins')?.textContent).toBe('f-');
 	expect(panel.getByText('No missing letters are inferred.')).toBeVisible();
 	expect(panel.queryByText('Full lyric line', { exact: true })).toBeNull();
 	expect(trigger.getBoundingClientRect().toJSON()).toEqual(before);

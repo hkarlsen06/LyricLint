@@ -31,7 +31,10 @@ test('confirms a masked word in Musixmatch while retaining the exact Genius sour
 	await page.getByRole('textbox', { name: 'Audible prefix (if any)', exact: true }).fill('f');
 	await page.getByRole('checkbox', { name: /^I listened: this word is censored right/u }).check();
 	await page.getByRole('button', { name: 'Preview replacement', exact: true }).click();
-	await expect(page.getByLabel('Replacement preview')).toHaveText('I said f- tonight');
+	const comparison = page.getByLabel('Replacement preview');
+	await expect(comparison.locator('del')).toHaveText('****');
+	await expect(comparison.locator('ins')).toHaveText('f-');
+	await expect(comparison).toHaveText('I said ****f- tonight');
 	await page.getByRole('button', { name: 'Apply replacement', exact: true }).click();
 	await expect.poll(() => lyrics(page)).toBe('I said f- tonight');
 	const toolbar = page.locator('.document-toolbar');

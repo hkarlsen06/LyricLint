@@ -8,6 +8,7 @@
 	} from '#lib/conversion/index.js';
 	import type { WorkbenchController, ConversionReviewRequest } from '../state/workbench.svelte.js';
 	import ConversionFacts from './ConversionFacts.svelte';
+	import InlineDiffText from '../primitives/InlineDiffText.svelte';
 	import { conversionContext } from './conversion-context.js';
 	let {
 		controller,
@@ -62,8 +63,6 @@
 			? conversionContext(passage.before, passage.after)
 			: { ...passage, clipped: false }
 	);
-	let fullLine = $state(false);
-	const previewContext = $derived(fullLine ? passage : context);
 	let sourceId = $state('');
 	let copies = $state<number | undefined>();
 	let heardPrefix = $state('');
@@ -155,15 +154,18 @@
 </script>
 
 {#snippet replacementPassage(lyrics: string)}
+	{@const replacement = lyrics.slice(
+		request.range.from,
+		request.range.to + lyrics.length - controller.snapshot.text.length
+	)}
 	<div class="conversion-review__preview">
-		<h3>Proposed lyrics</h3>
+		<h3>{request.kind === 'censor' ? 'Proposed change' : 'Proposed lyrics'}</h3>
 		<p class="lyrics" aria-label="Replacement preview">
-			{previewContext.before}<strong
-				>{lyrics.slice(
-					request.range.from,
-					request.range.to + lyrics.length - controller.snapshot.text.length
-				)}</strong
-			>{previewContext.after}
+			{context.before}{#if request.kind === 'censor'}<InlineDiffText
+					text={target}
+					kind="del"
+				/><InlineDiffText text={replacement} kind="ins" />{:else}<strong>{replacement}</strong
+				>{/if}{context.after}
 		</p>
 	</div>
 {/snippet}
@@ -187,7 +189,7 @@
 			{context.before}<strong>{target}</strong>{context.after}
 		</p>
 		{#if context.clipped}
-			<details bind:open={fullLine}>
+			<details>
 				<summary>Full lyric line</summary>
 				<p class="lyrics" aria-label="Full lyric passage">
 					{passage.before}<strong>{target}</strong>{passage.after}

@@ -460,8 +460,9 @@ entire word is censored; its preview explains the single-hyphen representation. 
 alone never supplies that listening fact. Editing the prefix clears confirmation. Decide later discards
 unfinished input; reopening starts empty. The native checkbox uses the spacing scale for its
 glyph and retains a full touch-height label, keyboard checking and focus. Censored-word context
-and replacement previews show nearby whole words and the complete target. Full lyric line
-expands the exact original and proposed line without clearing the listening facts or preview;
+and replacement previews show nearby whole words and the complete target. The preview pairs the
+removed word and inserted replacement using the shared inline diff. Full lyric line expands the
+exact original; the comparison stays compact beside Apply without clearing listening facts or preview;
 the display excerpt never changes the stored or copied lyrics. Short lines need no disclosure.
 
 Conversion task requests capture recording identity alongside the original range, revision, draft

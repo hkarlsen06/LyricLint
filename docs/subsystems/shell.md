@@ -47,7 +47,9 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   Quantity previews show the resulting lyric line below their Preview control,
   with the replacement emphasized. Censorship shows the same word-aligned local context around
   the complete original target and replacement. Distant context is elided only in these read-only
-  views; Full lyric line expands the exact original line and the proposed line. Short lines have
+  views. Censorship previews pair the removed word and inserted replacement using the shared
+  inline diff; opening Full lyric line reveals the exact original without lengthening the compact
+  comparison at Apply. Short lines have
   no disclosure. The original target stays visible for comparison. Invalid
   quantity values get the shared policy guidance beside the field before Preview is available.
   Censorship offers Decide later beside Preview. It returns to the same Review finding without
@@ -83,8 +85,9 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   language spans, authored forms and explicit conversion decisions. Hidden information is reviewed
   through its metadata location, never through invented lyric underlines. Copy and text export
   always use the active projection; Scribe export preserves the complete document.
-  A retained-section prompt names its original header and opening lyric so the passage can
+  A retained-section prompt names its original header and retained opening lyric so the passage can
   be recognized before choosing and saving its type in Review. Retained repeat instructions remain a separate concern even on typed sections; Edit header in Genius selects their exact stable header for manual editing, without selecting a repeat source or count. Unsaved choices reset when the item changes; saving targets its stable section ID and returns focus to the retained-review heading, including after the last item. The Assistant introduction follows the active format.
+  The retained wording is labelled because an authored format-specific form may differ in the editor.
   A displaced section uses the existing Review in Song action, focused on its stable section ID.
   Song opens its boundary options for explicit Move to cursor repair at a valid lyric line start.
   A section request opens at the section controls and return action, with focus on the requested
