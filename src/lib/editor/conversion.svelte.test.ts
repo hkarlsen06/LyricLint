@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { EditorView } from '@codemirror/view';
 import { ChangeSet } from '@codemirror/state';
 import { createLyricEditor, type LyricEditorInstance } from './create-editor.js';
 import type { EditorSnapshot, PerformerRecord } from '#lib/core/types.js';
@@ -44,6 +45,32 @@ function mount(
 }
 
 describe('lossless profile transactions', () => {
+	it('keeps a hidden large insertion bounded and reveals its exact final line', async () => {
+		const { view } = mount('A silver moon rises\nRepeat chorus');
+		const host = view.dom.parentElement!;
+		host.style.height = '300px';
+		await vi.waitFor(() => expect(view.inView).toBe(true));
+		host.style.display = 'none';
+		await vi.waitFor(() => expect(view.inView).toBe(false));
+		const original = view.state.doc.toString();
+		const replacement = Array.from({ length: 2900 }, (_, i) => `Northern lantern ${i} shines`).join(
+			'\n'
+		);
+		view.dispatch({
+			changes: { from: original.indexOf('Repeat'), to: original.length, insert: replacement }
+		});
+		expect(view.state.doc.toString()).toBe(original.replace('Repeat chorus', replacement));
+		// Hidden edits must not expand the editor's DOM to the complete document.
+		expect(view.contentDOM.querySelectorAll('.cm-line').length).toBeLessThan(200);
+		host.style.display = '';
+		view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.length, { y: 'end' }) });
+		await vi.waitFor(() => {
+			expect(view.inView).toBe(true);
+			expect(view.contentDOM.textContent).toContain('Northern lantern 2899 shines');
+		});
+		expect(view.state.doc.toString()).toBe(original.replace('Repeat chorus', replacement));
+	});
+
 	it('clears a hidden editor after profile switches and restores its exact selection and details', async () => {
 		const { handle, view } = mount();
 		handle.setLineAnchors!([{ line: 2, time: 12.5 }]);

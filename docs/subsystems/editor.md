@@ -195,6 +195,12 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   retains the explicit profile and removes lyrics and retained details in one history event.
   `conversion.svelte.test.ts` and `e2e/mobile-workbench.spec.ts` cover clear and history.
 
+- Hidden editor document changes retain CodeMirror's bounded viewport validation. A large
+  insertion must not map the previous whole-document viewport into thousands of mounted
+  offscreen lyric lines. The local `@codemirror/view` patch removes its hidden-view bypass;
+  normal height-map, selection and scroll-target handling remain in that owner.
+  Revealing the editor still reaches the exact final line. Pin: `conversion.svelte.test.ts`.
+
 ## Decision record
 
 ### Profile history retains explicit selections and maps the visible passage

@@ -76,6 +76,7 @@
 		"#lib/*": "./src/lib/*"
 	},
 	"patchedDependencies": {
+		"@codemirror/view@6.43.11": "patches/@codemirror%2Fview@6.43.11.patch",
 		"@sveltejs/kit@3.1.0": "patches/@sveltejs%2Fkit@3.1.0.patch"
 	}
 }
