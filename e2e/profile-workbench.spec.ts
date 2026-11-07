@@ -272,9 +272,19 @@ test.describe('touch controls', () => {
 		await page.locator('.ll-conversion-section').first().click();
 		await expect(page.getByRole('heading', { name: /Section 1/ })).toBeVisible();
 		await expect(control).toBeVisible();
-		await page.getByRole('button', { name: 'Show passage', exact: true }).first().click();
+		await expect(page.getByRole('button', { name: 'Show passage', exact: true })).toHaveCount(0);
+		await page.getByRole('button', { name: 'Back to Song', exact: true }).tap();
+		const tools = page.getByText('Advanced tools', { exact: true });
+		await expect(tools).toBeFocused();
+		await expect(page.locator('.song-panel__advanced')).not.toHaveAttribute('open', '');
+		await expect(page.getByRole('combobox', { name: 'Choose a section' })).toHaveCount(0);
+		await page
+			.getByRole('navigation', { name: 'Workbench views' })
+			.getByRole('button', { name: 'Write', exact: true })
+			.tap();
 		await expect(editor).toBeVisible();
 		await expect(control).toBeVisible();
+		await expect.poll(() => lyrics(page)).toBe('مرحبا بالعالم\n\n同じ言葉');
 		// Clearing lives with the document it clears, in Song, rather than in the
 		// header: quiet until pressed, confirming in place.
 		await page
