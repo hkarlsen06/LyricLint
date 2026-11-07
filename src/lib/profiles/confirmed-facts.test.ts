@@ -5,6 +5,7 @@ import {
 	parseProjection,
 	reconcileEdit,
 	renderProfile,
+	projectOffset,
 	resolveDecision,
 	type ConversionDocument,
 	type EngineResult,
@@ -86,6 +87,105 @@ function interval() {
 }
 
 describe('confirmed semantic review scopes', () => {
+	it.each(['fr', 'en-GB', 'en'])(
+		'offers a committable quantity without grouping the explicit %s neighbor',
+		(language) => {
+			const initial = imported('[Verse]\ntwenty one stars');
+			const document = value(
+				resolveDecision(initial, view(initial), {
+					kind: 'setPassageLanguage',
+					range: { from: 7, to: 10 },
+					language
+				})
+			).document;
+			const projection = view(document);
+			const check = (current: ConversionDocument, projected: Projection) =>
+				runRules(parseProjection(current, projected), {
+					...context(current, projected),
+					languageRanges: current.languageRanges.map((entry) => ({
+						from: projectOffset(projected, entry.from, 1),
+						to: projectOffset(projected, entry.to, -1),
+						language: entry.language
+					}))
+				}).filter((entry) => entry.ruleId === 'mxm.numbers.context');
+			const diagnostics = check(document, projection);
+			expect(diagnostics.map(({ from, to }) => projection.text.slice(from, to))).toEqual([
+				'twenty'
+			]);
+			const target = diagnostics[0];
+			if (!target) throw Error('Expected the English quantity.');
+			const confirmed = value(
+				resolveDecision(document, projection, {
+					kind: 'confirmQuantity',
+					range: { from: target.from, to: target.to },
+					facts: {
+						profile: 'musixmatch',
+						language: 'en',
+						value: '20',
+						usage: 'ordinary-cardinal',
+						pronunciation: 'whole-quantity',
+						spokenForm: 'twenty'
+					}
+				})
+			);
+			expect(confirmed.projection.text).toBe('20 one stars');
+			expect(confirmed.document.languageRanges).toEqual(document.languageRanges);
+			expect(value(renderProfile(confirmed.document, 'genius')).text).toBe(
+				'[Verse]\ntwenty one stars'
+			);
+			expect(check(confirmed.document, confirmed.projection)).toEqual([]);
+		}
+	);
+	it('finds an explicit English quantity inside a non-English default without borrowing its neighbor', () => {
+		const initial = imported('one hundred stars');
+		const french = value(
+			resolveDecision(initial, view(initial), { kind: 'setLanguage', language: 'fr' })
+		).document;
+		const document = value(
+			resolveDecision(french, view(french), {
+				kind: 'setPassageLanguage',
+				range: { from: 4, to: 11 },
+				language: 'en-GB'
+			})
+		).document;
+		const projection = view(document);
+		const diagnostics = runRules(parseProjection(document, projection), {
+			...context(document, projection),
+			languageRanges: document.languageRanges
+		}).filter((entry) => entry.ruleId === 'mxm.numbers.context');
+		expect(diagnostics.map(({ from, to }) => projection.text.slice(from, to))).toEqual(['hundred']);
+	});
+	it('does not create a number word by cutting through an identifier at a language boundary', () => {
+		const initial = imported('twentyone stars');
+		const document = value(
+			resolveDecision(initial, view(initial), {
+				kind: 'setPassageLanguage',
+				range: { from: 6, to: 9 },
+				language: 'fr'
+			})
+		).document;
+		const projection = view(document);
+		expect(
+			runRules(parseProjection(document, projection), {
+				...context(document, projection),
+				languageRanges: document.languageRanges
+			}).filter((entry) => entry.ruleId === 'mxm.numbers.context')
+		).toEqual([]);
+		expect(
+			resolveDecision(document, projection, {
+				kind: 'confirmQuantity',
+				range: { from: 0, to: 6 },
+				facts: {
+					profile: 'musixmatch',
+					language: 'en',
+					value: '20',
+					usage: 'ordinary-cardinal',
+					pronunciation: 'whole-quantity',
+					spokenForm: 'twenty'
+				}
+			}).ok
+		).toBe(false);
+	});
 	it('settles exactly one confirmed quantity while preserving repeated numbers and punctuation checks', () => {
 		const result = confirmQuantity(imported('12 stars and 12 moons.'));
 		const diagnostics = findings(result.document);

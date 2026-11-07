@@ -1,7 +1,9 @@
 import { profileLanguage } from '#lib/profiles/languages.js';
 import {
 	englishQuantityPattern,
+	hasWholeEnglishQuantityWordEdges,
 	isEnglishQuantityPhrase,
+	quantityLanguageScopes,
 	needsEnglishQuantityReview
 } from '#lib/profiles/quantity-ranges.js';
 import { hasConfirmedFact } from '#lib/profiles/confirmed-facts.js';
@@ -420,6 +422,11 @@ const numericRule: RuleDefinition = {
 	sourceIds: general,
 	check(document, context) {
 		const lang = language(context);
+		const scopes =
+			lang === 'en'
+				? quantityLanguageScopes(document.text.length, context.languageRanges ?? [])
+				: [];
+		let firstScope = 0;
 		return lyrics(document).flatMap((line) => {
 			// Most lyric lines contain no digits. Avoid testing Unicode word boundaries at
 			// every character, and search English number words only in English scope.
@@ -429,12 +436,26 @@ const numericRule: RuleDefinition = {
 						/(?<![\p{L}\p{N}])[\p{Nd}]+(?:[.,:/][\p{Nd}]+)*(?![\p{L}\p{N}])/gu
 					)
 				: [];
-			if (lang === 'en')
-				candidates.push(
-					...matchesOutsideMarkup(line, englishQuantityPattern).filter(
-						(match) => needsEnglishQuantityReview(match.text) && isEnglishQuantityPhrase(match.text)
-					)
-				);
+			if (lang === 'en') {
+				while (firstScope < scopes.length && scopes[firstScope]!.to <= line.from) firstScope++;
+				for (
+					let index = firstScope;
+					index < scopes.length && scopes[index]!.from < line.to;
+					index++
+				) {
+					candidates.push(
+						...matchesOutsideMarkup(line, englishQuantityPattern, scopes[index]).filter(
+							(match) =>
+								needsEnglishQuantityReview(match.text) &&
+								isEnglishQuantityPhrase(match.text) &&
+								hasWholeEnglishQuantityWordEdges(line.text, {
+									from: match.from - line.from,
+									to: match.to - line.from
+								})
+						)
+					);
+				}
+			}
 			return candidates.flatMap((match) => {
 				if (hasConfirmedFact(context, 'quantity', match, match.text)) return [];
 				const sources =

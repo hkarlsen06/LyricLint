@@ -31,14 +31,29 @@ export function isEnglishQuantityPhrase(text: string): boolean {
 	return match?.index === 0 && match[0].length === text.length;
 }
 
+/** Raw explicit ownership boundaries stay separate even when tags share a policy family. */
+export function quantityLanguageScopes(length: number, ranges: readonly TextRange[]): TextRange[] {
+	const boundaries = [
+		...new Set([0, length, ...ranges.flatMap(({ from, to }) => [from, to])])
+	].sort((a, b) => a - b);
+	return boundaries.slice(0, -1).flatMap((from, index) => {
+		const to = boundaries[index + 1]!;
+		return from < to ? [{ from, to }] : [];
+	});
+}
+
 /** The same recognized phrase cannot be partly confirmed through a manual selection. */
 export function isCompleteEnglishQuantitySelection(text: string, range: TextRange): boolean {
-	if (beforeWord.test(text.slice(0, range.from)) || afterWord.test(text.slice(range.to)))
-		return false;
+	if (!hasWholeEnglishQuantityWordEdges(text, range)) return false;
 	for (const match of text.matchAll(englishQuantityPattern)) {
 		const from = match.index;
 		const to = from + match[0].length;
 		if (range.from < to && from < range.to && (from < range.from || range.to < to)) return false;
 	}
 	return true;
+}
+
+/** Ownership boundaries cannot manufacture a word boundary inside the original text. */
+export function hasWholeEnglishQuantityWordEdges(text: string, range: TextRange): boolean {
+	return !beforeWord.test(text.slice(0, range.from)) && !afterWord.test(text.slice(range.to));
 }

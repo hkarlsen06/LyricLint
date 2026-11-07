@@ -98,16 +98,25 @@ interface AbsoluteMatch {
 	groups: Record<string, string | undefined>;
 }
 
-export function matchesOutsideMarkup(line: LyricLine, pattern: RegExp): AbsoluteMatch[] {
+export function matchesOutsideMarkup(
+	line: LyricLine,
+	pattern: RegExp,
+	scope?: TextRange
+): AbsoluteMatch[] {
 	if (hasUnsupportedMarkup(line)) {
 		return [];
 	}
 	const safePattern = pattern.global ? pattern : globalPattern(pattern);
 	safePattern.lastIndex = 0;
-	return Array.from(maskedMarkupText(line).matchAll(safePattern), (match) => ({
-		from: line.from + match.index,
-		to: line.from + match.index + match[0].length,
-		text: line.text.slice(match.index, match.index + match[0].length),
+	const offset = scope ? Math.max(line.from, scope.from) - line.from : 0;
+	const end = scope ? Math.min(line.to, scope.to) - line.from : line.text.length;
+	if (scope && offset >= end) return [];
+	// Mask the complete original line before slicing, including tags crossing ownership edges.
+	const text = maskedMarkupText(line).slice(offset, end);
+	return Array.from(text.matchAll(safePattern), (match) => ({
+		from: line.from + offset + match.index,
+		to: line.from + offset + match.index + match[0].length,
+		text: line.text.slice(offset + match.index, offset + match.index + match[0].length),
 		groups: match.groups ?? {}
 	}));
 }

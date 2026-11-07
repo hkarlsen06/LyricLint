@@ -59,6 +59,9 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   value, role, pronunciation and exact wording still require supplied facts. Markup is not
   absorbed into a phrase. Unknown forms are never parsed into a value; existing explicitly
   supplied custom wording and the manual-edit route remain available.
+  Recognition splits at every explicit raw language boundary, including tags from the same
+  policy family. It keeps the original physical word edges so a language assignment inside
+  a word cannot manufacture a quantity. The diagnostic and commit guard share these scopes.
 - Protected recovery snapshots keep exact visible text without running native or grammar
   checking. Metadata-driven checking effects leave that state alone rather than republishing
   it while waiting for a normal checking result.
