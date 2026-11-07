@@ -22,11 +22,15 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 - Repeat review keeps source, blank copy count and Preview above variable source context.
   Native options use the section number and a grapheme-safe short opening; the selected
-  section's complete identity is readable below Preview. Short source and proposed lyrics
-  stay fully visible. Long text has explicitly named excerpts, with exact full source and
+  section's complete identity is readable below Preview. Short source lyrics stay fully visible
+  while choosing, and short proposed lyrics stay fully visible after preview. Long text has
+  explicitly named excerpts, with exact full source and
   replacement disclosures below Apply. The compact proposal precedes Apply and reports the
   prepared action's copies and actual result lines. Disclosures grow in the panel scrollport,
   without nested lyric scroll areas. Source annotations, voices and timing are never copied.
+  Before preview, the source context helps choose the version. Once prepared, the proposal
+  is the reading context rather than a second copy of the source excerpt. Full source lyrics
+  remain available below Apply, including for short passages.
 
 - Text findings precede retained-detail Review, so a section-tag decision never obstructs a lyric finding. Retained-detail Review presents one finding with Previous detail and Next detail when several remain; a lone detail has no redundant navigation. Listening requests open only the relevant quantity or instrumental form. Song keeps saved decisions in a separate disclosure.
 	Section-type findings offer a named selector and explicit Save in Review without opening Song.

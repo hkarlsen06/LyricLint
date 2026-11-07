@@ -92,14 +92,17 @@
 	});
 	const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 	function opening(text: string, limit: number) {
-		const words = Array.from(segmenter.segment(text), (part) => part.segment);
-		return words.length > limit ? words.slice(0, limit).join('') + '…' : text;
+		let result = '';
+		let count = 0;
+		for (const { segment } of segmenter.segment(text)) {
+			if (count++ === limit) return result + '…';
+			result += segment;
+		}
+		return text;
 	}
 	function excerpt(text: string) {
-		return (
-			opening(text.split('\n').slice(0, 4).join('\n'), 240) +
-			(text.split('\n').length > 4 ? '\n…' : '')
-		);
+		const lines = text.split('\n', 5);
+		return opening(lines.slice(0, 4).join('\n'), 96) + (lines.length > 4 ? '\n…' : '');
 	}
 	const source = $derived(sources.find((entry) => entry.id === sourceId));
 	const basis = $derived(JSON.stringify([request, sourceId, copies, heardPrefix, listened]));
@@ -238,10 +241,7 @@
 						bind:value={copies}
 					/></label
 				>
-				<p>
-					The earlier source stays unchanged. Confirm how many complete copies belong at this
-					placeholder, including for numbered notation.
-				</p>
+				<p>Count every copy at this placeholder, including numbered notation.</p>
 			{:else}
 				<label
 					>Audible prefix (if any)<input
@@ -277,11 +277,13 @@
 			</div>
 			{#if request.kind === 'repeat' && source}
 				<p aria-label="Selected source section">{source.label}</p>
-				{#if excerpt(source.text) === source.text}
-					<pre aria-label="Chosen source lyrics">{source.text}</pre>
-				{:else}
-					<p>Source excerpt</p>
-					<pre aria-label="Source excerpt">{excerpt(source.text)}</pre>
+				{#if !shown?.ok}
+					{#if excerpt(source.text) === source.text}
+						<pre aria-label="Chosen source lyrics">{source.text}</pre>
+					{:else}
+						<p>Source excerpt</p>
+						<pre aria-label="Source excerpt">{excerpt(source.text)}</pre>
+					{/if}
 				{/if}
 			{/if}
 			<div aria-live="polite">
@@ -292,8 +294,12 @@
 						{#if request.kind === 'repeat'}
 							<h3>Proposed lyrics</h3>
 							<p>
-								{shown.action.kind === 'replaceRepeatPlaceholder' ? shown.action.copies : ''} copies ·
-								{shown.text.split('\n').length} lines
+								{shown.action.kind === 'replaceRepeatPlaceholder' ? shown.action.copies : ''}
+								{shown.action.kind === 'replaceRepeatPlaceholder' && shown.action.copies === 1
+									? 'copy'
+									: 'copies'} ·
+								{shown.text.split('\n').length}
+								{shown.text.includes('\n') ? 'lines' : 'line'}
 							</p>
 							{#if excerpt(shown.text) === shown.text}
 								<pre aria-label="Replacement preview">{shown.text}</pre>
@@ -312,7 +318,7 @@
 						>{/if}{/if}
 			</div>
 			{#if request.kind === 'repeat'}
-				{#if source && excerpt(source.text) !== source.text}
+				{#if source && (shown?.ok || excerpt(source.text) !== source.text)}
 					{#key source.id}
 						<details>
 							<summary>Full source lyrics</summary>

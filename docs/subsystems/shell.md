@@ -40,7 +40,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 - Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft, format and recording identity. A replacement recording visibly asks the user to reopen the finding and reconfirm listening. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
 - Repeat tasks keep source, count and Preview anchored across version selection and preparation.
-  Source context and the proposal follow Preview; Apply follows the readable proposal.
+  Source context follows Preview while choosing; the prepared proposal replaces that context.
+  Apply follows the readable proposal.
   Exact full-text disclosures follow Apply for long passages. This is progressive disclosure,
   rather than the combined Preview/Confirm slot used for destructive confirmations.
 
