@@ -9,6 +9,7 @@ import { parseDocument } from '#lib/core/parser.js';
 import type { Diagnostic } from '#lib/core/types.js';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
 import LinterPanel from './LinterPanel.svelte';
+import SongPanel from '../tools/SongPanel.svelte';
 
 /** The revision `createTestWorkbench` mounts with; a fix off it would be stale. */
 const revision = 4;
@@ -560,6 +561,31 @@ describe('retained-only review', () => {
 			expect(JSON.stringify(controller.snapshot.conversion)).toBe(original);
 		}
 	);
+	test('opens the actual retained section from an empty transcription', async () => {
+		const imported = importDocument({ text: '[Verse]', profile: 'genius', language: 'en' });
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const projected = renderProfile(imported.value, 'musixmatch');
+		if (!projected.ok) throw new Error(projected.refusal.message);
+		const { controller } = createTestWorkbench({ text: projected.value.text, diagnostics: [] });
+		controller.onSnapshot({
+			...controller.snapshot,
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+		});
+		await render(LinterPanel, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'View retained details' }));
+		expect(controller.requestedSection).toEqual({
+			id: imported.value.sections[0]!.id,
+			origin: 'review'
+		});
+		await render(SongPanel, { controller });
+		await waitFor(() =>
+			expect(screen.getByRole('heading', { name: 'Section 1 · Verse' })).toHaveFocus()
+		);
+		expect(screen.queryByRole('heading', { name: 'Add a section' })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Back to Review' })).toBeVisible();
+		expect(controller.snapshot.conversion?.model).toEqual(imported.value);
+	});
+
 	test('puts lyric findings before retained decisions without a one-item pager', async () => {
 		const imported = importDocument({
 			text: '[Custom verse: Mira]\nI counted 2 stars',

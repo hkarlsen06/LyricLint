@@ -311,7 +311,10 @@
 			{#if controller.isEmpty && controller.snapshot.conversion?.model.sections.length}<button
 					type="button"
 					class="button"
-					onclick={() => controller.openSectionDetails('new')}>View retained details</button
+					onclick={() => {
+						const section = controller.snapshot.conversion?.model.sections[0];
+						if (section) controller.openSectionDetails(section.id, 'review');
+					}}>View retained details</button
 				>{/if}
 			{#if controller.isEmpty && controller.canLoadSample}
 				<div class="linter-panel__empty-action">
