@@ -307,11 +307,13 @@ test('Song fields keep touch targets outside the workspace ancestor', async () =
 	view.container.style.overflowY = 'auto';
 	const chooser = screen.getByRole('combobox', { name: 'Choose a section' });
 	await fireEvent.change(chooser, { target: { value: imported.value.sections[0]!.id } });
+	await fireEvent.click(screen.getByText('More section options'));
 	for (const control of [
 		chooser,
 		screen.getByRole('combobox', { name: 'Section type' }),
 		screen.getByRole('textbox', { name: 'Genius page link' })
 	]) {
+		expect(control).toBeVisible();
 		expect(control.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
 		expect(parseFloat(getComputedStyle(control).fontSize)).toBeGreaterThanOrEqual(16);
 	}
