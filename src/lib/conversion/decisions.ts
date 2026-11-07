@@ -34,7 +34,7 @@ import {
 	type RepeatPlaceholderAction
 } from './repeat.js';
 import { conversionSectionRanges, resolveLinkDecision, type LinkDecision } from './links.js';
-import { isMaskedCensorRange } from '#lib/profiles/censorship.js';
+import { censoredPrefixProblem, isMaskedCensorRange } from '#lib/profiles/censorship.js';
 
 export type ConversionAction =
 	| RepeatAction
@@ -453,17 +453,14 @@ export function resolveDecision(
 				return invalid(
 					'This word is part of a longer retained wording. Edit it in the lyrics to keep the surrounding words.'
 				);
-			if (
-				!range ||
-				action.audioCensored !== true ||
-				typeof action.heardPrefix !== 'string' ||
-				action.heardPrefix.length > 100 ||
-				/[\s[\]<>*]/u.test(action.heardPrefix) ||
-				(!masked && (projection.profile !== 'musixmatch' || token !== `${action.heardPrefix}-`))
-			)
-				return invalid(
-					'Confirm the complete masked word or the exact audible prefix and cutoff in Musixmatch.'
-				);
+			const targetRefusal =
+				'Confirm the complete masked word or the exact audible prefix and cutoff in Musixmatch.';
+			if (!range || action.audioCensored !== true || typeof action.heardPrefix !== 'string')
+				return invalid(targetRefusal);
+			const prefixProblem = censoredPrefixProblem(action.heardPrefix);
+			if (prefixProblem) return invalid(prefixProblem);
+			if (!masked && (projection.profile !== 'musixmatch' || token !== `${action.heardPrefix}-`))
+				return invalid(targetRefusal);
 			const owner = next.owners.find((entry) => entry.from <= range.from && range.to <= entry.to);
 			const sourceProfile = masked ? 'genius' : 'musixmatch';
 			const target = sourceProfile === 'genius' ? 'musixmatch' : 'genius';

@@ -347,6 +347,41 @@ describe('lossless shared conversion', () => {
 		expect(rendered(decided.document, 'genius').text).toBe('I said ****');
 		expect(decided.document.decisions[0]!.kind).toBe('censored-token');
 	});
+	it.each([
+		['two words', 'Use an audible prefix without spaces or line breaks.'],
+		['f'.repeat(101), 'The audible prefix is too long. Shorten it before previewing.'],
+		['f***', 'Use the audible prefix without stars, brackets or markup.']
+	])(
+		'explains the invalid audible prefix %s without changing retained lyrics',
+		(heardPrefix, message) => {
+			const document = imported('I said ****');
+			const before = JSON.stringify(document);
+			const projection = rendered(document, 'musixmatch');
+			const result = resolveDecision(document, projection, {
+				kind: 'confirmCensoredToken',
+				range: { from: 7, to: 11 },
+				heardPrefix,
+				audioCensored: true
+			});
+			expect(result.ok).toBe(false);
+			if (result.ok) throw Error('The invalid prefix must refuse.');
+			expect(result.refusal.message).toBe(message);
+			expect(JSON.stringify(document)).toBe(before);
+			const valid = value(
+				resolveDecision(document, projection, {
+					kind: 'confirmCensoredToken',
+					range: { from: 7, to: 11 },
+					heardPrefix: 'f',
+					audioCensored: true
+				})
+			);
+			const invalidRecord = {
+				...valid.document,
+				decisions: valid.document.decisions.map((entry) => ({ ...entry, heardPrefix }))
+			};
+			expect(validateModel(invalidRecord).ok).toBe(false);
+		}
+	);
 
 	it.each([
 		['genius', '****'],

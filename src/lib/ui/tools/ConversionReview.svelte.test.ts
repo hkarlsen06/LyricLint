@@ -178,6 +178,28 @@ test('leaves an uncertain censorship decision without changing lyrics or retaine
 	expect(JSON.stringify(controller.snapshot)).toBe(before);
 });
 
+test.each([
+	['two words', 'Use an audible prefix without spaces or line breaks.'],
+	['f'.repeat(101), 'The audible prefix is too long. Shorten it before previewing.'],
+	['f***', 'Use the audible prefix without stars, brackets or markup.']
+])('announces why the audible prefix %s cannot be previewed', async (prefix, message) => {
+	const { panel, controller } = await focusedTask(
+		'[Verse: Mira]\nI said [****](123456) tonight',
+		'****',
+		'mxm.transcription.censor-mask'
+	);
+	const before = JSON.stringify(controller.snapshot);
+	const trigger = panel.getByRole('button', { name: 'Preview replacement' });
+	await fireEvent.input(panel.getByLabelText('Audible prefix'), { target: { value: prefix } });
+	await fireEvent.click(panel.getByRole('checkbox'));
+	const box = trigger.getBoundingClientRect().toJSON();
+	await fireEvent.click(trigger);
+	expect(panel.getByText(message).closest('[aria-live]')?.getAttribute('aria-live')).toBe('polite');
+	expect(trigger.getBoundingClientRect().toJSON()).toEqual(box);
+	expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+	expect(JSON.stringify(controller.snapshot)).toBe(before);
+});
+
 test('previews a censored prefix in its lyric line and retires it when the confirmation changes', async () => {
 	const { panel, controller } = await focusedTask(
 		'[Verse]\nI said **** tonight',

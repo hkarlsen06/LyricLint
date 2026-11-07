@@ -7,6 +7,7 @@ import {
 	type EngineResult
 } from './model.js';
 import { parseDocument, scanPhysicalLines } from '#lib/core/parser.js';
+import { censoredPrefixProblem } from '#lib/profiles/censorship.js';
 import {
 	decideInstrumentalRepresentation,
 	decideQuantityRepresentation,
@@ -483,8 +484,7 @@ export function validateModel(value: unknown): EngineResult<ConversionDocument> 
 			decision.kind === 'censored-token' &&
 			(!range(decision) ||
 				typeof decision.heardPrefix !== 'string' ||
-				decision.heardPrefix.length > 100 ||
-				/[\s[\]<>*]/u.test(decision.heardPrefix))
+				censoredPrefixProblem(decision.heardPrefix) !== undefined)
 		)
 			return invalid('A confirmed censored token is invalid.');
 		if (decision.kind === 'quantity') {
