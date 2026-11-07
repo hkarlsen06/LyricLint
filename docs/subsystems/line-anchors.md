@@ -36,7 +36,9 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
 - Song offers the caret's lyric line as an accessible timing surface: exact seconds,
   quarter-second corrections, playback-time stamping, and clear-one. It uses the same
   stampable-line predicate and anchor effects as the gutter, saving through the existing hook
-  (`line-anchoring.svelte.test.ts`, `SongPanel.svelte.test.ts`). Completed sync says Retime lyrics,
+  (`line-anchoring.svelte.test.ts`, `SongPanel.svelte.test.ts`). Unsaved exact-time input survives
+  same-line selection and checking updates. Changing the draft, lyric line, line text, or saved
+  time resets it to that line's saved value. Completed sync says Retime lyrics,
   naming the action instead of presenting an actionable status (`MediaStrip.svelte.test.ts`).
 - The marked cell is the last anchor at or before the playhead, keyed on `currentFrom`; a
   cell is one line tall regardless of wrap; every row reserves the same width.

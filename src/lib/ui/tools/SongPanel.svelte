@@ -37,9 +37,15 @@
 		if (active) lastTiming = controller.currentLineTiming;
 		return lastTiming;
 	});
-	let exactTime = $derived(
-		timing?.time === undefined ? undefined : Math.round(timing.time * 100) / 100
-	);
+	const timingLine = $derived(timing?.line);
+	const timingText = $derived(timing?.text);
+	const timingTime = $derived(timing?.time);
+	let exactTime = $derived.by(() => {
+		void controller.draftId;
+		void timingLine;
+		void timingText;
+		return timingTime === undefined ? undefined : Math.round(timingTime * 100) / 100;
+	});
 
 	let geniusUrl = $derived.by(() => {
 		void controller.draftId;

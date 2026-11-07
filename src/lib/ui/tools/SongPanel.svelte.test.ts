@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { tick } from 'svelte';
 import youtubeIcon from '#lib/assets/youtube-icon.svg';
 import type { WorkbenchController } from '../state/workbench.svelte.js';
 import type { MediaPlayer, SongDetails } from '../state/media-player.svelte.js';
@@ -473,6 +474,63 @@ describe('SongPanel song metadata', () => {
 
 describe('current line timing controls', () => {
 	afterEach(cleanup);
+	test.each([undefined, 12.34])(
+		'keeps an unsaved time through same-line snapshots (saved time %s)',
+		async (time) => {
+			const { controller, calls } = createTestWorkbench();
+			controller.editor.getTimingLine = () => ({ line: 2, text: 'First lyric line' });
+			controller.editor.setLineTiming = (line, value) => {
+				calls.lineAnchors = value === undefined ? [] : [{ line, time: value }];
+				return true;
+			};
+			calls.lineAnchors = time === undefined ? [] : [{ line: 2, time }];
+			controller.onLineAnchorsChanged();
+			await render(SongPanel, { controller });
+			const field = screen.getByRole('spinbutton', { name: 'Time in seconds' });
+			await fireEvent.input(field, { target: { value: '5' } });
+			controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 1, head: 1 } });
+			await tick();
+			await waitFor(() => expect(field).toHaveValue(5));
+			expect(screen.getByRole('button', { name: 'Set time' })).toBeEnabled();
+			await fireEvent.submit(field.closest('form')!);
+			expect(calls.lineAnchors).toEqual([{ line: 2, time: 5 }]);
+		}
+	);
+
+	test('resets unsaved time when the lyric line, its text, saved time, or draft changes', async () => {
+		const { controller, calls, repository, initialDraft } = createTestWorkbench();
+		controller.editor.getTimingLine = (position) =>
+			position < 8
+				? { line: 2, text: controller.snapshot.text }
+				: { line: 3, text: 'Another lyric line' };
+		calls.lineAnchors = [{ line: 3, time: 20 }];
+		controller.onLineAnchorsChanged();
+		await render(SongPanel, { controller });
+		const field = screen.getByRole('spinbutton', { name: 'Time in seconds' });
+		await fireEvent.input(field, { target: { value: '5' } });
+		controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 9, head: 9 } });
+		await waitFor(() => expect(field).toHaveValue(20));
+		await fireEvent.input(field, { target: { value: '6' } });
+		controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 0 } });
+		await waitFor(() => expect(field).toHaveValue(null));
+		await fireEvent.input(field, { target: { value: '7' } });
+		controller.onSnapshot({ ...controller.snapshot, text: '[Verse]\nEdited lyric' });
+		await waitFor(() => expect(field).toHaveValue(null));
+		await fireEvent.input(field, { target: { value: '8' } });
+		calls.lineAnchors = [{ line: 2, time: 10 }];
+		controller.onLineAnchorsChanged();
+		await waitFor(() => expect(field).toHaveValue(10));
+		await fireEvent.input(field, { target: { value: '9' } });
+		await repository.create({
+			...initialDraft,
+			id: 'another-timing-draft',
+			text: controller.snapshot.text,
+			lineAnchors: [{ line: 2, time: 10 }]
+		});
+		await controller.openDraft('another-timing-draft');
+		await waitFor(() => expect(field).toHaveValue(10));
+	});
+
 	test('offers keyboard-reachable exact time, nudges, and clear-one while retaining other lines', async () => {
 		const { controller, calls } = createTestWorkbench();
 		controller.editor.getTimingLine = () => ({ line: 2, text: 'First lyric line' });
