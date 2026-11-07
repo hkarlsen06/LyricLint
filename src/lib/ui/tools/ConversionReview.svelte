@@ -81,6 +81,7 @@
 			return [
 				{
 					id: section.id,
+					number: index + 1,
 					from,
 					to,
 					label: `Section ${index + 1} · ${section.type ?? section.name ?? 'Lyrics'}`,
@@ -89,6 +90,17 @@
 			];
 		});
 	});
+	const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+	function opening(text: string, limit: number) {
+		const words = Array.from(segmenter.segment(text), (part) => part.segment);
+		return words.length > limit ? words.slice(0, limit).join('') + '…' : text;
+	}
+	function excerpt(text: string) {
+		return (
+			opening(text.split('\n').slice(0, 4).join('\n'), 240) +
+			(text.split('\n').length > 4 ? '\n…' : '')
+		);
+	}
 	const source = $derived(sources.find((entry) => entry.id === sourceId));
 	const basis = $derived(JSON.stringify([request, sourceId, copies, heardPrefix, listened]));
 	type Preview = { basis: string; message: string } & (
@@ -209,7 +221,7 @@
 					>Earlier source section<select bind:value={sourceId}
 						><option value="">Choose the version to repeat</option
 						>{#each sources as entry (entry.id)}<option value={entry.id}
-								>{entry.label} · {entry.text.replaceAll('\n', ' / ')}</option
+								>Section {entry.number} · {opening(entry.text.replaceAll('\n', ' / '), 12)}</option
 							>{/each}</select
 					></label
 				>
@@ -217,7 +229,6 @@
 						No earlier section is available. Return to Review and edit the placeholder in the
 						lyrics.
 					</p>{/if}
-				{#if source}<pre aria-label="Chosen source lyrics">{source.text}</pre>{/if}
 				<label
 					>Copies to insert here<input
 						type="number"
@@ -264,13 +275,33 @@
 						onclick={back}>Decide later</button
 					>{/if}
 			</div>
+			{#if request.kind === 'repeat' && source}
+				<p aria-label="Selected source section">{source.label}</p>
+				{#if excerpt(source.text) === source.text}
+					<pre aria-label="Chosen source lyrics">{source.text}</pre>
+				{:else}
+					<p>Source excerpt</p>
+					<pre aria-label="Source excerpt">{excerpt(source.text)}</pre>
+				{/if}
+			{/if}
 			<div aria-live="polite">
 				{#if shown}
 					{#if shown.ok && request.kind === 'censor'}{@render replacementPassage(shown.lyrics)}{/if}
 					<p>{shown.message}</p>
 					{#if shown.ok}
-						{#if request.kind !== 'censor'}<pre
-								aria-label="Replacement preview">{shown.text}</pre>{/if}
+						{#if request.kind === 'repeat'}
+							<h3>Proposed lyrics</h3>
+							<p>
+								{shown.action.kind === 'replaceRepeatPlaceholder' ? shown.action.copies : ''} copies ·
+								{shown.text.split('\n').length} lines
+							</p>
+							{#if excerpt(shown.text) === shown.text}
+								<pre aria-label="Replacement preview">{shown.text}</pre>
+							{:else}
+								<p>Replacement excerpt</p>
+								<pre aria-label="Replacement excerpt">{excerpt(shown.text)}</pre>
+							{/if}
+						{/if}
 						<button
 							class="button button--contrast"
 							type="button"
@@ -280,6 +311,24 @@
 							}}>Apply replacement</button
 						>{/if}{/if}
 			</div>
+			{#if request.kind === 'repeat'}
+				{#if source && excerpt(source.text) !== source.text}
+					{#key source.id}
+						<details>
+							<summary>Full source lyrics</summary>
+							<pre aria-label="Chosen source lyrics">{source.text}</pre>
+						</details>
+					{/key}
+				{/if}
+				{#if shown?.ok && excerpt(shown.text) !== shown.text}
+					{#key shown}
+						<details>
+							<summary>Full replacement lyrics</summary>
+							<pre aria-label="Replacement preview">{shown.text}</pre>
+						</details>
+					{/key}
+				{/if}
+			{/if}
 		{/if}
 	{/if}
 </section>
@@ -365,6 +414,9 @@
 	}
 	.check__inactive {
 		visibility: hidden;
+	}
+	pre {
+		margin: 0;
 	}
 	pre,
 	.lyrics {

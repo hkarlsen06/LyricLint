@@ -20,6 +20,14 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 - Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
 
+- Repeat review keeps source, blank copy count and Preview above variable source context.
+  Native options use the section number and a grapheme-safe short opening; the selected
+  section's complete identity is readable below Preview. Short source and proposed lyrics
+  stay fully visible. Long text has explicitly named excerpts, with exact full source and
+  replacement disclosures below Apply. The compact proposal precedes Apply and reports the
+  prepared action's copies and actual result lines. Disclosures grow in the panel scrollport,
+  without nested lyric scroll areas. Source annotations, voices and timing are never copied.
+
 - Text findings precede retained-detail Review, so a section-tag decision never obstructs a lyric finding. Retained-detail Review presents one finding with Previous detail and Next detail when several remain; a lone detail has no redundant navigation. Listening requests open only the relevant quantity or instrumental form. Song keeps saved decisions in a separate disclosure.
 	Section-type findings offer a named selector and explicit Save in Review without opening Song.
 	An unsaved type belongs to its draft, profile, finding and document revision. Document changes

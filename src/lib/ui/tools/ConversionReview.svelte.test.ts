@@ -493,3 +493,91 @@ test('requires fresh confirmation after editing the heard prefix', async () => {
 	expect(panel.getByRole('button', { name: 'Preview replacement' })).toBeDisabled();
 	expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
 });
+
+test.each([1280, 360, 390])(
+	'keeps repeat controls anchored and exact long words available at %spx',
+	async (width) => {
+		await page.viewport(width, 900);
+		const opening = '👩🏽‍🚀e\u0301'.repeat(18);
+		const long = [opening, ...Array(26).fill('Lantern '.repeat(55)), 'Final river words'].join(
+			'\n'
+		);
+		const { panel, controller } = await focusedTask(
+			'[Chorus]\nShort full words\n\n[Chorus]\n' +
+				long +
+				'\n\n[Chorus]\n' +
+				opening +
+				'\n\n[Verse]\n' +
+				'W'.repeat(500) +
+				'\n\n[Outro]\nRepeat chorus',
+			'Repeat chorus',
+			'mxm.transcription.repeat-placeholder'
+		);
+		const source = panel.getByLabelText('Earlier source section');
+		const count = panel.getByLabelText('Copies to insert here');
+		const trigger = panel.getByRole('button', { name: 'Preview replacement' });
+		const positions = () =>
+			[source, count, trigger].map((e) => {
+				const r = e.getBoundingClientRect();
+				return { x: r.x, y: r.y + window.scrollY, width: r.width, height: r.height };
+			});
+		const before = positions();
+		const snapshot = JSON.stringify(controller.snapshot);
+		expect(source).toHaveValue('');
+		expect(count).toHaveValue(null);
+		expect(trigger).toBeDisabled();
+		const options = within(source).getAllByRole('option');
+		expect(options[4].textContent).toBe('Section 4 · ' + 'W'.repeat(12) + '…');
+		expect(options[2].textContent).toBe('Section 2 · ' + '👩🏽‍🚀e\u0301'.repeat(6) + '…');
+		expect(options[3].textContent).toBe('Section 3 · ' + '👩🏽‍🚀e\u0301'.repeat(6) + '…');
+		for (const index of [1, 2, 3, 4, 1, 2]) {
+			await fireEvent.change(source, { target: { value: options[index].getAttribute('value') } });
+			expect(positions()).toEqual(before);
+			if (index === 1) {
+				expect(panel.getByLabelText('Chosen source lyrics').textContent).toBe('Short full words');
+				await fireEvent.input(count, { target: { value: '2' } });
+				await fireEvent.click(trigger);
+				expect(panel.getByLabelText('Replacement preview').textContent).toBe(
+					'Short full words\nShort full words'
+				);
+				expect(panel.queryByText('Full replacement lyrics', { exact: true })).toBeNull();
+			}
+			if (index === 4) {
+				await fireEvent.click(panel.getByText('Full source lyrics', { exact: true }));
+				expect(panel.getByLabelText('Chosen source lyrics').textContent).toBe('W'.repeat(500));
+				await fireEvent.click(panel.getByText('Full source lyrics', { exact: true }));
+			}
+		}
+		for (const value of ['', '0', '1.5', '101']) {
+			await fireEvent.input(count, { target: { value } });
+			await fireEvent.click(trigger);
+			expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+			expect(positions()).toEqual(before);
+		}
+		await fireEvent.input(count, { target: { value: '2' } });
+		await fireEvent.click(trigger);
+		expect(positions()).toEqual(before);
+		expect(JSON.stringify(controller.snapshot)).toBe(snapshot);
+		expect(panel.getByText('2 copies · 56 lines')).toBeVisible();
+		const fullSource = panel.getByLabelText('Chosen source lyrics');
+		const fullResult = panel.getByLabelText('Replacement preview');
+		expect(fullSource).not.toBeVisible();
+		expect(fullResult).not.toBeVisible();
+		for (const label of ['Full source lyrics', 'Full replacement lyrics']) {
+			await fireEvent.click(panel.getByText(label, { exact: true }));
+			expect(positions()).toEqual(before);
+		}
+		expect(fullSource.textContent).toBe(long);
+		expect(fullResult.textContent).toBe(long + '\n' + long);
+		for (const label of ['Full source lyrics', 'Full replacement lyrics'])
+			await fireEvent.click(panel.getByText(label, { exact: true }));
+		controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 5 } });
+		expect(panel.getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
+		controller.onSnapshot({ ...controller.snapshot, revision: controller.snapshot.revision + 1 });
+		await waitFor(() =>
+			expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull()
+		);
+		expect(controller.snapshot.text).toBe(JSON.parse(snapshot).text);
+		expect(controller.snapshot.conversion?.model).toEqual(JSON.parse(snapshot).conversion.model);
+	}
+);
