@@ -600,6 +600,14 @@ test.each([1280, 360, 390])(
 		const complete = within(viewer).getByLabelText('Replacement preview');
 		expect(complete.textContent).toBe(long + '\n' + long);
 		const scrollport = complete.parentElement!;
+		const readerApply = within(viewer).getByRole('button', { name: 'Apply replacement' });
+		const readerApplyPosition = readerApply.getBoundingClientRect().toJSON();
+		expect(readerApply.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+			scrollport.getBoundingClientRect().bottom
+		);
+		expect(readerApply.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+			viewer.getBoundingClientRect().bottom
+		);
 		const destination = within(viewer).getByLabelText('Go to copy');
 		expect(destination).toHaveValue('0');
 		const destinationPosition = destination.getBoundingClientRect().toJSON();
@@ -618,6 +626,7 @@ test.each([1280, 360, 390])(
 			)
 		).toBeLessThan(1);
 		expect(destination.getBoundingClientRect().toJSON()).toEqual(destinationPosition);
+		expect(readerApply.getBoundingClientRect().toJSON()).toEqual(readerApplyPosition);
 		expect(complete.textContent).toBe(long + '\n' + long);
 		await fireEvent.change(destination, { target: { value: '0' } });
 		expect(scrollport.scrollTop).toBeLessThan(1);
@@ -660,6 +669,7 @@ test.each([1, 100])(
 		await fireEvent.click(panel.getByRole('button', { name: 'Full replacement lyrics' }));
 		const viewer = panel.getByRole('dialog', { name: 'Full replacement lyrics' });
 		const complete = within(viewer).getByLabelText('Replacement preview');
+		expect(within(viewer).getByRole('button', { name: 'Apply replacement' })).toBeEnabled();
 		expect(complete.textContent).toBe(Array(copies).fill(plain).join('\n'));
 		if (copies > 1) {
 			const destination = within(viewer).getByLabelText('Go to copy');
@@ -675,6 +685,11 @@ test.each([1, 100])(
 		await fireEvent.click(within(viewer).getByRole('button', { name: 'Last line' }));
 		expect(complete.textContent).toBe(Array(copies).fill(plain).join('\n'));
 		expect(JSON.stringify(controller.snapshot)).toBe(before);
+		controller.onSnapshot({ ...controller.snapshot, revision: controller.snapshot.revision + 1 });
+		await waitFor(() => expect(panel.queryByRole('dialog')).toBeNull());
+		expect(panel.queryByRole('button', { name: 'Apply replacement' })).toBeNull();
+		expect(controller.snapshot.text).toBe(JSON.parse(before).text);
+		expect(controller.snapshot.conversion?.model).toEqual(JSON.parse(before).conversion.model);
 	}
 );
 

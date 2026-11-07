@@ -35,6 +35,8 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   source, captured target and copy count; closing restores the trigger without editor focus.
 	Full replacement lyrics shares the Apply row, preceding Apply in reading order.
 	Full source access sits beside the selected section identity, before the proposal.
+	The result reader also offers Apply in a fixed footer, using the task's same captured
+	target and validated proposal. Reading does not require closing the reader before applying.
 	The full result remains one exact text node. Go to copy jumps to a prepared copy boundary,
 	and Last line reaches the end without changing the lyrics. Go to copy names the last requested
 	destination rather than tracking manual scrolling. Boundaries use the prepared replacement,

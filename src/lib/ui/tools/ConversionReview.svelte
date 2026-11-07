@@ -188,6 +188,12 @@
 		];
 		destinations.find((control) => control && control.getClientRects().length > 0)?.focus();
 	}
+	function applyPrepared() {
+		if (ready && shown?.ok && controller.applyConversionAction(shown.action)) {
+			if (dialog?.open) closeSurface();
+			void back();
+		}
+	}
 	function editPassage() {
 		const range = request.range;
 		controller.dismissConversionReview();
@@ -400,13 +406,8 @@
 									>Full replacement lyrics</button
 								>
 							{/if}
-							<button
-								class="button button--contrast"
-								type="button"
-								onclick={() => {
-									if (ready && shown?.ok && controller.applyConversionAction(shown.action))
-										void back();
-								}}>Apply replacement</button
+							<button class="button button--contrast" type="button" onclick={applyPrepared}
+								>Apply replacement</button
 							>
 						</div>{/if}{/if}
 			</div>
@@ -512,6 +513,13 @@
 					{/if}
 				{/if}
 			</div>
+			{#if surface === 'result' && ready && shown?.ok && shown.action.kind === 'replaceRepeatPlaceholder'}
+				<footer class="repeat-dialog__actions">
+					<button class="button button--contrast" type="button" onclick={applyPrepared}
+						>Apply replacement</button
+					>
+				</footer>
+			{/if}
 		</div>
 	{/if}
 </dialog>
@@ -646,8 +654,13 @@
 	}
 	.repeat-dialog__surface {
 		display: grid;
-		grid-template-rows: auto minmax(0, 1fr);
+		grid-template-rows: auto minmax(0, 1fr) auto;
 		height: 100%;
+	}
+	.repeat-dialog__actions {
+		display: flex;
+		justify-content: flex-end;
+		padding: var(--space-3) var(--space-4);
 	}
 	.repeat-dialog header {
 		display: flex;
