@@ -136,7 +136,7 @@ for (const width of [1440, 390, 360]) {
 			await save.press('Enter');
 			await expect(region.getByRole('heading')).toHaveText('Retained details (1)');
 			await expect(region.getByRole('heading')).toBeFocused();
-			await expect(region.locator('[aria-live="polite"]')).toContainText('empty section');
+			await expect(region.locator('[aria-live="polite"]')).toContainText('no visible lyrics');
 			await expect.poll(() => lyrics(page)).toBe(plain);
 			if (width < 600) {
 				await page

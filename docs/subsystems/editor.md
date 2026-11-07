@@ -51,10 +51,12 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   cannot cut through a retained wording's transformed unit. Ambiguous selections refuse before
   changing any form, preserving surrounding lyrics for direct editing. Quantities require a complete
   selection, role and pronunciation; intervals require adjacent confirmed
-  section types and recording-bound listening facts. Repeat expansion requires independently
+  section types and recording-bound listening facts. The engine's same-line repeat operation requires independently
   selected lyric and notation ranges, count and separator. Additional occurrences receive fresh
   untimed identities without copied annotations or voices. None of these decisions is inferred
-  merely by changing format. Diagnostic decisions open focused tasks in Review and invalidate stale previews. Standalone repeat placeholders use an explicitly chosen earlier section and fresh-copy count; the safe adjacent same-line expansion remains separate.
+  merely by changing format. Diagnostic decisions open focused tasks in Review and invalidate stale previews.
+  Standalone repeat placeholders use an explicitly chosen earlier section and fresh-copy count.
+  The separate same-line operation has no workbench entry point; transcribe these repetitions directly.
 	When a Musixmatch replacement clips an annotation edge, its delimiters follow the surviving
 	words and leave separator whitespace outside. Nested syntax stays within that attachment;
 	empty children keep their identities at its nearest surviving boundary. The lyric text stays
