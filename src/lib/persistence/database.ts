@@ -124,10 +124,23 @@ export class LyricLintDatabase extends Dexie {
 					if (records.length > 0) await transaction.table(`${name}V6`).bulkAdd(records);
 				}
 			});
-		this.drafts = this.table('draftsV6');
-		this.appMetadata = this.table('appMetadataV6');
-		this.mediaHandles = this.table('mediaHandlesV6');
-		this.draftIgnores = this.table('draftIgnoresV6');
+		this.version(7)
+			.stores({
+				draftsV7: 'id, updatedAt',
+				appMetadataV7: 'key',
+				mediaHandlesV7: 'draftId',
+				draftIgnoresV7: 'draftId'
+			})
+			.upgrade(async (transaction) => {
+				for (const name of ['drafts', 'appMetadata', 'mediaHandles', 'draftIgnores']) {
+					const records = await transaction.table(`${name}V6`).toArray();
+					if (records.length) await transaction.table(`${name}V7`).bulkAdd(records);
+				}
+			});
+		this.drafts = this.table('draftsV7');
+		this.appMetadata = this.table('appMetadataV7');
+		this.mediaHandles = this.table('mediaHandlesV7');
+		this.draftIgnores = this.table('draftIgnoresV7');
 		this.on('blocked', () => this.publishStorageState('blocked'));
 		this.on('ready', () => this.publishStorageState('ready'));
 		this.on('versionchange', () => {

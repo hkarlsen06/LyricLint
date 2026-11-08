@@ -4,7 +4,8 @@ import { createDraftRepository, resolveLocalRecoveryReferences } from './draft-r
 import type { LyricLintDatabase } from './database.js';
 import type { DepartureCheckpoint, DepartureSnapshot, SessionStorageLike } from './types.js';
 
-export const DEPARTURE_KEY = 'lyriclint:departure:v1';
+const LEGACY_DEPARTURE_KEY = 'lyriclint:departure:v1';
+export const DEPARTURE_KEY = 'lyriclint:departure:v2';
 // Session storage is a bounded bridge across navigation, not a second database.
 const MAX_CHARACTERS = 2 * 1024 * 1024;
 const MAX_SNAPSHOTS = 16;
@@ -31,7 +32,7 @@ export function parseDepartureCheckpoint(text: string): DepartureSnapshot[] {
 	if (
 		!object(value) ||
 		value.format !== 'lyriclint-departure' ||
-		value.version !== 1 ||
+		(value.version !== 1 && value.version !== 2) ||
 		!Array.isArray(value.snapshots) ||
 		value.snapshots.length > MAX_SNAPSHOTS
 	)
@@ -50,7 +51,7 @@ export function parseDepartureCheckpoint(text: string): DepartureSnapshot[] {
 		const parsed = parseWorkspaceBackup(
 			JSON.stringify({
 				format: 'lyriclint-workspace',
-				version: 2,
+				version: 3,
 				createdAt: '',
 				drafts: [snapshot.draft],
 				appMetadata: [],
@@ -102,18 +103,19 @@ export function createDepartureCheckpoint(
 } {
 	return {
 		read() {
-			const text = storage().getItem(DEPARTURE_KEY);
+			const text = storage().getItem(DEPARTURE_KEY) ?? storage().getItem(LEGACY_DEPARTURE_KEY);
 			return text === null ? [] : parseDepartureCheckpoint(text);
 		},
 		write(snapshots) {
 			if (snapshots.length === 0) {
 				storage().removeItem(DEPARTURE_KEY);
+				storage().removeItem(LEGACY_DEPARTURE_KEY);
 				return;
 			}
 			if (snapshots.length > MAX_SNAPSHOTS) throw new Error('Too many pending drafts.');
 			const text = JSON.stringify({
 				format: 'lyriclint-departure',
-				version: 1,
+				version: 2,
 				snapshots: snapshots.map(({ draft, sideRecords, precedingWrite }) => ({
 					draft,
 					precedingWrite,
@@ -128,6 +130,7 @@ export function createDepartureCheckpoint(
 		},
 		clear() {
 			storage().removeItem(DEPARTURE_KEY);
+			storage().removeItem(LEGACY_DEPARTURE_KEY);
 		}
 	};
 }

@@ -285,7 +285,7 @@ test.each(['conversionRecovery', 'originalRecovery'] as const)(
 				};
 				if (mode === 'predecessor') pending.precedingWrite = { id: precedingId, generation: 1 };
 				checkpoint.write([pending]);
-				const bytes = session.getItem('lyriclint:departure:v1');
+				const bytes = session.getItem('lyriclint:departure:v2');
 				if (!bytes) throw new Error('Missing checkpoint');
 				await recoverDepartureCheckpoint(db, checkpoint);
 				const id = await repo.getCurrent();

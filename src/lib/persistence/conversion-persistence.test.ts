@@ -105,7 +105,7 @@ describe('lossless conversion durability', () => {
 		const current = await openDatabase(name);
 		databases.push(current);
 		const repository = createDraftRepository(current);
-		expect(current.drafts.name).toBe('draftsV6');
+		expect(current.drafts.name).toBe('draftsV7');
 		expect(await repository.get(original.id)).toEqual(original);
 		await old.open();
 		try {
@@ -372,4 +372,114 @@ describe('lossless conversion durability', () => {
 		expect(await repository.get(draft.id)).toEqual(recovery);
 		expect(() => parseConversionEnvelope(draft.conversion, recovery.text)).toThrow();
 	});
+});
+
+it('round trips independent output through autosave, Scribe 3, backup 3, and conflict copies', async () => {
+	const { database, repository } = await setup('writing');
+	const original = rich();
+	original.writing = {
+		schema: 1,
+		phase: 'writing',
+		profile: 'musixmatch',
+		export: { profile: 'genius', text: 'Edited [output](123)\n' }
+	};
+	await repository.create(original);
+	const saved = await repository.get(original.id);
+	expect(saved?.writing).toEqual(original.writing);
+	const scribe = serializeScribe({
+		title: original.title,
+		language: original.language,
+		lyrics: original.text,
+		conversion: original.conversion,
+		writing: original.writing,
+		performers: [],
+		sectionLinks: [],
+		lineAnchors: [],
+		ignoredDiagnostics: []
+	});
+	expect(parseScribe(scribe).version).toBe(3);
+	expect(parseScribe(scribe).document.writing).toEqual(original.writing);
+	const backup = createWorkspaceBackup(database, { now: () => original.updatedAt });
+	const file = await backup.serialize();
+	const archive = parseWorkspaceBackup(file);
+	expect(archive.version).toBe(3);
+	expect(archive.drafts[0]?.writing).toEqual(original.writing);
+	backup.destroy();
+	if (!repository.compareAndSave) throw new Error('Missing guarded save');
+	await repository.compareAndSave({ ...original, title: 'Newer' }, 0);
+	const conflict = await repository.compareAndSave({ ...original, title: 'Local' }, 0);
+	expect(conflict.conflicted).toBe(true);
+	expect(conflict.draft.writing).toEqual(original.writing);
+});
+
+it('copies V6 atomically and isolates edited output from a reopened V6 bundle', async () => {
+	const name = `writing-v6-${crypto.randomUUID()}`;
+	const old = new Dexie(name);
+	old.version(6).stores({
+		drafts: 'id, updatedAt',
+		appMetadata: 'key',
+		mediaHandles: 'draftId',
+		draftIgnores: 'draftId',
+		backupHandles: 'key',
+		assistantChats: 'id, updatedAt',
+		assistantMessages: 'id, chatId, createdAt',
+		draftsV6: 'id, updatedAt',
+		appMetadataV6: 'key',
+		mediaHandlesV6: 'draftId',
+		draftIgnoresV6: 'draftId'
+	});
+	await old.open();
+	const original = rich();
+	await old.table('draftsV6').put(original);
+	await old.table('appMetadataV6').put({ key: 'preference:newDraftProfile', value: 'musixmatch' });
+	await old
+		.table('draftIgnoresV6')
+		.put({ draftId: original.id, keys: ['ignored'], updatedAt: original.updatedAt });
+	old.close();
+	const current = await openDatabase(name);
+	databases.push(current);
+	const repository = createDraftRepository(current);
+	expect(await repository.get(original.id)).toEqual(original);
+	expect((await current.draftIgnores.get(original.id))?.keys).toEqual(['ignored']);
+	expect(await repository.getPreference('newDraftProfile')).toBe('musixmatch');
+	const writing = {
+		schema: 1,
+		phase: 'writing',
+		profile: 'musixmatch',
+		export: { profile: 'genius', text: 'Kept output' }
+	} as const;
+	await repository.save({ ...original, writing });
+	await old.open();
+	try {
+		await old.table('draftsV6').put({ ...original, text: 'Old bundle wrote here' });
+		expect((await repository.get(original.id))?.writing).toEqual(writing);
+		await repository.delete(original.id);
+		expect(await old.table('draftsV6').get(original.id)).toBeUndefined();
+		expect(await old.table('draftIgnoresV6').get(original.id)).toBeUndefined();
+	} finally {
+		old.close();
+	}
+});
+
+it('recovers malformed writing on a plain row while preserving original output bytes', async () => {
+	const { database, repository } = await setup('invalid-plain-writing');
+	const raw = {
+		...rich(),
+		conversion: undefined,
+		text: 'Exact plain original',
+		writing: {
+			schema: 1,
+			phase: 'writing',
+			profile: 'genius',
+			export: { profile: 'genius', text: 'Invalid target, keep these bytes' }
+		}
+	};
+	await database.table(database.drafts.name).put(raw);
+	await expect(repository.get(raw.id)).rejects.toThrow();
+	const recovered = await repository.recoverUnreadable?.(raw.id);
+	expect(recovered?.text).toBe(raw.text);
+	expect(recovered?.id).not.toBe(raw.id);
+	expect(JSON.parse((await repository.exportRawDraft?.(raw.id)) ?? 'null')).toEqual(
+		JSON.parse(JSON.stringify(raw))
+	);
 });

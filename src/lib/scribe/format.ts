@@ -1,8 +1,10 @@
+import { parseWriting, beginWriting, type DraftWriting } from '#lib/persistence/writing.js';
 import { ScribeFormatError } from './contracts.js';
 export { maxScribeBytes, ScribeFormatError } from './contracts.js';
 import { normalizeGeniusUrl } from '#lib/core/genius-url.js';
 import { copySectionLinks } from '#lib/persistence/copy.js';
 import {
+	hasConversionMetadata,
 	copyConversionEnvelope,
 	parseConversionEnvelope,
 	parseConversionRecovery,
@@ -23,11 +25,11 @@ import type { ClipboardMediaSource } from '#lib/editor/contracts.js';
 import { performerColorIds } from '#lib/performers/color.js';
 
 const scribeFormat = 'LYRICLINT_SCRIBE';
-const scribeVersion = 2;
+const scribeVersion = 3;
 
 interface ScribeProject {
 	format: typeof scribeFormat;
-	version: 1 | typeof scribeVersion;
+	version: 1 | 2 | typeof scribeVersion;
 	document: {
 		title: string;
 		language: string;
@@ -36,6 +38,7 @@ interface ScribeProject {
 		geniusUrl?: string;
 		selection?: SerializedSelection;
 		compareBaseline?: CompareBaselineRecord;
+		writing?: DraftWriting;
 		conversion?: ConversionEnvelope;
 		conversionRecovery?: ConversionRecovery;
 		originalRecovery?: OriginalRecovery;
@@ -48,6 +51,7 @@ interface ScribeProject {
 }
 
 export interface ScribeProjectInput {
+	writing?: DraftWriting;
 	conversion?: ConversionEnvelope;
 	conversionRecovery?: ConversionRecovery;
 	originalRecovery?: OriginalRecovery;
@@ -267,6 +271,10 @@ export function serializeScribe(input: ScribeProjectInput): string {
 	};
 	if (input.geniusUrl !== undefined) scribeDocument.geniusUrl = input.geniusUrl;
 	if (input.originalText !== undefined) scribeDocument.originalText = input.originalText;
+	if (input.writing !== undefined) {
+		const writing = parseWriting(input.writing, input.conversion?.profile);
+		scribeDocument.writing = input.lyrics.length > 0 ? beginWriting(writing) : writing;
+	}
 	if (input.selection !== undefined) scribeDocument.selection = { ...input.selection };
 	if (input.compareBaseline !== undefined) {
 		scribeDocument.compareBaseline = { ...input.compareBaseline };
@@ -296,14 +304,18 @@ export function serializeScribe(input: ScribeProjectInput): string {
 	) {
 		throw new ScribeFormatError('The recovery checkpoint and conversion document do not match.');
 	}
+	if (scribeDocument.writing?.phase === 'new' && hasConversionMetadata(scribeDocument.conversion))
+		scribeDocument.writing = beginWriting(scribeDocument.writing);
 	const project: ScribeProject = {
 		format: scribeFormat,
 		version:
-			input.conversion !== undefined ||
-			input.conversionRecovery !== undefined ||
-			input.originalRecovery !== undefined
-				? scribeVersion
-				: 1,
+			input.writing !== undefined
+				? 3
+				: input.conversion !== undefined ||
+					  input.conversionRecovery !== undefined ||
+					  input.originalRecovery !== undefined
+					? 2
+					: 1,
 		document: scribeDocument,
 		performers: input.performers.map((performer) => ({
 			...performer,
@@ -329,7 +341,7 @@ export function parseScribe(source: string): ScribeProject {
 	if (value.format !== scribeFormat) {
 		throw new ScribeFormatError('This file is not a LyricLint Scribe.');
 	}
-	if (value.version !== 1 && value.version !== scribeVersion) {
+	if (value.version !== 1 && value.version !== 2 && value.version !== scribeVersion) {
 		throw new ScribeFormatError(
 			number(value.version) && value.version > scribeVersion
 				? 'This Scribe was made by a newer version of LyricLint.'
@@ -369,6 +381,19 @@ export function parseScribe(source: string): ScribeProject {
 		lyrics
 	};
 	try {
+		if (value.document.writing !== undefined) {
+			if (value.version !== 3)
+				throw new ScribeFormatError('Writing state requires Scribe version 3.');
+			const writing = parseWriting(
+				value.document.writing,
+				record(value.document.conversion) && value.document.conversion.profile === 'musixmatch'
+					? 'musixmatch'
+					: value.document.conversion !== undefined
+						? 'genius'
+						: undefined
+			);
+			scribeDocument.writing = lyrics.length > 0 ? beginWriting(writing) : writing;
+		}
 		if (value.document.conversionRecovery !== undefined) {
 			scribeDocument.conversionRecovery = parseConversionRecovery(
 				value.document.conversionRecovery,
@@ -393,6 +418,8 @@ export function parseScribe(source: string): ScribeProject {
 				throw new ScribeFormatError('The document language and conversion document do not match.');
 			}
 		}
+		if (scribeDocument.writing?.phase === 'new' && hasConversionMetadata(scribeDocument.conversion))
+			scribeDocument.writing = beginWriting(scribeDocument.writing);
 		if (
 			scribeDocument.conversionRecovery &&
 			JSON.stringify(scribeDocument.conversion) !==

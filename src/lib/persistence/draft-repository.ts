@@ -158,6 +158,7 @@ function createRecord(input: DraftCreateInput): DraftRecord {
 	if (input.compareBaseline !== undefined) {
 		record.compareBaseline = copyCompareBaseline(input.compareBaseline);
 	}
+	if (input.writing !== undefined) record.writing = input.writing;
 	if (input.conversion !== undefined) record.conversion = input.conversion;
 	if (input.conversionRecovery !== undefined) record.conversionRecovery = input.conversionRecovery;
 	if (input.originalRecovery !== undefined) record.originalRecovery = input.originalRecovery;
@@ -226,7 +227,11 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			database.draftIgnores,
 			async () => {
 				const source = await database.drafts.get(id);
-				if (!source || typeof source.text !== 'string' || source.conversion === undefined)
+				if (
+					!source ||
+					typeof source.text !== 'string' ||
+					(source.conversion === undefined && source.writing === undefined)
+				)
 					return undefined;
 				try {
 					return copyDraft(source);
@@ -301,7 +306,10 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 				database.table('drafts'),
 				database.table('appMetadata'),
 				database.table('mediaHandles'),
-				database.table('draftIgnores')
+				database.table('draftIgnores'),
+				...['drafts', 'appMetadata', 'mediaHandles', 'draftIgnores'].map((name) =>
+					database.table(`${name}V6`)
+				)
 			],
 			async () => {
 				if (expectedGeneration !== undefined) {
@@ -312,6 +320,12 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 				await database.mediaHandles.delete(id);
 				await database.draftIgnores.delete(id);
 				await database.appMetadata.delete(assistantDraftAccessKey(id));
+				for (const name of ['drafts', 'mediaHandles', 'draftIgnores'])
+					await database.table(`${name}V6`).delete(id);
+				await database.table('appMetadataV6').delete(assistantDraftAccessKey(id));
+				const legacyCurrent = await database.table('appMetadataV6').get(CURRENT_DRAFT_KEY);
+				if (legacyCurrent?.value === id)
+					await database.table('appMetadataV6').delete(CURRENT_DRAFT_KEY);
 				await database.table('drafts').delete(id);
 				await database.table('mediaHandles').delete(id);
 				await database.table('draftIgnores').delete(id);
@@ -546,7 +560,10 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 					database.table('drafts'),
 					database.table('appMetadata'),
 					database.table('mediaHandles'),
-					database.table('draftIgnores')
+					database.table('draftIgnores'),
+					...['drafts', 'appMetadata', 'mediaHandles', 'draftIgnores'].map((name) =>
+						database.table(`${name}V6`)
+					)
 				],
 				async () => {
 					await database.drafts.clear();
@@ -557,6 +574,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 					await database.appMetadata.clear();
 					for (const name of ['drafts', 'appMetadata', 'mediaHandles', 'draftIgnores']) {
 						await database.table(name).clear();
+						await database.table(`${name}V6`).clear();
 					}
 				}
 			);

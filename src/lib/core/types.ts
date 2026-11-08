@@ -424,6 +424,7 @@ export interface PerformerRecordDelta {
 
 /** A locally persisted lyric draft. All dates are ISO strings. */
 export interface DraftRecord {
+	writing?: import('../persistence/writing.js').DraftWriting;
 	/** Lossless profile state. Absence identifies a legacy Genius draft. */
 	conversion?: import('../persistence/conversion.js').ConversionEnvelope;
 	/** Latest visible input retained when reconciliation cannot safely update the model. */

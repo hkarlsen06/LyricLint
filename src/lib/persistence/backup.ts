@@ -1,3 +1,4 @@
+import { parseWriting } from './writing.js';
 import { normalizeGeniusUrl } from '../core/genius-url.js';
 import { copyConversionFields } from './copy.js';
 import {
@@ -28,7 +29,7 @@ import type {
 } from './types.js';
 
 const FORMAT = 'lyriclint-workspace';
-const VERSION = 2;
+const VERSION = 3;
 const HANDLE_KEY = 'workspace';
 const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 const AUTOSAVE_DELAY_MS = 750;
@@ -69,7 +70,7 @@ interface IgnoredDiagnosticsRecord {
 
 interface WorkspaceBackupFile {
 	format: typeof FORMAT;
-	version: 1 | typeof VERSION;
+	version: 1 | 2 | typeof VERSION;
 	createdAt: string;
 	drafts: DraftRecord[];
 	appMetadata: AppMetadataRecord[];
@@ -214,6 +215,8 @@ function parseDraft(value: Json): DraftRecord {
 				draft.conversionRecovery ? undefined : text
 			);
 		}
+		if (value.writing !== undefined)
+			draft.writing = parseWriting(value.writing, draft.conversion?.profile);
 		copyConversionFields(draft, draft);
 	} catch (error) {
 		throw new WorkspaceBackupError(
@@ -431,7 +434,7 @@ export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
 	if (
 		!isRecord(value) ||
 		value.format !== FORMAT ||
-		(value.version !== 1 && value.version !== VERSION)
+		(value.version !== 1 && value.version !== 2 && value.version !== VERSION)
 	) {
 		throw new WorkspaceBackupError('This LyricLint backup version is not supported.');
 	}
@@ -445,6 +448,8 @@ export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
 	}
 
 	const drafts = value.drafts.map(parseDraft);
+	if (value.version !== 3 && drafts.some((draft) => draft.writing !== undefined))
+		throw new WorkspaceBackupError('Writing state requires backup version 3.');
 	if (
 		value.version === 1 &&
 		drafts.some(
@@ -515,14 +520,16 @@ async function createBackupFile(
 	);
 	return {
 		format: FORMAT,
-		version: drafts.some(
-			(draft) =>
-				draft.conversion !== undefined ||
-				draft.conversionRecovery !== undefined ||
-				draft.originalRecovery !== undefined
-		)
-			? VERSION
-			: 1,
+		version: drafts.some((draft) => draft.writing !== undefined)
+			? 3
+			: drafts.some(
+						(draft) =>
+							draft.conversion !== undefined ||
+							draft.conversionRecovery !== undefined ||
+							draft.originalRecovery !== undefined
+				  )
+				? 2
+				: 1,
 		createdAt: now(),
 		drafts,
 		appMetadata,

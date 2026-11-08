@@ -483,7 +483,7 @@ describe('departure durability', () => {
 	it('retains unreadable rich originals and a valid blocked reconciliation snapshot', async () => {
 		const { db, repository, session, checkpoint, controller } = await setup();
 		const unreadable = { ...rich(), conversion: { ...rich().conversion, schema: 999 } };
-		await db.table('draftsV6').put(unreadable);
+		await db.table(db.drafts.name).put(unreadable);
 		const recovery = await repository.recoverUnreadable?.('draft');
 		expect(recovery?.conversionRecovery).toBeDefined();
 		if (!recovery?.conversion) throw new Error('missing recovery');

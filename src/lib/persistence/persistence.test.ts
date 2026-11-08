@@ -715,6 +715,12 @@ describe('autosave and recovery', () => {
 					detached: [{ headerLine: 1, line: 2, column: 5, endLine: 2, endColumn: 9 }]
 				} satisfies Required<SectionLink>
 			],
+			writing: {
+				schema: 1,
+				phase: 'writing',
+				profile: 'genius',
+				export: { profile: 'musixmatch', text: 'Independent output' }
+			},
 			compareBaseline: {
 				text: '[Verse]\nFirst line as the page had it',
 				pastedAt: '2026-01-01T12:00:00.000Z'

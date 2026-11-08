@@ -6,6 +6,8 @@ import {
 	parseConversionRecovery,
 	parseOriginalRecovery
 } from './conversion.js';
+import { hasConversionMetadata } from './conversion.js';
+import { parseWriting, beginWriting } from './writing.js';
 import type { DraftRecord } from './types.js';
 
 /** Rich state is authoritative; legacy view coordinates are migration inputs only. */
@@ -47,6 +49,14 @@ export function copyConversionFields(source: DraftRecord, target: DraftRecord): 
 		);
 		delete target.lineAnchors;
 		delete target.sectionLinks;
+	}
+	if (source.writing !== undefined) {
+		const writing = parseWriting(source.writing, target.conversion?.profile);
+		target.writing =
+			writing.phase === 'new' &&
+			(source.text.length > 0 || hasConversionMetadata(source.conversion))
+				? beginWriting(writing)
+				: writing;
 	}
 }
 

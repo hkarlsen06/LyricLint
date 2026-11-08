@@ -1,3 +1,4 @@
+import { newWriting, CREATION_PROFILE_PREFERENCE } from './writing.js';
 import { randomId } from '../core/random-id.js';
 import type { MediaRepository } from './media-repository.js';
 import type { DraftRecord, DraftRepository } from './types.js';
@@ -14,9 +15,10 @@ const DEFAULT_LANGUAGE = 'en';
  * one more row called "Untitled transcription" in the drafts list. The first save with
  * something in it is what gives this draft a record (see the draft store).
  */
-function blankDraft(): DraftRecord {
+function blankDraft(profile: 'genius' | 'musixmatch'): DraftRecord {
 	const timestamp = new Date().toISOString();
 	return {
+		writing: newWriting(profile),
 		id: randomId(),
 		title: DEFAULT_TITLE,
 		text: '',
@@ -105,5 +107,8 @@ export async function recoverStartupDraft(
 	}
 
 	await repository.setCurrent(undefined);
-	return blankDraft();
+	const preference = await repository
+		.getPreference(CREATION_PROFILE_PREFERENCE)
+		.catch(() => undefined);
+	return blankDraft(preference === 'musixmatch' ? 'musixmatch' : 'genius');
 }
