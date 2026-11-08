@@ -97,7 +97,7 @@ for (const [width, colorScheme] of [
 				await trigger.click();
 				await expect(menu).toBeHidden();
 				await trigger.click();
-				await page.getByRole('button', { name: 'Copy Genius', exact: true }).click();
+				await page.locator('.profile-picker').click();
 				await expect(menu).toBeHidden();
 			}
 			await page.screenshot({ path: `.audit/hillclimb/format-${width}-${colorScheme}.png` });
