@@ -11,6 +11,7 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   creation choices. The last deliberate choice is the `newDraftProfile` preference; opening
   or importing a saved draft never changes it. Legacy records use their saved conversion
   profile, or Genius when absent, regardless of retained model ancestry.
+  A successful workspace reset clears the creation preference and starts again in Genius.
 - The populated toolbar names the main format, copies its exact text, and offers Export to
   the other format. The native export dialog edits independent plain output, never editor
   history, source metadata or selection. Copy and Download use the exact edited output.

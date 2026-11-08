@@ -770,6 +770,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 					committed = true;
 					drafts = [];
 					await creationPreferenceReady;
+					creationProfile = 'genius';
 					loadDraft(emptyTransientDraft(), false);
 					feedback.announce("All local 'scribes deleted.");
 					return true;

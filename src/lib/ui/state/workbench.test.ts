@@ -275,12 +275,12 @@ describe('workbench draft safety', () => {
 		async (timed) => {
 			const metadata = { lineAnchors: [{ line: 2, time: 61 }], sectionLinks: [{ lines: [2, 5] }] };
 			const text = '[Verse]\nOne\n\n[Verse]\nOne';
-			const first: DraftRecord = { ...draft('draft-a', text), ...(!timed ? metadata : {}) };
+			const first = draft('draft-a', text);
 			const second: DraftRecord = {
 				...draft('draft-b', text),
-				...(timed ? metadata : {}),
 				writing: withExportCopy(legacyWriting('genius'), 'Independently edited output')
 			};
+			Object.assign(timed ? second : first, metadata);
 			const repository = createInMemoryDraftRepository([first, second]);
 			const { controller, editor, autosave } = setup({ initial: first, repository });
 			editor.setLineAnchors?.(first.lineAnchors ?? []);
@@ -2397,6 +2397,11 @@ test('creation preference changes deliberately and is independent of opening leg
 	await controller.createDraft();
 	expect(controller.profile).toBe('musixmatch');
 	expect(controller.writing.phase).toBe('new');
+	await controller.deleteAllDrafts();
+	expect(await repository.getPreference('newDraftProfile')).toBeUndefined();
+	expect(controller.profile).toBe('genius');
+	await controller.createDraft();
+	expect(controller.profile).toBe('genius');
 });
 
 test('saved Musixmatch ownership and edited Genius output survive loading a Genius-ancestry model', async () => {
