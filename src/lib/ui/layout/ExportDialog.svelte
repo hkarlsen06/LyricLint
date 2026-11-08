@@ -54,6 +54,14 @@
 	}
 </script>
 
+<svelte:window
+	onbeforeunload={(event) => {
+		if (!error) return;
+		event.preventDefault();
+		event.returnValue = '';
+	}}
+/>
+
 <button
 	bind:this={opener}
 	type="button"
