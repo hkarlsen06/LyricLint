@@ -27,10 +27,9 @@ async function focusedTask(
 	if (!imported.ok) throw Error(imported.refusal.message);
 	const projection = renderProfile(imported.value, 'musixmatch');
 	if (!projection.ok) throw Error(projection.refusal.message);
-	const { controller } = createTestWorkbench({ text: projection.value.text });
-	controller.onSnapshot({
-		...controller.snapshot,
-		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	const { controller } = createTestWorkbench({
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions),
+		text: projection.value.text
 	});
 	const from = projection.value.text.indexOf(token);
 	if (from < 0) throw Error('The fixture must contain its target.');
@@ -343,10 +342,9 @@ for (const [rule, title, sourceControl] of [
 		if (!imported.ok) throw Error(imported.refusal.message);
 		const projection = renderProfile(imported.value, 'musixmatch');
 		if (!projection.ok) throw Error(projection.refusal.message);
-		const { controller } = createTestWorkbench({ text: projection.value.text });
-		controller.onSnapshot({
-			...controller.snapshot,
-			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+		const { controller } = createTestWorkbench({
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions),
+			text: projection.value.text
 		});
 		const range = {
 			from: projection.value.text.indexOf('Repeat chorus'),

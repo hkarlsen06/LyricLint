@@ -1,3 +1,4 @@
+import { conversionFixture } from '#lib/conversion/test-fixture.js';
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cdp, page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
@@ -42,14 +43,13 @@ test.each([
 	async (width, origin, profile) => {
 		await page.viewport(width, 844);
 		const source = '[Verse: Mira]\nSilver compass';
-		const { controller } = createTestWorkbench({ text: source });
+		const { controller } = createTestWorkbench({ conversion: conversionFixture(source, profile) });
 		const view = await render(Workspace, {
 			controller,
 			editorComponent: EditorPane,
 			harperProvider: { lint: async () => [], dispose: async () => {} }
 		});
 		await waitFor(() => expect(controller.editor.switchProfile).toBeDefined());
-		if (profile === 'musixmatch') controller.switchProfile(profile);
 		const text = controller.snapshot.text;
 		controller.setCompareBaseline('[Verse: Mira]\nLunar compass');
 		const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
@@ -110,14 +110,15 @@ test.each([360, 390])(
 	'gives a conversion task one phone scroll region and keeps a direct edit handoff at %ipx',
 	async (width) => {
 		await page.viewport(width, 844);
-		const { controller } = createTestWorkbench({ text: '[Verse]\nI counted 2 stars' });
+		const { controller } = createTestWorkbench({
+			conversion: conversionFixture('[Verse]\nI counted 2 stars')
+		});
 		await render(Workspace, {
 			controller,
 			editorComponent: EditorPane,
 			harperProvider: { lint: async () => [], dispose: async () => {} }
 		});
 		await waitFor(() => expect(controller.editor.switchProfile).toBeDefined());
-		controller.switchProfile('musixmatch');
 		await fireEvent.click(
 			within(screen.getByRole('navigation', { name: 'Workbench views' })).getByRole('button', {
 				name: /^Review/
@@ -303,9 +304,7 @@ test('Song fields keep touch targets outside the workspace ancestor', async () =
 	if (!imported.ok) throw new Error(imported.refusal.message);
 	const projection = renderProfile(imported.value, 'musixmatch');
 	if (!projection.ok) throw new Error(projection.refusal.message);
-	const { controller } = createTestWorkbench({ text: projection.value.text });
-	controller.onSnapshot({
-		...controller.snapshot,
+	const { controller } = createTestWorkbench({
 		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
 	});
 	const view = await render(SongPanel, { controller });

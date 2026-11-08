@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { cdp, page } from 'vitest/browser';
 import { createTestWorkbench } from '../test-utils.js';
 import CompareDialog from './CompareDialog.svelte';
-import { importDocument, parseProjection, renderProfile } from '#lib/conversion/index.js';
+import { importDocument, renderProfile } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
 
@@ -13,11 +13,7 @@ function musixmatchWorkbench() {
 	if (!imported.ok) throw new Error(imported.refusal.message);
 	const projected = renderProfile(imported.value, 'musixmatch');
 	if (!projected.ok) throw new Error(projected.refusal.message);
-	const workbench = createTestWorkbench({ text: projected.value.text });
-	workbench.controller.onSnapshot({
-		...workbench.editor.getSnapshot(),
-		revision: 5,
-		parsed: parseProjection(imported.value, projected.value),
+	const workbench = createTestWorkbench({
 		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
 	});
 	return workbench;

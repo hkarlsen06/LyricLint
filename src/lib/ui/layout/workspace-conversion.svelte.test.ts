@@ -1,3 +1,4 @@
+import { conversionFixture } from '#lib/conversion/test-fixture.js';
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
@@ -22,7 +23,7 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 });
 
-async function setup(text = '[Verse]\nOne\nTwo') {
+async function setup(text = '[Verse]\nOne\nTwo', profile: 'genius' | 'musixmatch' = 'genius') {
 	await page.viewport(1200, 800);
 	const audio = new StubAudio();
 	const player = createMediaPlayer({
@@ -33,7 +34,7 @@ async function setup(text = '[Verse]\nOne\nTwo') {
 	});
 	players.push(player);
 	const { controller, feedback } = createTestWorkbench({
-		text,
+		conversion: conversionFixture(text, profile),
 		selection: { anchor: 0, head: 0 },
 		media: { repository: createInMemoryMediaRepository(), player }
 	});
@@ -46,7 +47,7 @@ async function setup(text = '[Verse]\nOne\nTwo') {
 	imported.value.recordingId = 'file:previous';
 	controller.onSnapshot({
 		...controller.snapshot,
-		conversion: createConversionEnvelope(imported.value, 'genius', profilePolicyVersions)
+		conversion: createConversionEnvelope(imported.value, profile, profilePolicyVersions)
 	});
 	return { controller, feedback, player, audio };
 }
@@ -95,9 +96,9 @@ test('waits for the mounted editor and applies a recording identity once, then d
 });
 
 test.each(['[Verse]\nOne\nTwo', 'One\nTwo'])(
-	'switching profile ends a sync run without changing playback: %s',
+	'export preserves a sync run without changing playback: %s',
 	async (text) => {
-		const { controller, feedback, player, audio } = await setup(text);
+		const { controller, player, audio } = await setup(text);
 		await mount(controller);
 		await waitFor(() =>
 			expect(controller.snapshot.conversion?.model.recordingId).toBe(controller.media?.recordingId)
@@ -108,14 +109,15 @@ test.each(['[Verse]\nOne\nTwo', 'One\nTwo'])(
 		audio.currentTime = 23;
 		const pause = vi.spyOn(player, 'pause');
 		const seek = vi.spyOn(player, 'seek');
-		controller.switchProfile('musixmatch');
-		await waitFor(() => expect(screen.queryByRole('button', { name: 'Stop syncing' })).toBeNull());
-		expect(controller.editor.isLyricSyncActive?.()).toBe(false);
+		const original = controller.snapshot;
+		expect(controller.getExport()).toBe(text.replace('[Verse]\n', ''));
+		controller.requestExport();
+		expect(controller.editor.isLyricSyncActive?.()).toBe(true);
+		expect(controller.snapshot.text).toBe(original.text);
 		expect(player.playing).toBe(true);
 		expect(audio.currentTime).toBe(23);
 		expect(pause).not.toHaveBeenCalled();
 		expect(seek).not.toHaveBeenCalled();
-		expect(feedback.announcement).toBe('Musixmatch format. Sync ended.');
 	}
 );
 
@@ -153,9 +155,8 @@ test('recording-only metadata changes keep sync active when lyrics and profile a
 });
 
 test('a Musixmatch linking request opens retained section links from the visible lyrics', async () => {
-	const { controller } = await setup();
+	const { controller } = await setup('[Verse]\nOne\nTwo', 'musixmatch');
 	await mount(controller);
-	controller.switchProfile('musixmatch');
 	controller.setActiveTab('song');
 	controller.editor.setSelection({ anchor: 0, head: 3 });
 	controller.editor.requestSectionLink?.();

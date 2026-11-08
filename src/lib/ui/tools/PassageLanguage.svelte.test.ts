@@ -1,3 +1,5 @@
+import { conversionFixture } from '#lib/conversion/test-fixture.js';
+import type { ConversionEnvelope } from '#lib/persistence/conversion.js';
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -12,12 +14,13 @@ afterEach(async () => {
 	await cleanup();
 	for (const dispose of disposers.splice(0)) dispose();
 });
-async function setup(text = source, controlsOnly = false) {
-	const { controller } = createTestWorkbench({ text });
+async function setup(text = source, controlsOnly = false, conversion?: ConversionEnvelope) {
+	const { controller } = createTestWorkbench({ text, conversion });
 	const host = document.createElement('div');
 	document.body.append(host);
 	const editor = createLyricEditor(host, {
-		initialText: text,
+		initialText: conversion?.projectionText ?? text,
+		initialConversion: conversion,
 		context: { language: 'en', performers: [], ruleSetVersion: 'test' },
 		callbacks: {
 			onSnapshot: (snapshot) => controller.onSnapshot(snapshot),
@@ -64,24 +67,20 @@ test('search assigns exact captured codepoints, separate from default; history a
 });
 
 test('keeps the selected language separate from hidden wording through history', async () => {
-	const { controller, editor } = await setup('[Verse]\nMoon Star Sun');
-	controller.switchProfile('musixmatch');
-	expect(
-		controller.applyConversionAction({
-			kind: 'setPassageLanguage',
-			range: { from: 5, to: 9 },
-			language: 'de'
-		})
-	).toBe(true);
-	expect(
-		controller.applyConversionAction({
-			kind: 'setForm',
-			range: { from: 5, to: 9 },
-			profile: 'genius',
-			text: ''
-		})
-	).toBe(true);
-	controller.switchProfile('genius');
+	const { controller, editor } = await setup(
+		'[Verse]\nMoon Star Sun',
+		false,
+		conversionFixture('[Verse]\nMoon Star Sun', 'genius', [
+			{
+				profile: 'musixmatch',
+				action: { kind: 'setPassageLanguage', range: { from: 5, to: 9 }, language: 'de' }
+			},
+			{
+				profile: 'musixmatch',
+				action: { kind: 'setForm', range: { from: 5, to: 9 }, profile: 'genius', text: '' }
+			}
+		])
+	);
 	editor.handle.setSelection({ anchor: 0, head: controller.snapshot.text.length });
 	const before = structuredClone(controller.snapshot.conversion?.model);
 	if (!before) throw new Error('The hidden wording model is missing.');
@@ -106,9 +105,7 @@ test('keeps the selected language separate from hidden wording through history',
 	expect(
 		controller.snapshot.conversion?.model.languageRanges.find((range) => range.language === 'de')
 	).toEqual(hiddenLanguage);
-	controller.switchProfile('musixmatch');
-	expect(controller.snapshot.text).toBe('Moon Star Sun');
-	controller.switchProfile('genius');
+	expect(controller.getExport()).toBe('Moon Star Sun');
 	expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun');
 });
 test('custom tags keep boundary validation and native Escape restores trigger without taking editor input', async () => {
@@ -136,14 +133,13 @@ test('custom tags keep boundary validation and native Escape restores trigger wi
 	await userEvent.keyboard('X');
 	expect(controller.snapshot.text).toBe('X\nOther words');
 });
-test.each(['selection', 'text', 'profile', 'draft', 'revision'] as const)(
+test.each(['selection', 'text', 'draft', 'revision'] as const)(
 	'refuses stale %s while preserving the current document',
 	async (change) => {
 		const { controller, editor } = await setup();
 		await open();
 		if (change === 'selection') editor.handle.setSelection({ anchor: 9, head: source.length });
 		if (change === 'text') editor.view.dispatch({ changes: { from: source.length, insert: '!' } });
-		if (change === 'profile') controller.switchProfile('musixmatch');
 		if (change === 'draft') await controller.createDraft();
 		if (change === 'revision')
 			controller.onSnapshot({ ...controller.snapshot, revision: controller.snapshot.revision + 1 });
@@ -158,6 +154,19 @@ test.each(['selection', 'text', 'profile', 'draft', 'revision'] as const)(
 		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 	}
 );
+
+test('a refused populated profile change preserves the captured language decision', async () => {
+	const { controller } = await setup();
+	await open();
+	controller.switchProfile('musixmatch');
+	expect(controller.profile).toBe('genius');
+	await fireEvent.click(screen.getByRole('button', { name: /^French$/ }));
+	expect(screen.queryByRole('dialog')).toBeNull();
+	expect(controller.snapshot.text).toBe(source);
+	expect(controller.snapshot.conversion?.model.languageRanges).toMatchObject([
+		{ from: 0, to: 8, language: 'fr' }
+	]);
+});
 
 test('native Escape still owns the modal after its focused result disappears', async () => {
 	const { controller } = await setup();
@@ -207,7 +216,7 @@ for (const profile of ['genius', 'musixmatch'] as const) {
 			label: 'English'
 		}
 	])(`reports the whole ${profile} selection for $name`, async ({ assignments, label }) => {
-		const { controller, editor } = await setup();
+		const { controller, editor } = await setup(source, false, conversionFixture(source, profile));
 		for (const { from, to, language } of assignments) {
 			expect(
 				controller.applyConversionAction({
@@ -217,7 +226,6 @@ for (const profile of ['genius', 'musixmatch'] as const) {
 				})
 			).toBe(true);
 		}
-		controller.switchProfile(profile);
 		editor.handle.setSelection({ anchor: 0, head: source.length });
 		const before = JSON.stringify(controller.snapshot.conversion?.model);
 		await waitFor(() =>
@@ -253,24 +261,26 @@ for (const text of ['Un beau jour', '[Verse]\nUn [beau](12345) jour']) {
 		{ length: 4, label: 'French' },
 		{ length: 2, label: 'Mixed languages' }
 	])('reports $label inside transformed wording in ' + text, async ({ length, label }) => {
-		const { controller, editor } = await setup(text);
 		const from = text.indexOf('beau');
-		expect(
-			controller.applyConversionAction({
-				kind: 'setPassageLanguage',
-				range: { from, to: from + length },
-				language: 'fr'
-			})
-		).toBe(true);
-		expect(
-			controller.applyConversionAction({
-				kind: 'setForm',
-				profile: 'musixmatch',
-				range: { from, to: from + 4 },
-				text: 'joli'
-			})
-		).toBe(true);
-		controller.switchProfile('musixmatch');
+		const { controller, editor } = await setup(
+			text,
+			false,
+			conversionFixture(text, 'musixmatch', [
+				{
+					profile: 'genius',
+					action: { kind: 'setPassageLanguage', range: { from, to: from + length }, language: 'fr' }
+				},
+				{
+					profile: 'genius',
+					action: {
+						kind: 'setForm',
+						profile: 'musixmatch',
+						range: { from, to: from + 4 },
+						text: 'joli'
+					}
+				}
+			])
+		);
 		expect(controller.snapshot.text).toBe('Un joli jour');
 		editor.handle.setSelection({ anchor: 4, head: 6 });
 		const before = JSON.stringify(controller.snapshot.conversion?.model);
@@ -284,8 +294,8 @@ for (const text of ['Un beau jour', '[Verse]\nUn [beau](12345) jour']) {
 		).toBeDisabled();
 		expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
 
-		controller.switchProfile('genius');
-		expect(controller.snapshot.text).toBe(text);
+		expect(controller.getExport()).toBe(text);
+		expect(controller.snapshot.text).toBe('Un joli jour');
 	});
 }
 

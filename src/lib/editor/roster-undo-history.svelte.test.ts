@@ -1,3 +1,4 @@
+import { conversionFixture } from '#lib/conversion/test-fixture.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createLyricEditor, type LyricEditorInstance } from './create-editor.js';
 import { createWorkbenchController } from '#lib/ui/state/workbench.svelte.js';
@@ -82,8 +83,9 @@ describe('roster toast and editor history', () => {
 			expect(noor).toBeDefined();
 			refresh();
 			if (rich) {
-				editor.handle.switchProfile!('musixmatch');
-				editor.handle.switchProfile!('genius');
+				expect(
+					controller.applyConversionAction({ kind: 'setContentKind', contentKind: 'original' })
+				).toBe(true);
 				refresh();
 			}
 			const voices = editor.handle.getSnapshot().conversion?.model.voices.map((voice) => ({
@@ -135,11 +137,9 @@ describe('roster toast and editor history', () => {
 					performerIds: voice.performerIds
 				}))
 			).toEqual(voices);
-			editor.handle.switchProfile!('musixmatch');
-			expect(editor.handle.getSnapshot().text).toBe(
+			expect(controller.getExport()).toBe(
 				'Mira carries the light\nNoor answers\n\nBoth hold the line'
 			);
-			editor.handle.switchProfile!('genius');
 			expect(editor.handle.getSnapshot().text).toBe(renamed);
 			expect(controller.performers.filter((record) => record.displayName === 'Nora')).toHaveLength(
 				1
@@ -152,7 +152,8 @@ describe('roster toast and editor history', () => {
 			const initial: DraftRecord = {
 				id: 'song',
 				title: 'Song',
-				text: '[Verse]\nMoon',
+				text: 'Moon',
+				conversion: conversionFixture('[Verse]\nMoon'),
 				language: 'en',
 				performers: [],
 				createdAt: '2026-11-05T00:00:00.000Z',
@@ -164,6 +165,7 @@ describe('roster toast and editor history', () => {
 			document.body.append(host);
 			const editor = createLyricEditor(host, {
 				initialText: initial.text,
+				initialConversion: initial.conversion,
 				context: { language: 'en', performers: [], ruleSetVersion: 'test' },
 				callbacks: {
 					onSnapshot: vi.fn(),
@@ -197,7 +199,6 @@ describe('roster toast and editor history', () => {
 					performers: controller.performers,
 					ruleSetVersion: 'test'
 				});
-			editor.handle.switchProfile!('musixmatch');
 			controller.addPerformer('Mira');
 			const added = controller.feedback.toasts.at(-1)!.id;
 			refresh();

@@ -1,3 +1,4 @@
+import { conversionFixture } from '#lib/conversion/test-fixture.js';
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
@@ -53,14 +54,12 @@ describe('Workspace native checker startup', () => {
 		expect(screen.queryByText('Checking lyrics…')).toBeNull();
 	});
 
-	it('retains sample spelling, contraction, pronoun and real worker grammar after switching to Musixmatch', async () => {
+	it('retains sample spelling, contraction, pronoun and real worker grammar in a saved Musixmatch primary', async () => {
 		const { sampleDraftText } = await import('#lib/ui/sample-draft.js');
-		const { controller } = createTestWorkbench({ text: sampleDraftText });
+		const { controller } = createTestWorkbench({ conversion: conversionFixture(sampleDraftText) });
 		await render(Workspace, { controller, editorComponent: EditorPane });
 		await waitFor(() => expect(controller.editor.switchProfile).toBeTypeOf('function'));
-		const musixmatch = await screen.findByRole('button', { name: 'Lyric format: Musixmatch' });
-		await fireEvent.click(musixmatch);
-		await waitFor(() => expect(controller.profile).toBe('musixmatch'));
+
 		await waitFor(
 			() => {
 				const findings = controller.snapshot.diagnostics;
@@ -136,7 +135,9 @@ describe('Workspace native checker startup', () => {
 
 	it('settles a confirmed quantity without changing its text and restores review on undo', async () => {
 		const native = await import('#lib/rules/engine.js');
-		const { controller } = createTestWorkbench({ text: '12 stars and 12 moons.' });
+		const { controller } = createTestWorkbench({
+			conversion: conversionFixture('12 stars and 12 moons.')
+		});
 		controller.setGrammarCheckEnabled(false);
 		await render(Workspace, {
 			controller,
@@ -145,7 +146,6 @@ describe('Workspace native checker startup', () => {
 			loadNativeRules: async () => native
 		});
 		await waitFor(() => expect(controller.editor.dispatchConversionAction).toBeTypeOf('function'));
-		controller.switchProfile('musixmatch');
 		const quantities = () =>
 			controller.snapshot.diagnostics.filter((finding) => finding.ruleId === 'mxm.numbers.context');
 		await waitFor(() => expect(quantities()).toHaveLength(2));
@@ -176,7 +176,18 @@ describe('Workspace native checker startup', () => {
 
 	it('publishes real checking snapshots while preserving hidden language ownership', async () => {
 		const native = await import('#lib/rules/engine.js');
-		const { controller } = createTestWorkbench({ text: '[Verse]\nMoon Star Sun' });
+		const { controller } = createTestWorkbench({
+			conversion: conversionFixture('[Verse]\nMoon Star Sun', 'genius', [
+				{
+					profile: 'musixmatch',
+					action: { kind: 'setPassageLanguage', range: { from: 0, to: 13 }, language: 'de' }
+				},
+				{
+					profile: 'musixmatch',
+					action: { kind: 'setForm', range: { from: 5, to: 9 }, profile: 'genius', text: '' }
+				}
+			])
+		});
 		controller.setGrammarCheckEnabled(false);
 		await render(Workspace, {
 			controller,
@@ -185,23 +196,6 @@ describe('Workspace native checker startup', () => {
 			loadNativeRules: async () => native
 		});
 		await waitFor(() => expect(controller.editor.dispatchConversionAction).toBeTypeOf('function'));
-		controller.switchProfile('musixmatch');
-		expect(
-			controller.applyConversionAction({
-				kind: 'setPassageLanguage',
-				range: { from: 0, to: 13 },
-				language: 'de'
-			})
-		).toBe(true);
-		expect(
-			controller.applyConversionAction({
-				kind: 'setForm',
-				range: { from: 5, to: 9 },
-				profile: 'genius',
-				text: ''
-			})
-		).toBe(true);
-		controller.switchProfile('genius');
 		await waitFor(() => expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun'));
 		const before = controller.snapshot.revision;
 		expect(
@@ -216,12 +210,10 @@ describe('Workspace native checker startup', () => {
 			controller.snapshot.conversion?.model.languageRanges.find((range) => range.language === 'de')
 		).toMatchObject({ from: 5, to: 9 });
 		expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun');
-		controller.switchProfile('musixmatch');
-		await waitFor(() => expect(controller.snapshot.text).toBe('Moon Star Sun'));
+		expect(controller.getExport()).toBe('Moon Star Sun');
 		expect(
 			controller.snapshot.conversion?.model.languageRanges.find((range) => range.language === 'de')
 		).toMatchObject({ from: 5, to: 9 });
-		controller.switchProfile('genius');
 		await waitFor(() => expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun'));
 	});
 

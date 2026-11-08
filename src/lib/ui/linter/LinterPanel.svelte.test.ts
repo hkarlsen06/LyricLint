@@ -566,10 +566,10 @@ describe('retained-only review', () => {
 		if (!imported.ok) throw new Error(imported.refusal.message);
 		const projected = renderProfile(imported.value, 'musixmatch');
 		if (!projected.ok) throw new Error(projected.refusal.message);
-		const { controller } = createTestWorkbench({ text: projected.value.text, diagnostics: [] });
-		controller.onSnapshot({
-			...controller.snapshot,
-			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+		const { controller } = createTestWorkbench({
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions),
+			text: projected.value.text,
+			diagnostics: []
 		});
 		await render(LinterPanel, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'View retained details' }));
@@ -596,6 +596,7 @@ describe('retained-only review', () => {
 		const rendered = renderProfile(imported.value, 'musixmatch');
 		if (!rendered.ok) throw new Error(rendered.refusal.message);
 		const { controller } = createTestWorkbench({
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions),
 			text: rendered.value.text,
 			diagnostics: [
 				diagnostic({
@@ -606,10 +607,6 @@ describe('retained-only review', () => {
 					to: 11
 				})
 			]
-		});
-		controller.onSnapshot({
-			...controller.snapshot,
-			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
 		});
 		const view = await render(LinterPanel, { controller });
 		const finding = screen.getByRole('button', { name: 'Review quantity' });
@@ -633,10 +630,10 @@ describe('retained-only review', () => {
 		if (!imported.ok) throw new Error(imported.refusal.message);
 		const rendered = renderProfile(imported.value, 'musixmatch');
 		if (!rendered.ok) throw new Error(rendered.refusal.message);
-		const { controller } = createTestWorkbench({ text: rendered.value.text, diagnostics: [] });
-		controller.onSnapshot({
-			...controller.snapshot,
-			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+		const { controller } = createTestWorkbench({
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions),
+			text: rendered.value.text,
+			diagnostics: []
 		});
 		const view = await render(LinterPanel, { controller });
 		expect(screen.getByRole('region', { name: 'Retained details needing review' })).toBeVisible();

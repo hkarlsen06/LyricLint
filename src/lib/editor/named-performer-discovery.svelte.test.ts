@@ -109,10 +109,12 @@ it('discovers short native-sized headers before first promotion and retains bind
 	}
 	expect(editor.handle.getSnapshot().conversion).toBeUndefined();
 	expect(controller.performers.map((record) => record.displayName)).toEqual(['Mira', 'Noor']);
-	controller.switchProfile('musixmatch');
+	expect(
+		controller.applyConversionAction({ kind: 'setContentKind', contentKind: 'original' })
+	).toBe(true);
 	refresh();
 	const voices = bound(editor, controller);
-	controller.switchProfile('genius');
+	expect(controller.getExport()).toBeDefined();
 	refresh();
 	expect(editor.handle.getSnapshot().text).toBe(fixture);
 	expect(bound(editor, controller)).toEqual(voices);
@@ -142,9 +144,11 @@ it('completes a new rich header atomically without discovering partial or provis
 	const { editor, controller, refresh } = mount();
 	insert(editor, '[Verse: Mira]\nLine');
 	refresh();
-	controller.switchProfile('musixmatch');
+	expect(
+		controller.applyConversionAction({ kind: 'setContentKind', contentKind: 'original' })
+	).toBe(true);
 	refresh();
-	controller.switchProfile('genius');
+	expect(controller.getExport()).toBeDefined();
 	refresh();
 	insert(editor, '\n\n[Chorus: Noor');
 	refresh();
@@ -202,7 +206,9 @@ it('undoes a legacy composition and its discovered identity together', () => {
 	refresh();
 	expect(editor.handle.getSnapshot().text).toBe('[Verse: Noor]');
 	expect(controller.performers).toEqual([noor]);
-	controller.switchProfile('musixmatch');
+	expect(
+		controller.applyConversionAction({ kind: 'setContentKind', contentKind: 'original' })
+	).toBe(true);
 	refresh();
 	expect(editor.handle.getSnapshot().conversion?.model.voices[0]?.performerIds).toEqual([noor.id]);
 });
@@ -275,12 +281,14 @@ it('keeps an empty styled legend anonymous in native edits and Genius file impor
 	refresh();
 	expect(controller.performers).toEqual([]);
 	expect(editor.handle.getSnapshot().text).toBe(text);
-	controller.switchProfile('musixmatch');
+	expect(
+		controller.applyConversionAction({ kind: 'setContentKind', contentKind: 'original' })
+	).toBe(true);
 	refresh();
 	expect(
 		editor.handle.getSnapshot().conversion?.model.voices.flatMap((voice) => voice.performerIds)
 	).toEqual([]);
-	controller.switchProfile('genius');
+	expect(controller.getExport()).toBeDefined();
 	refresh();
 	expect(editor.handle.getSnapshot().text).toBe(text);
 
