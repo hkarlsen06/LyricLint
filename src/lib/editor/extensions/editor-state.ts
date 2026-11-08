@@ -5,7 +5,7 @@ import { parseDocument } from '#lib/core/parser.js';
 import type { ParsedDocument } from '#lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from '../contracts.js';
 import { setConversionStateEffect } from './conversion-effects.js';
-import { conversionForState } from './conversion-state.js';
+import { conversionForState, profileForState } from './conversion-state.js';
 import { parseProjection } from '#lib/conversion/index.js';
 
 export const setEditorContextEffect = StateEffect.define<EditorDisplayContext>();
@@ -47,7 +47,9 @@ export function parsedDocumentForState(state: EditorState): ParsedDocument {
 	if (memoized) return memoized;
 
 	const text = state.doc.toString();
-	const parsed = state.field(editorContextField, false)?.parsed;
+	const context = state.field(editorContextField, false);
+	const profile = profileForState(state);
+	const parsed = context?.parsed;
 	const conversion = conversionForState(state);
 	const current =
 		conversion && conversion.projection.text === text
@@ -56,9 +58,9 @@ export function parsedDocumentForState(state: EditorState): ParsedDocument {
 					conversion.projection,
 					state.field(editorContextField, false)?.language
 				)
-			: parsed?.text === text
+			: parsed?.text === text && (parsed.profile ?? 'genius') === profile
 				? parsed
-				: parseDocument(text);
+				: parseDocument(text, { profile, language: context?.language });
 	parsedDocuments.set(state, current);
 	return current;
 }

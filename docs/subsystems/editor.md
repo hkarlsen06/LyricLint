@@ -23,6 +23,11 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   an expired copy. Target generation uses pure `planProfileSwitch` without upgrading primary
   storage. Historical live switching decisions below are superseded for the application UI;
   the pure conversion engine and editor history APIs remain internal.
+- A plain draft's explicit main profile remains authoritative when rich initialization is
+  refused by a conversion limit. Musixmatch bracket and tag text stays literal in the editable
+  fallback; parsing, clipboard attachment and later retained-detail imports use that same
+  source profile. Opening reports the refusal without replacing the original text or claiming
+  a Genius envelope. Shortening the source can make its retained operations available again.
 
 - Native non-pointer focus synchronizes the DOM selection through `EditorView.focus()`
   before the next key can edit. Pointer entry retains native placement and an active

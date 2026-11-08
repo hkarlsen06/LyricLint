@@ -1,12 +1,9 @@
 <script lang="ts">
-	import { createConversionEnvelope } from '#lib/persistence/conversion.js';
-	import { profilePolicyVersions } from '#lib/profiles/versions.js';
 	import { browser } from '$app/env';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { parseDocument } from '#lib/core/parser.js';
-	import { importDocument, parseProjection, renderProfile } from '#lib/conversion/index.js';
+	import { draftSnapshot } from '#lib/ui/state/draft-snapshot.js';
 	import type {
 		AutosaveStatus,
 		DraftRecord,
@@ -29,7 +26,7 @@
 	import {
 		createDepartureCheckpoint,
 		recoverDepartureCheckpoint,
-		DEPARTURE_KEY
+		departureRecoveryFile
 	} from '#lib/persistence/departure-checkpoint.js';
 	import { siteUrl } from '#lib/seo.js';
 	import { currentRuleSet } from '#lib/rules/data/rule-set.js';
@@ -77,42 +74,12 @@
 	});
 
 	function snapshotFor(draft: DraftRecord, revision = 0): EditorSnapshot {
-		if (!draft.conversion && draft.writing?.profile === 'musixmatch') {
-			const model = importDocument({
-				text: draft.text,
-				profile: 'musixmatch',
-				language: draft.language,
-				performers: draft.performers,
-				lineAnchors: draft.lineAnchors,
-				sectionLinks: draft.sectionLinks
-			});
-			if (model.ok)
-				draft = {
-					...draft,
-					conversion: createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions)
-				};
+		const opened = draftSnapshot(draft, revision);
+		if (opened.notice) {
+			feedback.announce(opened.notice);
+			feedback.addToast({ message: opened.notice });
 		}
-		const projection =
-			draft.conversion && !draft.conversionRecovery
-				? renderProfile(draft.conversion.model, draft.conversion.profile)
-				: undefined;
-		const snapshot: EditorSnapshot = {
-			revision,
-			text: draft.text,
-			selection: draft.editorSelection ?? { anchor: 0, head: 0 },
-			parsed:
-				projection?.ok && draft.conversion
-					? parseProjection(draft.conversion.model, projection.value, draft.language)
-					: parseDocument(draft.text),
-			diagnostics: [],
-			composing: false,
-			canUndo: false,
-			canRedo: false
-		};
-		if (draft.conversion) snapshot.conversion = draft.conversion;
-		if (draft.conversionRecovery) snapshot.conversionRecovery = draft.conversionRecovery;
-		if (draft.originalRecovery) snapshot.originalRecovery = draft.originalRecovery;
-		return snapshot;
+		return opened.snapshot;
 	}
 
 	// The controller starts with a headless editor handle; the real CodeMirror
@@ -261,10 +228,7 @@
 				if (!cancelled) {
 					bootError = "Local storage is unavailable, so 'scribes cannot be saved in this browser.";
 					try {
-						recoveryFile =
-							window.sessionStorage.getItem(DEPARTURE_KEY) ??
-							window.sessionStorage.getItem('lyriclint:departure:v1') ??
-							undefined;
+						recoveryFile = departureRecoveryFile(window.sessionStorage);
 					} catch {
 						/* Storage itself is unavailable. */
 					}

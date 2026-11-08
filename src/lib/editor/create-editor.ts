@@ -1053,7 +1053,11 @@ export function createLyricEditor(
 	): StateEffect<unknown>[] {
 		const revision = state.field(editorRevisionField);
 		const text = state.doc.toString();
-		const parsed = context.parsed?.text === text ? context.parsed : parseDocument(text);
+		const profile = conversionForState(state)?.envelope.profile ?? context.profile ?? 'genius';
+		const parsed =
+			context.parsed?.text === text && (context.parsed.profile ?? 'genius') === profile
+				? context.parsed
+				: parseDocument(text, { profile, language: context.language });
 		const nextContext = { ...context, parsed };
 		// A changed document clears settled decorations before context returns.
 		// Compare the immutable document too: an edit followed by undo can bring

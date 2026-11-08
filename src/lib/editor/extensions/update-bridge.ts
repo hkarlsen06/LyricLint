@@ -3,7 +3,7 @@ import type { ChangeSet, EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import type { EditorSnapshot, TextEdit } from '#lib/core/types.js';
 import { diagnosticsForState } from './lint-decorations.js';
-import { conversionForState } from './conversion-state.js';
+import { conversionForState, profileForState } from './conversion-state.js';
 import { setConversionStateEffect } from './conversion-effects.js';
 import { clipboardReviewFor, setClipboardReviewEffect } from './clipboard-review.js';
 import { renderProfile } from '#lib/conversion/projection.js';
@@ -33,10 +33,7 @@ export function snapshotFromState(state: EditorState, atomic = false): EditorSna
 	if (conversion?.recovery) snapshot.conversionRecovery = conversion.recovery;
 	const clipboardReview = clipboardReviewFor(state);
 	if (clipboardReview) {
-		const preview = renderProfile(
-			clipboardReview.conversion.model,
-			conversion?.envelope.profile ?? 'genius'
-		);
+		const preview = renderProfile(clipboardReview.conversion.model, profileForState(state));
 		if (preview.ok)
 			snapshot.clipboardReview = {
 				sourceProfile: clipboardReview.conversion.profile,

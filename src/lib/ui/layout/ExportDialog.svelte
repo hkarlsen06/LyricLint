@@ -9,7 +9,7 @@
 	const titleId = $props.id();
 	let dialog: HTMLDialogElement;
 	let opener: HTMLButtonElement;
-	let discard: HTMLButtonElement | undefined;
+	let discard = $state.raw<HTMLButtonElement>();
 	let open = $state(false);
 	let output = $state('');
 	let session = 0;

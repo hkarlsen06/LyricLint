@@ -86,7 +86,7 @@
 	// agreement between separate flags. All transitions live in overlay-state.ts.
 	let session = $state<OverlaySession>(closedOverlaySession());
 	let lastRevision = untrack(() => initialRevision);
-	let lastProfile = untrack(() => initialConversion?.profile ?? 'genius');
+	let lastProfile = untrack(() => initialConversion?.profile ?? context.profile ?? 'genius');
 	// Bumped on editor scroll so anchored overlays recompute their coordinates
 	// and stay attached to their line instead of floating in the viewport.
 	let scrollTick = $state(0);
@@ -384,7 +384,7 @@
 		return {
 			...callbacks,
 			onSnapshot(snapshot: EditorSnapshot) {
-				const profile = snapshot.conversion?.profile ?? 'genius';
+				const profile = snapshot.conversion?.profile ?? context.profile ?? 'genius';
 				if (profile !== lastProfile) {
 					session = closeOverlay(session);
 					lastProfile = profile;

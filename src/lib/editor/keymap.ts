@@ -4,7 +4,7 @@ import type { EditorView } from '@codemirror/view';
 import type { Diagnostic, EditorCallbacks, TextRange } from '#lib/core/types.js';
 import { canAssignVoiceGroup } from '#lib/performers/transform.js';
 import type { LyricEditorCallbacks } from './contracts.js';
-import { conversionForState } from './extensions/conversion-state.js';
+import { conversionForState, profileForState } from './extensions/conversion-state.js';
 import {
 	toggleConversionSectionLocal,
 	conversionSectionLocal,
@@ -85,7 +85,7 @@ export function requestSectionLink(view: EditorView, callbacks: LyricEditorCallb
 		return true;
 	}
 	const range = logicalSelection(view);
-	if (conversionForState(view.state)?.envelope.profile === 'musixmatch') {
+	if (profileForState(view.state) === 'musixmatch') {
 		callbacks.onSectionLinkRequest?.({ range, selection: range, prefer: 'above' });
 		return true;
 	}

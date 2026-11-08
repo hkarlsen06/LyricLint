@@ -3,6 +3,7 @@ import { parseLegend } from './legend.js';
 import { extractSectionStyleSpans } from './lines.js';
 import type {
 	AnnotationSpan,
+	EditorContext,
 	LineEndingKind,
 	LyricLine,
 	ParseIssue,
@@ -351,7 +352,11 @@ function resolvedSyntaxGroups(header: SectionHeader | undefined): VoiceGroup[] {
 	);
 }
 
-function finishSection(section: MutableSection | undefined, sections: Section[]): void {
+function finishSection(
+	section: MutableSection | undefined,
+	sections: Section[],
+	language = 'und'
+): void {
 	if (!section) {
 		return;
 	}
@@ -360,7 +365,7 @@ function finishSection(section: MutableSection | undefined, sections: Section[])
 		from: section.from,
 		to: section.to,
 		header: section.header,
-		language: 'und',
+		language,
 		voiceGroups: resolvedSyntaxGroups(section.header),
 		lines: section.lines
 	});
@@ -374,21 +379,26 @@ function finishSection(section: MutableSection | undefined, sections: Section[])
  * offsets. Blank physical lines and subsequent headers close the current
  * section. Malformed header and voice markup is reported without being dropped.
  */
-export function parseDocument(text: string): ParsedDocument {
+export function parseDocument(
+	text: string,
+	context?: Partial<Pick<EditorContext, 'profile' | 'language'>>
+): ParsedDocument {
 	const sections: Section[] = [];
 	const syntaxIssues: ParseIssue[] = [];
-	const annotations = scanAnnotations(text);
+	const literal = context?.profile === 'musixmatch';
+	const language = literal ? context?.language : undefined;
+	const annotations = literal ? [] : scanAnnotations(text);
 	let current: MutableSection | undefined;
 
 	for (const line of scanPhysicalLines(text)) {
 		if (line.text.trim().length === 0) {
-			finishSection(current, sections);
+			finishSection(current, sections, language);
 			current = undefined;
 			continue;
 		}
 
-		if (isHeaderCandidate(line, annotations)) {
-			finishSection(current, sections);
+		if (!literal && isHeaderCandidate(line, annotations)) {
+			finishSection(current, sections, language);
 			const { header, issues } = parseSectionHeader(text, line);
 			syntaxIssues.push(...issues);
 			current = {
@@ -413,7 +423,14 @@ export function parseDocument(text: string): ParsedDocument {
 		}
 	}
 
-	finishSection(current, sections);
-	parseSectionBodyMarkup(text, sections, syntaxIssues);
-	return { text, sections, syntaxIssues, annotations };
+	finishSection(current, sections, language);
+	if (!literal) parseSectionBodyMarkup(text, sections, syntaxIssues);
+	const parsed: ParsedDocument = {
+		text,
+		sections,
+		syntaxIssues,
+		annotations
+	};
+	if (literal) parsed.profile = 'musixmatch';
+	return parsed;
 }

@@ -107,7 +107,11 @@ export function conversionForState(state: EditorState): ConversionState | undefi
 }
 
 export function profileForState(state: EditorState): ProfileId {
-	return conversionForState(state)?.envelope.profile ?? 'genius';
+	return (
+		conversionForState(state)?.envelope.profile ??
+		state.field(editorContextField, false)?.profile ??
+		'genius'
+	);
 }
 
 function envelopeFor(
@@ -133,25 +137,27 @@ function metadataEffects(value: ConversionState, performers: readonly PerformerR
 	];
 }
 
-function importEditorState(state: EditorState) {
+export function importEditorState(state: EditorState) {
+	const profile = profileForState(state);
+	const sectionLinks = sectionLinksFor(state);
 	const imported = importDocument({
 		text: state.doc.toString(),
-		profile: 'genius',
+		profile,
 		language: state.field(editorContextField)?.language,
 		performers: state.field(editorContextField)?.performers,
 		lineAnchors: lineAnchorsFor(state),
-		sectionLinks: sectionLinksFor(state),
+		sectionLinks: sectionLinks.length ? sectionLinks : undefined,
 		nextId: state.field(allocatorField)
 	});
 	if (!imported.ok) return imported;
-	const projection = renderProfile(imported.value, 'genius');
+	const projection = renderProfile(imported.value, profile);
 	if (!projection.ok) return projection;
 	return {
 		ok: true as const,
 		value: {
 			envelope: {
 				schema: 1 as const,
-				profile: 'genius' as const,
+				profile,
 				model: imported.value,
 				converterVersion: '2' as const,
 				policyVersions: profilePolicyVersions,
@@ -277,7 +283,7 @@ export function switchEditorProfile(
 			message:
 				'These lyrics are in recovery. Export the full Scribe to preserve the text and retained details before repairing its associations.'
 		};
-	if (profile === (value?.envelope.profile ?? 'genius')) return { ok: true };
+	if (profile === profileForState(view.state)) return { ok: true };
 	if (!value) {
 		const imported = importEditorState(view.state);
 		if (!imported.ok) return { ok: false, message: imported.refusal.message };
@@ -476,7 +482,8 @@ export function conversionState(
 			const nextOrder = callbacks?.getNextPerformerOrder?.() ?? 0;
 			const additions =
 				(transaction.docChanged || ended) &&
-				(!previous || (previous.envelope.profile === 'genius' && !previous.recovery)) &&
+				profileForState(transaction.startState) === 'genius' &&
+				!previous?.recovery &&
 				callbacks?.onPerformerRecordsChanged
 					? extractCompletePerformers(
 							parseDocument(transaction.newDoc.toString()),

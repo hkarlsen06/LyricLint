@@ -19,11 +19,14 @@ import { anchorLineEffect, lineAnchorsFor } from './line-anchors.js';
 import { pastedSectionMetadata, sectionLinksFor, setSectionLinkEffect } from './section-links.js';
 import { setSectionLinksEffect } from './section-links.js';
 import { setLineAnchorsEffect } from './line-anchors.js';
-import { conversionForState, profileForState } from './conversion-state.js';
-import { profileProjection, setConversionStateEffect } from './conversion-effects.js';
+import { conversionForState, importEditorState, profileForState } from './conversion-state.js';
+import {
+	profileProjection,
+	setConversionStateEffect,
+	type ConversionState
+} from './conversion-effects.js';
 import { sliceDocument, pasteDocument } from '#lib/conversion/clipboard.js';
 import { importDocument } from '#lib/conversion/import.js';
-import { renderProfile } from '#lib/conversion/projection.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import {
 	clipboardReviewField,
@@ -377,25 +380,11 @@ function chronologicalAnchors(
  * dropped while the words still land.
  */
 
-function conversionForPaste(state: EditorState) {
+function conversionForPaste(state: EditorState): ConversionState | undefined {
 	const existing = conversionForState(state);
 	if (existing) return existing;
-	const context = state.field(editorContextField, false);
-	const imported = importDocument({
-		text: state.doc.toString(),
-		profile: 'genius',
-		language: context?.language,
-		performers: context?.performers,
-		lineAnchors: lineAnchorsFor(state),
-		sectionLinks: sectionLinksFor(state)
-	});
-	if (!imported.ok) return undefined;
-	const rendered = renderProfile(imported.value, 'genius');
-	if (!rendered.ok) return undefined;
-	return {
-		envelope: createConversionEnvelope(imported.value, 'genius', profilePolicyVersions),
-		projection: rendered.value
-	};
+	const imported = importEditorState(state);
+	return imported.ok ? imported.value : undefined;
 }
 
 /** An explicit review action may convert the copied fragment into the receiving format. */
