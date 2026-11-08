@@ -1,3 +1,13 @@
+import {
+	beginWriting,
+	expireExportCopy,
+	legacyWriting,
+	newWriting,
+	withExportCopy,
+	CREATION_PROFILE_PREFERENCE,
+	type DraftWriting
+} from '#lib/persistence/writing.js';
+import type { ProfileId } from '#lib/profiles/types.js';
 import { normalizeGeniusUrl } from '#lib/core/genius-url.js';
 import {
 	copyCompareBaseline,
@@ -125,6 +135,9 @@ interface DraftStoreDependencies {
 }
 
 interface DraftStore {
+	readonly writing: DraftWriting;
+	chooseProfile(profile: ProfileId): void;
+	setExport(text: string): void;
 	readonly draftId: string;
 	readonly title: string;
 	readonly geniusUrl: string | undefined;
@@ -164,6 +177,44 @@ interface DraftStore {
 }
 
 export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
+	let writing = $state<DraftWriting>(
+		deps.initialDraft.writing ?? legacyWriting(deps.initialDraft.conversion?.profile)
+	);
+	let creationProfile: ProfileId = 'genius';
+	let choseProfile = false;
+	const creationPreferenceReady = deps.repository
+		.getPreference(CREATION_PROFILE_PREFERENCE)
+		.then((value) => {
+			if (!choseProfile && (value === 'genius' || value === 'musixmatch')) creationProfile = value;
+		})
+		.catch(() => {});
+	let exportBasis: string | undefined;
+	let basisInputs: unknown[] = [];
+	function sourceBasis(current = bindings.snapshot): string {
+		const inputs = [
+			current.text,
+			current.conversion,
+			current.conversionRecovery,
+			current.originalRecovery,
+			language,
+			bindings.performers,
+			current.conversion ? undefined : bindings.lineAnchors,
+			current.conversion ? undefined : bindings.sectionLinks
+		];
+		if (exportBasis !== undefined && inputs.every((value, index) => value === basisInputs[index]))
+			return exportBasis;
+		basisInputs = inputs;
+		return JSON.stringify([
+			current.text,
+			current.conversion,
+			current.conversionRecovery,
+			current.originalRecovery,
+			language,
+			bindings.performers.map(({ id, displayName, aliases }) => ({ id, displayName, aliases })),
+			current.conversion ? [] : bindings.lineAnchors,
+			current.conversion ? [] : bindings.sectionLinks
+		]);
+	}
 	let draftId = $state(deps.initialDraft.id);
 	let title = $state(deps.initialDraft.title);
 	let geniusUrl = $state(deps.initialDraft.geniusUrl);
@@ -210,7 +261,21 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	}
 
 	function draftFromSnapshot(currentSnapshot = bindings.snapshot): DraftRecord {
+		if (
+			writing.phase === 'new' &&
+			(currentSnapshot.text.length > 0 || hasConversionMetadata(bindings.conversion))
+		)
+			writing = beginWriting(writing);
+		if (writing.phase === 'writing' && writing.export) {
+			const currentBasis = sourceBasis(currentSnapshot);
+			if (exportBasis !== undefined && currentBasis !== exportBasis) {
+				writing = expireExportCopy(writing);
+				exportBasis = undefined;
+				basisInputs = [];
+			} else exportBasis = currentBasis;
+		}
 		const record: DraftRecord = {
+			writing,
 			id: draftId,
 			title,
 			text: currentSnapshot.text,
@@ -369,14 +434,19 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		createdAt = nextDraft.createdAt;
 		originalText = nextDraft.originalText;
 		compareBaseline = nextDraft.compareBaseline;
+		writing = nextDraft.writing ?? legacyWriting(nextDraft.conversion?.profile);
+		exportBasis = undefined;
+		basisInputs = [];
 		storageGeneration = nextDraft.storageGeneration;
 		storageWriteId = nextDraft.storageWriteId;
 		bindings.onDraftLoaded(nextDraft);
+		if (writing.phase === 'writing' && writing.export) exportBasis = sourceBasis();
 	}
 
 	function emptyTransientDraft(): DraftRecord {
 		const timestamp = deps.now();
 		return {
+			writing: newWriting(creationProfile),
 			id: deps.idFactory(),
 			title: DEFAULT_DRAFT_TITLE,
 			text: '',
@@ -417,7 +487,41 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		};
 	}
 
+	if (deps.initialDraft.writing?.phase === 'writing' && deps.initialDraft.writing.export) {
+		const initial = deps.initialDraft;
+		const current = deps.bindings.snapshot;
+		exportBasis = JSON.stringify([
+			current.text,
+			current.conversion,
+			current.conversionRecovery,
+			current.originalRecovery,
+			initial.language,
+			initial.performers.map(({ id, displayName, aliases }) => ({ id, displayName, aliases })),
+			current.conversion ? [] : (initial.lineAnchors ?? []),
+			current.conversion ? [] : (initial.sectionLinks ?? [])
+		]);
+	}
 	const store: DraftStore = {
+		get writing() {
+			return writing;
+		},
+		chooseProfile(profile) {
+			choseProfile = true;
+			if (writing.phase !== 'new') return;
+			writing = newWriting(profile);
+			creationProfile = profile;
+			void deps.repository
+				.setPreference(CREATION_PROFILE_PREFERENCE, profile)
+				.catch(() => reportFailure('The new draft format could not be remembered.'));
+		},
+		setExport(text) {
+			draftFromSnapshot();
+			writing = withExportCopy(beginWriting(writing), text);
+			exportBasis = undefined;
+			basisInputs = [];
+			exportBasis = sourceBasis();
+			scheduleSave(true);
+		},
 		get draftId() {
 			return draftId;
 		},
@@ -524,6 +628,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				// the current-draft pointer, so a new draft abandoned untouched leaves
 				// nothing behind, and a reload before the first keystroke comes back to
 				// the draft that still has the user's work in it.
+				await creationPreferenceReady;
 				loadDraft(emptyTransientDraft(), false);
 				await store.refreshDrafts();
 				feedback.announce("New 'scribe created.");
@@ -631,6 +736,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 							await deps.repository.setCurrent(next.id);
 							loadDraft(next, true);
 						} else {
+							await creationPreferenceReady;
 							loadDraft(emptyTransientDraft(), false);
 						}
 					}
@@ -641,7 +747,8 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 					reportFailure("The 'scribe could not be deleted.");
 				} finally {
 					if (committed) {
-						if (id === draftId) loadDraft(emptyTransientDraft(), false);
+						if (id === draftId) await creationPreferenceReady;
+						loadDraft(emptyTransientDraft(), false);
 						canceled?.discard();
 					}
 				}
@@ -657,6 +764,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 					await deps.repository.deleteAll();
 					committed = true;
 					drafts = [];
+					await creationPreferenceReady;
 					loadDraft(emptyTransientDraft(), false);
 					feedback.announce("All local 'scribes deleted.");
 					return true;

@@ -10,31 +10,40 @@
 	const profiles: ProfileId[] = ['genius', 'musixmatch'];
 </script>
 
-<div class="profile-picker" role="group" aria-label="Lyric format" aria-describedby={descriptionId}>
-	{#each profiles as profile (profile)}
-		{@const current = controller.profile === profile}
-		<button
-			type="button"
-			class="button"
-			class:button--quiet={!current}
-			aria-label={`Lyric format: ${profileLabels[profile]}`}
-			aria-pressed={current}
-			aria-describedby={current && controller.pendingProfile ? descriptionId : undefined}
-			title={current && controller.pendingProfile ? 'Cancel pending format switch' : undefined}
-			onclick={() => controller.switchProfile(profile)}
-		>
-			<span class="profile-picker__mark" aria-hidden="true">
-				{#if current && controller.pendingProfile}<XIcon size={14} />
-				{:else if current}<CheckIcon size={14} weight="bold" />{/if}
-			</span>
-			{profileLabels[profile]}
-		</button>
-	{/each}
-</div>
-<span id={descriptionId} class="sr-only">
-	{#if controller.pendingProfile}Select the current format to cancel the pending switch.{/if}
-	{#if profileLanguage(controller.language) === 'und'}Language-independent conversion only.{/if}
-</span>
+{#if controller.writing.phase === 'new'}
+	<div
+		class="profile-picker"
+		role="group"
+		aria-label="Lyric format"
+		aria-describedby={descriptionId}
+	>
+		{#each profiles as profile (profile)}
+			{@const current = controller.profile === profile}
+			<button
+				type="button"
+				class="button"
+				class:button--quiet={!current}
+				aria-label={`Lyric format: ${profileLabels[profile]}`}
+				aria-pressed={current}
+				aria-describedby={current && controller.pendingProfile ? descriptionId : undefined}
+				title={current && controller.pendingProfile ? 'Cancel pending format switch' : undefined}
+				onclick={() => controller.switchProfile(profile)}
+			>
+				<span class="profile-picker__mark" aria-hidden="true">
+					{#if current && controller.pendingProfile}<XIcon size={14} />
+					{:else if current}<CheckIcon size={14} weight="bold" />{/if}
+				</span>
+				{profileLabels[profile]}
+			</button>
+		{/each}
+	</div>
+	<span id={descriptionId} class="sr-only">
+		{#if controller.pendingProfile}Select the current format to cancel the pending switch.{/if}
+		{#if profileLanguage(controller.language) === 'und'}Language-independent conversion only.{/if}
+	</span>
+{:else}
+	<span class="profile-picker">{profileLabels[controller.profile]}</span>
+{/if}
 
 <style>
 	.profile-picker {

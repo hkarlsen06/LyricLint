@@ -18,6 +18,7 @@
 	import LanguagePicker from './LanguagePicker.svelte';
 	import PassageLanguage from '../tools/PassageLanguage.svelte';
 	import ProfilePicker from './ProfilePicker.svelte';
+	import ExportDialog from './ExportDialog.svelte';
 	import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 
 	let {
@@ -342,19 +343,36 @@
 				Paste lyrics
 			</button>
 		{:else}
+			{#if !controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery}<ExportDialog
+					{controller}
+				/>{/if}
 			<button type="button" class="button button--contrast" onclick={copyLyrics}>
 				{#if copied}
 					<CheckIcon aria-hidden="true" size={16} weight="bold" />
 				{:else}
 					<CopyIcon aria-hidden="true" size={16} weight="bold" />
 				{/if}
-				{copied ? 'Lyrics copied' : 'Copy lyrics'}
+				<span class="copy-label">
+					<span class:copy-label__hidden={copied} aria-hidden={copied}
+						>Copy {controller.profile === 'genius' ? 'Genius' : 'Musixmatch'}</span
+					>
+					<span class:copy-label__hidden={!copied} aria-hidden={!copied}>Lyrics copied</span>
+				</span>
 			</button>
 		{/if}
 	</div>
 </header>
 
 <style>
+	.copy-label {
+		display: inline-grid;
+	}
+	.copy-label > span {
+		grid-area: 1 / 1;
+	}
+	.copy-label__hidden {
+		visibility: hidden;
+	}
 	/* The full width of the window, above both columns. */
 	.document-toolbar {
 		z-index: var(--layer-toolbar);

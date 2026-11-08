@@ -1,3 +1,8 @@
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
+import { importDocument } from '#lib/conversion/import.js';
+import { otherProfile, type DraftWriting } from '#lib/persistence/writing.js';
+import { planProfileSwitch } from '#lib/conversion/plan.js';
 import { parseDocument } from '#lib/core/parser.js';
 import { extractCompletePerformers } from '#lib/performers/import.js';
 import type {
@@ -121,6 +126,13 @@ export interface WorkbenchController {
 	exportOriginalRecovery(): Promise<void>;
 	readonly profile: ProfileId;
 	readonly pendingProfile: ProfileId | undefined;
+	readonly exportSession: number;
+	requestExport(): void;
+	readonly writing: DraftWriting;
+	getExport(): string | undefined;
+	setExport(text: string, session?: number): boolean;
+	copyExport(text: string): Promise<boolean>;
+	downloadExport(text: string): void;
 	readonly profileSession: number;
 	isConversionSectionLocal(sectionId: string): boolean;
 	toggleConversionSectionLocal(sectionId: string): boolean;
@@ -344,6 +356,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	// links, and a save landing in that window would write the blank over the
 	// draft's own.
 	let knownSectionLinks = $state<readonly SectionLink[]>(deps.initialDraft.sectionLinks ?? []);
+	let exportSession = $state(0);
 	let pendingProfile = $state<ProfileId | undefined>();
 	let profileSession = $state(0);
 	let draftSession = $state(1);
@@ -728,7 +741,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				feedback.addToast({ message });
 				return;
 			}
-			controller.switchProfile('genius');
+			if (controller.profile !== 'genius') {
+				controller.requestExport();
+				return;
+			}
 			if (controller.profile !== 'genius') return;
 			controller.showConversionPassage({ from: section.headerFrom, to: section.headerTo }, 'edit');
 		},
@@ -805,8 +821,94 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				feedback.addToast({ message });
 			}
 		},
+		get exportSession() {
+			return exportSession;
+		},
+		requestExport() {
+			exportSession += 1;
+		},
+		get writing() {
+			return draft.writing;
+		},
+		getExport() {
+			if (editorSession.snapshot.conversionRecovery || editorSession.snapshot.originalRecovery) {
+				const message =
+					'Resolve the retained document recovery before creating another format. Your main lyrics and original data are preserved.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return;
+			}
+			const record = draft.draftFromSnapshot();
+			if (record.writing?.phase === 'writing' && record.writing.export)
+				return record.writing.export.text;
+			const conversion = editorSession.snapshot.conversion;
+			const model = conversion
+				? { ok: true as const, value: conversion.model }
+				: importDocument({
+						text: editorSession.snapshot.text,
+						profile: controller.profile,
+						language: controller.language
+					});
+			if (!model.ok) {
+				feedback.announce(model.refusal.message);
+				feedback.addToast({ message: model.refusal.message });
+				return;
+			}
+			const plan = planProfileSwitch(model.value, {
+				from: controller.profile,
+				to: otherProfile(controller.profile)
+			});
+			if (!plan.ok) {
+				feedback.announce(plan.refusal.message);
+				feedback.addToast({ message: plan.refusal.message });
+				return;
+			}
+			return plan.value.projection.text;
+		},
+		setExport(text, session = draftSession) {
+			if (session !== draftSession) {
+				const message =
+					'This output belongs to another draft. Copy or download it before reopening Export.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+			try {
+				draft.setExport(text);
+				return true;
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : 'The edited export could not be saved.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+		},
+		async copyExport(text) {
+			const session = draftSession;
+			const source = editorSession.snapshot;
+			try {
+				await copy(text);
+				if (
+					session !== draftSession ||
+					source.text !== editorSession.snapshot.text ||
+					source.conversion !== editorSession.snapshot.conversion
+				)
+					return false;
+				feedback.announce('Export output copied.');
+				return true;
+			} catch {
+				const message = 'Copy failed. Check browser clipboard permission and try again.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+		},
+		downloadExport(text) {
+			exportText(text, safeFilename(`${draft.title} ${otherProfile(controller.profile)}`));
+		},
 		get profile() {
-			return editorSession.snapshot.conversion?.profile ?? 'genius';
+			return draft.writing.profile;
 		},
 		get pendingProfile() {
 			return pendingProfile;
@@ -818,37 +920,21 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			return rendered.ok ? rendered.value.text : editorSession.snapshot.text;
 		},
 		switchProfile(profile) {
-			pendingProfile = undefined;
-			if (editorSession.snapshot.originalRecovery) {
-				const message =
-					'This recovered text is kept separately from its original data. Export the original data from Song before repairing its format.';
-				feedback.announce(message);
-				feedback.addToast({ message });
-				return;
-			}
-			if (profile === controller.profile) return;
-			if (editorSession.snapshot.composing) {
-				pendingProfile = profile;
-				feedback.announce('The lyric format will change after this character is finished.');
-				return;
-			}
-			const syncEnded = editorSession.editor.isLyricSyncActive?.() ?? false;
-			const result = editorSession.editor.switchProfile?.(profile);
-			if (!result?.ok) {
-				const message = result?.message ?? 'Lyric format conversion is not ready yet.';
-				feedback.announce(message);
-				if (result?.deferred) {
-					pendingProfile = profile;
-					return;
-				}
-				feedback.addToast({ message });
-				return;
-			}
-			panel.clearFixPreview();
-			resetLinking();
-			feedback.announce(
-				`${profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} format.${syncEnded ? ' Sync ended.' : ''}`
-			);
+			if (draft.writing.phase !== 'new' || editorSession.snapshot.text.length > 0) return;
+			const record = draft.draftFromSnapshot();
+			const model = importDocument({ text: '', profile, language: controller.language });
+			if (!model.ok) return;
+			draft.chooseProfile(profile);
+			record.writing = draft.writing;
+			record.conversion = createConversionEnvelope(model.value, profile, profilePolicyVersions);
+			const opened = deps.onOpenDraft?.(record) ?? {
+				...editorSession.snapshot,
+				conversion: record.conversion
+			};
+			editorSession.replaceSnapshot(opened);
+			editorSession.resetRevisionGuard();
+			draftSession += 1;
+			profileSession += 1;
 		},
 		get editor() {
 			return editorSession.editor;
@@ -1008,12 +1094,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 					'Your latest text is preserved, but its retained details need recovery. Export a Scribe from Song to keep both the text and the last valid document.';
 				feedback.announce(message);
 				feedback.addToast({ message });
-			}
-			if (pendingProfile && !nextSnapshot.composing) {
-				const requested = pendingProfile;
-				queueMicrotask(() => {
-					if (pendingProfile === requested) controller.switchProfile(requested);
-				});
 			}
 			if (nextSnapshot.conversion) {
 				knownLineAnchors = editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
@@ -1284,6 +1364,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// record never made.
 			if (exported.geniusUrl !== undefined) project.geniusUrl = exported.geniusUrl;
 			if (exported.originalText !== undefined) project.originalText = exported.originalText;
+			if (exported.writing !== undefined) project.writing = exported.writing;
 			if (exported.conversion !== undefined) project.conversion = exported.conversion;
 			if (exported.conversionRecovery !== undefined)
 				project.conversionRecovery = exported.conversionRecovery;
@@ -1310,6 +1391,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			}
 		},
 		async importLyrics(file, sourceProfile) {
+			const session = draftSession;
+			const source = editorSession.snapshot;
+			const stillCurrent = () =>
+				session === draftSession &&
+				source.text === editorSession.snapshot.text &&
+				source.conversion === editorSession.snapshot.conversion;
 			try {
 				if (!file.name.toLocaleLowerCase().endsWith('.txt'))
 					throw new Error('Choose a lyrics file ending in .txt.');
@@ -1331,8 +1418,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 					language: controller.language
 				});
 				if (!model.ok) throw new Error(model.refusal.message);
-				const { createConversionEnvelope } = await import('#lib/persistence/conversion.js');
-				const { profilePolicyVersions } = await import('#lib/profiles/versions.js');
 				const timestamp = now();
 				const imported: DraftRecord = {
 					id: idFactory(),
@@ -1350,6 +1435,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				if (deps.autosave.status() === 'failed')
 					throw new Error('Save or export the current draft before opening imported lyrics.');
 				await deps.repository.create(imported);
+				if (!stillCurrent()) {
+					const message =
+						'The imported draft was saved separately. Open it from saved scribes when ready.';
+					feedback.announce(message);
+					feedback.addToast({ message });
+					return true;
+				}
 				await draft.openDraft(imported.id);
 				feedback.announce(
 					`Imported ${imported.title} as ${sourceProfile === 'genius' ? 'Genius' : 'Musixmatch'} lyrics.`
@@ -1364,6 +1456,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			}
 		},
 		async importScribe(file) {
+			const session = draftSession;
+			const source = editorSession.snapshot;
+			const stillCurrent = () =>
+				session === draftSession &&
+				source.text === editorSession.snapshot.text &&
+				source.conversion === editorSession.snapshot.conversion;
 			if (!file.name.toLocaleLowerCase().endsWith('.lls')) {
 				const message = 'Choose a LyricLint Scribe file ending in .lls.';
 				feedback.announce(message);
@@ -1410,6 +1508,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			const scribed = project.document;
 			if (scribed.geniusUrl !== undefined) imported.geniusUrl = scribed.geniusUrl;
 			if (scribed.originalText !== undefined) imported.originalText = scribed.originalText;
+			if (scribed.writing !== undefined) imported.writing = scribed.writing;
 			if (scribed.conversion !== undefined) imported.conversion = scribed.conversion;
 			if (scribed.conversionRecovery !== undefined)
 				imported.conversionRecovery = scribed.conversionRecovery;
@@ -1439,6 +1538,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 					if (source.kind === 'spotify') attachment.trackId = source.id;
 					if (source.kind === 'apple') attachment.songId = source.id;
 					await deps.mediaRepository.attach(attachment);
+				}
+				if (!stillCurrent()) {
+					const message =
+						'The imported draft was saved separately. Open it from saved scribes when ready.';
+					feedback.announce(message);
+					feedback.addToast({ message });
+					return true;
 				}
 				await draft.openDraft(imported.id);
 				feedback.announce(`Imported ${imported.title}.`);
