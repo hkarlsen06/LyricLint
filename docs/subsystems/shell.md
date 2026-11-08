@@ -110,24 +110,31 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   languages visible even without findings, with reviewed languages and grammar limits in
   Checking coverage.
 
-- The document toolbar exposes a per-draft Genius and Musixmatch buttons that select a destination in one click
-  or Enter/Space. A check and pressed state mark the committed format, and both buttons reserve
-  stable check space. During a pending switch, the committed button shows a cancel cross and
-  cancels the request. Recognized headings supply their supported section types automatically.
+- The empty new draft exposes Genius and Musixmatch creation choices in the toolbar.
+  A check and pressed state mark the chosen main format. Once writing begins, the toolbar
+  names that fixed format and offers its direct Copy action and the opposite-format export.
+  Recognized headings supply their supported section types automatically.
   Review owns the deliberate type choice and Save action for custom or unsupported labels. Song keeps advanced section editing, voices, annotations,
   language spans, authored forms and explicit conversion decisions. Hidden information is reviewed
-  through its metadata location, never through invented lyric underlines. Copy and text export
-  always use the active projection; Scribe export preserves the complete document.
+  through its metadata location, never through invented lyric underlines. Main Copy uses the
+  original text; the export dialog copies and downloads its independent output. Scribe export
+  preserves both the complete main document and any remembered output.
   A retained-section prompt names its original header and active opening lyric so the passage can
-  be recognized before choosing and saving its type in Review. Retained repeat instructions remain a separate concern even on typed sections; Edit header in Genius selects their exact stable header for manual editing, without selecting a repeat source or count. Unsaved choices reset when the item changes; saving targets its stable section ID and returns focus to the retained-review heading, including after the last item. The Assistant introduction follows the active format.
+  be recognized before choosing and saving its type in Review. Retained repeat instructions remain
+  a separate concern even on typed sections. A Genius main draft can select its exact stable header
+  for manual editing. A Musixmatch main draft opens the independent Genius export instead, without
+  changing the main format or selecting a repeat source or count. Unsaved choices reset when the
+  item changes; saving targets its stable section ID and returns focus to the retained-review
+  heading, including after the last item. The Assistant introduction follows the main format.
   The opening excerpt follows the active projection, including authored spellings, without changing
   the retained original. A section with no projected lyric text says no visible lyrics.
   A displaced section uses the existing Review in Song action, focused on its stable section ID.
   Song opens its boundary options for explicit Move to cursor repair at a valid lyric line start.
   A section request opens at the section controls and return action, with focus on the requested
   section. Unrelated Song metadata stays above that reading position.
-- Format changes reset stale diagnostic and assistant proposals, including a switch away and
-  back. Compare always renders the Genius projection against the Genius baseline and maps a
+- Document edits and draft loads reset stale diagnostic and assistant proposals. Opening or
+  editing independent output does not change the main editor's revision. Compare always renders
+  the Genius projection against the Genius baseline and maps a
   chosen difference back to the active editor. Text checks and retained-detail review never claim
   that listening, attribution or external Musixmatch tagging have been completed.
   Comparison lyrics use the reading face at the normal body size; each desktop line target

@@ -41,12 +41,12 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   on a later shell refresh. Composition waits for its existing committed boundary.
   `named-performer-discovery.svelte.test.ts` pins controller, renderer and history together.
 
-- Rich drafts keep one `ConversionDocument`. `renderProfile` derives Genius or Musixmatch text
+- Rich main drafts keep one `ConversionDocument`. `renderProfile` derives Genius or Musixmatch text
   without allocating IDs, changing authored forms, applying lint fixes or mutating metadata.
-  Repeated switches preserve each projection byte for byte; edits reconcile through the
+  Repeated internal profile switches preserve each projection byte for byte; main edits reconcile through the
   projection's exact ranges. Malformed or ambiguous syntax stays literal. A failed reconciliation
   preserves the latest typed text and the last valid checkpoint separately for recovery.
-- `conversion-state.ts` commits text, model, selection, timing and links atomically. Switching is
+- `conversion-state.ts` commits text, model, selection, timing and links atomically. Internal switching is
   isolated in undo history, including text-identical views; choosing the current view is a no-op.
   IME changes finish before a queued switch. Undo retains the allocator high-water mark, including
   after save/reload, so a new edit never reuses a retired occurrence's ID. Selection and viewport
@@ -69,8 +69,9 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   Coarse-pointer rows retain the control touch floor. The workbench's persistent Section action
   replaces in-document headerless helper rows, which would otherwise appear only in Genius.
   `conversion.svelte.test.ts`, `conversion-identities.svelte.test.ts`,
-  `conversion-history.svelte.test.ts` and `e2e/profile-workbench.spec.ts` cover switching,
-  undo, reload, native typing, selection and scrolled passage continuity.
+  `conversion-history.svelte.test.ts` cover internal switching, undo, native typing, selection
+  and scrolled passage continuity. `e2e/profile-workbench.spec.ts` covers fixed primaries,
+  independent export, source history, reload and native typing through the application UI.
 - Censored-word tasks accept the complete starred token in Musixmatch after explicit audible-prefix
   and audio-cutoff confirmation. The original starred spelling stays retained for Genius. The
   decision's profile names its source representation, so removing a mask decision restores that mask.
@@ -217,7 +218,7 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   Known fractional widget heights can otherwise accumulate native scrollTop rounding bias;
   `conversion-scroll.svelte.test.ts` covers that independently of widget estimation.
 - Viewport continuity captures geometry only while the editor is in view and visible.
-  Phone Tools keeps the editor mounted but hidden; profile switches there preserve the
+  Phone Tools keeps the editor mounted but hidden; internal profile transactions preserve the
   document and history without capturing stale layout as a new scroll target. Clearing
   retains the explicit profile and removes lyrics and retained details in one history event.
   `conversion.svelte.test.ts` and `e2e/mobile-workbench.spec.ts` cover clear and history.
@@ -225,8 +226,10 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 - English Genius-owned backing-vocal openings such as `(Yeah)`, `(Oh yes I am)` and `(Whatever)` lowercase
   in Musixmatch through the same conservative primitive as the native finding. Genius source
   bytes, explicit target spellings, names, pronouns and sentence starts remain retained.
-  Saved model converter versions 1 and 2 keep their rendering on load; a deliberate switch into
-  Musixmatch adopts version 3 in one history event. Undo restores the prior version and text.
+  Saved model converter versions 1 and 2 keep their rendering on load. Creating a Musixmatch
+  export uses the current version without modifying the main model. At the internal editor
+  boundary, a profile switch adopts version 3 in one history event and Undo restores the prior
+  version and text.
   `backing-vocal-case.test.ts` and `conversion.svelte.test.ts` cover old envelopes and Scribe reload.
 
 - Hidden editor document changes retain CodeMirror's bounded viewport validation. A large
