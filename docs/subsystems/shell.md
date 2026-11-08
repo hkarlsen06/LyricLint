@@ -41,6 +41,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 - The populated toolbar names the main format, copies its exact text, and offers Export to
   the other format. The native export dialog edits independent plain output, never editor
   history, source metadata or selection. Copy and Download use the exact edited output.
+  Output too large to persist stays editable and guards departure. Closing points to an
+  explicit discard-and-close action; discarding retains the last successfully saved export.
   Edited output persists per draft until a real original text, formatting, language, roster,
   anchor or link change. Selection, title, ignored findings and playhead do not expire it.
   Invalidation happens before constructing the complete saved snapshot; Undo cannot restore

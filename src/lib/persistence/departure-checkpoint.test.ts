@@ -10,6 +10,7 @@ import { closeDatabase, openDatabase, type LyricLintDatabase } from './database.
 import { createDraftRepository } from './draft-repository.js';
 import {
 	createDepartureCheckpoint,
+	departureRecoveryFile,
 	DEPARTURE_KEY,
 	parseDepartureCheckpoint,
 	recoverDepartureCheckpoint
@@ -78,6 +79,126 @@ async function setup() {
 }
 
 describe('departure durability', () => {
+	it('recovers both checkpoint generations before retiring either key', async () => {
+		const { db, session, checkpoint, repository } = await setup();
+		const legacy = { ...rich(), id: 'legacy', storageWriteId: crypto.randomUUID() };
+		const current = { ...rich(), id: 'current', storageWriteId: crypto.randomUUID() };
+		session.setItem(
+			'lyriclint:departure:v1',
+			JSON.stringify({ format: 'lyriclint-departure', version: 1, snapshots: [{ draft: legacy }] })
+		);
+		checkpoint.write([{ draft: current }]);
+		expect(await recoverDepartureCheckpoint(db, checkpoint)).toEqual({
+			recovered: 2,
+			conflicted: false
+		});
+		expect((await repository.get('legacy'))?.text).toBe(legacy.text);
+		expect((await repository.get('current'))?.text).toBe(current.text);
+		expect(session.getItem('lyriclint:departure:v1')).toBeNull();
+		expect(session.getItem(DEPARTURE_KEY)).toBeNull();
+	});
+
+	it('preserves different pending writes of the same draft as guarded conflict copies', async () => {
+		const { db, session, checkpoint } = await setup();
+		const legacy = {
+			...rich('[Verse]\nLegacy pending words'),
+			storageWriteId: crypto.randomUUID()
+		};
+		const current = {
+			...rich('[Verse]\nCurrent pending words'),
+			storageWriteId: crypto.randomUUID()
+		};
+		session.setItem(
+			'lyriclint:departure:v1',
+			JSON.stringify({ format: 'lyriclint-departure', version: 1, snapshots: [{ draft: legacy }] })
+		);
+		checkpoint.write([{ draft: current }]);
+		expect(await recoverDepartureCheckpoint(db, checkpoint)).toEqual({
+			recovered: 2,
+			conflicted: true
+		});
+		expect((await db.drafts.toArray()).map(({ text }) => text).sort()).toEqual(
+			[legacy.text, current.text].sort()
+		);
+	});
+
+	it('deduplicates identical checkpoint writes and orders a carried predecessor first', async () => {
+		const { db, session, checkpoint, repository } = await setup();
+		const earlier = {
+			...rich('[Verse]\nEarlier words'),
+			storageWriteId: crypto.randomUUID(),
+			storageGeneration: 0
+		};
+		const later = {
+			...rich('[Verse]\nLater words'),
+			storageWriteId: crypto.randomUUID(),
+			storageGeneration: 0
+		};
+		// Key version is not an ordering signal: the legacy bundle can run later.
+		checkpoint.write([{ draft: earlier }]);
+		session.setItem(
+			'lyriclint:departure:v1',
+			JSON.stringify({
+				format: 'lyriclint-departure',
+				version: 1,
+				snapshots: [{ draft: later, precedingWrite: { id: earlier.storageWriteId, generation: 0 } }]
+			})
+		);
+		expect(await recoverDepartureCheckpoint(db, checkpoint)).toEqual({
+			recovered: 2,
+			conflicted: false
+		});
+		expect((await repository.get(earlier.id))?.text).toBe(later.text);
+		checkpoint.write([{ draft: later }]);
+		session.setItem('lyriclint:departure:v1', session.getItem(DEPARTURE_KEY)!);
+		expect(checkpoint.read()).toHaveLength(1);
+	});
+
+	it('preserves both raw files if the unpreferred legacy checkpoint is unreadable', async () => {
+		const { db, session, checkpoint } = await setup();
+		checkpoint.write([{ draft: { ...rich(), storageWriteId: crypto.randomUUID() } }]);
+		const current = session.getItem(DEPARTURE_KEY);
+		session.setItem('lyriclint:departure:v1', 'Unreadable latest words');
+		await expect(recoverDepartureCheckpoint(db, checkpoint)).rejects.toThrow();
+		expect(await db.drafts.count()).toBe(0);
+		expect(session.getItem('lyriclint:departure:v1')).toBe('Unreadable latest words');
+		expect(session.getItem(DEPARTURE_KEY)).toBe(current);
+	});
+
+	it('does not clear an unread legacy file when the current writer has no pending work', () => {
+		const session = storage();
+		const checkpoint = createDepartureCheckpoint(() => session);
+		session.setItem('lyriclint:departure:v1', 'Unconsumed words');
+		checkpoint.write([]);
+		expect(session.getItem('lyriclint:departure:v1')).toBe('Unconsumed words');
+	});
+
+	it('acknowledges only the exact bytes read before recovery', () => {
+		const session = storage();
+		const checkpoint = createDepartureCheckpoint(() => session);
+		checkpoint.write([{ draft: { ...rich(), storageWriteId: crypto.randomUUID() } }]);
+		checkpoint.read();
+		const newer = 'A different pending checkpoint';
+		session.setItem('lyriclint:departure:v1', newer);
+		expect(() => checkpoint.clear()).toThrow();
+		expect(session.getItem('lyriclint:departure:v1')).toBe(newer);
+		expect(session.getItem(DEPARTURE_KEY)).not.toBeNull();
+	});
+
+	it('downloads both pending raw files even when one cannot be parsed', () => {
+		const session = storage();
+		expect(departureRecoveryFile(session)).toBeUndefined();
+		session.setItem('lyriclint:departure:v1', 'Exact unreadable bytes');
+		expect(departureRecoveryFile(session)).toBe('Exact unreadable bytes');
+		session.setItem(DEPARTURE_KEY, 'A second raw recovery');
+		const file = departureRecoveryFile(session);
+		if (!file) throw new Error('Missing recovery download.');
+		expect(JSON.parse(file).files).toEqual([
+			{ key: 'lyriclint:departure:v1', text: 'Exact unreadable bytes' },
+			{ key: DEPARTURE_KEY, text: 'A second raw recovery' }
+		]);
+	});
+
 	it('recovers a complete rich snapshot before debounce, including side records, and remains idempotent', async () => {
 		const { db, repository, session, checkpoint, controller } = await setup();
 		const draft = rich();

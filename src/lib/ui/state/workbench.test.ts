@@ -10,6 +10,7 @@ import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { runRules as computeDiagnostics } from '#lib/rules/engine.js';
 import { copySectionLinks } from '#lib/persistence/copy.js';
+import { legacyWriting, withExportCopy } from '#lib/persistence/writing.js';
 import { parseDocument } from '#lib/core/parser.js';
 import type {
 	AutosaveController,
@@ -268,6 +269,46 @@ describe('workbench draft safety', () => {
 
 		expect(editor.getLineAnchors?.()).toEqual([{ line: 2, time: 61 }]);
 	});
+
+	test.each([false, true])(
+		'keeps incoming cached output across metadata handoff, timed incoming: %s',
+		async (timed) => {
+			const metadata = { lineAnchors: [{ line: 2, time: 61 }], sectionLinks: [{ lines: [2, 5] }] };
+			const text = '[Verse]\nOne\n\n[Verse]\nOne';
+			const first: DraftRecord = { ...draft('draft-a', text), ...(!timed ? metadata : {}) };
+			const second: DraftRecord = {
+				...draft('draft-b', text),
+				...(timed ? metadata : {}),
+				writing: withExportCopy(legacyWriting('genius'), 'Independently edited output')
+			};
+			const repository = createInMemoryDraftRepository([first, second]);
+			const { controller, editor, autosave } = setup({ initial: first, repository });
+			editor.setLineAnchors?.(first.lineAnchors ?? []);
+			editor.setSectionLinks?.(first.sectionLinks ?? []);
+			await controller.openDraft(second.id);
+			// An incoming save can happen before the outgoing keyed editor is torn down.
+			controller.setTitle('Incoming title');
+			expect(controller.getExport()).toBe('Independently edited output');
+			const nextEditor: EditorHandle = {
+				...editor,
+				getLineAnchors: () => second.lineAnchors ?? [],
+				getSectionLinks: () => second.sectionLinks ?? []
+			};
+			controller.setEditorHandle(nextEditor);
+			controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 9, head: 9 } });
+			expect(controller.getExport()).toBe('Independently edited output');
+			await autosave.flush();
+			const saved = await repository.get(second.id);
+			expect(saved?.lineAnchors ?? []).toEqual(second.lineAnchors ?? []);
+			expect(saved?.sectionLinks ?? []).toEqual(second.sectionLinks ?? []);
+			expect(saved?.writing).toEqual(second.writing);
+			if (!saved) throw new Error('The incoming draft was not saved.');
+			const reloaded = setup({ initial: saved, repository, headless: true });
+			expect(reloaded.controller.getExport()).toBe('Independently edited output');
+			reloaded.controller.setEditorHandle(reloaded.editor);
+			expect(reloaded.controller.getExport()).toBe('Independently edited output');
+		}
+	);
 
 	/*
 	 * The bug this pins lost a whole synced song on every reload, and it lost it

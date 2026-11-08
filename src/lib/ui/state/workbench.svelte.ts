@@ -356,6 +356,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	// links, and a save landing in that window would write the blank over the
 	// draft's own.
 	let knownSectionLinks = $state<readonly SectionLink[]>(deps.initialDraft.sectionLinks ?? []);
+	let metadataEditorReady = true;
 	let exportSession = $state(0);
 	let pendingProfile = $state<ProfileId | undefined>();
 	let profileSession = $state(0);
@@ -427,12 +428,17 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				// with a headless handle that cannot answer this, and any save that
 				// landed in that window (a rename is enough) would write an empty
 				// list over the draft's own timings.
-				return editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
+				return metadataEditorReady
+					? (editorSession.editor.getLineAnchors?.() ?? knownLineAnchors)
+					: knownLineAnchors;
 			},
 			get sectionLinks() {
-				return editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
+				return metadataEditorReady
+					? (editorSession.editor.getSectionLinks?.() ?? knownSectionLinks)
+					: knownSectionLinks;
 			},
 			onDraftLoaded(nextDraft) {
+				metadataEditorReady = false;
 				draftSession += 1;
 				pendingProfile = undefined;
 				resetLinking();
@@ -1073,6 +1079,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			) {
 				handle.setSectionLinks(knownSectionLinks);
 			}
+			metadataEditorReady = true;
 			// The card that starts expanded asks for its preview before the real
 			// editor exists to draw it. Now that one does, show it.
 			panel.retryFixPreview();

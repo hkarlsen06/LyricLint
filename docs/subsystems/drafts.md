@@ -93,6 +93,11 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   download with an alert; a refused departure checkpoint warns visibly and announces, and asks
   the browser to confirm leaving. File capabilities never enter JSON or request permission:
   recovery reuses only the same recording's committed handle; unsaved files need reconnecting.
+  Recovery consumes both current and legacy session keys when they coexist. Identical write
+  identities deduplicate; dependent writes replay after their predecessors, and independent
+  writes use the normal guarded save, including conflict copies. Unreadable or contradictory
+  files preserve both raw values for download. Acknowledgement removes only the exact files
+  read before replay; a file changed during recovery is retained and blocks startup.
 - Backups and Scribe files carrying grouped `writing` ownership and output use version 3.
   Rich version 2 and ordinary legacy version 1 remain accepted. Import
   refuses unknown or mismatched rich state before writing. Reconciliation recovery carries both

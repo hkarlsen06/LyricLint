@@ -6,6 +6,7 @@ import type { DepartureCheckpoint, DepartureSnapshot, SessionStorageLike } from 
 
 const LEGACY_DEPARTURE_KEY = 'lyriclint:departure:v1';
 export const DEPARTURE_KEY = 'lyriclint:departure:v2';
+const CHECKPOINT_KEYS = [LEGACY_DEPARTURE_KEY, DEPARTURE_KEY];
 // Session storage is a bounded bridge across navigation, not a second database.
 const MAX_CHARACTERS = 2 * 1024 * 1024;
 const MAX_SNAPSHOTS = 16;
@@ -96,20 +97,63 @@ export function parseDepartureCheckpoint(text: string): DepartureSnapshot[] {
 	});
 }
 
+/** Keep every pending byte available for download, including an unreadable older file. */
+export function departureRecoveryFile(storage: SessionStorageLike): string | undefined {
+	const files = CHECKPOINT_KEYS.flatMap((key) => {
+		const text = storage.getItem(key);
+		return text === null ? [] : [{ key, text }];
+	});
+	return files.length > 1
+		? JSON.stringify({ format: 'lyriclint-departure-recovery', version: 1, files })
+		: files[0]?.text;
+}
+
+function mergeCheckpoints(snapshots: DepartureSnapshot[]): DepartureSnapshot[] {
+	const writes = new Map<string, DepartureSnapshot>();
+	for (const snapshot of snapshots) {
+		const id = snapshot.draft.storageWriteId;
+		if (!id) throw new Error('Missing departure write identity.');
+		const existing = writes.get(id);
+		if (existing && JSON.stringify(existing) !== JSON.stringify(snapshot))
+			throw new Error('Conflicting departure write identities. Both recovery files are preserved.');
+		writes.set(id, snapshot);
+	}
+	const ordered: DepartureSnapshot[] = [];
+	const completed = new Set<DepartureSnapshot>();
+	const visiting = new Set<DepartureSnapshot>();
+	function visit(snapshot: DepartureSnapshot): void {
+		if (completed.has(snapshot)) return;
+		if (visiting.has(snapshot)) throw new Error('Cyclic departure write identities.');
+		visiting.add(snapshot);
+		const previous = snapshot.precedingWrite && writes.get(snapshot.precedingWrite.id);
+		if (previous) visit(previous);
+		visiting.delete(snapshot);
+		completed.add(snapshot);
+		ordered.push(snapshot);
+	}
+	for (const snapshot of writes.values()) visit(snapshot);
+	return ordered;
+}
+
 export function createDepartureCheckpoint(
 	storage: () => SessionStorageLike
 ): DepartureCheckpoint & {
 	read(): DepartureSnapshot[];
 } {
+	let consumed: Array<{ key: string; text: string | null }> | undefined;
 	return {
 		read() {
-			const text = storage().getItem(DEPARTURE_KEY) ?? storage().getItem(LEGACY_DEPARTURE_KEY);
-			return text === null ? [] : parseDepartureCheckpoint(text);
+			consumed = undefined;
+			const files = CHECKPOINT_KEYS.map((key) => ({ key, text: storage().getItem(key) }));
+			const snapshots = mergeCheckpoints(
+				files.flatMap(({ text }) => (text === null ? [] : parseDepartureCheckpoint(text)))
+			);
+			consumed = files;
+			return snapshots;
 		},
 		write(snapshots) {
 			if (snapshots.length === 0) {
 				storage().removeItem(DEPARTURE_KEY);
-				storage().removeItem(LEGACY_DEPARTURE_KEY);
 				return;
 			}
 			if (snapshots.length > MAX_SNAPSHOTS) throw new Error('Too many pending drafts.');
@@ -129,8 +173,10 @@ export function createDepartureCheckpoint(
 			storage().setItem(DEPARTURE_KEY, text);
 		},
 		clear() {
-			storage().removeItem(DEPARTURE_KEY);
-			storage().removeItem(LEGACY_DEPARTURE_KEY);
+			if (!consumed || consumed.some(({ key, text }) => storage().getItem(key) !== text))
+				throw new Error('Pending recovery changed while being restored. Both files are preserved.');
+			for (const { key, text } of consumed) if (text !== null) storage().removeItem(key);
+			consumed = undefined;
 		}
 	};
 }

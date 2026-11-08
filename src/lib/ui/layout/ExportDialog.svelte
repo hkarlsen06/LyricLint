@@ -9,6 +9,7 @@
 	const titleId = $props.id();
 	let dialog: HTMLDialogElement;
 	let opener: HTMLButtonElement;
+	let discard: HTMLButtonElement | undefined;
 	let open = $state(false);
 	let output = $state('');
 	let session = 0;
@@ -40,7 +41,10 @@
 	}
 	function close() {
 		copyRequest += 1;
-		if (error) return;
+		if (error) {
+			discard?.focus();
+			return;
+		}
 		open = false;
 		dialog.close();
 	}
@@ -100,6 +104,17 @@
 				spellcheck="false"></textarea>
 			{#if error}<p role="alert">{error}</p>{/if}
 			<div class="export-actions">
+				{#if error}
+					<button
+						bind:this={discard}
+						type="button"
+						class="button button--quiet"
+						onclick={() => {
+							error = '';
+							close();
+						}}>Discard unsaved output and close</button
+					>
+				{/if}
 				<button type="button" class="button button--quiet" onclick={close}>Edit lyrics</button>
 				<button type="button" class="button" onclick={() => controller.downloadExport(output)}
 					>Download .txt</button
@@ -178,7 +193,7 @@
 	}
 	@media (pointer: coarse) {
 		.button {
-			min-height: 44px;
+			min-height: var(--control-height-touch);
 		}
 	}
 </style>

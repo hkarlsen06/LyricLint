@@ -65,4 +65,18 @@ test('refuses oversized output without truncating it or changing the primary, an
 	const departure = new Event('beforeunload', { cancelable: true });
 	window.dispatchEvent(departure);
 	expect(departure.defaultPrevented).toBe(true);
+	await userEvent.keyboard('{Escape}');
+	const discard = screen.getByRole('button', { name: 'Discard unsaved output and close' });
+	expect(discard).toHaveFocus();
+	expect(output).toHaveValue(oversized);
+	await userEvent.click(discard);
+	expect(document.querySelector('dialog:modal')).toBeNull();
+	expect(controller.snapshot).toBe(original);
+	const afterDiscard = new Event('beforeunload', { cancelable: true });
+	window.dispatchEvent(afterDiscard);
+	expect(afterDiscard.defaultPrevented).toBe(false);
+	await userEvent.click(screen.getByRole('button', { name: 'Export to Musixmatch' }));
+	expect(screen.getByRole('textbox', { name: 'Musixmatch output' })).toHaveValue(
+		'Last saved output'
+	);
 });
