@@ -121,7 +121,7 @@ export function createTestWorkbench(options?: {
 		id: 'draft-1',
 		title: 'Test draft',
 		text,
-		language: 'en',
+		language: options?.conversion?.model.defaultLanguage ?? 'en',
 		performers: options?.performers ?? [],
 		createdAt: '2026-07-20T10:00:00.000Z',
 		updatedAt: '2026-07-20T10:00:00.000Z',

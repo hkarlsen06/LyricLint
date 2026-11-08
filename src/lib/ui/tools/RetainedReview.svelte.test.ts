@@ -25,7 +25,9 @@ test('does not ask to reconfirm section types already named by Genius headings',
 	if (!imported.ok) throw Error(imported.refusal.message);
 	const projection = renderProfile(imported.value, 'musixmatch');
 	if (!projection.ok) throw Error(projection.refusal.message);
-	const { controller } = createTestWorkbench({ text: projection.value.text });
+	const { controller } = createTestWorkbench({
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
 	controller.onSnapshot({
 		...controller.snapshot,
 		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
@@ -38,7 +40,9 @@ test('keeps completion focus when the reviewed section has no visible lyrics', a
 	if (!imported.ok) throw Error(imported.refusal.message);
 	const projection = renderProfile(imported.value, 'musixmatch');
 	if (!projection.ok) throw Error(projection.refusal.message);
-	const { controller } = createTestWorkbench({ text: '' });
+	const { controller } = createTestWorkbench({
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
 	controller.onSnapshot({
 		...controller.snapshot,
 		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
@@ -85,7 +89,9 @@ test('identifies retained sections by their header and lyric, including empty bo
 	if (!imported.ok) throw new Error(imported.refusal.message);
 	const projection = renderProfile(imported.value, 'musixmatch');
 	if (!projection.ok) throw new Error(projection.refusal.message);
-	const { controller } = createTestWorkbench({ text: projection.value.text });
+	const { controller } = createTestWorkbench({
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
 	controller.onSnapshot({
 		...controller.snapshot,
 		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
@@ -114,7 +120,13 @@ test('identifies retained sections by their active wording after a format-specif
 		audioCensored: true
 	});
 	if (!changed.ok) throw Error(changed.refusal.message);
-	const { controller } = createTestWorkbench({ text: changed.value.projection.text });
+	const { controller } = createTestWorkbench({
+		conversion: createConversionEnvelope(
+			changed.value.document,
+			'musixmatch',
+			profilePolicyVersions
+		)
+	});
 	controller.onSnapshot({
 		...controller.snapshot,
 		conversion: createConversionEnvelope(
@@ -199,7 +211,9 @@ test('expires a prepared section choice after an edit while retaining selection-
 	if (!imported.ok) throw Error(imported.refusal.message);
 	const projection = renderProfile(imported.value, 'musixmatch');
 	if (!projection.ok) throw Error(projection.refusal.message);
-	const { controller } = createTestWorkbench({ text: projection.value.text });
+	const { controller } = createTestWorkbench({
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
 	controller.onSnapshot({
 		...controller.snapshot,
 		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
@@ -257,7 +271,9 @@ for (const header of ['Chorus x2', 'Repeat Chorus', 'Chorus 2x', 'Chorus x 2']) 
 		if (!imported.ok) throw Error(imported.refusal.message);
 		const section = imported.value.sections[0]!;
 		section.type = 'Chorus';
-		const { controller } = createTestWorkbench({ text: 'Stay beside me' });
+		const { controller } = createTestWorkbench({
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+		});
 		controller.onSnapshot({
 			...controller.snapshot,
 			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
@@ -268,8 +284,16 @@ for (const header of ['Chorus x2', 'Repeat Chorus', 'Chorus 2x', 'Chorus x 2']) 
 		]);
 		const view = await render(RetainedReview, { controller, findings });
 		expect(
-			within(view.container).getByRole('button', { name: 'Edit header in Genius' })
+			within(view.container).getByRole('button', { name: 'Open Genius export' })
 		).toBeVisible();
 		expect(within(view.container).queryByRole('combobox')).toBeNull();
+		const before = controller.snapshot;
+		await fireEvent.click(
+			within(view.container).getByRole('button', { name: 'Open Genius export' })
+		);
+		expect(controller.exportSession).toBe(1);
+		expect(controller.profile).toBe('musixmatch');
+		expect(controller.snapshot).toBe(before);
+		expect(controller.getExport()).toBe(`[${header}: Mira]\nStay beside me`);
 	});
 }

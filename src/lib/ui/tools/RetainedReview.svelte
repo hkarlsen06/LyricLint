@@ -112,7 +112,9 @@
 							type="button"
 							class="button button--quiet"
 							onclick={() => controller.editRetainedRepeatHeader(finding.sectionId)}
-							>Edit header in Genius</button
+							>{controller.profile === 'musixmatch'
+								? 'Open Genius export'
+								: 'Edit header in Genius'}</button
 						>
 					{:else}
 						<button
