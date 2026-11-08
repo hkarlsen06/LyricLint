@@ -1,3 +1,6 @@
+import { importDocument } from '#lib/conversion/import.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { fireEvent, waitFor, within } from '@testing-library/dom';
 import { page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
@@ -20,7 +23,11 @@ async function setup(text = '[Verse]\n2 stars') {
 		createObjectUrl: () => 'blob:test',
 		revokeObjectUrl() {}
 	});
+	const model = importDocument({ text, profile: 'genius', language: 'en' });
+	if (!model.ok) throw new Error(model.refusal.message);
+	const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
 	const workbench = createTestWorkbench({
+		conversion,
 		text,
 		revision: 0,
 		media: { repository: createInMemoryMediaRepository([]), player }
@@ -28,7 +35,8 @@ async function setup(text = '[Verse]\n2 stars') {
 	let handle: EditorHandle | undefined;
 	await render(EditorPane, {
 		props: {
-			initialText: text,
+			initialText: conversion.projectionText,
+			initialConversion: conversion,
 			context: { language: 'en', performers: [], ruleSetVersion: 'test' },
 			callbacks: {
 				onSnapshot: (snapshot) => workbench.controller.onSnapshot(snapshot),
@@ -44,7 +52,6 @@ async function setup(text = '[Verse]\n2 stars') {
 		}
 	});
 	await waitFor(() => expect(handle).toBeDefined());
-	workbench.controller.switchProfile('musixmatch');
 	handle!.setSelection({ anchor: 0, head: 1 });
 	await waitFor(() => expect(workbench.controller.snapshot.selection.head).toBe(1));
 	const view = await render(ConversionFacts, { controller: workbench.controller });
@@ -85,9 +92,7 @@ test.each([390, 1200])(
 		await fireEvent.click(panel.getByRole('button', { name: 'Apply quantity' }));
 		await waitFor(() => expect(controller.snapshot.text).toBe('two stars'));
 		for (let n = 0; n < 4; n++) {
-			controller.switchProfile('genius');
-			expect(handle.getSnapshot().text).toBe('[Verse]\n2 stars');
-			controller.switchProfile('musixmatch');
+			expect(controller.getExport()).toBe('[Verse]\n2 stars');
 			expect(handle.getSnapshot().text).toBe('two stars');
 		}
 		player.destroy();
@@ -166,9 +171,7 @@ test.each([false, true])(
 		await fireEvent.click(panel.getByRole('button', { name: 'Preview instrumental interval' }));
 		await fireEvent.click(panel.getByRole('button', { name: 'Save instrumental interval' }));
 		await waitFor(() => expect(controller.snapshot.text).toBe('One\n\n#INSTRUMENTAL\n\nTwo'));
-		controller.switchProfile('genius');
-		expect(handle.getSnapshot().text).toBe('[Verse]\nOne\n\n[Chorus]\nTwo');
-		controller.switchProfile('musixmatch');
+		expect(controller.getExport()).toBe('[Verse]\nOne\n\n[Chorus]\nTwo');
 		expect(handle.getSnapshot().text).toBe('One\n\n#INSTRUMENTAL\n\nTwo');
 		player.destroy();
 	}
@@ -191,9 +194,7 @@ test('expands only an explicitly selected repeat scope and count after an exact 
 	expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
 	await fireEvent.click(panel.getByRole('button', { name: 'Expand this passage' }));
 	expect(handle.getSnapshot().text).toBe('Again\nAgain\nAgain');
-	controller.switchProfile('genius');
-	expect(handle.getSnapshot().text).toBe('[Verse]\nAgain\nAgain\nAgain');
-	handle.undo();
+	expect(controller.getExport()).toBe('[Verse]\nAgain\nAgain\nAgain');
 	handle.undo();
 	expect(handle.getSnapshot().text).toBe('Again (x3)');
 	player.destroy();
@@ -252,7 +253,6 @@ test('previews a chosen ASCII target for full-width French source without changi
 	expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(before);
 	await fireEvent.click(panel.getByRole('button', { name: 'Apply quantity' }));
 	await waitFor(() => expect(controller.snapshot.text).toBe("J'ai compté 13 étoiles"));
-	controller.switchProfile('genius');
-	expect(handle.getSnapshot().text).toBe(source);
+	expect(controller.getExport()).toBe(source);
 	player.destroy();
 });

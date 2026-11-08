@@ -23,7 +23,7 @@ test('keeps phone identity and copy visible while document commands dismiss thre
 	const { controller } = createTestWorkbench({ text: '[Verse]\nThe words' });
 	await render(DocumentToolbar, { controller });
 	const trigger = await screen.findByRole('button', { name: 'Document' });
-	const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+	const copy = screen.getByRole('button', { name: 'Copy Genius' });
 	expect(screen.queryByRole('button', { name: 'Compare' })).toBeNull();
 	for (const control of [trigger, copy, screen.getByLabelText("'Scribe title")]) {
 		const rect = control.getBoundingClientRect();
@@ -56,7 +56,7 @@ test.each([360, 390])('keeps history focus on the usable command at %ipx', async
 	await userEvent.click(await screen.findByRole('button', { name: 'Document' }));
 	const undo = screen.getByRole('button', { name: 'Undo' });
 	const redo = screen.getByRole('button', { name: 'Redo' });
-	const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+	const copy = screen.getByRole('button', { name: 'Copy Genius' });
 	const before = copy.getBoundingClientRect();
 	await userEvent.click(undo);
 	await waitFor(() => expect(document.activeElement).toBe(redo));
@@ -107,7 +107,7 @@ test.each([
 	const documentControl = await screen.findByRole('button', { name: 'Document' });
 	await userEvent.click(documentControl);
 	const menu = document.querySelector<HTMLElement>('#document-commands')!;
-	const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+	const copy = screen.getByRole('button', { name: 'Copy Genius' });
 	const copyBox = copy.getBoundingClientRect().toJSON();
 	await userEvent.click(screen.getByRole('button', { name: command }));
 	const dialog = screen.getByRole('dialog');

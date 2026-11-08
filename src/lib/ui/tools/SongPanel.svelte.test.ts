@@ -103,7 +103,7 @@ describe('SongPanel skimmability', () => {
 
 		// App-management moved to the Preferences tab; none of it may be here, and
 		// neither may the toolbar's own contrast action.
-		expect(screen.queryByRole('button', { name: 'Copy lyrics' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Copy Genius' })).toBeNull();
 		expect(screen.queryByRole('heading', { name: 'Workspace backup' })).toBeNull();
 		expect(screen.queryByRole('heading', { name: 'Local data' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Reset LyricLint…' })).toBeNull();
@@ -647,22 +647,19 @@ describe('SongPanel conversion restraint', () => {
 		const rendered = renderProfile(imported.value, 'musixmatch');
 		if (!rendered.ok) throw new Error(rendered.refusal.message);
 		const workbench = createTestWorkbench({
-			text: rendered.value.text,
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions),
 			selection: { anchor: 0, head: 0 }
-		});
-		workbench.controller.onSnapshot({
-			...workbench.controller.snapshot,
-			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
 		});
 		return workbench;
 	}
 
 	async function withLiveConversion(source: string) {
-		const { controller } = createTestWorkbench({ text: source });
+		const { controller } = withConversion(source);
 		const host = document.createElement('div');
 		document.body.append(host);
 		const editor = createLyricEditor(host, {
-			initialText: source,
+			initialText: controller.snapshot.text,
+			initialConversion: controller.snapshot.conversion,
 			context: { language: 'en', performers: [], ruleSetVersion: 'test' },
 			callbacks: {
 				onSnapshot: (snapshot) => controller.onSnapshot(snapshot),
@@ -673,7 +670,7 @@ describe('SongPanel conversion restraint', () => {
 			}
 		});
 		controller.setEditorHandle(editor.handle);
-		editor.handle.switchProfile!('musixmatch');
+		controller.onSnapshot(editor.handle.getSnapshot());
 		const view = await render(SongPanel, { controller });
 		return {
 			controller,
@@ -896,11 +893,12 @@ describe('SongPanel conversion restraint', () => {
 		'creates and immediately opens a typed musical section with distinct stanza counts at %ipx',
 		async (width) => {
 			const lyrics = 'A paper moon\nAbove the road\n\nStay beside me';
-			const { controller } = createTestWorkbench({ text: lyrics });
+			const { controller } = withConversion(lyrics);
 			const host = document.createElement('div');
 			document.body.append(host);
 			const editor = createLyricEditor(host, {
-				initialText: lyrics,
+				initialText: controller.snapshot.text,
+				initialConversion: controller.snapshot.conversion,
 				context: { language: 'en', performers: [], ruleSetVersion: 'test' },
 				callbacks: {
 					onSnapshot: (snapshot) => controller.onSnapshot(snapshot),
@@ -912,7 +910,7 @@ describe('SongPanel conversion restraint', () => {
 			});
 			try {
 				controller.setEditorHandle(editor.handle);
-				editor.handle.switchProfile!('musixmatch');
+				controller.onSnapshot(editor.handle.getSnapshot());
 				const { container } = await render(SongPanel, { controller });
 				container.style.width = `${width}px`;
 				expect(
@@ -949,8 +947,7 @@ describe('SongPanel conversion restraint', () => {
 				expect(label).toHaveValue('Verse 2');
 				await fireEvent.click(screen.getByRole('button', { name: 'Back to Song' }));
 				expect(container.textContent).toContain('2 stanzas');
-				editor.handle.switchProfile!('genius');
-				expect(controller.snapshot.text).toBe('[Verse 2]\n' + lyrics);
+				expect(controller.getExport()).toBe('[Verse 2]\n' + lyrics);
 			} finally {
 				editor.destroy();
 				host.remove();

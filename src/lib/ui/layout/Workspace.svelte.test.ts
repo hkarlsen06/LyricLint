@@ -57,7 +57,7 @@ describe('Workspace and toolbar', () => {
 		await render(DocumentToolbar, { controller });
 		await render(LiveRegion, { feedback });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy Genius' }));
 		expect(writeText).toHaveBeenCalledWith(canonical);
 		await waitFor(() =>
 			expect(screen.getByTestId('live-region').textContent).toContain(
@@ -74,12 +74,12 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
 		await render(DocumentToolbar, { controller });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy Genius' }));
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Lyrics copied' })).toBeTruthy());
 
 		writeText.mockRejectedValueOnce(new Error('denied'));
 		await fireEvent.click(screen.getByRole('button', { name: 'Lyrics copied' }));
-		await waitFor(() => expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy());
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeTruthy());
 	});
 
 	test('copies without interrupting with song metadata even when facts are available', async () => {
@@ -94,7 +94,7 @@ describe('Workspace and toolbar', () => {
 			media: { player } as MediaStore
 		};
 		await render(DocumentToolbar, { controller: withSong });
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy Genius' }));
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Lyrics copied' })).toBeTruthy());
 		expect(writeText).toHaveBeenCalledWith('[Verse]\nLine');
 		expect(document.querySelector('dialog.copy-receipt')).toBeNull();
@@ -110,14 +110,14 @@ describe('Workspace and toolbar', () => {
 
 		const paste = screen.getByRole('button', { name: 'Paste lyrics' });
 		expect(paste.classList.contains('button--contrast')).toBe(true);
-		expect(screen.queryByRole('button', { name: 'Copy lyrics' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Copy Genius' })).toBeNull();
 	});
 
 	test('returns the slot to copy once the document has something in it', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
 		await render(DocumentToolbar, { controller });
 
-		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Paste lyrics' })).toBeNull();
 	});
 
@@ -158,7 +158,7 @@ describe('Workspace and toolbar', () => {
 		// Section insertion and performer assignment stay reachable through the
 		// editor itself (ghost control and selection surface).
 		expect(screen.getByRole('button', { name: "New 'scribe" })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: "Open saved 'scribes" })).toBeTruthy();
 		// The left edge is the brand lockup now, and it returns to the marketing home.
 		expect(screen.getByRole('link', { name: 'LyricLint home' })).toHaveAttribute('href', '/');
@@ -289,8 +289,8 @@ describe('Workspace and toolbar', () => {
 		const title = screen.getByLabelText("'Scribe title") as HTMLInputElement;
 		const open = screen.getByRole('button', { name: "Open saved 'scribes" });
 		const create = screen.getByRole('button', { name: "New 'scribe" });
-		const genius = screen.getByRole('button', { name: 'Lyric format: Genius' });
-		const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+		const genius = screen.getByRole('button', { name: 'Export to Musixmatch' });
+		const copy = screen.getByRole('button', { name: 'Copy Genius' });
 		const commandPosition = copy.getBoundingClientRect().toJSON();
 		const longTitle =
 			'A very long song title that should stay readable beside the document controls '.repeat(3);
@@ -348,25 +348,17 @@ describe('Workspace and toolbar', () => {
 		expect(commands).toBeTruthy();
 		const undo = screen.getByRole('button', { name: 'Undo' });
 		const redo = screen.getByRole('button', { name: 'Redo' });
-		const format = screen.getByRole('button', { name: 'Lyric format: Genius' });
+		const format = screen.getByRole('button', { name: 'Export to Musixmatch' });
 		const language = screen.getByRole('button', { name: 'Document language: English' });
 		// Comparing acts on the whole document, so its trigger belongs to this
 		// strip, beside the contrast action whose press it is the review before.
 		const compare = screen.getByRole('button', { name: 'Compare' });
-		const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+		const copy = screen.getByRole('button', { name: 'Copy Genius' });
 		expect([
 			...commands!.querySelectorAll(
 				':scope > button, .profile-picker > button, .document-toolbar__secondary-actions > button'
 			)
-		]).toEqual([
-			format,
-			screen.getByRole('button', { name: 'Lyric format: Musixmatch' }),
-			undo,
-			redo,
-			language,
-			compare,
-			copy
-		]);
+		]).toEqual([undo, redo, language, compare, format, copy]);
 		// Navigation between drafts left the strip for the draft's own name, and
 		// creation followed it; neither acts on the document this strip commands.
 		expect(commands!.contains(screen.getByRole('button', { name: "Open saved 'scribes" }))).toBe(
@@ -1280,7 +1272,7 @@ describe('Workspace and toolbar', () => {
 			const { controller } = createTestWorkbench({ text: '[Verse]\nA line to review' });
 			await renderWorkspace(controller);
 			const toolbar = screen.getByRole('banner', { name: 'Document controls' });
-			await screen.findByRole('button', { name: 'Copy lyrics' });
+			await screen.findByRole('button', { name: 'Copy Genius' });
 			const controls = toolbar.querySelectorAll<HTMLElement>('button, .draft-title, summary');
 			for (const control of controls) {
 				if (!control.checkVisibility()) continue;

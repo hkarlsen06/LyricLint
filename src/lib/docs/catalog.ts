@@ -30,7 +30,8 @@ export const docsPages: readonly DocsPage[] = [
 		slug: 'first-scribe',
 		group: 'Get started',
 		title: "Your first 'scribe",
-		summary: 'Paste a transcription, read what LyricLint finds, fix it, and copy it back to Genius.',
+		summary:
+			'Paste a transcription, read what LyricLint finds, fix it, and copy it back to Genius.',
 		sections: [
 			{ id: 'paste', title: 'Paste or type the lyrics' },
 			{ id: 'findings', title: 'Read the findings' },
@@ -93,7 +94,8 @@ export const docsPages: readonly DocsPage[] = [
 		slug: 'sections',
 		group: 'Editor',
 		title: 'Section headers',
-		summary: 'Insert the song part headers Genius expects, for the language the lyrics are written in.',
+		summary:
+			'Insert the song part headers Genius expects, for the language the lyrics are written in.',
 		sections: [
 			{ id: 'insert', title: 'Insert a header' },
 			{ id: 'numbering', title: 'Numbering and repeats' },
@@ -125,7 +127,17 @@ export const docsPages: readonly DocsPage[] = [
 			{ id: 'rename', title: 'Rename a performer' },
 			{ id: 'gutter', title: 'See who sings each line' }
 		],
-		keywords: ['artist', 'feature', 'vocalist', 'italic', 'bold', 'credits', 'voice', 'unknown voice', 'merge']
+		keywords: [
+			'artist',
+			'feature',
+			'vocalist',
+			'italic',
+			'bold',
+			'credits',
+			'voice',
+			'unknown voice',
+			'merge'
+		]
 	},
 	{
 		slug: 'findings',
@@ -139,14 +151,25 @@ export const docsPages: readonly DocsPage[] = [
 			{ id: 'ignore', title: 'Ignore a finding' },
 			{ id: 'grammar', title: 'Grammar and spelling' }
 		],
-		keywords: ['diagnostic', 'warning', 'error', 'lint', 'harper', 'severity', 'suggestion', 'review', 'restore']
+		keywords: [
+			'diagnostic',
+			'warning',
+			'error',
+			'lint',
+			'harper',
+			'severity',
+			'suggestion',
+			'review',
+			'restore'
+		]
 	},
 	{
 		slug: 'copy-paste',
 		group: 'Editor',
 		title: 'Copy and paste',
-		summary: 'What you copy is exactly the lyrics, ready to paste into the Genius editor.',
+		summary: 'Copy your main lyrics exactly, or edit an independent export for the other format.',
 		sections: [
+			{ id: 'formats', title: 'Main format and exports' },
 			{ id: 'copy', title: 'Copy the lyrics' },
 			{ id: 'paste', title: 'Paste from Genius' },
 			{ id: 'between', title: "Between 'scribes" }
@@ -208,7 +231,8 @@ export const docsPages: readonly DocsPage[] = [
 		slug: 'preferences',
 		group: 'Reference',
 		title: 'Preferences',
-		summary: 'Turn grammar checking on or off, back up your workspace, and manage what this browser stores.',
+		summary:
+			'Turn grammar checking on or off, back up your workspace, and manage what this browser stores.',
 		sections: [
 			{ id: 'grammar', title: 'Grammar checking' },
 			{ id: 'backup', title: 'Workspace backup' },
@@ -229,7 +253,18 @@ export const docsPages: readonly DocsPage[] = [
 			{ id: 'edits', title: 'Suggested edits' },
 			{ id: 'conversations', title: 'Conversations' }
 		],
-		keywords: ['ai', 'chat', 'question', 'help', 'ask', 'permission', 'proofread', 'openai', 'gpt', 'terra']
+		keywords: [
+			'ai',
+			'chat',
+			'question',
+			'help',
+			'ask',
+			'permission',
+			'proofread',
+			'openai',
+			'gpt',
+			'terra'
+		]
 	},
 	{
 		slug: 'phone',

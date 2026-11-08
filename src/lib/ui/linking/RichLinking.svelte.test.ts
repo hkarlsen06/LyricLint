@@ -1,3 +1,6 @@
+import { importDocument } from '#lib/conversion/import.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { fireEvent, waitFor, within } from '@testing-library/dom';
 import { page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
@@ -10,11 +13,20 @@ import LinkingPanel from './LinkingPanel.svelte';
 const song =
 	'[Chorus]\nWe hold the light\nAnd come home tonight\n\n[Chorus 2]\nWe hold the light\nAnd come home again';
 async function setup(text = song, onShowEditor?: () => void | Promise<void>) {
-	const workbench = createTestWorkbench({ text, revision: 0, selection: { anchor: 0, head: 0 } });
+	const model = importDocument({ text, profile: 'genius', language: 'en' });
+	if (!model.ok) throw new Error(model.refusal.message);
+	const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+	const workbench = createTestWorkbench({
+		conversion,
+		text,
+		revision: 0,
+		selection: { anchor: 0, head: 0 }
+	});
 	let handle: EditorHandle | undefined;
 	await render(EditorPane, {
 		props: {
-			initialText: text,
+			initialText: conversion.projectionText,
+			initialConversion: conversion,
 			context: { language: 'en', performers: [], ruleSetVersion: 'rich-link-test' },
 			callbacks: {
 				onSnapshot: (snapshot) => workbench.controller.onSnapshot(snapshot),
@@ -31,7 +43,6 @@ async function setup(text = song, onShowEditor?: () => void | Promise<void>) {
 		}
 	});
 	await waitFor(() => expect(handle).toBeDefined());
-	workbench.controller.switchProfile('musixmatch');
 	await waitFor(() => expect(workbench.controller.profile).toBe('musixmatch'));
 	const view = await render(LinkingPanel, { controller: workbench.controller, onShowEditor });
 	return { ...workbench, handle: handle!, view, panel: within(view.container) };
@@ -72,8 +83,7 @@ describe('Musixmatch stable section linking', () => {
 		expect(handle.getSnapshot().text).toBe(original);
 		handle.redo();
 		expect(handle.getSnapshot().text).toBe(original.replace('tighht', 'tight'));
-		controller.switchProfile('genius');
-		await waitFor(() => expect(handle.getSnapshot().text).toBe(source.replace('tighht', 'tight')));
+		await waitFor(() => expect(controller.getExport()).toBe(source.replace('tighht', 'tight')));
 	});
 
 	it('refuses a pending correction after the underlying passage changes', async () => {

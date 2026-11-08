@@ -33,6 +33,21 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 ## The rules
 
+- Each draft owns one main writing format, fixed after original content or semantic formatting
+  begins, including after clearing the lyrics. Only an untouched new draft offers inline
+  creation choices. The last deliberate choice is the `newDraftProfile` preference; opening
+  or importing a saved draft never changes it. Legacy records use their saved conversion
+  profile, or Genius when absent, regardless of retained model ancestry.
+- The populated toolbar names the main format, copies its exact text, and offers Export to
+  the other format. The native export dialog edits independent plain output, never editor
+  history, source metadata or selection. Copy and Download use the exact edited output.
+  Edited output persists per draft until a real original text, formatting, language, roster,
+  anchor or link change. Selection, title, ignored findings and playhead do not expire it.
+  Invalidation happens before constructing the complete saved snapshot; Undo cannot restore
+  an expired copy. Target generation uses pure `planProfileSwitch` without upgrading primary
+  storage. Historical live switching decisions below are superseded for the application UI;
+  the pure conversion engine and editor history APIs remain internal.
+
 - Shared writing commands keep their positions when the format changes. The Genius-only unknown
   marker and contextual voice assignment sit before Section and Find in the right-aligned tray,
   so their removal cannot move the shared commands.

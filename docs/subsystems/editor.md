@@ -9,6 +9,21 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 
 ## The rules
 
+- Each draft owns one main writing format, fixed after original content or semantic formatting
+  begins, including after clearing the lyrics. Only an untouched new draft offers inline
+  creation choices. The last deliberate choice is the `newDraftProfile` preference; opening
+  or importing a saved draft never changes it. Legacy records use their saved conversion
+  profile, or Genius when absent, regardless of retained model ancestry.
+- The populated toolbar names the main format, copies its exact text, and offers Export to
+  the other format. The native export dialog edits independent plain output, never editor
+  history, source metadata or selection. Copy and Download use the exact edited output.
+  Edited output persists per draft until a real original text, formatting, language, roster,
+  anchor or link change. Selection, title, ignored findings and playhead do not expire it.
+  Invalidation happens before constructing the complete saved snapshot; Undo cannot restore
+  an expired copy. Target generation uses pure `planProfileSwitch` without upgrading primary
+  storage. Historical live switching decisions below are superseded for the application UI;
+  the pure conversion engine and editor history APIs remain internal.
+
 - Native non-pointer focus synchronizes the DOM selection through `EditorView.focus()`
   before the next key can edit. Pointer entry retains native placement and an active
   composition retains its own selection. The focus extension keeps this handoff local

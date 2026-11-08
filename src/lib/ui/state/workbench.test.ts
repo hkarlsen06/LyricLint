@@ -55,7 +55,7 @@ function draft(id: string, text = '[Verse]\nLine'): DraftRecord {
 }
 
 function snapshot(record: DraftRecord, revision = 0, text = record.text): EditorSnapshot {
-	return {
+	const result: EditorSnapshot = {
 		revision,
 		text,
 		selection: record.editorSelection ?? { anchor: 0, head: 0 },
@@ -65,6 +65,8 @@ function snapshot(record: DraftRecord, revision = 0, text = record.text): Editor
 		canUndo: revision > 0,
 		canRedo: false
 	};
+	if (record.conversion) result.conversion = record.conversion;
+	return result;
 }
 
 function controllableAutosave(repository: DraftRepository, events: string[] = []) {
@@ -1631,7 +1633,7 @@ describe('workbench performer imports', () => {
 			expect(model.value.voices.flatMap((voice) => voice.performerIds)).toContain(
 				controller.performers[0]!.id
 			);
-			const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+			const conversion = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
 			controller.onSnapshot({ ...snapshot(initial, 2, conversion.projectionText), conversion });
 			const expected = controller.performers.map((entry) => ({ ...entry }));
 			controller.feedback.runToastAction(undo);
@@ -1643,7 +1645,7 @@ describe('workbench performer imports', () => {
 		}
 	);
 
-	test('an unreferenced addition still undoes after a rich format switch', () => {
+	test('an unreferenced addition still undoes after a rich document update', () => {
 		const initial = draft('draft-a', 'Moon');
 		const { controller, editor } = setup({ initial });
 		editor.dispatchPerformerRecords = (delta) => {
@@ -1658,7 +1660,7 @@ describe('workbench performer imports', () => {
 			performers: controller.performers
 		});
 		if (!model.ok) throw new Error(model.refusal.message);
-		const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+		const conversion = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
 		controller.onSnapshot({ ...snapshot(initial, 1, conversion.projectionText), conversion });
 		controller.feedback.runToastAction(undo);
 		expect(controller.performers).toEqual([]);
@@ -1676,7 +1678,7 @@ describe('workbench performer imports', () => {
 			performers: controller.performers
 		});
 		if (!model.ok) throw new Error(model.refusal.message);
-		const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+		const conversion = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
 		controller.onSnapshot({ ...snapshot(initial, 1, conversion.projectionText), conversion });
 		controller.feedback.runToastAction(undo);
 		expect(controller.performers[0]?.displayName).toBe('Luna');
@@ -1701,7 +1703,7 @@ describe('workbench performer imports', () => {
 			performers: controller.performers
 		});
 		if (!model.ok) throw new Error(model.refusal.message);
-		const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+		const conversion = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
 		controller.onSnapshot({ ...snapshot(initial, 1, conversion.projectionText), conversion });
 		const expected = controller.performers.map((record) => ({ ...record }));
 		controller.feedback.runToastAction(undo);
@@ -2275,4 +2277,95 @@ test('a transferred recovery cannot export an unrelated local original through t
 			await Dexie.delete(db.name);
 		}
 	}
+});
+
+describe('one main draft and independent output', () => {
+	test('keeps annotated source and selection exact, remembers output, and expires it irreversibly on original edits', async () => {
+		const text =
+			'[Verse]\nWith 2 old tickets and a folded map (Whatever)\nA [silver compass](123456) (nearby)';
+		const initial = draft('draft-a', text);
+		const { controller, repository } = setup({ initial });
+		const before = controller.snapshot;
+		expect(controller.getExport()).toContain('silver compass');
+		expect(controller.setExport('Independent output\n')).toBe(true);
+		expect(controller.snapshot).toBe(before);
+		expect(controller.getExport()).toBe('Independent output\n');
+		expect(controller.setExport('Late output from another load', controller.draftSession + 1)).toBe(
+			false
+		);
+		expect(controller.getExport()).toBe('Independent output\n');
+		controller.switchProfile('musixmatch');
+		expect(controller.profile).toBe('genius');
+		controller.onSnapshot({ ...before, revision: 1, selection: { anchor: 2, head: 2 } });
+		await controller.setTitle('Renamed');
+		expect(controller.getExport()).toBe('Independent output\n');
+		await controller.flushAutosave();
+		const saved = await repository.get(initial.id);
+		expect(saved?.writing).toMatchObject({
+			phase: 'writing',
+			export: { text: 'Independent output\n' }
+		});
+		controller.onSnapshot({ ...controller.snapshot, revision: 2, text: `${text}\nChanged` });
+		expect(controller.getExport()).not.toBe('Independent output\n');
+		controller.onSnapshot({ ...controller.snapshot, revision: 3, text });
+		expect(controller.getExport()).not.toBe('Independent output\n');
+		controller.onSnapshot({ ...controller.snapshot, revision: 4, text: '' });
+		controller.switchProfile('musixmatch');
+		expect(controller.profile).toBe('genius');
+	});
+});
+
+test('creation preference changes deliberately and is independent of opening legacy drafts', async () => {
+	const initial = {
+		...draft('draft-a', ''),
+		writing: { schema: 1, phase: 'new', profile: 'genius' } as const
+	};
+	const legacy = draft('legacy');
+	const { controller, repository } = setup({ initial, drafts: [initial, legacy] });
+	controller.switchProfile('musixmatch');
+	expect(controller.profile).toBe('musixmatch');
+	expect(await repository.getPreference('newDraftProfile')).toBe('musixmatch');
+	await controller.openDraft(legacy.id);
+	expect(controller.profile).toBe('genius');
+	expect(await repository.getPreference('newDraftProfile')).toBe('musixmatch');
+	await controller.createDraft();
+	expect(controller.profile).toBe('musixmatch');
+	expect(controller.writing.phase).toBe('new');
+});
+
+test('saved Musixmatch ownership and edited Genius output survive loading a Genius-ancestry model', async () => {
+	const model = importDocument({
+		text: '[Verse]\nA [silver compass](123456) (Whatever)',
+		profile: 'genius',
+		language: 'en'
+	});
+	if (!model.ok) throw new Error(model.refusal.message);
+	const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+	const initial = {
+		...draft('draft-a', conversion.projectionText),
+		conversion,
+		writing: {
+			schema: 1,
+			phase: 'writing',
+			profile: 'musixmatch',
+			export: { profile: 'genius', text: 'Edited independent Genius output' }
+		} as const
+	};
+	const { controller } = setup({ initial });
+	expect(controller.profile).toBe('musixmatch');
+	expect(controller.getExport()).toBe('Edited independent Genius output');
+	controller.onSnapshot({ ...controller.snapshot, revision: 1, selection: { anchor: 2, head: 2 } });
+	expect(controller.getExport()).toBe('Edited independent Genius output');
+	const changed = createConversionEnvelope(
+		{ ...model.value, defaultLanguage: 'fr' },
+		'musixmatch',
+		profilePolicyVersions
+	);
+	controller.onSnapshot({
+		...controller.snapshot,
+		revision: 2,
+		text: changed.projectionText,
+		conversion: changed
+	});
+	expect(controller.getExport()).not.toBe('Edited independent Genius output');
 });

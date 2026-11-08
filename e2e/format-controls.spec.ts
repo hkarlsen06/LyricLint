@@ -23,8 +23,7 @@ for (const [width, colorScheme] of [
 				'A very long document title that should truncate while both format names stay readable'
 			);
 			await title.press('Enter');
-			const genius = page.getByRole('button', { name: 'Lyric format: Genius' });
-			const musixmatch = page.getByRole('button', { name: 'Lyric format: Musixmatch' });
+			await page.getByRole('button', { name: 'Lyric format: Genius', exact: true }).click();
 			const state = () =>
 				editor.evaluate((el) => {
 					const node = el as HTMLElement & {
@@ -40,51 +39,53 @@ for (const [width, colorScheme] of [
 				await editor.press('ArrowLeft');
 				await editor.press('Shift+ArrowRight');
 				const original = await state();
-				const copy = page.getByRole('button', { name: 'Copy lyrics', exact: true });
-				const bounds = await Promise.all([genius, musixmatch, copy].map((el) => el.boundingBox()));
-				await expect(genius).toHaveAttribute('aria-pressed', 'true');
-				await musixmatch.focus();
+				const copy = page.getByRole('button', { name: 'Copy Genius', exact: true });
+				const exportButton = page.getByRole('button', {
+					name: 'Export to Musixmatch',
+					exact: true
+				});
+				const bounds = await Promise.all([exportButton, copy].map((el) => el.boundingBox()));
+				await exportButton.focus();
 				await page.keyboard.press('Enter');
-				await expect(musixmatch).toHaveAttribute('aria-pressed', 'true');
-				await expect(genius).toHaveAttribute('aria-pressed', 'false');
-				await expect(musixmatch).toBeFocused();
-				await expect.poll(async () => (await state()).text).toBe('Silver moon tonight');
-				if (source.startsWith('['))
-					await page.screenshot({
-						path: `.audit/hillclimb/format-musixmatch-${width}-${colorScheme}.png`
-					});
-				await genius.focus();
-				await page.keyboard.press('Space');
-				await expect(genius).toHaveAttribute('aria-pressed', 'true');
-				await expect(genius).toBeFocused();
+				const output = page.getByRole('textbox', { name: 'Musixmatch output' });
+				await output.fill('Independent edited output');
+				await page.keyboard.press('Escape');
+				await expect(exportButton).toBeFocused();
 				expect(await state()).toEqual(original);
-				expect(await Promise.all([genius, musixmatch, copy].map((el) => el.boundingBox()))).toEqual(
+				expect(await Promise.all([exportButton, copy].map((el) => el.boundingBox()))).toEqual(
 					bounds
 				);
-				await genius.click();
+				await exportButton.click();
+				await expect(output).toHaveValue('Independent edited output');
+				await page.getByRole('button', { name: 'Edit lyrics', exact: true }).click();
 				expect(await state()).toEqual(original);
-				for (const control of [genius, musixmatch, copy]) {
+
+				for (const control of [exportButton, copy]) {
 					const box = (await control.boundingBox())!;
 					expect(box.x).toBeGreaterThanOrEqual(0);
 					expect(box.x + box.width).toBeLessThanOrEqual(width);
 					expect(await control.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
 				}
-				if (source.startsWith('[')) {
-					if (width < 600)
-						await page.getByRole('button', { name: 'Document', exact: true }).click();
-					await page.getByRole('button', { name: 'Undo', exact: true }).click();
-					await expect(musixmatch).toHaveAttribute('aria-pressed', 'true');
-					await page.getByRole('button', { name: 'Redo', exact: true }).click();
-					await expect(genius).toHaveAttribute('aria-pressed', 'true');
-					expect(await state()).toEqual(original);
-					if (width < 600) await page.keyboard.press('Escape');
-				}
+				await editor.press('ControlOrMeta+End');
+				await page.keyboard.insertText(' changed');
+				await expect.poll(async () => (await state()).text).toBe(`${source} changed`);
+				await exportButton.click();
+				await output.fill('Another independent output');
+				await page.keyboard.press('Escape');
+				if (width < 600) await page.getByRole('button', { name: 'Document', exact: true }).click();
+				await page.getByRole('button', { name: 'Undo', exact: true }).click();
+				await expect.poll(async () => (await state()).text).toBe(source);
+				await page.getByRole('button', { name: 'Redo', exact: true }).click();
+				await expect.poll(async () => (await state()).text).toBe(`${source} changed`);
+				if (width < 600) await page.keyboard.press('Escape');
 			}
 			if (width < 600) {
 				expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
 				const trigger = page.getByRole('button', { name: 'Document', exact: true });
 				const box = (await trigger.boundingBox())!;
-				expect(box.y).toBeLessThan((await genius.boundingBox())!.y);
+				expect(box.y).toBeLessThan(
+					(await page.getByRole('button', { name: 'Copy Genius', exact: true }).boundingBox())!.y
+				);
 				await trigger.click();
 				const menu = page.locator('#document-commands');
 				await expect(menu).toBeVisible();
@@ -96,7 +97,7 @@ for (const [width, colorScheme] of [
 				await trigger.click();
 				await expect(menu).toBeHidden();
 				await trigger.click();
-				await genius.click();
+				await page.getByRole('button', { name: 'Copy Genius', exact: true }).click();
 				await expect(menu).toBeHidden();
 			}
 			await page.screenshot({ path: `.audit/hillclimb/format-${width}-${colorScheme}.png` });

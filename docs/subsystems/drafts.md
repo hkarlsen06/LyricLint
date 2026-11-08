@@ -6,6 +6,21 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 
 ## The rules
 
+- Each draft owns one main writing format, fixed after original content or semantic formatting
+  begins, including after clearing the lyrics. Only an untouched new draft offers inline
+  creation choices. The last deliberate choice is the `newDraftProfile` preference; opening
+  or importing a saved draft never changes it. Legacy records use their saved conversion
+  profile, or Genius when absent, regardless of retained model ancestry.
+- The populated toolbar names the main format, copies its exact text, and offers Export to
+  the other format. The native export dialog edits independent plain output, never editor
+  history, source metadata or selection. Copy and Download use the exact edited output.
+  Edited output persists per draft until a real original text, formatting, language, roster,
+  anchor or link change. Selection, title, ignored findings and playhead do not expire it.
+  Invalidation happens before constructing the complete saved snapshot; Undo cannot restore
+  an expired copy. Target generation uses pure `planProfileSwitch` without upgrading primary
+  storage. Historical live switching decisions below are superseded for the application UI;
+  the pure conversion engine and editor history APIs remain internal.
+
 - Genius `.txt` import extracts the complete source-header roster before model construction
   and persists both together. Opening the imported draft must not be the first discovery:
   reconciliation preserves existing anonymous assignments. Scribe and saved rich drafts
@@ -47,8 +62,8 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 - A rich model owns `defaultLanguage`; the top-level draft language is its compatibility copy
   and mismatches are refused at reads/imports. This keeps language changes, rendered text,
   persistence, and undo in the same document transaction.
-- Schema 6 uses physical `draftsV6`, `appMetadataV6`, `mediaHandlesV6`, and `draftIgnoresV6`
-  stores, atomically copied from their legacy stores. The public database properties retain their
+- Schema 7 uses physical `draftsV7`, `appMetadataV7`, `mediaHandlesV7`, and `draftIgnoresV7`
+  stores, atomically copied from V6. Deletion clears V6 and pre-V6 copies too. The public database properties retain their
   existing names. A version number alone is insufficient: Dexie retries `VersionError` without
   a requested version, allowing an older bundle to reopen. Its legacy stores cannot overwrite
   current rich records or their attachments. Mutation readers use the actual table names.
@@ -78,7 +93,8 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   download with an alert; a refused departure checkpoint warns visibly and announces, and asks
   the browser to confirm leaving. File capabilities never enter JSON or request permission:
   recovery reuses only the same recording's committed handle; unsaved files need reconnecting.
-- Rich backups and Scribe files use version 2; ordinary legacy exports retain version 1. Import
+- Backups and Scribe files carrying grouped `writing` ownership and output use version 3.
+  Rich version 2 and ordinary legacy version 1 remain accepted. Import
   refuses unknown or mismatched rich state before writing. Reconciliation recovery carries both
   latest visible text and the last valid checkpoint; unreadable originals carry a source-draft
   reference as portable provenance, and inputs beyond the engine limit retain exact text without inventing a checkpoint.
@@ -131,6 +147,7 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 - **A `DraftRecord` field is only as safe as the least careful place that rebuilds one.**
   The copiers are `copySnapshot` (`persistence/autosave.ts`), `copyDraft` and `createRecord`
   (`persistence/draft-repository.ts`), and `writeRecord` (`ui/state/draft-store.svelte.ts`);
+  `cloneDraft` (`ui/state/in-memory.ts`) also copies full records;
   shared shapes live in `persistence/copy.ts` (`copySectionLinks`). Adding a field means
   grepping for its siblings, not trusting a list. `persistence.test.ts` populates every
   optional field and asserts the record comes back whole; `workbench.test.ts` drives the real

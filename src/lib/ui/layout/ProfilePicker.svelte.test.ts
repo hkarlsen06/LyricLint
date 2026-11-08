@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/dom';
 import { cdp, page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
 import DocumentToolbar from './DocumentToolbar.svelte';
 
@@ -11,51 +11,37 @@ afterEach(async () => {
 	await page.viewport(800, 600);
 });
 
-test.each([1440, 320, 360, 390])(
-	'keeps the committed choice marked and keyboard cancellation stable at %ipx',
+test.each([1280, 360, 390])(
+	'fixed primary and independent editable export at %ipx',
 	async (width) => {
 		await cdp().send('Emulation.setTouchEmulationEnabled', {
 			enabled: width < 600,
 			maxTouchPoints: 1
 		});
-		await page.viewport(width, 900);
-		const { controller } = createTestWorkbench();
-		const switchProfile = vi.fn<NonNullable<typeof controller.editor.switchProfile>>(() => ({
-			ok: false,
-			deferred: true,
-			message: 'Waiting for composition.'
-		}));
-		controller.editor.switchProfile = switchProfile;
+		await page.viewport(width, 700);
+		const { controller } = createTestWorkbench({ text: 'A [silver compass](123456) (nearby)' });
+		const original = controller.snapshot;
 		await render(DocumentToolbar, { controller });
-		await document.fonts.ready;
-		const genius = screen.getByRole('button', { name: 'Lyric format: Genius' });
-		const musixmatch = screen.getByRole('button', { name: 'Lyric format: Musixmatch' });
-		const copy = screen.getByRole('button', { name: 'Copy lyrics' });
-		const bounds = [genius, musixmatch, copy].map((el) => el.getBoundingClientRect().toJSON());
-		await userEvent.click(genius);
-		expect(switchProfile).not.toHaveBeenCalled();
-		await userEvent.click(musixmatch);
-		expect(controller.pendingProfile).toBe('musixmatch');
-		expect(genius.getAttribute('aria-pressed')).toBe('true');
-		expect(musixmatch.getAttribute('aria-pressed')).toBe('false');
-		expect(genius.title).toBe('Cancel pending format switch');
-		expect(genius.textContent).toContain('Genius');
-		expect(musixmatch.textContent).toContain('Musixmatch');
-		expect(document.activeElement).toBe(musixmatch);
-		expect([genius, musixmatch, copy].map((el) => el.getBoundingClientRect().toJSON())).toEqual(
-			bounds
+		expect(screen.queryByRole('button', { name: 'Lyric format: Musixmatch' })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeVisible();
+		const opener = screen.getByRole('button', { name: 'Export to Musixmatch' });
+		await userEvent.click(opener);
+		const output = screen.getByRole('textbox', { name: 'Musixmatch output' });
+		await userEvent.fill(output, 'Independent output\n');
+		expect(controller.snapshot).toBe(original);
+		await userEvent.keyboard('{Escape}');
+		await waitFor(() => expect(document.querySelector('dialog:modal')).toBeNull());
+		expect(document.activeElement).toBe(opener);
+		await userEvent.click(opener);
+		expect(screen.getByRole('textbox', { name: 'Musixmatch output' })).toHaveValue(
+			'Independent output\n'
 		);
-		genius.focus();
-		await userEvent.keyboard('{Enter}');
-		await waitFor(() => expect(controller.pendingProfile).toBeUndefined());
-		expect(document.activeElement).toBe(genius);
-		await userEvent.click(musixmatch);
-		genius.focus();
-		await userEvent.keyboard(' ');
-		await waitFor(() => expect(controller.pendingProfile).toBeUndefined());
-		expect(document.activeElement).toBe(genius);
-		expect([genius, musixmatch, copy].map((el) => el.getBoundingClientRect().toJSON())).toEqual(
-			bounds
-		);
+		const reopened = screen.getByRole('textbox', { name: 'Musixmatch output' });
+		const box = reopened.getBoundingClientRect();
+		expect(box.left).toBeGreaterThanOrEqual(0);
+		expect(box.right).toBeLessThanOrEqual(width);
+		expect(parseFloat(getComputedStyle(reopened).fontSize)).toBeGreaterThanOrEqual(16);
+		await userEvent.click(screen.getByRole('button', { name: 'Edit lyrics' }));
+		expect(controller.snapshot).toBe(original);
 	}
 );

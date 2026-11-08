@@ -12,7 +12,7 @@ Newer transcribers are a secondary audience. The interface should teach through 
 
 ## Product Purpose
 
-LyricLint is a local-first lyric editor and linter for Genius and Musixmatch conventions. Users paste or write a transcription, structure its sections, assign performers to selected passages, review sourced guideline warnings, and copy the active format. Each draft can switch between formats while retaining exact authored wording, annotations, voices, timings and section relationships. Switching alone never accepts fixes or invents missing facts.
+LyricLint is a local-first lyric editor and linter for Genius and Musixmatch conventions. Users paste or write a transcription, structure its sections, assign performers to selected passages, review sourced guideline warnings, and copy the active format. Each draft has one fixed main writing format. New untouched drafts offer Genius and Musixmatch inline and remember the last deliberate creation choice. Export opens a separate editable copy in the other format, preserving the original wording, annotations, voices, timings and section relationships. Output edits survive reopening and reload until the original lyrics or export-affecting details change.
 
 Success means that users can:
 
@@ -21,7 +21,7 @@ Success means that users can:
 - Understand which source for the selected platform supports every emitted warning.
 - Apply performer differentiation without hand-writing fragile HTML.
 - See who performs each passage without changing the exported markup.
-- Switch formats repeatedly without losing information, including through undo, save and reload.
+- Write in one main format and edit independent exports without losing original information through undo, save or reload.
 - Work in every currently supported language; language-specific source gaps and listening decisions remain explicit review requirements.
 - Continue editing when Genius or the network is unavailable, except where they have opted a draft into YouTube playback.
 
