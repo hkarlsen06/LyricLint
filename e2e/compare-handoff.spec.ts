@@ -1,3 +1,4 @@
+import { importPrimary } from './format-fixture.js';
 import { expect, test } from '@playwright/test';
 
 for (const { width, profile, origin } of [
@@ -10,10 +11,8 @@ for (const { width, profile, origin } of [
 			await page.goto('/workbench/');
 			const source = '[Verse: Mira]\nSilver compass';
 			const editor = page.getByRole('textbox', { name: 'Lyrics editor', exact: true });
-			await editor.fill(source);
-			const format = page.getByRole('button', { name: `Lyric format: ${profile}`, exact: true });
-			await format.tap();
-			await expect(format).toHaveAttribute('aria-pressed', 'true');
+			await importPrimary(page, source, profile === 'Genius' ? 'genius' : 'musixmatch');
+
 			const navigation = page.getByRole('navigation', { name: 'Workbench views' });
 			await navigation.getByRole('button', { name: new RegExp(`^${origin}`) }).tap();
 			await expect(editor).not.toBeVisible();
@@ -31,7 +30,9 @@ for (const { width, profile, origin } of [
 			await expect(write).toBeFocused();
 			await expect(editor).toBeVisible();
 			await expect(editor).toContainText('Silver compass');
-			await expect(format).toHaveAttribute('aria-pressed', 'true');
+			await expect(
+				page.getByRole('button', { name: `Copy ${profile}`, exact: true })
+			).toBeVisible();
 			await expect(documentControl).toHaveAttribute('aria-expanded', 'false');
 
 			for (const dismissal of ['Escape', 'Close', 'outside', 'Cancel then Escape']) {

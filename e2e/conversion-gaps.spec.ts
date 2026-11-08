@@ -1,3 +1,4 @@
+import { importPrimary } from './format-fixture.js';
 import { expect, test, type Page } from '@playwright/test';
 
 async function read(page: Page) {
@@ -12,13 +13,6 @@ async function read(page: Page) {
 			selected: view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to)
 		};
 	});
-}
-async function format(page: Page, name: string) {
-	await page.getByRole('button', { name: `Lyric format: ${name}` }).click();
-	await expect(page.getByRole('button', { name: `Lyric format: ${name}` })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
 }
 async function review(page: Page, mobile: boolean) {
 	if (mobile)
@@ -35,47 +29,31 @@ for (const width of [1440, 360, 390]) {
 			viewport: { width, height: 900 },
 			colorScheme: width === 360 ? 'dark' : 'light'
 		});
-		test('retained instruction edits the exact repeated header and preserves history', async ({
+		test('retained instruction exports the exact repeated header without changing source history', async ({
 			page
 		}) => {
 			await page.goto('/workbench/');
 			const source =
 				'[Verse: Mira]\nKeep [every word](123456)\n\n[Chorus x2: Noor]\nStay beside me';
-			const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
-			await editor.fill(source);
-			await format(page, 'Musixmatch');
+			await importPrimary(page, source);
 			const plain = (await read(page)).text;
 			await review(page, width < 600);
 			const region = page.getByRole('region', { name: 'Retained details needing review' });
 			await expect(region.getByRole('button', { name: 'Next detail' })).toHaveCount(0);
-			const edit = region.getByRole('button', { name: 'Edit header in Genius' });
+			const edit = region.getByRole('button', { name: 'Open Genius export' });
 			await expect(edit).toBeVisible();
 			await expect(region.locator('[aria-live="polite"]')).toContainText('[Chorus x2: Noor]');
 			expect((await edit.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 			await edit.focus();
 			await edit.press('Enter');
-			await expect.poll(async () => (await read(page)).text).toBe(source);
-			await expect.poll(async () => (await read(page)).selected).toBe('[Chorus x2: Noor]\n');
-			await editor.evaluate((el) => {
-				const node = el as HTMLElement & {
-					cmView?: { view: import('@codemirror/view').EditorView };
-					cmTile?: { view: import('@codemirror/view').EditorView };
-				};
-				(node.cmView ?? node.cmTile)!.view.focus();
-			});
-			await expect.poll(async () => (await read(page)).selected).toBe('[Chorus x2: Noor]\n');
-			await page.keyboard.insertText('[Chorus: Noor]\n');
-			await expect
-				.poll(async () => (await read(page)).text)
-				.toBe(source.replace('Chorus x2', 'Chorus'));
-			await page.keyboard.press('Control+z');
-			await expect.poll(async () => (await read(page)).text).toBe(source);
-			await page.keyboard.press('Control+z');
-			await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
-				'aria-pressed',
-				'true'
-			);
+			const output = page.getByRole('textbox', { name: 'Genius output' });
+			await expect(output).toHaveValue(source);
+			await output.fill(source.replace('Chorus x2', 'Chorus'));
 			expect((await read(page)).text).toBe(plain);
+			await page.keyboard.press('Escape');
+			await edit.click();
+			await expect(output).toHaveValue(source.replace('Chorus x2', 'Chorus'));
+			await page.keyboard.press('Escape');
 			await review(page, width < 600);
 			await expect(edit).toBeVisible();
 			await page.screenshot({ path: `.audit/repeat-return-${width}.png`, fullPage: true });
@@ -87,8 +65,7 @@ for (const width of [1440, 360, 390]) {
 				Object.defineProperty(window, 'showOpenFilePicker', { value: undefined })
 			);
 			await page.goto('/workbench/');
-			const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
-			await editor.fill('[Verse]\nFirst line\n\n[Chorus]\n#INSTRUMENTAL\n\nLast line');
+			await importPrimary(page, '[Verse]\nFirst line\n\n[Chorus]\n#INSTRUMENTAL\n\nLast line');
 			async function attach() {
 				if (width < 600)
 					await page
@@ -100,13 +77,10 @@ for (const width of [1440, 360, 390]) {
 					.click();
 				const chooser = page.waitForEvent('filechooser');
 				await page.getByRole('button', { name: 'Choose a file…' }).click();
-				await (
-					await chooser
-				).setFiles('/home/administrator/code/LyricLint/.audit/hillclimb/silence-25s.wav');
+				await (await chooser).setFiles('.audit/main-format-test-migration/silence-25s.wav');
 				await expect(page.getByRole('dialog')).not.toBeVisible();
 			}
 			await attach();
-			await format(page, 'Musixmatch');
 			await review(page, width < 600);
 			const region = page.getByRole('region', { name: 'Retained details needing review' });
 			await expect(region).toHaveCount(0);

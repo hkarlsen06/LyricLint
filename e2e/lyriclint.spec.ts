@@ -1282,7 +1282,7 @@ test.describe('document editing', () => {
 		const canonical = '[Chorus: Blair & <i>Avery</i>]\nLead\n<i>Harmony</i>';
 		await replaceDocument(page, canonical);
 
-		await page.getByRole('button', { name: 'Copy lyrics' }).click();
+		await page.getByRole('button', { name: 'Copy Genius' }).click();
 		const clipboard = await page.evaluate(() => navigator.clipboard.readText());
 		expect(clipboard).toBe(canonical);
 	});
@@ -1389,7 +1389,7 @@ test.describe('document editing', () => {
 	test('nothing in the panel can scroll the app shell', async ({ page }) => {
 		await openWorkspace(page);
 		await replaceDocument(page, '[Verse]\nImma stay');
-		const toolbar = page.getByRole('button', { name: 'Copy lyrics' });
+		const toolbar = page.getByRole('button', { name: 'Copy Genius' });
 		await expect(toolbar).toBeInViewport();
 
 		const metrics = await page.locator('.right-panel__body').evaluate((panel) => {

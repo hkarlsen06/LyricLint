@@ -1,3 +1,4 @@
+import { importPrimary, exportOutput } from './format-fixture.js';
 import { expect, test, type Page } from '@playwright/test';
 
 async function lyrics(page: Page): Promise<string | undefined> {
@@ -9,21 +10,13 @@ async function lyrics(page: Page): Promise<string | undefined> {
 		return (node.cmView ?? node.cmTile)?.view.state.doc.toString();
 	});
 }
-async function choose(page: Page, profile: 'Genius' | 'Musixmatch') {
-	await page.getByRole('button', { name: `Lyric format: ${profile}` }).click();
-	await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
-}
 
 test('confirms a masked word in Musixmatch while retaining the exact Genius source', async ({
 	page
 }) => {
 	await page.goto('/workbench/');
 	const source = '[Verse: Mira]\nI said [****](123456) tonight';
-	await page.getByRole('textbox', { name: 'Lyrics editor' }).fill(source);
-	await choose(page, 'Musixmatch');
+	await importPrimary(page, source);
 	await page.getByRole('button', { name: 'Review censored word', exact: true }).click();
 	await expect(
 		page.getByRole('button', { name: 'Preview replacement', exact: true })
@@ -42,12 +35,10 @@ test('confirms a masked word in Musixmatch while retaining the exact Genius sour
 	await expect.poll(() => lyrics(page)).toBe('I said **** tonight');
 	await toolbar.getByRole('button', { name: 'Redo', exact: true }).click();
 	await expect.poll(() => lyrics(page)).toBe('I said f- tonight');
-	await choose(page, 'Genius');
-	await expect.poll(() => lyrics(page)).toBe(source);
+	await exportOutput(page, 'Genius', source);
 	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/u })).toBeAttached();
 	await page.reload();
-	await expect.poll(() => lyrics(page)).toBe(source);
-	await choose(page, 'Musixmatch');
+
 	await expect.poll(() => lyrics(page)).toBe('I said f- tonight');
 });
 
@@ -58,8 +49,7 @@ test('keeps annotation spacing exact after typing over a selection across its hi
 	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 	const source =
 		'[Verse 1: Mira]\ni found your [silver compass](123456) by the door\nBut every road kept turning black';
-	await editor.fill(source);
-	await choose(page, 'Musixmatch');
+	await importPrimary(page, source);
 	await editor.evaluate((element) => {
 		const node = element as HTMLElement & {
 			cmView?: { view: import('@codemirror/view').EditorView };
@@ -73,15 +63,13 @@ test('keeps annotation spacing exact after typing over a selection across its hi
 	await page.keyboard.insertText('by');
 	const plain = 'i found your silver by the door\nBut every road kept turning black';
 	await expect.poll(() => lyrics(page)).toBe(plain);
-	await choose(page, 'Genius');
 	const expected = source.replace('[silver compass](123456) by', '[silver](123456) by');
-	await expect.poll(() => lyrics(page)).toBe(expected);
-	await page.getByRole('button', { name: 'Copy lyrics', exact: true }).click();
-	await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(expected);
+	await exportOutput(page, 'Genius', expected);
+	await page.getByRole('button', { name: 'Copy Musixmatch', exact: true }).click();
+	await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(plain);
 	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/u })).toBeAttached();
 	await page.reload();
-	await expect.poll(() => lyrics(page)).toBe(expected);
-	await choose(page, 'Musixmatch');
+	await exportOutput(page, 'Genius', expected);
 	await expect.poll(() => lyrics(page)).toBe(plain);
 });
 
@@ -95,9 +83,7 @@ for (const width of [1440, 390, 360]) {
 			await page.goto('/workbench/');
 			const source =
 				'[Custom opening: Mira]\n[The extraordinarily long returning section for the final refrain: Noor]\nStay beside me';
-			const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
-			await editor.fill(source);
-			await choose(page, 'Musixmatch');
+			await importPrimary(page, source);
 			const plain = await lyrics(page);
 			if (width < 600)
 				await page
@@ -166,13 +152,10 @@ for (const width of [1440, 390, 360]) {
 				page.getByRole('img', { name: /^Autosave status: Saved locally/ })
 			).toBeAttached();
 			await page.reload();
-			await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
-				'aria-pressed',
-				'true'
-			);
-			await choose(page, 'Genius');
-			await expect.poll(() => lyrics(page)).toBe(source);
-			await choose(page, 'Musixmatch');
+			await expect(
+				page.getByRole('button', { name: 'Copy Musixmatch', exact: true })
+			).toBeVisible();
+			await exportOutput(page, 'Genius', source);
 			if (width < 600)
 				await page
 					.getByRole('navigation', { name: 'Workbench views' })
@@ -183,26 +166,27 @@ for (const width of [1440, 390, 360]) {
 	});
 }
 
-test('preserves exact source, edited annotations, history and saved mode through real UI switches', async ({
+test('preserves exact source, edited annotations, history and saved mode through independent exports', async ({
 	page
 }) => {
 	await page.goto('/workbench/');
 	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 	await expect(editor).toBeVisible();
 	const source = '[Verse: Mira]\nWe follow the [moon](123456)\n\n[Chorus]\nStay beside me';
-	await editor.fill(source);
-	await expect.poll(() => lyrics(page)).toBe(source);
+	await importPrimary(page, source);
 	for (let index = 0; index < 4; index++) {
-		await choose(page, 'Musixmatch');
+		await exportOutput(page, 'Genius', source);
 		await expect.poll(() => lyrics(page)).toBe('We follow the moon\n\nStay beside me');
 		await expect(page.getByRole('button', { name: 'Unknown lyric [?]', exact: true })).toHaveCount(
 			0
 		);
 		await expect(page.locator('.ll-conversion-section')).toHaveCount(2);
-		await choose(page, 'Genius');
-		await expect.poll(() => lyrics(page)).toBe(source);
 	}
-	await choose(page, 'Musixmatch');
+	await page.getByRole('button', { name: 'Export to Genius', exact: true }).click();
+	await page.getByRole('textbox', { name: 'Genius output' }).fill('Independent Genius copy');
+	await page.keyboard.press('Escape');
+	await expect.poll(() => lyrics(page)).toBe('We follow the moon\n\nStay beside me');
+	await exportOutput(page, 'Genius', 'Independent Genius copy');
 	await editor.press('Control+Home');
 	await editor.press('End');
 	await editor.press('Backspace');
@@ -218,22 +202,18 @@ test('preserves exact source, edited annotations, history and saved mode through
 		)
 		.toBe(17);
 	await editor.press('Control+z');
+	await exportOutput(page, 'Genius', source);
+	await editor.focus();
 	await editor.press('End');
 	await editor.press('Control+Shift+ArrowLeft');
 	await page.evaluate(() => navigator.clipboard.writeText('stars'));
 	await editor.press('Control+v');
-	await choose(page, 'Genius');
-	await expect.poll(() => lyrics(page)).toBe(source.replace('[moon]', '[stars]'));
-	await choose(page, 'Musixmatch');
+	await exportOutput(page, 'Genius', source.replace('[moon]', '[stars]'));
 	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/ })).toBeAttached();
 	await page.reload();
-	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
+	await expect(page.getByRole('button', { name: 'Copy Musixmatch', exact: true })).toBeVisible();
 	await expect.poll(() => lyrics(page)).toBe('We follow the stars\n\nStay beside me');
-	await choose(page, 'Genius');
-	await expect.poll(() => lyrics(page)).toBe(source.replace('[moon]', '[stars]'));
+	await exportOutput(page, 'Genius', source.replace('[moon]', '[stars]'));
 });
 
 test.describe('touch controls', () => {
@@ -244,28 +224,20 @@ test.describe('touch controls', () => {
 		await page.setViewportSize({ width: 360, height: 800 });
 		await page.goto('/workbench/');
 		const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
-		await editor.fill('[Verse]\nمرحبا بالعالم\n\n[Chorus]\n同じ言葉');
-		const control = page.getByRole('button', { name: 'Lyric format: Musixmatch' });
-		await expect(control).toHaveAttribute('aria-pressed', 'false');
+		await importPrimary(page, '[Verse]\nمرحبا بالعالم\n\n[Chorus]\n同じ言葉');
+		const control = page.getByRole('button', { name: 'Export to Genius', exact: true });
 		const before = await control.boundingBox();
-		const copyBefore = await page
-			.getByRole('button', { name: 'Copy lyrics', exact: true })
-			.boundingBox();
+		const copy = page.getByRole('button', { name: 'Copy Musixmatch', exact: true });
+		const copyBefore = await copy.boundingBox();
 		await control.focus();
 		await page.keyboard.press('Enter');
-		await expect(page.getByRole('menu')).toHaveCount(0);
-		await expect(control).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.getByRole('textbox', { name: 'Genius output' })).toHaveValue(
+			'[Verse]\nمرحبا بالعالم\n\n[Chorus]\n同じ言葉'
+		);
+		await page.keyboard.press('Escape');
 		await expect(control).toBeFocused();
-		const after = await control.boundingBox();
-		const copyAfter = await page
-			.getByRole('button', { name: 'Copy lyrics', exact: true })
-			.boundingBox();
-		await expect(control).toHaveAttribute('aria-pressed', 'true');
-		expect(after?.width).toBe(before?.width);
-		expect(after?.x).toBe(before?.x);
-		expect(after?.y).toBe(before?.y);
-		expect(copyAfter?.x).toBe(copyBefore?.x);
-		expect(copyAfter?.y).toBe(copyBefore?.y);
+		expect(await control.boundingBox()).toEqual(before);
+		expect(await copy.boundingBox()).toEqual(copyBefore);
 		expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
 			true
 		);
@@ -321,8 +293,7 @@ test('opens the exact listening decision from a diagnostic, previews it, and ret
 }) => {
 	await page.goto('/workbench/');
 	const source = '[Verse]\nI saw 2 stars';
-	await page.getByRole('textbox', { name: 'Lyrics editor' }).fill(source);
-	await choose(page, 'Musixmatch');
+	await importPrimary(page, source);
 	await page.getByRole('button', { name: 'Review quantity', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Review quantity' })).toBeFocused();
 	await expect(page.getByLabel('Exact whole-number value', { exact: true })).toHaveCount(0);
@@ -339,20 +310,14 @@ test('opens the exact listening decision from a diagnostic, previews it, and ret
 	await expect.poll(() => lyrics(page)).toBe('I saw 2 stars');
 	await page.getByRole('button', { name: 'Apply quantity', exact: true }).click();
 	await expect.poll(() => lyrics(page)).toBe('I saw two stars');
-	await choose(page, 'Genius');
-	await expect.poll(() => lyrics(page)).toBe(source);
-	await choose(page, 'Musixmatch');
+	await exportOutput(page, 'Genius', source);
 	await expect.poll(() => lyrics(page)).toBe('I saw two stars');
 });
 
-test('reopens a rich draft and switches both formats entirely offline', async ({
-	page,
-	context
-}) => {
+test('reopens a rich draft and exports entirely offline', async ({ page, context }) => {
 	await page.goto('/workbench/');
 	const source = '[Verse: Mira]\nUnder the [moon](123)';
-	await page.getByRole('textbox', { name: 'Lyrics editor' }).fill(source);
-	await choose(page, 'Musixmatch');
+	await importPrimary(page, source);
 	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/u })).toBeAttached();
 	await page.evaluate(() => navigator.serviceWorker.ready);
 	await expect
@@ -360,14 +325,9 @@ test('reopens a rich draft and switches both formats entirely offline', async ({
 		.toBe(true);
 	await context.setOffline(true);
 	await page.reload();
-	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
+	await expect(page.getByRole('button', { name: 'Copy Musixmatch', exact: true })).toBeVisible();
 	await expect.poll(() => lyrics(page)).toBe('Under the moon');
-	await choose(page, 'Genius');
-	await expect.poll(() => lyrics(page)).toBe(source);
-	await choose(page, 'Musixmatch');
+	await exportOutput(page, 'Genius', source);
 	await page.locator('.ll-conversion-section').click();
 	await expect(page.getByRole('heading', { name: /Section 1/u })).toBeVisible();
 	await context.setOffline(false);
@@ -383,8 +343,7 @@ for (const phone of [false, true]) {
 			await page.goto('/workbench/');
 			const source =
 				'[Verse: Mira]\nI found your [silver compass](123456)\nWith 2 old tickets and a folded map\n\n[Chorus: Mira & Noor]\nWe are the neon after rain\nTake my hand and say my name\n\n[Bridge: Noor]\nI said **** and never once looked back\n\n[Chorus: Mira & Noor]\nWe are the neon after rain\nTake my hand and call my name\n\n[Outro: Noor]\nStay with me\nRepeat chorus';
-			await page.getByRole('textbox', { name: 'Lyrics editor' }).fill(source);
-			await choose(page, 'Musixmatch');
+			await importPrimary(page, source);
 			if (phone)
 				await page
 					.getByRole('navigation', { name: 'Workbench views' })
@@ -450,9 +409,7 @@ for (const phone of [false, true]) {
 				.getByRole('button', { name: 'Undo', exact: true })
 				.click();
 			await expect.poll(() => lyrics(page)).toBe(before);
-			await choose(page, 'Genius');
-			await expect.poll(() => lyrics(page)).toBe(source);
-			await choose(page, 'Musixmatch');
+			await exportOutput(page, 'Genius', source);
 			await expect.poll(() => lyrics(page)).toBe(before);
 			await expect(
 				page.getByRole('img', { name: /^Autosave status: Saved locally/u })

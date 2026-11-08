@@ -1,3 +1,4 @@
+import { importPrimary, exportOutput } from './format-fixture.js';
 import { expect, test, type Page } from '@playwright/test';
 
 // Functional cases need the ready workspace. Keep the complete animated startup
@@ -33,53 +34,33 @@ async function replaceLyrics(page: Page, text: string): Promise<void> {
 	await expectLyrics(page, text);
 }
 
-test('phone format switching preserves multilingual lyrics and retained annotations through reload', async ({
+test('phone independent export preserves multilingual lyrics and retained annotations through reload', async ({
 	page
 }) => {
 	await openWorkspace(page);
 	const source = '[Verse]\n[مرحبا](123) — café\n\n[Chorus]\n夜の光 🎵';
 	const plain = 'مرحبا — café\n\n夜の光 🎵';
 	await replaceLyrics(page, source);
-	async function choose(profile: 'Genius' | 'Musixmatch') {
-		await page.getByRole('button', { name: `Lyric format: ${profile}` }).click();
-		await expect(page.getByRole('button', { name: `Lyric format: ${profile}` })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
-	}
 	for (let index = 0; index < 3; index++) {
-		await choose('Musixmatch');
-		await expectLyrics(page, plain);
-		await choose('Genius');
+		await exportOutput(page, 'Musixmatch', plain);
 		await expectLyrics(page, source);
 	}
-	await choose('Musixmatch');
-	await expect(page.getByLabel('Autosave status')).toHaveAttribute('aria-label', /Saved locally/u);
 	await page.reload();
-	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
-	await expectLyrics(page, plain);
-	await choose('Genius');
 	await expectLyrics(page, source);
+	await exportOutput(page, 'Musixmatch', plain);
 });
 
-test('hidden Song clear preserves format and native history after shorter projections', async ({
-	page
-}) => {
+test('hidden Song clear preserves a saved primary and native history', async ({ page }) => {
 	const errors: string[] = [];
 	page.on('pageerror', (error) => errors.push(error.message));
 	await openWorkspace(page);
 	const source = '[Verse: Åsa]\nA [café](123456) 星\n\n[Chorus: Bjørn]\nWe sing שלום';
 	const plain = 'A café 星\n\nWe sing שלום';
-	await replaceLyrics(page, source);
+	await importPrimary(page, source);
 	await mobileNavigation(page).getByRole('button', { name: 'Tools', exact: true }).click();
 	await page.getByRole('tab', { name: 'Song', exact: true }).click();
 	await expect(lyricsEditor(page)).not.toBeVisible();
-	for (const profile of ['Musixmatch', 'Genius', 'Musixmatch']) {
-		await page.getByRole('button', { name: `Lyric format: ${profile}` }).click();
-	}
+
 	await expectLyrics(page, plain);
 	await page.getByText('Clear this transcription', { exact: true }).click();
 	await page
@@ -87,10 +68,8 @@ test('hidden Song clear preserves format and native history after shorter projec
 		.click();
 	await page.getByRole('button', { name: 'Delete lyrics and details', exact: true }).click();
 	await expectLyrics(page, '');
-	await expect(page.getByRole('button', { name: 'Lyric format: Musixmatch' })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
+	await expect(page.locator('.profile-picker')).toHaveText('Musixmatch');
+	await expect(page.getByRole('button', { name: 'Lyric format: Genius' })).toHaveCount(0);
 	async function history(name: 'Undo' | 'Redo') {
 		await page.getByRole('button', { name: 'Document', exact: true }).click();
 		await page.locator('.document-toolbar').getByRole('button', { name, exact: true }).click();
@@ -101,8 +80,8 @@ test('hidden Song clear preserves format and native history after shorter projec
 	await history('Redo');
 	await expectLyrics(page, '');
 	await history('Undo');
-	await page.getByRole('button', { name: 'Lyric format: Genius' }).click();
-	await expectLyrics(page, source);
+	await exportOutput(page, 'Genius', source);
+	await expectLyrics(page, plain);
 	expect(errors).toEqual([]);
 });
 
@@ -183,7 +162,7 @@ test('phone review fixes a finding beside its lyric passage and returns to writi
 			}
 		});
 	});
-	await page.getByRole('button', { name: 'Copy lyrics' }).click();
+	await page.getByRole('button', { name: 'Copy Genius' }).click();
 	await expect(page.locator('html')).toHaveAttribute('data-copied-lyrics', "[Verse]\nI'ma go");
 	await page.getByRole('button', { name: 'Document', exact: true }).click();
 	await page.getByRole('button', { name: 'Undo', exact: true }).click();

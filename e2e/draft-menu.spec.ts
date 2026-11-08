@@ -1,3 +1,4 @@
+import { importPrimary } from './format-fixture.js';
 import { readFile } from 'node:fs/promises';
 import { expect, test as base, type Locator, type Page } from '@playwright/test';
 
@@ -63,13 +64,9 @@ for (const width of [1280, 360, 390]) {
 				const title = 'Silver compass and the lights beyond the harbour';
 				const source = '[Verse: Mira]\nI found your [silver compass](123456) by the door';
 				const editor = page.getByRole('textbox', { name: 'Lyrics editor', exact: true });
-				await editor.fill(source);
+				await importPrimary(page, source, 'genius');
 				await page.getByRole('textbox', { name: "'Scribe title", exact: true }).fill(title);
 				await page.getByRole('textbox', { name: "'Scribe title", exact: true }).press('Enter');
-				await activate(
-					page.getByRole('button', { name: 'Lyric format: Musixmatch', exact: true }),
-					touch
-				);
 				await openDrafts(page, touch);
 				await expect(page.getByRole('button', { name: /^Rename / })).toHaveCount(0);
 				const originalRow = await actions(page, title, touch);
@@ -85,15 +82,9 @@ for (const width of [1280, 360, 390]) {
 					'data-entrance-pending',
 					'false'
 				);
-				await expect(
-					page.getByRole('button', { name: 'Lyric format: Musixmatch', exact: true })
-				).toHaveAttribute('aria-pressed', 'true');
-				await editor.press('End');
+				await expect(page.getByRole('button', { name: 'Copy Genius', exact: true })).toBeVisible();
+				await editor.press('ControlOrMeta+End');
 				await editor.pressSequentially(' in the copy');
-				await activate(
-					page.getByRole('button', { name: 'Lyric format: Genius', exact: true }),
-					touch
-				);
 				await exportedLyrics(page, copy, `${source} in the copy`, touch);
 				await openDrafts(page, touch);
 				await activate(draftRow(page, title).locator('.list-row__action'), touch);
@@ -103,10 +94,6 @@ for (const width of [1280, 360, 390]) {
 				await expect(page.locator('[data-entrance-pending]')).toHaveAttribute(
 					'data-entrance-pending',
 					'false'
-				);
-				await activate(
-					page.getByRole('button', { name: 'Lyric format: Genius', exact: true }),
-					touch
 				);
 				await exportedLyrics(page, title, source, touch);
 
