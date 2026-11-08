@@ -1,4 +1,5 @@
-import { screen, waitFor } from '@testing-library/dom';
+import { CONVERSION_LIMITS } from '#lib/conversion/model.js';
+import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cdp, page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test } from 'vitest';
@@ -45,3 +46,23 @@ test.each([1280, 360, 390])(
 		expect(controller.snapshot).toBe(original);
 	}
 );
+
+test('refuses oversized output without truncating it or changing the primary, and guards departure', async () => {
+	const { controller } = createTestWorkbench({ text: 'Original words' });
+	controller.setExport('Last saved output');
+	const original = controller.snapshot;
+	await render(DocumentToolbar, { controller });
+	await userEvent.click(screen.getByRole('button', { name: 'Export to Musixmatch' }));
+	const output = screen.getByRole('textbox', { name: 'Musixmatch output' });
+	const oversized = 'x'.repeat(CONVERSION_LIMITS.text + 1);
+	await fireEvent.input(output, { target: { value: oversized } });
+	expect(output).toHaveValue(oversized);
+	expect(controller.snapshot).toBe(original);
+	expect(controller.getExport()).toBe('Last saved output');
+	expect(screen.getByRole('alert')).toHaveTextContent(
+		'This output could not be saved. Shorten it to save, or copy or download it here.'
+	);
+	const departure = new Event('beforeunload', { cancelable: true });
+	window.dispatchEvent(departure);
+	expect(departure.defaultPrevented).toBe(true);
+});
