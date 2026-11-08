@@ -750,8 +750,10 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 					reportFailure("The 'scribe could not be deleted.");
 				} finally {
 					if (committed) {
-						if (id === draftId) await creationPreferenceReady;
-						loadDraft(emptyTransientDraft(), false);
+						if (id === draftId) {
+							await creationPreferenceReady;
+							loadDraft(emptyTransientDraft(), false);
+						}
 						canceled?.discard();
 					}
 				}

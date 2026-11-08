@@ -839,6 +839,31 @@ describe('workbench draft safety', () => {
 			events.indexOf(`delete:${first.id}`)
 		);
 		expect(await repository.get(first.id)).toBeUndefined();
+		expect(controller.draftId).toBe(second.id);
+		expect(controller.snapshot.text).toBe(second.text);
+	});
+
+	test('deleting another draft preserves the active original and its edited export', async () => {
+		const first = draft('draft-a');
+		const second = draft('draft-b');
+		const repository = createInMemoryDraftRepository([first, second]);
+		const controlled = controllableAutosave(repository);
+		const { controller } = setup({ initial: first, repository, autosave: controlled.autosave });
+		const latest = '[Verse]\nPending work on the current song';
+		controller.onSnapshot(snapshot(first, 1, latest));
+		expect(controller.setExport('Separately formatted current song')).toBe(true);
+		const session = controller.draftSession;
+
+		await controller.deleteDraft(second.id);
+		await controlled.autosave.flush();
+
+		expect(await repository.get(second.id)).toBeUndefined();
+		expect(controller.draftId).toBe(first.id);
+		expect(controller.draftSession).toBe(session);
+		expect(controller.snapshot.text).toBe(latest);
+		expect(controller.getExport()).toBe('Separately formatted current song');
+		expect((await repository.get(first.id))?.text).toBe(latest);
+		expect((await repository.get(first.id))?.writing).toEqual(controller.writing);
 	});
 
 	test('a refused delete reports the failure instead of failing silently', async () => {
