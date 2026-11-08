@@ -304,7 +304,12 @@ export function serializeScribe(input: ScribeProjectInput): string {
 	) {
 		throw new ScribeFormatError('The recovery checkpoint and conversion document do not match.');
 	}
-	if (scribeDocument.writing?.phase === 'new' && hasConversionMetadata(scribeDocument.conversion))
+	if (
+		scribeDocument.writing?.phase === 'new' &&
+		(hasConversionMetadata(scribeDocument.conversion) ||
+			scribeDocument.conversionRecovery !== undefined ||
+			scribeDocument.originalRecovery !== undefined)
+	)
 		scribeDocument.writing = beginWriting(scribeDocument.writing);
 	const project: ScribeProject = {
 		format: scribeFormat,
@@ -418,7 +423,12 @@ export function parseScribe(source: string): ScribeProject {
 				throw new ScribeFormatError('The document language and conversion document do not match.');
 			}
 		}
-		if (scribeDocument.writing?.phase === 'new' && hasConversionMetadata(scribeDocument.conversion))
+		if (
+			scribeDocument.writing?.phase === 'new' &&
+			(hasConversionMetadata(scribeDocument.conversion) ||
+				scribeDocument.conversionRecovery !== undefined ||
+				scribeDocument.originalRecovery !== undefined)
+		)
 			scribeDocument.writing = beginWriting(scribeDocument.writing);
 		if (
 			scribeDocument.conversionRecovery &&

@@ -263,7 +263,10 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	function draftFromSnapshot(currentSnapshot = bindings.snapshot): DraftRecord {
 		if (
 			writing.phase === 'new' &&
-			(currentSnapshot.text.length > 0 || hasConversionMetadata(bindings.conversion))
+			(currentSnapshot.text.length > 0 ||
+				hasConversionMetadata(bindings.conversion) ||
+				bindings.conversionRecovery !== undefined ||
+				bindings.originalRecovery !== undefined)
 		)
 			writing = beginWriting(writing);
 		if (writing.phase === 'writing' && writing.export) {

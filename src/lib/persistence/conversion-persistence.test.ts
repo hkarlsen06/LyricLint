@@ -483,3 +483,18 @@ it('recovers malformed writing on a plain row while preserving original output b
 		JSON.parse(JSON.stringify(raw))
 	);
 });
+
+it('never reopens a recovered empty source as a creation choice', async () => {
+	const { repository } = await setup('empty-recovery-ownership');
+	const original = rich();
+	delete original.conversion;
+	original.text = '';
+	original.writing = { schema: 1, phase: 'new', profile: 'genius' };
+	original.originalRecovery = {
+		sourceDraftId: 'original',
+		localSourceDraftId: null,
+		reason: 'Original preserved separately'
+	};
+	const saved = await repository.create(original);
+	expect(saved.writing).toEqual({ schema: 1, phase: 'writing', profile: 'genius' });
+});

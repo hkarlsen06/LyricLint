@@ -54,7 +54,10 @@ export function copyConversionFields(source: DraftRecord, target: DraftRecord): 
 		const writing = parseWriting(source.writing, target.conversion?.profile);
 		target.writing =
 			writing.phase === 'new' &&
-			(source.text.length > 0 || hasConversionMetadata(source.conversion))
+			(source.text.length > 0 ||
+				hasConversionMetadata(source.conversion) ||
+				source.conversionRecovery !== undefined ||
+				source.originalRecovery !== undefined)
 				? beginWriting(writing)
 				: writing;
 	}
