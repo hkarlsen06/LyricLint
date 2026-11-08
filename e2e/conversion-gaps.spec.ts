@@ -77,7 +77,7 @@ for (const width of [1440, 360, 390]) {
 					.click();
 				const chooser = page.waitForEvent('filechooser');
 				await page.getByRole('button', { name: 'Choose a file…' }).click();
-				await (await chooser).setFiles('.audit/main-format-test-migration/silence-25s.wav');
+				await (await chooser).setFiles('e2e/fixtures/silence-25s.wav');
 				await expect(page.getByRole('dialog')).not.toBeVisible();
 			}
 			await attach();
