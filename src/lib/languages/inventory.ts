@@ -14,7 +14,7 @@ export const languageSourceInventory: readonly LanguageSourceInventoryEntry[] = 
 	{ language: 'Afrikaans', tag: 'af', annotationId: 18733201, policy: 'unreviewed' },
 	{ language: 'Albanian', tag: 'sq', annotationId: 13453350, policy: 'unreviewed' },
 	{ language: 'Amharic', tag: 'am', annotationId: 13806554, policy: 'unreviewed' },
-	{ language: 'Arabic', tag: 'ar', annotationId: 12745769, policy: 'unreviewed' },
+	{ language: 'Arabic', tag: 'ar', annotationId: 12745769, policy: 'localized' },
 	{ language: 'Azerbaijani', tag: 'az', annotationId: 13369698, policy: 'unreviewed' },
 	{ language: 'Basque', tag: 'eu', annotationId: 28085552, policy: 'unreviewed' },
 	{ language: 'Belarusian', tag: 'be', annotationId: 35204624, policy: 'unreviewed' },
@@ -48,7 +48,7 @@ export const languageSourceInventory: readonly LanguageSourceInventoryEntry[] = 
 		policyNote:
 			'English headers are permitted and may be preferred; local alternatives are contextual.'
 	},
-	{ language: 'French', tag: 'fr', annotationId: 12745216, policy: 'unreviewed' },
+	{ language: 'French', tag: 'fr', annotationId: 12745216, policy: 'localized' },
 	{ language: 'Galician', tag: 'gl', annotationId: 25754073, policy: 'unreviewed' },
 	{
 		language: 'German',
@@ -125,7 +125,7 @@ export const languageSourceInventory: readonly LanguageSourceInventoryEntry[] = 
 		policyNote: `${englishPreferred} Local alternatives may be used in context.`
 	},
 	{ language: 'Slovene', tag: 'sl', annotationId: 13068711, policy: 'unreviewed' },
-	{ language: 'Spanish', tag: 'es', annotationId: 12744618, policy: 'unreviewed' },
+	{ language: 'Spanish', tag: 'es', annotationId: 12744618, policy: 'localized' },
 	{ language: 'Swedish', tag: 'sv', annotationId: 12745194, policy: 'unreviewed' },
 	{
 		language: 'Thai',
