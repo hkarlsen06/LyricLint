@@ -1,6 +1,6 @@
 # Diagnostics: the card, the popover, the preview, and the panel's order
 
-Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
+Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagnostics/decisions.ts`,
 `src/lib/editor/extensions/fix-preview.ts`, `src/lib/core/fix-preview.ts`,
 `src/lib/rules/bulk-fix.ts`, `src/lib/ui/state/panel-view.svelte.ts`,
 `src/lib/rules/harper-ids.ts`
@@ -18,12 +18,25 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   Repeated text never acquires another occurrence's controls by ordinal or text search.
   Selection, collapse, focus, and row geometry survive edits above the finding. Missing change
   metadata starts fresh for changed text. Pins: `row-identity.test.ts`, `LinterPanel.svelte.test.ts`.
+- Review draws one row per decision (`groupDecisions` in `decisions.ts`). `decisionKey` joins
+  rule, severity, message, `identityText`, and every fix label; a finding with `relatedRanges`
+  or `detectedLanguage` keys `null` and always has its own row, keyed by its row identity. The
+  open row shows the unchanged per-place card for one member, held by that member's row
+  identity and remounted per member, plus `Previous place`, `Next place`, and `Place 2 of 10`
+  under the actions. Its meta line reads `Line 7` alone and `10 places, lines 8 to 33` grouped.
+  A fix or an ignore answers one place only. Pins: `decisions.test.ts`,
+  `LinterPanel.svelte.test.ts` (*one row per decision*).
+- Review's counts are of rows: the tab badge, the phone Review control, the severity chips,
+  the filter notes, `N need a decision`, and `N of M`. `Fix N issues automatically` and
+  `Fix all N` count the places their press changes. Pin: `RightPanel.svelte.test.ts`
+  (*counts Review rows…*).
 - Occurrence suppression and the ignored-list location use the same derived match result.
   Repeated line-number queries share `core/line-numbers.ts` and its indexed lookup.
 
 - In phone task views, tapping an editor underline or count badge opens that finding in
-  Review, with the real lyric context and shared actions. A count badge starts with its
-  first finding; Previous/Next handles the rest. No diagnostic popover or cluster menu opens.
+  Review, with the real lyric context and shared actions, inside the decision row that holds
+  the tapped place and on that place. A count badge starts with its first finding;
+  Previous/Next handles the rest. No diagnostic popover or cluster menu opens.
   Hover and native text selection do not navigate. `e2e/mobile-workbench.spec.ts` pins taps,
   the selected occurrence, fixes, focus handoff, and the absence of floating diagnostics.
 
@@ -34,12 +47,15 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   or hiding the panels releases that card's preview; returning to Review resumes an expanded
   card's preview. Pins: `LinterPanel.svelte.test.ts` (*collapses the open finding…*,
   *retires the review preview…*).
-- Review offers Previous/Next and `Alt-Shift-Up/Down` in its existing reading order. These
+- Review offers Previous/Next and `Alt-Shift-Up/Down` in its existing reading order, one
+  decision per step; `F2` and `Ctrl-Alt-.` in the editor still step by place. These
   commands and opening a card reveal the lyric range without taking keyboard focus from the
   panel. Text fields, IME composition, and visible pickers keep ownership of their keys. Removing a finding resolves focus against the newly rendered rows, whose keys never
   include their array index. Pins: `LinterPanel.svelte.test.ts` (*moves between findings…*,
   *keeps the next row mounted…*, *hands keyboard focus…*).
-- Applying a fix hands the workbench to the next finding (`leadAfterFix`); a deliberately
+- Applying a fix hands the workbench to the next finding (`leadAfterFix`). A fix or an ignore
+  on one place of a decision leads first to that decision's next place in document order,
+  wrapping within it, so its row stays open and still; otherwise a deliberately
   selected passage advances to the next finding in document order from that passage, wrapping
   to the ranked lead when none remain after it. Default triage retains the ranked lead.
   Pin: `workbench.test.ts` (*continues from a deliberately chosen passage…*). Any wholesale
@@ -84,8 +100,8 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   ignored diagnostic hidden when edits remove and later recreate it*).
 - `Fix all N` batches by rule *and* fix label; the linter's bulk fix plans over the visible
   diagnostics only; a batch is one `AtomicDocumentEdit` (`mergeFixes` drops `selectionAfter`).
-  Counts are of diagnostics, not fixes. The count comes from `countDiagnosticFixBatch` on the
-  contract, never the editor's own arithmetic.
+  `Fix all N` counts diagnostics, not fixes. The count comes from `countDiagnosticFixBatch` on
+  the contract, never the editor's own arithmetic.
 - One diagnostic, one implementation: `src/lib/diagnostics/` owns everything from the meta
   line down, shared by the panel card and the popover;
   `diagnostic-parity.svelte.test.ts` renders both and compares them. The directory sits
@@ -378,8 +394,10 @@ for something they pressed once. `mergeFixes` drops `selectionAfter` on the way:
 down the document has no single place for the caret, and `leadAfterFix` is about to select the
 leading remaining finding anyway, exactly as it does after a single fix.
 
-Counts are of diagnostics, not of fixes, because the strip's two numbers are read as one sentence
-about the list underneath and have to add up to it.
+Counts were of diagnostics, not of fixes, because the strip's two numbers were read as one
+sentence about the list underneath and had to add up to it. That rule is superseded by *Review
+draws one row per decision*: the button still counts the diagnostics its press changes, and the
+remainder counts the rows the press leaves, so the two no longer add up to one number.
 
 Implementation: `src/lib/rules/bulk-fix.ts` (keys, arbitration through the existing
 `collectSafeFixes`, and the merge), `applyFixBatch` / `applyBulkFix` in
@@ -388,6 +406,31 @@ Implementation: `src/lib/rules/bulk-fix.ts` (keys, arbitration through the exist
 card cannot offer different batches for the same fix. The shell answers the count for both
 surfaces (`countDiagnosticFixBatch` in `src/lib/editor/contracts.ts`); an editor that counted its
 own would disagree with the panel.
+
+### Review draws one row per decision
+
+A lyric pasted from a notes app produced 26 cards that were 3 decisions: 15 curly apostrophes,
+10 line-end commas, and 1 unlinked repeat. Reading the list meant scrolling past the same
+message again and again, and each fix moved the next identical card into place under the
+pointer. The list now draws one row per decision and opens one place at a time inside it.
+
+The key keeps the message because the row shows one message, and that message has to be true
+of every place under it. `fixBatchKey` has no message, so it would put the opening and the
+closing curly quote under one message that is false for half of them. Severity is in the key so
+a row never straddles a severity chip, which keeps the chip counts equal to the rows drawn.
+Findings with related ranges or a detected language describe something larger than their own
+place, so they never fold.
+
+The card inside the row is the existing per-place card, unchanged, so the panel and the popover
+stay one implementation. The open place is held by its row identity, never by its index: an
+answered place hands over to its decision's next place through `leadAfterFix`, and the
+`{#key}` around the card means another place never inherits its controls. The stepper sits
+under the actions, so its arrival and departure never move them. G1 adds no batch for
+`preview` fixes and no group-wide Ignore: ten commas are still ten presses, each with its
+diff on screen.
+
+Counts follow the rows, because the badge and the chips describe the list a reader works
+through. The bulk command is the exception: it changes places, and its count says how many.
 
 ### One diagnostic, one implementation
 

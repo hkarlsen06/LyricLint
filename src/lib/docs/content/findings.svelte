@@ -17,11 +17,20 @@
 	alt="The Review tab with one finding expanded. It shows the message, the line number and cited source, an explanation, and a fix button, while the lyrics show the fix as a preview."
 />
 
+<p>
+	When the same finding turns up in several places, such as ten lines that end in a comma, the list
+	shows it once. You make one decision and work through its places.
+</p>
+
 <p>Each finding starts with one line of facts:</p>
 
 <ul>
 	<li>A mark for how serious it is (see the table below).</li>
-	<li>The line it is on.</li>
+	<li>
+		The line it is on. A finding in several places says how many and where, such as <strong
+			>10 places, lines 8 to 33</strong
+		>.
+	</li>
 	<li>
 		The source it relies on, as a link. Point at the link or focus it to see which part of the page
 		is cited and when LyricLint last checked it. When a finding cites several sources, they fold
@@ -76,26 +85,30 @@
 <p>
 	The chips above the list (<strong>Errors</strong>, <strong>Warnings</strong>, <strong
 		>Suggestions</strong
-	>, <strong>Manual review</strong>) show how many of each there are. Press a chip to hide or show
-	that kind.
+	>, <strong>Manual review</strong>) show how many of each there are in the list, counting a
+	finding in several places once. Press a chip to hide or show that kind.
 </p>
 
 <p>
-	Press a finding to open it and read the explanation. In the lyrics, point at an underline to see
-	the same finding in a popover. When a line has several findings, a count at the end of the line
-	lists them.
+	Press a finding to open it and read the explanation. A finding in several places opens on its first
+	place, and <strong>Place 1 of 10</strong> under its buttons steps to the others with
+	<strong>Previous place</strong> and <strong>Next place</strong>. In the lyrics, point at an
+	underline to see the same finding in a popover. When a line has several findings, a count at the
+	end of the line lists them.
 </p>
 
 <p>To move between findings from the keyboard:</p>
 
 <ul>
 	<li>
-		In the lyrics, <Keys combo="F2" /> goes to the next finding and <Keys combo="Shift-F2" /> to the
-		previous one.
+		In the lyrics, <Keys combo="F2" /> goes to the next place with a finding and <Keys
+			combo="Shift-F2"
+		/> to the previous one.
 	</li>
 	<li>
 		In the <strong>Review</strong> tab, use <strong>Previous</strong> and <strong>Next</strong>, or
-		<Keys combo="Alt-Shift-ArrowUp" /> and <Keys combo="Alt-Shift-ArrowDown" />.
+		<Keys combo="Alt-Shift-ArrowUp" /> and <Keys combo="Alt-Shift-ArrowDown" />, to move from one
+		finding in the list to the next.
 	</li>
 </ul>
 
@@ -123,7 +136,8 @@
 </ol>
 
 <p>
-	The fix is one step you can undo, and the next finding opens so you can keep going. When a finding
+	The fix is one step you can undo, and the next finding opens so you can keep going. In a finding
+	with several places, its next place opens in the same spot. When a finding
 	offers more than one fix, the first is the recommended one. Point at or focus any of them to
 	preview it.
 </p>
@@ -154,7 +168,8 @@
 
 <p>
 	At the top of the <strong>Review</strong> tab, <strong>Fix … issues automatically</strong> applies
-	every such fix in the list at once. The note beside it says how many findings still need a decision.
+	every such fix in the list at once. Its count is the number of places it changes. The note beside it
+	says how many findings in the list will still need a decision.
 </p>
 
 <p>
@@ -167,7 +182,8 @@
 
 <p>
 	If a finding is wrong for this song, press <strong>Ignore</strong>. It disappears for this 'scribe
-	only, and a message offers <strong>Undo</strong>.
+	only, and a message offers <strong>Undo</strong>. In a finding with several places, Ignore sets
+	aside only the place that is open.
 </p>
 
 <p>

@@ -9,7 +9,7 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
 ## The rules
 
 - Phones open in Write, with the lyrics taking the available height. The labelled
-  Write, Review (with the visible finding count), and Tools controls switch task views.
+  Write, Review (with the count of visible Review rows, one per decision), and Tools controls switch task views.
   The editor remains mounted; selection, undo history, and scroll position survive.
   Linking is a tool within Tools: deliberate editor or Review requests open its detail and
   focus its heading without opening the keyboard. Its comparison uses the panel scroll port.
