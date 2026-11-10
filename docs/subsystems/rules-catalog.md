@@ -2,7 +2,7 @@
 
 Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/results.ts`, `src/lib/rules/harper.ts`, `src/lib/rules/registry.ts`,
 `src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/spelling.ts`, `src/lib/rules/data/rule-set.ts`, `src/lib/ui/state/wiring.ts`,
-`src/lib/rules/catalog/policy-cases.ts`, `src/lib/languages/detect.ts`, `src/lib/languages/statistical-detector.ts`, `services/rules-assistant/`
+`src/lib/rules/catalog/policy-cases.ts`, `src/lib/languages/registry.ts`, `src/lib/languages/detect.ts`, `src/lib/languages/statistical-detector.ts`, `services/rules-assistant/`
 
 ## The rules
 
@@ -49,6 +49,18 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   include that assertion; if neither has covered this change, run the focused
   `bunx playwright test -g "sitemap"` check. Then `bun run assistant:corpus` and bump
   `currentRuleSet.version`. A table-shaped rule also registers in `ruleLookupTables()`.
+- Adding a reviewed language pack is one pack file in `src/lib/languages/`, its import and
+  entry in `reviewedLanguagePacks` (`languages/registry.ts`), its `G-LANG-*` annotation in
+  `data/sources.ts`, and in `data/sources.test.ts` its id, its tier set unless it is community,
+  and the registry total. Nothing else repeats the pack list: the header rules cite
+  `reviewedPackSourceIds`, `registry.test.ts` and the corpus test iterate the packs, and the
+  `/docs/sections/` table draws a row per pack, listing its Verse, Chorus, and Bridge terms
+  unless `sections.svelte` writes a note for that tag. Three records change by hand on purpose:
+  `currentRuleSet` lists the source and bumps its version (`rule-set.test.ts` names a missing
+  id; the manifest stays literal because it records what a version shipped and the site layout
+  imports it), the source row in `docs/rules.md`, and the tag's `policy` in `inventory.ts`, which
+  the pack overrides at runtime. Then `bun run assistant:corpus`. Append packs: pack order is
+  behavior, since `section.header-language` names the first other pack that claims a term.
 - `RulePolicyCase.title` names the failure, not the convention, and is the one written string
   in the reference; `variant` collapses per-language families in the index only.
   `reference.test.ts` pins title constraints.

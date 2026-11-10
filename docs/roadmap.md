@@ -35,7 +35,7 @@ hand back.
 - **Timed import.** An `.lrc` dropped on the editor is a document and a set of anchors in one
   edit, which is how a transcriber brings work in from elsewhere and picks up where sync mode
   left off.
-- **Language packs 8 → 20.** `docs/genius-language-source-inventory.md` holds 60+ annotation IDs
+- **Language packs 8 → 20.** `docs/genius-language-source-inventory.md` holds 63 annotation IDs
   and each one is its own review unit. The next twelve are chosen by where transcription volume
   actually is: Portuguese, Italian, Dutch, Russian, Turkish, Polish, Swedish, Danish, Finnish,
   Indonesian, Hindi, Chinese.
