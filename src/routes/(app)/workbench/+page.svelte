@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import type { DraftHandoff } from '#lib/core/handoff.js';
 	import { parseDocument } from '#lib/core/parser.js';
 	import type {
 		AutosaveStatus,
@@ -88,8 +89,35 @@
 		};
 	}
 
+	/**
+	 * A link from another page can hand over a lyric in the fragment, which no
+	 * request carries. It leaves the address bar and this history entry before
+	 * anything awaits, so a reload or a Back press cannot open it twice. The codec
+	 * loads only for such a link.
+	 */
+	function takeHandoff(): Promise<DraftHandoff | null> | undefined {
+		const fragment = location.hash;
+		if (!fragment.startsWith('#open=')) return undefined;
+		history.replaceState(history.state, '', `${location.pathname}${location.search}`);
+		return import('#lib/core/handoff.js')
+			.then(({ decodeHandoff }) => decodeHandoff(fragment))
+			.catch(() => null);
+	}
+
 	onMount(() => {
 		let cancelled = false;
+
+		const handoff = takeHandoff();
+		let markReady: (ready: WorkbenchController) => void = () => {};
+		const ready = new Promise<WorkbenchController>((resolve) => (markReady = resolve));
+		// The same link followed in a tab already showing the workbench changes
+		// only the fragment, which reloads nothing.
+		const onHashChange = () => {
+			const next = takeHandoff();
+			if (!next) return;
+			void Promise.all([ready, next]).then(([opened, decoded]) => opened.openHandoff(decoded));
+		};
+		window.addEventListener('hashchange', onHashChange);
 
 		/**
 		 * One workbench per browser profile, and this tab waits for it.
@@ -160,7 +188,7 @@
 				let snapshot = snapshotFor(initialDraft);
 				const editor = headlessEditor(() => snapshot);
 
-				controller = createWorkbenchController({
+				const created = createWorkbenchController({
 					editor,
 					initialSnapshot: snapshot,
 					initialDraft,
@@ -173,7 +201,9 @@
 					feedback,
 					initialActiveTab: rightPanelTabFromUrl(page.url),
 					onActiveTabChange: (tab) => {
-						const next = urlForRightPanelTab(page.url, tab);
+						// The address bar, not `page.url`, which still holds a hand-over
+						// fragment removed outside the router.
+						const next = urlForRightPanelTab(new URL(location.href), tab);
 						// SAFETY: `URL.search` is empty or opens with `?`, and `URL.hash` is
 						// empty or opens with `#`, so this is one of exactly the three route
 						// shapes named here, which a template literal type cannot express.
@@ -189,6 +219,14 @@
 						return snapshot;
 					}
 				});
+				// Opened before the workspace first draws, so the editor mounts on the
+				// handed-over lyric rather than flashing the draft it replaces.
+				if (handoff) {
+					await created.openHandoff(await handoff);
+					if (cancelled) return;
+				}
+				controller = created;
+				markReady(created);
 			} catch (error) {
 				if (!cancelled) {
 					bootError = "Local storage is unavailable, so 'scribes cannot be saved in this browser.";
@@ -210,6 +248,7 @@
 		document.addEventListener('visibilitychange', flushWhenHidden);
 		return () => {
 			cancelled = true;
+			window.removeEventListener('hashchange', onHashChange);
 			document.removeEventListener('visibilitychange', flushWhenHidden);
 		};
 	});

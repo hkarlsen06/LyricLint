@@ -27,6 +27,7 @@ import { StubAudio } from './media-test-audio.js';
 import { sampleDraftText } from '../sample-draft.js';
 import { unknownVoiceAcceptanceKey } from '#lib/diagnostics/ignore.js';
 import { createWorkbenchController } from './workbench.svelte.js';
+import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 import { buildRuleContext } from './wiring.js';
 
 function draft(id: string, text = '[Verse]\nLine'): DraftRecord {
@@ -1625,5 +1626,92 @@ describe('linking navigation origin', () => {
 		expect(controller.linkingHeaderFrom).toBeUndefined();
 		expect(controller.linkingFromOverview).toBe(false);
 		expect(controller.linkingComparedHeaders).toBeUndefined();
+	});
+});
+
+describe('workbench lyric hand-over', () => {
+	const handoff = {
+		text: '[Verse 1]\r\nCity lights\r\nKeep me up',
+		title: 'City Lights',
+		geniusUrl: 'https://genius.com/Example-city-lights-lyrics'
+	};
+
+	test('opens the lyric as a new draft and leaves the open one byte-identical', async () => {
+		const { controller, repository, editor } = setup({});
+		const dispatch = vi.spyOn(editor, 'dispatchAtomic');
+		const before = JSON.stringify(await repository.get('draft-a'));
+
+		expect(await controller.openHandoff(handoff)).toBe(true);
+
+		expect(JSON.stringify(await repository.get('draft-a'))).toBe(before);
+		expect(dispatch).not.toHaveBeenCalled();
+		expect(controller.draftId).not.toBe('draft-a');
+		expect(controller.title).toBe('City Lights');
+		expect(controller.geniusUrl).toBe(handoff.geniusUrl);
+		expect(controller.snapshot.text).toBe('[Verse 1]\nCity lights\nKeep me up');
+		expect(await repository.get(controller.draftId)).toMatchObject({
+			title: 'City Lights',
+			text: '[Verse 1]\nCity lights\nKeep me up',
+			geniusUrl: handoff.geniusUrl
+		});
+		expect(await repository.list()).toHaveLength(2);
+		expect(controller.feedback.announcement).toBe("Opened City Lights as a new 'scribe.");
+		expect(controller.toasts.at(-1)?.message).toBe("Opened City Lights as a new 'scribe.");
+	});
+
+	test('saves the open draft’s pending words before it switches', async () => {
+		const first = draft('draft-a');
+		const repository = createInMemoryDraftRepository([first]);
+		const { controller } = setup({ initial: first, repository });
+		controller.onSnapshot(snapshot(first, 1, '[Verse]\nUnsaved line'));
+
+		expect(await controller.openHandoff({ text: 'Handed over' })).toBe(true);
+
+		expect((await repository.get('draft-a'))?.text).toBe('[Verse]\nUnsaved line');
+		expect(controller.title).toBe(DEFAULT_DRAFT_TITLE);
+		expect(controller.snapshot.text).toBe('Handed over');
+	});
+
+	test('refuses and stays on the open draft when its save fails', async () => {
+		const first = draft('draft-a');
+		const repository = createInMemoryDraftRepository([first]);
+		let status: ReturnType<AutosaveController['status']> = 'idle';
+		// The real controller's shape: a failed write is kept and reported through
+		// the status, never thrown out of `flush`.
+		const autosave: AutosaveController = {
+			schedule() {
+				status = 'scheduled';
+			},
+			async flush() {
+				if (status === 'scheduled') status = 'failed';
+			},
+			cancel() {
+				status = 'idle';
+			},
+			status: () => status
+		};
+		const { controller } = setup({ initial: first, repository, autosave });
+		controller.onSnapshot(snapshot(first, 1, '[Verse]\nUnsaved line'));
+
+		expect(await controller.openHandoff(handoff)).toBe(false);
+
+		expect(controller.draftId).toBe('draft-a');
+		expect(controller.snapshot.text).toBe('[Verse]\nUnsaved line');
+		expect(await repository.list()).toHaveLength(1);
+		expect(controller.feedback.announcement).toBe(
+			"The linked lyrics could not be saved as a new 'scribe."
+		);
+	});
+
+	test('refuses a link it could not read and creates nothing', async () => {
+		const { controller, repository } = setup({});
+
+		expect(await controller.openHandoff(null)).toBe(false);
+
+		expect(controller.draftId).toBe('draft-a');
+		expect(await repository.list()).toHaveLength(1);
+		const refusal = "This link's lyrics could not be read, so no 'scribe was created.";
+		expect(controller.feedback.announcement).toBe(refusal);
+		expect(controller.toasts.at(-1)?.message).toBe(refusal);
 	});
 });

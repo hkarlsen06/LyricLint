@@ -28,7 +28,7 @@ import { sampleDraftLanguage, sampleDraftText } from '../sample-draft.js';
 import { createDraftStore, safeFilename } from './draft-store.svelte.js';
 import { createEditorSession } from './editor-session.svelte.js';
 import type { FeedbackState, ToastMessage } from './feedback.svelte.js';
-import { createFeedbackState } from './feedback.svelte.js';
+import { createFeedbackState, NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 import type { BulkFixPlan } from '#lib/rules/bulk-fix.js';
 import type { RightPanelTab } from './panel-view.svelte.js';
 import { createPanelView } from './panel-view.svelte.js';
@@ -44,6 +44,8 @@ import { headerNameAtoms, isMirrorableHeaderName } from '#lib/performers/index.j
 import { buildRuleContext } from './wiring.js';
 import { maxScribeBytes, ScribeFormatError } from '#lib/scribe/contracts.js';
 import type { ScribeProjectInput } from '#lib/scribe/format.js';
+import type { DraftHandoff } from '#lib/core/handoff.js';
+import { canonicalLineBreaks } from '#lib/core/line-numbers.js';
 
 interface WorkbenchDependencies {
 	editor: EditorHandle;
@@ -240,6 +242,11 @@ export interface WorkbenchController {
 	exportScribe(id?: string): Promise<void>;
 	/** Validate and import a Scribe as a new local draft, without overwriting this one. */
 	importScribe(file: File): Promise<boolean>;
+	/**
+	 * Open a lyric handed over by a link as a new local draft, without
+	 * overwriting this one. `null` is a link `decodeHandoff` refused.
+	 */
+	openHandoff(handoff: DraftHandoff | null): Promise<boolean>;
 	deleteDraft(id: string): Promise<void>;
 	deleteAllDrafts(): Promise<void>;
 	backupWorkspace(): Promise<void>;
@@ -508,6 +515,36 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			actionLabel: 'Undo',
 			action: () => renamePerformer(id, previousName)
 		});
+	}
+
+	/**
+	 * Write `record` as a new draft and open it, leaving the open one as it is.
+	 * `false` means it was not opened, and the reason has been reported.
+	 */
+	async function openAsNewDraft(
+		record: DraftRecord,
+		failure: string,
+		beforeOpen?: () => Promise<void>
+	): Promise<boolean> {
+		await draft.flushAutosave();
+		// The flush reports its own failure and never throws, so this is the one
+		// place to see it. Switching away now would leave the unsaved words behind.
+		let written = draft.saveStatus !== 'failed';
+		if (written) {
+			try {
+				await deps.repository.create(record);
+				await beforeOpen?.();
+			} catch {
+				written = false;
+			}
+		}
+		if (!written) {
+			feedback.announce(failure);
+			feedback.addToast({ message: failure });
+			return false;
+		}
+		await draft.openDraft(record.id);
+		return draft.draftId === record.id;
 	}
 
 	const controller: WorkbenchController = {
@@ -920,33 +957,59 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			if (project.lineAnchors.length > 0) imported.lineAnchors = project.lineAnchors;
 			if (project.sectionLinks.length > 0) imported.sectionLinks = project.sectionLinks;
 
-			try {
-				await draft.flushAutosave();
-				await deps.repository.create(imported);
-				for (const key of project.ignoredDiagnostics) deps.ignoreStore.ignore(imported.id, key);
-				if (project.song && deps.mediaRepository) {
-					const source = project.song;
-					const attachment: Parameters<MediaRepository['attach']>[0] = {
-						draftId: imported.id,
-						name: source.name ?? `${source.kind}:${source.id}`,
-						source: source.kind
-					};
-					// One id field, named for the source's own alphabet, because a record that
-					// confused them would fail as a 404 a long way from here.
-					if (source.kind === 'youtube') attachment.videoId = source.id;
-					if (source.kind === 'spotify') attachment.trackId = source.id;
-					if (source.kind === 'apple') attachment.songId = source.id;
-					await deps.mediaRepository.attach(attachment);
+			const opened = await openAsNewDraft(
+				imported,
+				'The Scribe could not be imported into local storage.',
+				async () => {
+					for (const key of project.ignoredDiagnostics) deps.ignoreStore.ignore(imported.id, key);
+					if (project.song && deps.mediaRepository) {
+						const source = project.song;
+						const attachment: Parameters<MediaRepository['attach']>[0] = {
+							draftId: imported.id,
+							name: source.name ?? `${source.kind}:${source.id}`,
+							source: source.kind
+						};
+						// One id field, named for the source's own alphabet, because a record that
+						// confused them would fail as a 404 a long way from here.
+						if (source.kind === 'youtube') attachment.videoId = source.id;
+						if (source.kind === 'spotify') attachment.trackId = source.id;
+						if (source.kind === 'apple') attachment.songId = source.id;
+						await deps.mediaRepository.attach(attachment);
+					}
 				}
-				await draft.openDraft(imported.id);
-				feedback.announce(`Imported ${imported.title}.`);
-				return true;
-			} catch {
-				const message = 'The Scribe could not be imported into local storage.';
+			);
+			if (opened) feedback.announce(`Imported ${imported.title}.`);
+			return opened;
+		},
+		async openHandoff(handoff) {
+			if (!handoff) {
+				const message = "This link's lyrics could not be read, so no 'scribe was created.";
 				feedback.announce(message);
-				feedback.addToast({ message });
+				feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
 				return false;
 			}
+			const timestamp = now();
+			const handed: DraftRecord = {
+				id: idFactory(),
+				title: handoff.title ?? DEFAULT_DRAFT_TITLE,
+				text: canonicalLineBreaks(handoff.text),
+				language: draft.language,
+				performers: [],
+				createdAt: timestamp,
+				updatedAt: timestamp,
+				ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion
+			};
+			if (handoff.geniusUrl !== undefined) handed.geniusUrl = handoff.geniusUrl;
+			const opened = await openAsNewDraft(
+				handed,
+				"The linked lyrics could not be saved as a new 'scribe."
+			);
+			if (opened) {
+				const message = `Opened ${handed.title} as a new 'scribe.`;
+				feedback.announce(message);
+				feedback.addToast({ message });
+			}
+			return opened;
 		},
 		deleteDraft: draft.deleteDraft,
 		async deleteAllDrafts() {
