@@ -65,7 +65,7 @@ describe('the evaluation set', () => {
 		}
 	});
 
-	it('covers all eight reviewed languages', () => {
+	it('covers every reviewed language', () => {
 		const corpusTags = corpus.languages.map((language) => language.tag).sort();
 		const covered = evalSet.cases
 			.filter((testCase) => testCase.category === 'language')

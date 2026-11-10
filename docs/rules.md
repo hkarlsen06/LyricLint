@@ -197,8 +197,8 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 `section.header-prose` normally requires more than a recognized part name alone on a line, because a lyric can be the single word `Chorus`. One of three marks has to be present: a trailing colon, a number, or capitals in a cased script. A bare reviewed name is decisive only when it leads a headerless blank-line section and has lyric lines beneath it; inside an existing headed section or alone without a body, it remains ambiguous. The rule converts to the bracketed form only; choosing a localized term afterwards remains `section.localized-header-preference`'s decision.
 
 The language-specific grammar catalog is intentionally narrower than the language picker. The
-first release covers only the eight reviewed language packs (`en`, `no`, `ar`, `de`, `es`, `fr`,
-`ja`, and `ko`) and favors mechanical, source-backed forms over broad grammatical guesses.
+first release covers only the languages with a reviewed language pack and favors mechanical,
+source-backed forms over broad grammatical guesses.
 Context-sensitive pairs such as Norwegian `og`/`å`, German `das`/`dass`, and general Japanese
 particle choice remain out of scope until a parser can keep false positives acceptably low.
 
