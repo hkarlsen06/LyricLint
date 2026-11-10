@@ -1,11 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { languageSourceInventory } from './inventory.js';
 import {
 	canLintHeaderLanguage,
 	getLanguagePack,
 	resolveLanguageTag,
-	reviewedLanguagePacks
+	reviewedLanguagePacks,
+	reviewedPackSourceIds
 } from './registry.js';
+
+const rulesMd = readFileSync(join(__dirname, '../../../docs/rules.md'), 'utf8');
 
 describe('language packs', () => {
 	it('resolves every reviewed selector language to an enforcing pack', () => {
@@ -34,6 +39,18 @@ describe('language packs', () => {
 		expect(getLanguagePack('ko')).toMatchObject({ policy: 'contextual', reviewed: true });
 		expect(getLanguagePack('xx-ZZ')).toMatchObject({ tag: 'und', reviewed: false });
 		expect(canLintHeaderLanguage(getLanguagePack('xx-ZZ'))).toBe(false);
+	});
+
+	it("gives every reviewed pack's inventory entry the pack's policy", () => {
+		for (const pack of reviewedLanguagePacks) {
+			const entry = languageSourceInventory.find((candidate) => candidate.tag === pack.tag);
+			expect(entry?.policy, pack.tag).toBe(pack.policy);
+		}
+	});
+
+	it('lists every reviewed pack source in the docs/rules.md source table', () => {
+		const missing = reviewedPackSourceIds.filter((id) => !rulesMd.includes(`\n| \`${id}\` |`));
+		expect(missing).toEqual([]);
 	});
 
 	it('retains every exact source-inventory mapping and policy exception', () => {
