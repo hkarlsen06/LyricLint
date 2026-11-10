@@ -2,7 +2,8 @@ import type { LanguagePack } from '#lib/core/types.js';
 import {
 	getLanguagePack,
 	canLintHeaderLanguage,
-	reviewedLanguagePacks
+	reviewedLanguagePacks,
+	reviewedPackSourceIds
 } from '#lib/languages/registry.js';
 import type { RuleDefinition } from '#lib/core/types.js';
 import {
@@ -46,17 +47,7 @@ export const sectionHeaderLanguageRule: RuleDefinition = {
 	version: 2,
 	defaultSeverity: 'warning',
 	fixability: 'preview',
-	sourceIds: [
-		'G-SECTIONS',
-		'G-LANG-EN',
-		'G-LANG-NO',
-		'G-LANG-AR',
-		'G-LANG-DE',
-		'G-LANG-ES',
-		'G-LANG-FR',
-		'G-LANG-JA',
-		'G-LANG-KO'
-	],
+	sourceIds: ['G-SECTIONS', ...reviewedPackSourceIds],
 	check(document, context) {
 		const withChorusAffixes = hasChorusAffixes(document);
 		const selected = getLanguagePack(context.language);

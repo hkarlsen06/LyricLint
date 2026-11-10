@@ -1,5 +1,9 @@
 import type { LanguagePack, RuleDefinition } from '#lib/core/types.js';
-import { getLanguagePack, semanticPartKey } from '#lib/languages/registry.js';
+import {
+	getLanguagePack,
+	reviewedPackSourceIds,
+	semanticPartKey
+} from '#lib/languages/registry.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 const replacementSemantics = new Set(['chorus', 'refrain']);
@@ -36,17 +40,7 @@ export const sectionDeprecatedHookRule: RuleDefinition = {
 	version: 2,
 	defaultSeverity: 'warning',
 	fixability: 'preview',
-	sourceIds: [
-		'G-SECTION-HOOK',
-		'G-LANG-EN',
-		'G-LANG-NO',
-		'G-LANG-AR',
-		'G-LANG-DE',
-		'G-LANG-ES',
-		'G-LANG-FR',
-		'G-LANG-JA',
-		'G-LANG-KO'
-	],
+	sourceIds: ['G-SECTION-HOOK', ...reviewedPackSourceIds],
 	check(document, context) {
 		const selectedPack = getLanguagePack(context.language);
 		const selectedTerms = new Set(

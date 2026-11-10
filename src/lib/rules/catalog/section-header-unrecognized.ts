@@ -2,7 +2,8 @@ import type { RuleDefinition } from '#lib/core/types.js';
 import {
 	canLintHeaderLanguage,
 	getLanguagePack,
-	reviewedLanguagePacks
+	reviewedLanguagePacks,
+	reviewedPackSourceIds
 } from '#lib/languages/registry.js';
 import { headerNameIsEmpty } from '#lib/core/parser.js';
 import {
@@ -47,18 +48,7 @@ export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 	version: 3,
 	defaultSeverity: 'manual-review',
 	fixability: 'none',
-	sourceIds: [
-		'G-SECTIONS',
-		'G-LANG-EN',
-		'G-LANG-NO',
-		'G-LANG-AR',
-		'G-LANG-DE',
-		'G-LANG-ES',
-		'G-LANG-FR',
-		'G-LANG-JA',
-		'G-LANG-KO',
-		'G-NON-ENGLISH'
-	],
+	sourceIds: ['G-SECTIONS', ...reviewedPackSourceIds, 'G-NON-ENGLISH'],
 	check(document, context) {
 		const withChorusAffixes = hasChorusAffixes(document);
 		return document.sections.flatMap((section, sectionIndex) => {

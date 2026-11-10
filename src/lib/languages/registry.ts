@@ -9,16 +9,23 @@ import { koreanLanguagePack } from './ko.js';
 import { norwegianLanguagePack } from './no.js';
 import type { LanguagePack } from './types.js';
 
-const reviewedPacks = new Map<string, LanguagePack>([
-	[englishLanguagePack.tag, englishLanguagePack],
-	[norwegianLanguagePack.tag, norwegianLanguagePack],
-	[arabicLanguagePack.tag, arabicLanguagePack],
-	[germanLanguagePack.tag, germanLanguagePack],
-	[spanishLanguagePack.tag, spanishLanguagePack],
-	[frenchLanguagePack.tag, frenchLanguagePack],
-	[japaneseLanguagePack.tag, japaneseLanguagePack],
-	[koreanLanguagePack.tag, koreanLanguagePack]
-]);
+export const reviewedLanguagePacks: readonly LanguagePack[] = [
+	englishLanguagePack,
+	norwegianLanguagePack,
+	arabicLanguagePack,
+	germanLanguagePack,
+	spanishLanguagePack,
+	frenchLanguagePack,
+	japaneseLanguagePack,
+	koreanLanguagePack
+];
+
+/** Every reviewed pack's sources, in pack order, each once. */
+export const reviewedPackSourceIds: readonly string[] = [
+	...new Set(reviewedLanguagePacks.flatMap((pack) => pack.sourceIds))
+];
+
+const reviewedPacks = new Map(reviewedLanguagePacks.map((pack) => [pack.tag, pack]));
 
 const inventoryByTag = new Map(languageSourceInventory.map((entry) => [entry.tag, entry]));
 
@@ -145,19 +152,3 @@ export function linkableSemantic(
 export function canLintHeaderLanguage(pack: LanguagePack): boolean {
 	return pack.reviewed && pack.policy !== 'unreviewed' && pack.headers.length > 0;
 }
-
-export const reviewedLanguagePacks: readonly LanguagePack[] = [
-	englishLanguagePack,
-	norwegianLanguagePack,
-	arabicLanguagePack,
-	germanLanguagePack,
-	spanishLanguagePack,
-	frenchLanguagePack,
-	japaneseLanguagePack,
-	koreanLanguagePack
-];
-
-/** Every reviewed pack's sources, in pack order, each once. */
-export const reviewedPackSourceIds: readonly string[] = [
-	...new Set(reviewedLanguagePacks.flatMap((pack) => pack.sourceIds))
-];
