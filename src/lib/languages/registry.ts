@@ -156,3 +156,8 @@ export const reviewedLanguagePacks: readonly LanguagePack[] = [
 	japaneseLanguagePack,
 	koreanLanguagePack
 ];
+
+/** Every reviewed pack's sources, in pack order, each once. */
+export const reviewedPackSourceIds: readonly string[] = [
+	...new Set(reviewedLanguagePacks.flatMap((pack) => pack.sourceIds))
+];
