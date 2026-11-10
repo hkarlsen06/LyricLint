@@ -18,17 +18,18 @@
 	let {
 		diagnostic,
 		sources,
-		line
+		location
 	}: {
 		diagnostic: Diagnostic;
 		/** The panel holds its citations by id, the editor as a list; both work. */
 		sources: ReadonlyMap<string, SourceReference> | readonly SourceReference[];
 		/**
-		 * Where the finding is, when the surface has to say so. The panel's card
-		 * does; the editor's popover is already anchored under the underline it
-		 * describes, so it passes nothing and the citation follows the severity.
+		 * Where the finding is, when the surface has to say so: `Line 7`, or
+		 * `10 places, lines 8 to 33` for a panel row that stands for several. The
+		 * editor's popover is already anchored under the underline it describes,
+		 * so it passes nothing and the citation follows the severity.
 		 */
-		line?: number;
+		location?: string;
 	} = $props();
 
 	/** Which of the two shapes the surface handed over. */
@@ -81,11 +82,11 @@
 			"Suggestion" eight times, in the same blue, down the same column.
 		-->
 		<SeverityTag severity={diagnostic.severity} labelled={false} />
-		{#if line !== undefined}
-			<span class="diagnostic-meta__line">Line {line}</span>
+		{#if location !== undefined}
+			<span class="diagnostic-meta__line">{location}</span>
 		{/if}
 		{#if diagnostic.derivation}
-			{#if line !== undefined}
+			{#if location !== undefined}
 				<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
 			{/if}
 			<!--
@@ -106,7 +107,7 @@
 			</span>
 		{/if}
 		{#if folded}
-			{#if line !== undefined || diagnostic.derivation}
+			{#if location !== undefined || diagnostic.derivation}
 				<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
 			{/if}
 			<button
@@ -130,7 +131,7 @@
 			</button>
 		{:else}
 			{#each citations as citation, index (citation.id)}
-				{#if line !== undefined || diagnostic.derivation || index > 0}
+				{#if location !== undefined || diagnostic.derivation || index > 0}
 					<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
 				{/if}
 				{#if citation.source}

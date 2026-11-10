@@ -49,7 +49,7 @@ describe('the diagnostic meta line', () => {
 		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
-			line: 47
+			location: 'Line 47'
 		});
 
 		// The severity is a glyph, so the line opens with the mark and no
@@ -79,7 +79,7 @@ describe('the diagnostic meta line', () => {
 		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
-			line: 47
+			location: 'Line 47'
 		});
 
 		try {
@@ -124,7 +124,7 @@ describe('the diagnostic meta line', () => {
 		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(ids),
 			sources: sourcesFor(ids),
-			line: 47
+			location: 'Line 47'
 		});
 
 		// Two links inline wrapped the meta line onto a second and a third row.
@@ -152,7 +152,7 @@ describe('the diagnostic meta line', () => {
 		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
-			line: 47
+			location: 'Line 47'
 		});
 
 		await expect.element(page.getByRole('button', { name: 'Sources' })).not.toBeInTheDocument();
@@ -164,7 +164,7 @@ describe('the diagnostic meta line', () => {
 		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
-			line: 47
+			location: 'Line 47'
 		});
 
 		// The external-link mark is aria-hidden and the favicon's alt is empty, so
@@ -195,7 +195,7 @@ describe('the diagnostic meta line', () => {
 		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
-			line: 47
+			location: 'Line 47'
 		});
 
 		// The mark rides inside the link it identifies, the citation idiom a
@@ -216,7 +216,7 @@ describe('the diagnostic meta line', () => {
 		const screen = await render(DiagnosticMeta, {
 			diagnostic: { ...diagnostic(['G-LINES']), derivation: true },
 			sources: sourcesFor(['G-LINES']),
-			line: 47
+			location: 'Line 47'
 		});
 
 		// The words carry the fact and the mark is decorative, so the tag reads
@@ -238,7 +238,7 @@ describe('the diagnostic meta line', () => {
 		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
-			line: 47
+			location: 'Line 47'
 		});
 
 		expect(screen.container.querySelector('.diagnostic-meta__derivation')).toBeNull();

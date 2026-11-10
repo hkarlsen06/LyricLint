@@ -131,7 +131,8 @@ test('tapping an underlined phone finding opens its Review decision and returns 
 	);
 	await expect(lyricsEditor(page)).toBeVisible();
 	await expect(lyricsEditor(page)).not.toBeFocused();
-	await expect(page.locator('.diagnostic-list')).toContainText('Line 3');
+	// The tapped place opens inside the decision that holds it.
+	await expect(page.locator('.diagnostic-list')).toContainText('Place 2 of 2');
 	await expect(page.getByRole('button', { name: 'All findings', exact: true })).toBeVisible();
 	await expect(page.locator('.popover')).not.toBeVisible();
 	await expect(page.locator('.ll-diagnostic-cluster-menu:visible')).toHaveCount(0);
@@ -328,7 +329,7 @@ test('phone playback survives view changes and playback taps preserve writing fo
 	await expectLyrics(page, '[Verse]\nSilver moonlight');
 });
 
-test('phone review moves between findings and sets an occurrence aside', async ({ page }) => {
+test('phone review steps through a decision’s places and sets one aside', async ({ page }) => {
 	await openWorkspace(page);
 	await replaceLyrics(page, '[Verse]\nImma go\nImma stay');
 	await mobileNavigation(page)
@@ -338,15 +339,18 @@ test('phone review moves between findings and sets an occurrence aside', async (
 		name: `Go to Use “I'ma” instead of “Imma”.`,
 		exact: true
 	});
-	await expect(findings).toHaveCount(2);
-	await findings.first().click();
+	// Two places that ask the same question are one row.
 	await expect(findings).toHaveCount(1);
-	await expect(page.locator('.diagnostic-list')).toContainText('Line 2');
-	await page.getByRole('button', { name: 'Next', exact: true }).click();
-	await expect(page.locator('.diagnostic-list')).toContainText('Line 3');
-	await page.getByRole('button', { name: 'Previous', exact: true }).click();
-	await expect(page.locator('.diagnostic-list')).toContainText('Line 2');
+	await expect(page.locator('.diagnostic-list')).toContainText('2 places, lines 2 to 3');
+	await findings.click();
+	await expect(page.locator('.diagnostic-list')).toContainText('Place 1 of 2');
+	await page.getByRole('button', { name: 'Next place', exact: true }).click();
+	await expect(page.locator('.diagnostic-list')).toContainText('Place 2 of 2');
+	await page.getByRole('button', { name: 'Previous place', exact: true }).click();
+	await expect(page.locator('.diagnostic-list')).toContainText('Place 1 of 2');
 	await page.getByRole('button', { name: 'Ignore', exact: true }).click();
+	// The row stays open on the place that is left.
+	await expect(page.locator('.diagnostic-list')).toContainText('Line 3');
 	await page.getByRole('button', { name: 'All findings', exact: true }).click();
 	await expect(findings).toHaveCount(1);
 	await mobileNavigation(page).getByRole('button', { name: 'Write', exact: true }).click();

@@ -17,6 +17,7 @@ import {
 	ignoredDiagnosticAccepted,
 	ignoredDiagnosticRuleId
 } from '#lib/diagnostics/ignore.js';
+import { countDecisionsLeft, decisionKey } from '#lib/diagnostics/decisions.js';
 import { diagnosticKey, orderDiagnostics } from '#lib/diagnostics/order.js';
 import { diagnosticRowSignature, reconcileDiagnosticRows } from '#lib/diagnostics/row-identity.js';
 import { filterProvisionalVerseNumbering } from '#lib/diagnostics/prerequisites.js';
@@ -290,9 +291,26 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	// editor emits the re-linted snapshot from inside it.
 	let leadPending = false;
 	let passageFrom: number | undefined;
+	// The decision whose place was just answered. Its row stays open, so the lead
+	// is its next place in document order before anything else in the list.
+	let leadDecision: { key: string; from: number } | undefined;
+
+	function answeredDecision(diagnostic: Diagnostic, from = diagnostic.from) {
+		const key = decisionKey(diagnostic);
+		return key === null ? undefined : { key, from };
+	}
 
 	function nextInReview(diagnostics: readonly Diagnostic[]): Diagnostic | undefined {
 		const ordered = orderDiagnostics(visibleIn(diagnostics));
+		const decision = leadDecision;
+		leadDecision = undefined;
+		if (decision) {
+			const places = ordered
+				.filter((item) => decisionKey(item) === decision.key)
+				.sort((a, b) => a.from - b.from);
+			const next = places.find((item) => item.from >= decision.from) ?? places[0];
+			if (next) return next;
+		}
 		const from = passageFrom;
 		if (from === undefined) return ordered[0];
 		return (
@@ -306,22 +324,29 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	 * here, so the staleness guard, the abandoned preview, and the hand-off to
 	 * the next finding cannot be got right in one place and forgotten in another.
 	 */
-	function dispatchFixEdit(edit: AtomicDocumentEdit | undefined, announcement: string): void {
+	function dispatchFixEdit(
+		edit: AtomicDocumentEdit | undefined,
+		announcement: string,
+		answered?: Diagnostic
+	): void {
 		const editor = deps.editor();
 		editor.clearPreview?.();
 		activeDiagnosticKey = undefined;
+		leadDecision = undefined;
 		if (!edit || edit.baseRevision !== deps.snapshot().revision) {
 			feedback.announce('This fix is stale. Review the current diagnostic before applying it.');
 			return;
 		}
-		if (passageFrom !== undefined) {
-			passageFrom = ChangeSet.of(edit.edits, deps.snapshot().text.length).mapPos(passageFrom, -1);
-		}
+		const mapPos = (pos: number) =>
+			ChangeSet.of(edit.edits, deps.snapshot().text.length).mapPos(pos, -1);
+		if (passageFrom !== undefined) passageFrom = mapPos(passageFrom);
+		if (answered) leadDecision = answeredDecision(answered, mapPos(answered.from));
 		leadPending = true;
 		try {
 			editor.dispatchAtomic(edit);
 		} catch (error) {
 			leadPending = false;
+			leadDecision = undefined;
 			throw error;
 		}
 		feedback.announce(announcement);
@@ -376,6 +401,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		refreshIgnoredDiagnostics() {
 			aimedOccurrence = undefined;
 			passageFrom = undefined;
+			leadDecision = undefined;
 			activeDiagnosticKey = undefined;
 			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- immutable snapshot, reset when changing drafts
 			rowKeys = new Map();
@@ -476,7 +502,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		},
 		applyFix(diagnostic, fix) {
 			if (passageFrom !== undefined) passageFrom = diagnostic.from;
-			dispatchFixEdit(fix.edit, `${fix.label} applied for ${diagnostic.message}.`);
+			dispatchFixEdit(fix.edit, `${fix.label} applied for ${diagnostic.message}.`, diagnostic);
 		},
 		fixBatchSize(diagnostic, fix) {
 			return matchingFixes(diagnostic, fix).length;
@@ -487,7 +513,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			// its siblings between the render and the press. Applying it alone is
 			// what the user asked for either way.
 			if (fixes.length <= 1) {
-				dispatchFixEdit(fix.edit, `${fix.label} applied for ${diagnostic.message}.`);
+				dispatchFixEdit(fix.edit, `${fix.label} applied for ${diagnostic.message}.`, diagnostic);
 				return;
 			}
 			dispatchFixEdit(mergeFixes(fixes), `${fix.label} applied to ${fixes.length} findings.`);
@@ -499,9 +525,10 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 				return;
 			}
 			const fixed = `Fixed ${plan.automatic} ${plan.automatic === 1 ? 'issue' : 'issues'} automatically.`;
+			const left = countDecisionsLeft(visibleDiagnostics, plan.fixes);
 			dispatchFixEdit(
 				mergeFixes(plan.fixes),
-				plan.manual === 0 ? fixed : `${fixed} ${plan.manual} still need a decision.`
+				left === 0 ? fixed : `${fixed} ${left} still ${left === 1 ? 'needs' : 'need'} a decision.`
 			);
 		},
 		ignoreDiagnostic(diagnostic) {
@@ -511,6 +538,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			if (ignoredDiagnosticKeys.includes(key)) return;
 			setIgnored(key, true);
 			if (passageFrom !== undefined) passageFrom = diagnostic.from;
+			leadDecision = answeredDecision(diagnostic);
 			const next = nextInReview(deps.snapshot().diagnostics);
 			if (next) selectDiagnostic(next);
 			// The suppression is the same either way; what the reader answered is
@@ -532,6 +560,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		leadOnNextSnapshot() {
 			aimedOccurrence = undefined;
 			passageFrom = undefined;
+			leadDecision = undefined;
 			leadPending = true;
 		},
 		recordAcceptedOccurrence(key) {

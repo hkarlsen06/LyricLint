@@ -3,7 +3,10 @@ import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { parseDocument } from '#lib/core/parser.js';
-import type { Diagnostic } from '#lib/core/types.js';
+import type { AtomicDocumentEdit, Diagnostic } from '#lib/core/types.js';
+import { cityLightsPasted } from '#lib/diagnostics/decision-fixture.js';
+import { runRules } from '#lib/rules/engine.js';
+import { ruleContext } from '#lib/rules/rule-test-utils.js';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
 import LinterPanel from './LinterPanel.svelte';
 
@@ -63,7 +66,8 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 			]
 		});
 		expect(controller.feedback.announcement).toContain('Fixed 2 issues automatically');
-		expect(controller.feedback.announcement).toContain('2 still need a decision');
+		// The two prose findings ask one question, so they are one row left.
+		expect(controller.feedback.announcement).toContain('1 still needs a decision');
 	});
 
 	test('is chrome, so it never reads as the open card below it', async () => {
@@ -125,8 +129,9 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		const row = document.querySelector('.linter-panel__bulk')!;
 		// Command at one end, remainder at the other, which is also what keeps a
 		// lone button from sitting in half a row of empty gutter.
+		// The remainder counts rows: two prose lines are one decision.
 		expect(row.textContent?.replace(/\s+/gu, ' ').trim()).toBe(
-			'Fix 1 issue automatically 2 need a decision'
+			'Fix 1 issue automatically 1 needs a decision'
 		);
 		expect(getComputedStyle(row).justifyContent).toBe('space-between');
 
@@ -510,5 +515,138 @@ describe('review continuity', () => {
 				screen.getByRole('button', { name: 'Go to This line reads as prose.' })
 			)
 		);
+	});
+});
+
+describe('one row per decision', () => {
+	afterEach(cleanup);
+
+	/** A workbench on the real findings for `text`, re-linted after every dispatch. */
+	function lintedWorkbench(text: string) {
+		const lint = (body: string, at: number) =>
+			runRules(parseDocument(body), ruleContext({ revision: at }));
+		const workbench = createTestWorkbench({ text, diagnostics: lint(text, revision) });
+		const { controller, editor } = workbench;
+		editor.dispatchAtomic = (edit: AtomicDocumentEdit) => {
+			const current = controller.snapshot;
+			let next = current.text;
+			for (const change of [...edit.edits].sort((a, b) => b.from - a.from)) {
+				next = next.slice(0, change.from) + change.insert + next.slice(change.to);
+			}
+			controller.onSnapshot({
+				...current,
+				revision: current.revision + 1,
+				text: next,
+				parsed: parseDocument(next),
+				diagnostics: lint(next, current.revision + 1),
+				documentChange: { baseRevision: current.revision, edits: edit.edits }
+			});
+		};
+		return workbench;
+	}
+
+	const rowTexts = () =>
+		screen.getAllByRole('button', { name: /^Go to / }).map((row) => row.textContent?.trim());
+	const commaRow = () =>
+		screen.getByRole('button', { name: 'Go to Lyric lines should not end with a comma.' });
+
+	test('draws the 26 places of a pasted lyric as 3 rows and counts rows', async () => {
+		const { controller } = lintedWorkbench(cityLightsPasted);
+		await render(LinterPanel, { controller });
+
+		expect(rowTexts()).toEqual([
+			"Use a straight ' instead of the curly apostrophe.",
+			'Lyric lines should not end with a comma.',
+			'Link these repeats so one correction reaches them all.'
+		]);
+		expect(screen.getByText('1 of 3')).toBeTruthy();
+		const comma = commaRow().closest('li')!;
+		expect(comma.querySelector('.diagnostic-meta__line')?.textContent).toBe(
+			'10 places, lines 8 to 33'
+		);
+		// The button counts the places its press changes; the rest count rows.
+		expect(
+			document.querySelector('.linter-panel__bulk')?.textContent?.replace(/\s+/gu, ' ').trim()
+		).toBe('Fix 15 issues automatically 2 need a decision');
+		expect(screen.getByRole('button', { name: /^Warnings/ }).textContent).toMatch(/2$/u);
+		expect(screen.getByRole('button', { name: /^Suggestions/ }).textContent).toMatch(/1$/u);
+	});
+
+	test('steps through a row’s places without moving to another row', async () => {
+		const { controller } = lintedWorkbench(cityLightsPasted);
+		await render(LinterPanel, { controller });
+		await fireEvent.click(commaRow());
+
+		const previous = screen.getByRole('button', { name: 'Previous place' });
+		const next = screen.getByRole('button', { name: 'Next place' });
+		expect(screen.getByText('Place 1 of 10')).toBeTruthy();
+		expect((previous as HTMLButtonElement).disabled).toBe(true);
+		const first = controller.activeDiagnosticKey;
+
+		next.focus();
+		await fireEvent.click(next);
+		expect(screen.getByText('Place 2 of 10')).toBeTruthy();
+		expect(controller.activeDiagnosticKey).not.toBe(first);
+		expect(controller.activeDiagnosticKey).toMatch(/^punctuation\.line-ending:/u);
+		// The stepper survives its own press, so it can be pressed again.
+		expect(document.activeElement).toBe(next);
+		expect(screen.getByText('2 of 3')).toBeTruthy();
+	});
+
+	test.each([390, 1350])(
+		'holds the open row still and opens its next place after a fix at %ipx',
+		async (width) => {
+			await page.viewport(width, 940);
+			try {
+				const { controller } = lintedWorkbench(cityLightsPasted);
+				await render(LinterPanel, { controller });
+				await fireEvent.click(commaRow());
+				const row = commaRow().closest('li')!;
+				const before = row.getBoundingClientRect();
+				const fixBefore = screen
+					.getByRole('button', { name: 'Remove the comma' })
+					.getBoundingClientRect();
+
+				await fireEvent.click(screen.getByRole('button', { name: 'Remove the comma' }));
+
+				await waitFor(() => expect(screen.getByText('Place 1 of 9')).toBeTruthy());
+				expect(commaRow().closest('li')).toBe(row);
+				expect(row.classList.contains('diagnostic-card--expanded')).toBe(true);
+				expect(row.querySelector('.diagnostic-meta__line')?.textContent).toBe(
+					'9 places, lines 9 to 33'
+				);
+				expect(Math.abs(row.getBoundingClientRect().top - before.top)).toBeLessThan(1);
+				const fixAfter = screen
+					.getByRole('button', { name: 'Remove the comma' })
+					.getBoundingClientRect();
+				expect(Math.abs(fixAfter.top - fixBefore.top)).toBeLessThan(1);
+				expect(Math.abs(fixAfter.left - fixBefore.left)).toBeLessThan(1);
+				expect(rowTexts()).toHaveLength(3);
+			} finally {
+				await page.viewport(800, 600);
+			}
+		}
+	);
+
+	test('opens the next place of the row after ignoring one, and ignores only that one', async () => {
+		const { controller } = lintedWorkbench(cityLightsPasted);
+		await render(LinterPanel, { controller });
+		await fireEvent.click(commaRow());
+		await fireEvent.click(screen.getByRole('button', { name: 'Next place' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Next place' }));
+		expect(screen.getByText('Place 3 of 10')).toBeTruthy();
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Ignore' }));
+
+		await waitFor(() => expect(screen.getByText('Place 3 of 9')).toBeTruthy());
+		expect(controller.ignoredDiagnosticKeys).toHaveLength(1);
+		expect(commaRow().closest('li')?.classList.contains('diagnostic-card--expanded')).toBe(true);
+	});
+
+	test('keeps a lone finding’s row free of a stepper and reads its line', async () => {
+		const { controller } = createTestWorkbench({ diagnostics: [spelling(0, 4, "I'ma")] });
+		await render(LinterPanel, { controller });
+		expect(screen.queryByRole('button', { name: 'Next place' })).toBeNull();
+		expect(document.querySelector('.diagnostic-meta__line')?.textContent).toBe('Line 1');
 	});
 });

@@ -2,7 +2,10 @@
 	import type { Diagnostic, SourceReference, TextRange } from '#lib/core/types.js';
 	import { tick, type Snippet } from 'svelte';
 	import BookOpenIcon from 'phosphor-svelte/lib/BookOpenIcon';
+	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeftIcon';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
 	import ChecksIcon from 'phosphor-svelte/lib/ChecksIcon';
+	import { groupDecisions, type Decision } from '#lib/diagnostics/decisions.js';
 	import { diagnosticKey, orderDiagnostics } from '#lib/diagnostics/order.js';
 	import { describeControl } from '#lib/ui/state/control-tooltip.svelte.js';
 	import DiagnosticMeta from '#lib/diagnostics/DiagnosticMeta.svelte';
@@ -95,44 +98,67 @@
 	// so the two may not sort by different rules.
 	const cardKey = diagnosticKey;
 	const activeKey = $derived(active ? activeDiagnosticKey : undefined);
-	let lastRows: Array<{ key: string; diagnostic: Diagnostic; line: number | undefined }> = [];
+	// One row per decision. A decision whose findings cannot share a row is keyed
+	// by its one finding's row identity, so it survives edits above it.
+	let lastRows: Array<Decision & { location: string | undefined }> = [];
 	const rows = $derived.by(() => {
 		// Keep the same controls while hidden, without sorting, numbering, or
 		// updating their contents for a pane the user cannot see. Activation reads
 		// the latest complete snapshot before these controls become actionable.
 		if (active) {
-			lastRows = orderDiagnostics(diagnostics).map((diagnostic) => ({
-				key: rowKey(diagnostic),
-				diagnostic,
-				line: lineFor?.(
-					cardKey(diagnostic) === activeKey
-						? (activeDiagnosticRange?.from ?? diagnostic.from)
-						: diagnostic.from
-				)
+			lastRows = groupDecisions(orderDiagnostics(diagnostics), rowKey).map((decision) => ({
+				...decision,
+				location: location(decision.members)
 			}));
 		}
 		return lastRows;
 	});
-	const sortedDiagnostics = $derived(rows.map((row) => row.diagnostic));
 
-	// Exactly one card sits expanded at a time; before any explicit choice the
-	// top card starts expanded so the panel is never a wall of closed rows.
+	function location(members: readonly Diagnostic[]): string | undefined {
+		if (!lineFor) return undefined;
+		const [first] = members;
+		const last = members.at(-1);
+		if (!first || !last) return undefined;
+		if (first === last) {
+			return `Line ${lineFor(cardKey(first) === activeKey ? (activeDiagnosticRange?.from ?? first.from) : first.from)}`;
+		}
+		const [from, to] = [lineFor(first.from), lineFor(last.from)];
+		return `${members.length} places, ${from === to ? `line ${from}` : `lines ${from} to ${to}`}`;
+	}
+
+	// Exactly one row sits expanded at a time, open on one of its places; before
+	// any explicit choice the top row starts expanded so the panel is never a wall
+	// of closed rows. The place is held by its row identity, never by ordinal, so
+	// an answered place hands over to its decision's next one rather than to
+	// whatever now sits at its index.
 	let chosenKey = $state<string | undefined>();
+	let chosenDecision = $state<string | undefined>();
 	let collapsedKey = $state<string | undefined>();
 	let list = $state<HTMLOListElement>();
-	const selectedKey = $derived.by(() => {
-		const activeRow = activeKey && rows.find((row) => cardKey(row.diagnostic) === activeKey);
-		if (activeRow) return activeRow.key;
-		if (chosenKey && rows.some((row) => row.key === chosenKey)) {
-			return chosenKey;
-		}
-		return rows[0]?.key;
+	const selected = $derived.by(() => {
+		const find = (matches: (member: Diagnostic) => boolean) => {
+			for (const row of rows) {
+				const member = row.members.find(matches);
+				if (member) return { row, member };
+			}
+		};
+		const opening = (row: Decision | undefined) => row && { row, member: row.members[0]! };
+		return (
+			(activeKey ? find((member) => cardKey(member) === activeKey) : undefined) ??
+			(chosenKey ? find((member) => rowKey(member) === chosenKey) : undefined) ??
+			opening(rows.find((row) => row.key === chosenDecision)) ??
+			opening(rows[0])
+		);
 	});
+	const selectedKey = $derived(selected?.row.key);
+	const place = $derived(selected ? selected.row.members.indexOf(selected.member) : -1);
 
 	const expandedKey = $derived(
 		active && !overview && (focusedOnly || selectedKey !== collapsedKey) ? selectedKey : undefined
 	);
 	const currentIndex = $derived(rows.findIndex((row) => row.key === selectedKey));
+	const shownMember = (row: Decision) =>
+		row.key === selectedKey && selected ? selected.member : row.members[0]!;
 
 	$effect(() => {
 		const key = activeKey;
@@ -148,29 +174,36 @@
 
 	let revealedKey: string | undefined;
 	$effect(() => {
-		const key = active && focusedOnly ? selectedKey : undefined;
+		const current = active && focusedOnly ? selected?.member : undefined;
+		const key = current && rowKey(current);
 		if (key === revealedKey) return;
 		revealedKey = key;
-		const current = rows.find((row) => row.key === key)?.diagnostic;
 		if (current) void tick().then(() => onNavigate(current));
 	});
 
-	function activate(diagnostic: Diagnostic): void {
-		if (!focusedOnly && expandedKey === rowKey(diagnostic)) {
-			collapsedKey = rowKey(diagnostic);
+	function open(row: Decision, member: Diagnostic): void {
+		collapsedKey = undefined;
+		chosenDecision = row.key;
+		chosenKey = rowKey(member);
+		onNavigate(member);
+	}
+
+	function activate(row: Decision): void {
+		if (!focusedOnly && expandedKey === row.key) {
+			collapsedKey = row.key;
 			return;
 		}
-		collapsedKey = undefined;
-		chosenKey = rowKey(diagnostic);
-		onNavigate(diagnostic);
+		open(row, shownMember(row));
 	}
 
 	function step(direction: -1 | 1): void {
-		const target = sortedDiagnostics[currentIndex + direction];
-		if (!target) return;
-		collapsedKey = undefined;
-		chosenKey = rowKey(target);
-		onNavigate(target);
+		const target = rows[currentIndex + direction];
+		if (target) open(target, target.members[0]!);
+	}
+
+	function stepPlace(direction: -1 | 1): void {
+		const target = selected?.row.members[place + direction];
+		if (selected && target) open(selected.row, target);
 	}
 
 	function navigateWithKeyboard(event: KeyboardEvent): void {
@@ -200,7 +233,7 @@
 		)
 			return;
 		const direction = event.key === 'ArrowUp' ? -1 : 1;
-		if (!sortedDiagnostics[currentIndex + direction]) return;
+		if (!rows[currentIndex + direction]) return;
 		event.preventDefault();
 		step(direction);
 	}
@@ -256,7 +289,7 @@
 
 <svelte:window onkeydown={navigateWithKeyboard} />
 
-{#if sortedDiagnostics.length === 0}
+{#if rows.length === 0}
 	<div
 		class="empty-state diagnostic-list__empty"
 		role={emptyState.status ? 'status' : undefined}
@@ -291,7 +324,7 @@
 		{@render emptyActions?.()}
 	</div>
 {:else}
-	{#if !overview && sortedDiagnostics.length > 1}
+	{#if !overview && rows.length > 1}
 		<div class="diagnostic-actions" role="group" aria-label="Navigate findings">
 			<button
 				type="button"
@@ -301,11 +334,11 @@
 				{@attach describeControl(() => ({ label: 'Previous finding', shortcut: 'Alt+Shift+↑' }))}
 				onclick={() => step(-1)}>Previous</button
 			>
-			<span aria-live="polite">{currentIndex + 1} of {sortedDiagnostics.length}</span>
+			<span aria-live="polite">{currentIndex + 1} of {rows.length}</span>
 			<button
 				type="button"
 				class="button button--quiet"
-				disabled={currentIndex >= sortedDiagnostics.length - 1}
+				disabled={currentIndex >= rows.length - 1}
 				aria-keyshortcuts="Alt+Shift+ArrowDown"
 				{@attach describeControl(() => ({ label: 'Next finding', shortcut: 'Alt+Shift+↓' }))}
 				onclick={() => step(1)}>Next</button
@@ -314,7 +347,7 @@
 	{/if}
 	<ol bind:this={list} class="diagnostic-list" aria-label="Document diagnostics">
 		{#each rows as row (row.key)}
-			{@const diagnostic = row.diagnostic}
+			{@const diagnostic = shownMember(row)}
 			{@const expanded = row.key === expandedKey}
 			<li
 				data-diagnostic-key={cardKey(diagnostic)}
@@ -337,30 +370,61 @@
 						class="diagnostic-list__navigate"
 						aria-label={`Go to ${diagnostic.message}`}
 						aria-expanded={expanded}
-						onclick={() => activate(diagnostic)}
+						onclick={() => activate(row)}
 					>
 						<span class="diagnostic-list__title">{diagnostic.message}</span>
 					</button>
-					<DiagnosticMeta {diagnostic} {sources} line={row.line} />
+					<DiagnosticMeta {diagnostic} {sources} location={row.location} />
 				</div>
 				{#if expanded}
-					<DiagnosticDetails
-						{diagnostic}
-						onChooseHeader={() => onChooseHeader(diagnostic)}
-						onAssignPerformers={canAssignPerformers(diagnostic)
-							? () => onAssignPerformers(diagnostic)
-							: undefined}
-						onLinkSections={onLinkSections ? () => onLinkSections(diagnostic) : undefined}
-						onSetLanguage={setLanguageAndMoveFocus}
-						onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
-						{onCancelPreview}
-						onApplyFix={(fix) => fixAndMoveFocus(() => onApplyFix(diagnostic, fix))}
-						fixBatchSize={fixBatchSize ? (fix) => fixBatchSize(diagnostic, fix) : undefined}
-						onApplyFixBatch={onApplyFixBatch
-							? (fix) => fixAndMoveFocus(() => onApplyFixBatch?.(diagnostic, fix))
-							: undefined}
-						onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic, trigger)}
-					/>
+					<!-- One place's card at a time, keyed by that place's row identity so
+					     another place never inherits its controls. -->
+					{#key rowKey(diagnostic)}
+						<DiagnosticDetails
+							{diagnostic}
+							onChooseHeader={() => onChooseHeader(diagnostic)}
+							onAssignPerformers={canAssignPerformers(diagnostic)
+								? () => onAssignPerformers(diagnostic)
+								: undefined}
+							onLinkSections={onLinkSections ? () => onLinkSections(diagnostic) : undefined}
+							onSetLanguage={setLanguageAndMoveFocus}
+							onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
+							{onCancelPreview}
+							onApplyFix={(fix) => fixAndMoveFocus(() => onApplyFix(diagnostic, fix))}
+							fixBatchSize={fixBatchSize ? (fix) => fixBatchSize(diagnostic, fix) : undefined}
+							onApplyFixBatch={onApplyFixBatch
+								? (fix) => fixAndMoveFocus(() => onApplyFixBatch?.(diagnostic, fix))
+								: undefined}
+							onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic, trigger)}
+						/>
+					{/key}
+					<!-- Under the actions, so its arrival and departure never move them. The
+					     buttons come first so the count's width cannot push them. -->
+					{#if row.members.length > 1}
+						<div class="diagnostic-list__places" role="group" aria-label="Places">
+							<button
+								type="button"
+								class="icon-button button--quiet"
+								aria-label="Previous place"
+								disabled={place <= 0}
+								{@attach describeControl(() => ({ label: 'Previous place' }))}
+								onclick={() => stepPlace(-1)}
+							>
+								<CaretLeftIcon aria-hidden="true" size={14} weight="bold" />
+							</button>
+							<button
+								type="button"
+								class="icon-button button--quiet"
+								aria-label="Next place"
+								disabled={place >= row.members.length - 1}
+								{@attach describeControl(() => ({ label: 'Next place' }))}
+								onclick={() => stepPlace(1)}
+							>
+								<CaretRightIcon aria-hidden="true" size={14} weight="bold" />
+							</button>
+							<span aria-live="polite">Place {place + 1} of {row.members.length}</span>
+						</div>
+					{/if}
 				{/if}
 			</li>
 		{/each}
@@ -546,6 +610,25 @@
 
 	.diagnostic-list__title {
 		font-weight: var(--font-weight-medium);
+	}
+
+	.diagnostic-list__places {
+		display: flex;
+		align-items: center;
+		padding: 0 var(--space-4) var(--space-3);
+		gap: var(--space-1);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.diagnostic-list__places > span {
+		margin-inline-start: var(--space-1);
+	}
+
+	.diagnostic-list__places > button {
+		position: relative;
+		z-index: 1;
 	}
 
 	/* Keep this query aligned with PHONE_WORKSPACE_QUERY. An opened finding is

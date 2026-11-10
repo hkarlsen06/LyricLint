@@ -7,6 +7,11 @@
 	import DiagnosticList from './DiagnosticList.svelte';
 	import SeverityIcon from '#lib/diagnostics/SeverityIcon.svelte';
 	import { severityPluralLabels } from '#lib/diagnostics/severity-labels.js';
+	import {
+		countDecisions,
+		countDecisionsLeft,
+		groupDecisions
+	} from '#lib/diagnostics/decisions.js';
 	import { tick } from 'svelte';
 
 	let {
@@ -69,8 +74,10 @@
 			suggestion: 0,
 			'manual-review': 0
 		} satisfies Record<Severity, number>;
-		for (const diagnostic of controller.unignoredDiagnostics) {
-			result[diagnostic.severity] += 1;
+		// Rows, not places: a decision never straddles a severity, so each chip
+		// counts exactly the rows it shows or hides.
+		for (const { members } of groupDecisions(controller.unignoredDiagnostics)) {
+			result[members[0]!.severity] += 1;
 		}
 		return result;
 	});
@@ -90,9 +97,11 @@
 	// Diagnostics the severity chips are currently hiding. Ignored rules do not
 	// count: the filters only take the blame for what they actually hide.
 	const hiddenByFilters = $derived(
-		controller.unignoredDiagnostics.filter(
-			(diagnostic) => !controller.severityFilter.includes(diagnostic.severity)
-		).length
+		countDecisions(
+			controller.unignoredDiagnostics.filter(
+				(diagnostic) => !controller.severityFilter.includes(diagnostic.severity)
+			)
+		)
 	);
 
 	// Only blame the filters when they are actually what is hiding something;
@@ -150,9 +159,10 @@
 	);
 
 	// What pressing the bulk button would settle, and what it would leave behind.
-	// Both numbers are about the list directly below, so they are counted over
-	// the same visible diagnostics the cards are drawn from.
+	// The button counts the places its press changes; the remainder counts the
+	// rows that will still stand in the list below.
 	const bulk = $derived(controller.bulkFixPlan);
+	const decisionsLeft = $derived(countDecisionsLeft(controller.visibleDiagnostics, bulk.fixes));
 
 	// A fresh open is only empty because it opened a *new* draft, and the work a
 	// returning user came back for is behind the drafts menu, which they have to
@@ -248,11 +258,14 @@
 				Fix {bulk.automatic}
 				{bulk.automatic === 1 ? 'issue' : 'issues'} automatically
 			</button>
-			<!-- Why the count on the button is smaller than the count on the tab, so
-			     the issues still standing afterwards read as the ones that were
-			     always going to need the user, not as a fix that half worked. -->
-			{#if bulk.manual > 0}
-				<span class="linter-panel__bulk-note">{bulk.manual} need a decision</span>
+			<!-- The rows still standing after the press, so they read as the ones
+			     that were always going to need the user, not as a fix that half
+			     worked. The button counts places and the tab counts rows, so this
+			     names the rows the press leaves. -->
+			{#if decisionsLeft > 0}
+				<span class="linter-panel__bulk-note"
+					>{decisionsLeft} {decisionsLeft === 1 ? 'needs' : 'need'} a decision</span
+				>
 			{/if}
 		</div>
 	{/if}
