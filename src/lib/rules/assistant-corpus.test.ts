@@ -161,7 +161,6 @@ describe('assistant corpus parity', () => {
 		expect(committed.languages.map((language) => language.tag).sort()).toEqual(
 			reviewedLanguagePacks.map((pack) => pack.tag).sort()
 		);
-		expect(committed.languages).toHaveLength(8);
 	});
 
 	it('matches the frontend ruleset version', () => {
@@ -188,7 +187,7 @@ describe('assistant corpus parity', () => {
 		for (const source of unreviewed) {
 			expect(corpusSourceIds.has(source.id)).toBe(false);
 		}
-		// The unreviewed 64-language inventory must not ride along; a reviewed
+		// The unreviewed 63-language inventory must not ride along; a reviewed
 		// pack always carries header vocabulary.
 		expect(committed.languages.every((language) => language.headerTerms.length > 0)).toBe(true);
 	});

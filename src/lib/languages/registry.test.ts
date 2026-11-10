@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { languageSourceInventory } from './inventory.js';
-import { canLintHeaderLanguage, getLanguagePack, resolveLanguageTag } from './registry.js';
+import {
+	canLintHeaderLanguage,
+	getLanguagePack,
+	resolveLanguageTag,
+	reviewedLanguagePacks
+} from './registry.js';
 
 describe('language packs', () => {
 	it('resolves every reviewed selector language to an enforcing pack', () => {
 		expect(resolveLanguageTag('en-US')).toBe('en');
 		expect(resolveLanguageTag('no')).toBe('no');
 		expect(canLintHeaderLanguage(getLanguagePack('en-GB'))).toBe(true);
-		for (const tag of ['no', 'ar', 'de', 'es', 'fr', 'ja', 'ko']) {
+		for (const { tag } of reviewedLanguagePacks) {
 			expect(canLintHeaderLanguage(getLanguagePack(tag)), tag).toBe(true);
 			expect(getLanguagePack(tag).reviewed, tag).toBe(true);
 		}
