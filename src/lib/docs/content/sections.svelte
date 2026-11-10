@@ -3,6 +3,24 @@
 	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
 	import Keys from '#lib/ui/docs/Keys.svelte';
 	import * as Table from '#lib/ui/primitives/table/index.js';
+	import { reviewedLanguagePacks } from '#lib/languages/registry.js';
+	import type { LanguagePack } from '#lib/languages/types.js';
+
+	/**
+	 * A pack with no written note lists its terms for these parts: parts apart by commas,
+	 * a part's alternatives by "or".
+	 */
+	function summaryTerms(pack: LanguagePack): { separator: string; term: string }[] {
+		return ['Verse', 'Chorus', 'Bridge']
+			.map((part) => pack.headers.find((header) => header.semanticPart === part)?.terms ?? [])
+			.filter((terms) => terms.length > 0)
+			.flatMap((terms, part) =>
+				terms.map((term, alternative) => ({
+					separator: alternative > 0 ? ' or ' : part > 0 ? ', ' : '',
+					term
+				}))
+			);
+	}
 </script>
 
 <h2 id="insert">Insert a header</h2>
@@ -119,50 +137,29 @@
 		</Table.Row>
 	</Table.Header>
 	<Table.Body>
-		<Table.Row>
-			<Table.Cell>English</Table.Cell>
-			<Table.Cell><code>Verse</code>, <code>Chorus</code>, <code>Bridge</code></Table.Cell>
-		</Table.Row>
-		<Table.Row>
-			<Table.Cell>Norwegian</Table.Cell>
-			<Table.Cell>
-				<code>Vers</code>, <code>Refreng</code>, <code>Bro</code>. Use <code>Chorus</code> instead of
-				<code>Refreng</code> when the song also has a <code>Pre-Chorus</code> or <code>Post-Chorus</code>.
-			</Table.Cell>
-		</Table.Row>
-		<Table.Row>
-			<Table.Cell>German</Table.Cell>
-			<Table.Cell>
-				<code>Part</code> and <code>Hook</code> (common in rap) or <code>Strophe</code> and
-				<code>Refrain</code>. Both pairs are accepted.
-			</Table.Cell>
-		</Table.Row>
-		<Table.Row>
-			<Table.Cell>Spanish</Table.Cell>
-			<Table.Cell><code>Verso</code>, <code>Coro</code> or <code>Estribillo</code>, <code>Puente</code></Table.Cell>
-		</Table.Row>
-		<Table.Row>
-			<Table.Cell>French</Table.Cell>
-			<Table.Cell><code>Couplet</code>, <code>Refrain</code>, <code>Pont</code></Table.Cell>
-		</Table.Row>
-		<Table.Row>
-			<Table.Cell>Arabic</Table.Cell>
-			<Table.Cell>
-				<code lang="ar" dir="rtl">المقطع</code>, <code lang="ar" dir="rtl">اللازمة</code>,
-				<code lang="ar" dir="rtl">جسر</code>
-			</Table.Cell>
-		</Table.Row>
-		<Table.Row>
-			<Table.Cell>Japanese</Table.Cell>
-			<Table.Cell>English headers, as Genius Japan requires.</Table.Cell>
-		</Table.Row>
-		<Table.Row>
-			<Table.Cell>Korean</Table.Cell>
-			<Table.Cell>
-				English headers for original songs. Hangul terms such as <code lang="ko">코러스</code> are also
-				accepted, for translations.
-			</Table.Cell>
-		</Table.Row>
+		{#each reviewedLanguagePacks as pack (pack.tag)}
+			<Table.Row>
+				<Table.Cell>{pack.displayName}</Table.Cell>
+				<Table.Cell>
+					{#if pack.tag === 'no'}
+						<code>Vers</code>, <code>Refreng</code>, <code>Bro</code>. Use <code>Chorus</code> instead of
+						<code>Refreng</code> when the song also has a <code>Pre-Chorus</code> or <code>Post-Chorus</code>.
+					{:else if pack.tag === 'de'}
+						<code>Part</code> and <code>Hook</code> (common in rap) or <code>Strophe</code> and
+						<code>Refrain</code>. Both pairs are accepted.
+					{:else if pack.tag === 'ja'}
+						English headers, as Genius Japan requires.
+					{:else if pack.tag === 'ko'}
+						English headers for original songs. Hangul terms such as <code lang="ko">코러스</code> are also
+						accepted, for translations.
+					{:else}
+						{#each summaryTerms(pack) as { separator, term } (term)}{separator}<code lang={pack.tag} dir="auto"
+								>{term}</code
+							>{/each}
+					{/if}
+				</Table.Cell>
+			</Table.Row>
+		{/each}
 	</Table.Body>
 </Table.Root>
 
