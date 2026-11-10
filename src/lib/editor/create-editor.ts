@@ -22,6 +22,7 @@ import {
 	keymap,
 	lineNumbers
 } from '@codemirror/view';
+import { canonicalLineBreaks } from '#lib/core/line-numbers.js';
 import { parseDocument } from '#lib/core/parser.js';
 import type {
 	EditorHandle,
@@ -406,7 +407,7 @@ interface PreparedInitialDocument {
  * are preserved separately on the draft record (`originalText`).
  */
 export function prepareInitialDocument(text: string): PreparedInitialDocument {
-	return { text: text.replace(/\r\n|\r/g, '\n') };
+	return { text: canonicalLineBreaks(text) };
 }
 
 function prepareInitialSelection(
@@ -426,7 +427,7 @@ function prepareInitialSelection(
 		return selection;
 	}
 	const normalizeOffset = (offset: number) =>
-		sourceText.slice(0, offset).replace(/\r\n|\r/g, '\n').length;
+		canonicalLineBreaks(sourceText.slice(0, offset)).length;
 	return {
 		anchor: normalizeOffset(selection.anchor),
 		head: normalizeOffset(selection.head)

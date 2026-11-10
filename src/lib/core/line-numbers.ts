@@ -31,3 +31,8 @@ export function lineNumberLookup(text: string): (offset: number) => number {
 		return low + 1;
 	};
 }
+
+/** `text` with every `\r\n` and lone `\r` written as `\n`, the editor's one line break. */
+export function canonicalLineBreaks(text: string): string {
+	return text.replace(/\r\n|\r/g, '\n');
+}
