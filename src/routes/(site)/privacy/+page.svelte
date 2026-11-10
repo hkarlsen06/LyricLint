@@ -27,6 +27,10 @@
 		<li>Audio files: only a file handle is kept, never the bytes, and never uploaded.</li>
 		<li>Linting, including the Harper proofreader, which runs entirely in your browser.</li>
 		<li>
+			Lyrics opened from a link travel after the <code>#</code> in its address, which browsers never send
+			to a server, and LyricLint clears that part of the address as soon as the page opens.
+		</li>
+		<li>
 			Rules-assistant conversations: saved conversation history stays in this browser. Messages sent
 			to the assistant are processed as described below.
 		</li>

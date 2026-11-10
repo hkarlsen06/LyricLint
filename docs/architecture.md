@@ -135,7 +135,7 @@ interface VoiceGroup {
 
 The parser must recover from malformed input. It should return useful ranges and parse issues rather than reject the document.
 
-Raw HTML is always escaped when rendered outside CodeMirror. Canonical serialization emits only explicitly supported lyric markup. Never pass pasted lyric text to `innerHTML`.
+Raw HTML is always escaped when rendered outside CodeMirror. Canonical serialization emits only explicitly supported lyric markup. Never pass pasted or linked lyric text to `innerHTML`.
 
 ## Editing pipeline
 
@@ -252,6 +252,11 @@ Roster-only metadata changes use a separate action with toast undo. A normal doc
   decision. Edit proposals use that same consent-gated tool session.
 - Analytics, if added, must never include lyric text, selections, performer names, draft titles, or source markup.
 - Pasted content is treated as untrusted plain text.
+- A hand-over link (`/workbench/#open=1.<payload>`) is untrusted input from any website.
+  `decodeHandoff` in `core/handoff.ts` caps the payload at 400,000 characters and the inflated
+  stream at 1 MiB while reading it, requires UTF-8 JSON with a non-blank `text`, and keeps a
+  `geniusUrl` only through `normalizeGeniusUrl`. The text is plain text like a paste, opens as a new
+  'scribe, and the fragment leaves the address bar before the page's first await.
 - External source links open with safe new-tab attributes.
 - Local data has an explicit delete-all control, and it covers assistant conversations as well as drafts.
 - The copy action copies canonical Genius markup, not rendered DOM text.

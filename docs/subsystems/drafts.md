@@ -2,7 +2,7 @@
 
 Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.svelte`, `src/lib/ui/primitives/RemoveButton.svelte`,
 `src/lib/ui/styles/rows.css`, `src/lib/ui/drafts/draft-date.ts`,
-`src/lib/ui/state/draft-store.svelte.ts`, `src/lib/persistence/`
+`src/lib/ui/state/draft-store.svelte.ts`, `src/lib/persistence/`, `src/lib/core/handoff.ts`
 
 ## The rules
 
@@ -36,6 +36,11 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   grepping for its siblings, not trusting a list. `persistence.test.ts` populates every
   optional field and asserts the record comes back whole; `workbench.test.ts` drives the real
   copier in its editor stub on purpose.
+- A link hands over a lyric as `/workbench/#open=1.<payload>` (`core/handoff.ts`): base64url of
+  `deflate-raw` UTF-8 JSON `{ text, title?, geniusUrl? }`. The page removes the fragment before its
+  first await, `decodeHandoff` trusts nothing in it, and `openHandoff` writes a new 'scribe through
+  the tail it shares with `importScribe`. It never calls `replaceDocument`, a failed flush refuses
+  and stays put, and a refused payload creates nothing. It owns no `DraftRecord` field and no control.
 - The song names the draft only while it still carries `DEFAULT_DRAFT_TITLE` (exported from
   `draft-repository.ts`, compared against, never respelled). See
   `docs/subsystems/media.md` for what counts as a name worth having.
@@ -239,6 +244,28 @@ attachment does. Clearing the link removes that exception when no lyrics or audi
 `genius.com` or `www.genius.com`, a page path, and no embedded credentials. Imported invalid links
 are refused before workspace state changes; older files with no link still load.
 
+
+### A link opens a lyric as a new draft
+
+Copying a lyric out of Genius by hand was the first step of every session. A hand-over link carries
+it instead, in the URL fragment, because a fragment is never sent in an HTTP request. The page
+removes it with `history.replaceState` before its first await, so a reload, a Back press, or a later
+script reading the address finds nothing; the Cloudflare beacon strips fragments too, but it is a
+third party's script. The same link followed in a tab already on the workbench changes only the
+fragment, so a `hashchange` listener takes the same path. The codec loads with a dynamic `import()`
+only for such a link.
+
+Any website can write the link, so `decodeHandoff` refuses a wrong prefix or version, a payload over
+400,000 characters, an inflated stream past 1 MiB (counted while reading, so a small payload cannot
+inflate gigabytes first), invalid UTF-8, a non-object, and a missing or blank `text`. A link that
+`normalizeGeniusUrl` rejects is dropped and the lyric kept; the title is trimmed and capped at 200
+code points, a cap of its own because the title field has none.
+
+The lyric becomes a new 'scribe, never a replacement: **Paste lyrics** calls `replaceDocument`,
+which keeps the old text only in undo, and a link from another site must not reach that far. The
+shared tail with `importScribe` flushes, then refuses if the flush reported a failure (the flush
+reports and never throws), then writes and opens the record. On a fresh boot it runs before the
+workspace first draws, so the editor mounts on the handed-over lyric.
 
 ### The drafts popover initializes on first opening
 
