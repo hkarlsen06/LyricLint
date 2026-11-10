@@ -49,18 +49,25 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   include that assertion; if neither has covered this change, run the focused
   `bunx playwright test -g "sitemap"` check. Then `bun run assistant:corpus` and bump
   `currentRuleSet.version`. A table-shaped rule also registers in `ruleLookupTables()`.
-- Adding a reviewed language pack is one pack file in `src/lib/languages/`, its import and
-  entry in `reviewedLanguagePacks` (`languages/registry.ts`), its `G-LANG-*` annotation in
-  `data/sources.ts`, and in `data/sources.test.ts` its id, its tier set unless it is community,
-  and the registry total. Nothing else repeats the pack list: the header rules cite
-  `reviewedPackSourceIds`, `registry.test.ts` and the corpus test iterate the packs, and the
-  `/docs/sections/` table draws a row per pack, listing its Verse, Chorus, and Bridge terms
-  unless `sections.svelte` writes a note for that tag. Three records change by hand on purpose:
-  `currentRuleSet` lists the source and bumps its version (`rule-set.test.ts` names a missing
-  id; the manifest stays literal because it records what a version shipped and the site layout
-  imports it), the source row in `docs/rules.md`, and the tag's `policy` in `inventory.ts`, which
-  the pack overrides at runtime. Then `bun run assistant:corpus`. Append packs: pack order is
-  behavior, since `section.header-language` names the first other pack that claims a term.
+- Adding a reviewed language pack takes these edits, grouped by what fails when one is missed.
+  The header rules, `registry.test.ts`, the corpus builder, and the `/docs/sections/` table read
+  the pack list and need none.
+  - **`bun run test:unit`** (all in the `server` project): the pack file in `src/lib/languages/`;
+    its import and entry in `reviewedLanguagePacks` (`languages/registry.ts`), appended, since
+    pack order is behavior (`section.header-language` names the first other pack that claims a
+    term); its `G-LANG-*` annotation in `data/sources.ts`; in `data/sources.test.ts` its id in
+    `reviewedIds`, the registry total, a `retrievedOn` case (and `verifiedOn` when that differs)
+    unless it was reviewed on 2026-07-24, and its tier set unless it is community; the id in
+    `currentRuleSet.sourceIds` (`data/rule-set.ts`, which stays literal because it records what a
+    version shipped and the site layout imports it); the tag's `policy` in `inventory.ts`, equal
+    to the pack's; its source row in `docs/rules.md`; a `languageNotes` entry in
+    `src/lib/docs/content/sections.svelte` unless the policy is `localized`, because the table's
+    generic row lists Verse, Chorus, and Bridge terms; and `bun run assistant:corpus`.
+  - **`bun run assistant:test`**: a `category: "language"` case for the tag in
+    `services/rules-assistant/eval/eval-set.json`.
+  - **Nothing**: bumping `currentRuleSet.version` and `publishedAt`, which a pack needs because it
+    changes findings. The Worker keys each corpus by version and hash, so an unbumped release
+    still deploys.
 - `RulePolicyCase.title` names the failure, not the convention, and is the one written string
   in the reference; `variant` collapses per-language families in the index only.
   `reference.test.ts` pins title constraints.
