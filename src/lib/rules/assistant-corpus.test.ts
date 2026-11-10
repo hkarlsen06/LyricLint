@@ -187,8 +187,8 @@ describe('assistant corpus parity', () => {
 		for (const source of unreviewed) {
 			expect(corpusSourceIds.has(source.id)).toBe(false);
 		}
-		// The unreviewed 63-language inventory must not ride along; a reviewed
-		// pack always carries header vocabulary.
+		// The 63-language inventory's entries without a reviewed pack must not
+		// ride along; a reviewed pack always carries header vocabulary.
 		expect(committed.languages.every((language) => language.headerTerms.length > 0)).toBe(true);
 	});
 });
