@@ -1,3 +1,33 @@
+<script module lang="ts">
+	/**
+	 * The written notes, by pack tag, with `code` spans between backticks. Any other pack's row
+	 * lists its Verse, Chorus, and Bridge terms, which describes only a `localized` pack, so
+	 * every other policy needs a note here.
+	 */
+	export const languageNotes = new Map<string, { text: string; codeLang?: string }>([
+		[
+			'no',
+			{
+				text: '`Vers`, `Refreng`, `Bro`. Use `Chorus` instead of `Refreng` when the song also has a `Pre-Chorus` or `Post-Chorus`.'
+			}
+		],
+		[
+			'de',
+			{
+				text: '`Part` and `Hook` (common in rap) or `Strophe` and `Refrain`. Both pairs are accepted.'
+			}
+		],
+		['ja', { text: 'English headers, as Genius Japan requires.' }],
+		[
+			'ko',
+			{
+				text: 'English headers for original songs. Hangul terms such as `코러스` are also accepted, for translations.',
+				codeLang: 'ko'
+			}
+		]
+	]);
+</script>
+
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import DocsFigure from '#lib/ui/docs/DocsFigure.svelte';
@@ -141,20 +171,15 @@
 			<Table.Row>
 				<Table.Cell>{pack.displayName}</Table.Cell>
 				<Table.Cell>
-					{#if pack.tag === 'no'}
-						<code>Vers</code>, <code>Refreng</code>, <code>Bro</code>. Use <code>Chorus</code> instead of
-						<code>Refreng</code> when the song also has a <code>Pre-Chorus</code> or <code>Post-Chorus</code>.
-					{:else if pack.tag === 'de'}
-						<code>Part</code> and <code>Hook</code> (common in rap) or <code>Strophe</code> and
-						<code>Refrain</code>. Both pairs are accepted.
-					{:else if pack.tag === 'ja'}
-						English headers, as Genius Japan requires.
-					{:else if pack.tag === 'ko'}
-						English headers for original songs. Hangul terms such as <code lang="ko">코러스</code> are also
-						accepted, for translations.
+					{@const note = languageNotes.get(pack.tag)}
+					{#if note}
+						{#each note.text.split('`') as part, index (index)}{#if index % 2}<code lang={note.codeLang}
+									>{part}</code
+								>{:else}{part}{/if}{/each}
 					{:else}
-						{#each summaryTerms(pack) as { separator, term } (term)}{separator}<code lang={pack.tag} dir="auto"
-								>{term}</code
+						{#each summaryTerms(pack) as { separator, term }, index (index)}{separator}<code
+								lang={pack.tag}
+								dir="auto">{term}</code
 							>{/each}
 					{/if}
 				</Table.Cell>
