@@ -8,6 +8,7 @@
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
+	import { countDecisions } from '#lib/diagnostics/decisions.js';
 
 	let {
 		controller,
@@ -22,6 +23,7 @@
 	} = $props();
 
 	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
+	const reviewCount = $derived(countDecisions(controller.visibleDiagnostics));
 	const canAssign = $derived(
 		!controller.snapshot.composing &&
 			controller.editor.requestPerformerAssignment !== undefined &&
@@ -165,7 +167,7 @@
 			type="button"
 			class="button--quiet editor-actions__button"
 			aria-label={editorExpanded
-				? `Show tools${controller.visibleDiagnostics.length > 0 ? `, ${controller.visibleDiagnostics.length} visible findings` : ''}`
+				? `Show tools${reviewCount > 0 ? `, ${reviewCount} ${reviewCount === 1 ? 'decision' : 'decisions'} to review` : ''}`
 				: 'Expand editor'}
 			aria-expanded={!editorExpanded}
 			aria-controls="document-panel"

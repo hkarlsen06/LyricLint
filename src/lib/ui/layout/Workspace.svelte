@@ -24,6 +24,7 @@
 	} from '#lib/languages/registry.js';
 	import { lineNumberAt } from '#lib/core/line-numbers.js';
 	import { unknownVoiceAcceptanceKey } from '#lib/diagnostics/ignore.js';
+	import { countDecisions } from '#lib/diagnostics/decisions.js';
 	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	import { workspaceEntrance } from './workspace-entrance.js';
 	import type { HarperDiagnosticProvider } from '#lib/rules/harper.js';
@@ -83,6 +84,8 @@
 	let workspaceElement = $state<HTMLElement>();
 	let entranceReadyDraftId = $state<string>();
 	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
+	// The phone's Review badge counts what Review draws: one row per decision.
+	const reviewCount = $derived(countDecisions(controller.visibleDiagnostics));
 	const floatingVideo = $derived(!phone.current);
 	type MobileView = 'write' | 'review' | 'tools';
 	let mobileView = $state<MobileView>('write');
@@ -1341,9 +1344,7 @@
 			aria-pressed={mobileView === 'review'}
 			onclick={() => showMobileView('review')}
 		>
-			{controller.visibleDiagnostics.length > 0
-				? `Review (${controller.visibleDiagnostics.length})`
-				: 'Review'}
+			{reviewCount > 0 ? `Review (${reviewCount})` : 'Review'}
 		</button>
 		<button
 			type="button"

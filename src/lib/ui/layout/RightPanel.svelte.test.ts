@@ -82,6 +82,36 @@ describe('RightPanel', () => {
 		await page.viewport(800, 600);
 	});
 
+	test('counts Review rows on the tab badge, one per decision', async () => {
+		const comma = (from: number) =>
+			diagnostic({
+				ruleId: 'punctuation.line-ending',
+				severity: 'warning',
+				message: 'Lyric lines should not end with a comma.',
+				from,
+				to: from + 1
+			});
+		const { controller } = createTestWorkbench({
+			diagnostics: [
+				comma(2),
+				comma(6),
+				comma(10),
+				diagnostic({
+					ruleId: 'section.header-missing',
+					severity: 'error',
+					message: 'Add a section header.',
+					from: 12,
+					to: 13
+				})
+			]
+		});
+		await render(RightPanel, { controller });
+
+		const badge = within(screen.getByRole('tab', { name: /Review/u })).getByRole('img');
+		expect(badge.textContent).toBe('2');
+		expect(badge.getAttribute('aria-label')).toBe('2 decisions to review');
+	});
+
 	// The panes are flex columns so the linter can pin its foot to the bottom of
 	// the panel. Bits UI hides the inactive ones with the `hidden` attribute, and
 	// a `display` declaration that does not exclude them outranks the rule that

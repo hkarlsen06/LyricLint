@@ -16,6 +16,7 @@
 	import IgnoredRules from '../linter/IgnoredRules.svelte';
 	import MediaVideo from '../media/MediaVideo.svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
+	import { countDecisions } from '#lib/diagnostics/decisions.js';
 
 	let {
 		controller,
@@ -72,14 +73,14 @@
 	});
 
 	// The badge shows a bare numeral, so its accessible name is the only place
-	// the noun appears, and "1 visible diagnostics" is exactly the kind of thing
-	// a screen reader user hears in full. Local for the same reason as the status
-	// bar's helper in Workspace.svelte: tab chrome is always English, so the
-	// lyric-language packs under #lib/languages do not apply.
+	// the noun appears, and "1 decisions" is exactly the kind of thing a screen
+	// reader user hears in full. It counts Review's rows, one per decision, not
+	// the places they cover. Local for the same reason as the status bar's helper
+	// in Workspace.svelte: tab chrome is always English, so the lyric-language
+	// packs under #lib/languages do not apply.
+	const decisionCount = $derived(countDecisions(controller.visibleDiagnostics));
 	const diagnosticBadgeLabel = $derived(
-		`${controller.visibleDiagnostics.length} visible diagnostic${
-			controller.visibleDiagnostics.length === 1 ? '' : 's'
-		}`
+		`${decisionCount} ${decisionCount === 1 ? 'decision' : 'decisions'} to review`
 	);
 
 	function changeTab(value: string): void {
@@ -128,13 +129,13 @@
 						<span>Review</span>
 						<span class="panel-tabs__mark">
 							<ListChecksIcon aria-hidden="true" size={20} />
-							{#if controller.visibleDiagnostics.length > 0}
+							{#if decisionCount > 0}
 								<!-- `role="img"`, the toast count's own pattern: a name on a bare
 							     `<span>` has no role to attach to, so the badge reached the
 							     tab's accessible name as a loose number with nothing saying
 							     what it counted. -->
 								<span class="tab-count" role="img" aria-label={diagnosticBadgeLabel}
-									>{controller.visibleDiagnostics.length}</span
+									>{decisionCount}</span
 								>
 							{/if}
 						</span>
