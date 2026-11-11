@@ -27,9 +27,9 @@
 <ul>
 	<li>A mark for how serious it is (see the table below).</li>
 	<li>
-		The line it is on. A finding in several places says how many and where, such as <strong
-			>10 places, lines 8 to 33</strong
-		>.
+		The line it is on. A finding in several places says how many instead, such as <strong
+			>10 places</strong
+		>, and the place you have open names its line, such as <strong>Place 2 of 10, line 9</strong>.
 	</li>
 	<li>
 		The source it relies on, as a link. Point at the link or focus it to see which part of the page
@@ -91,7 +91,7 @@
 
 <p>
 	Press a finding to open it and read the explanation. A finding in several places opens on its first
-	place, and <strong>Place 1 of 10</strong> under its buttons steps to the others with
+	place, and <strong>Place 1 of 10, line 8</strong> under its buttons steps to the others with
 	<strong>Previous place</strong> and <strong>Next place</strong>. In the lyrics, point at an
 	underline to see the same finding in a popover. When a line has several findings, a count at the
 	end of the line lists them.
@@ -108,7 +108,8 @@
 	<li>
 		In the <strong>Review</strong> tab, use <strong>Previous</strong> and <strong>Next</strong>, or
 		<Keys combo="Alt-Shift-ArrowUp" /> and <Keys combo="Alt-Shift-ArrowDown" />, to move from one
-		finding in the list to the next.
+		finding in the list to the next. Each opens on its first place; <strong>Previous place</strong>
+		and <strong>Next place</strong> reach the rest.
 	</li>
 </ul>
 
@@ -169,7 +170,7 @@
 <p>
 	At the top of the <strong>Review</strong> tab, <strong>Fix … issues automatically</strong> applies
 	every such fix in the list at once. Its count is the number of places it changes. The note beside it
-	says how many findings in the list will still need a decision.
+	counts the findings in the list that will still need you, such as <strong>2 decisions left</strong>.
 </p>
 
 <p>

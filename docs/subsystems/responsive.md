@@ -9,7 +9,8 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
 ## The rules
 
 - Phones open in Write, with the lyrics taking the available height. The labelled
-  Write, Review (with the count of visible Review rows, one per decision), and Tools controls switch task views.
+  Write, Review (with the count of visible Review rows, one per decision: `Review (3)`), and
+  Tools controls switch task views.
   The editor remains mounted; selection, undo history, and scroll position survive.
   Linking is a tool within Tools: deliberate editor or Review requests open its detail and
   focus its heading without opening the keyboard. Its comparison uses the panel scroll port.
@@ -63,7 +64,7 @@ The dynamic import keeps tab controls and Review rendering code out of the initi
 bundle. Constructing the hidden dock and its Review content alongside CodeMirror was also
 extending the startup task for controls the reader could not yet reach. Once initialized, the panel stays mounted through
 Write, task switches, and viewport changes, retaining local tool state. Desktop still mounts
-the visible panel immediately. Linting and the navigation's finding count remain owned by
+the visible panel immediately. Linting and the navigation's Review count remain owned by
 the workspace and run independently of panel visibility. The mobile workspace test pins both
 the initially absent panel and the retained loaded instance after a return to Write.
 While its code loads, the selected task gets one panel surface with an announced loading

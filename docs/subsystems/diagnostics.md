@@ -22,21 +22,40 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   rule, severity, message, `identityText`, and every fix label; a finding with `relatedRanges`
   or `detectedLanguage` keys `null` and always has its own row, keyed by its row identity. The
   open row shows the unchanged per-place card for one member, held by that member's row
-  identity and remounted per member, plus `Previous place`, `Next place`, and `Place 2 of 10`
-  under the actions. Its meta line reads `Line 7` alone and `10 places, lines 8 to 33` grouped.
+  identity and remounted per member, plus a `Places` group of `Previous place`, `Next place`,
+  and `Place 2 of 10, line 9` under the actions. Its meta line reads `Line 7` alone and
+  `10 places` grouped, so the line stays one line beside the derivation mark and `Sources`.
+  The place is announced through the shared feedback only when the stepper is pressed, never
+  after a fix; a stepper button disabled by its own press hands focus to the other one.
   A fix or an ignore answers one place only. Pins: `decisions.test.ts`,
   `LinterPanel.svelte.test.ts` (*one row per decision*).
-- Review's counts are of rows: the tab badge, the phone Review control, the severity chips,
-  the filter notes, `N need a decision`, and `N of M`. `Fix N issues automatically` and
-  `Fix all N` count the places their press changes. Pin: `RightPanel.svelte.test.ts`
-  (*counts Review rows…*).
+- An open row does not move while it is answered or stepped. A row a place was answered in
+  holds its slot among the remaining rows (`holdAnswered` in `DiagnosticList.svelte`) rather
+  than re-sorting by its next place, until it leaves the list. The open row reserves its
+  explanation's height from the tallest of its places at the current width, measured from an
+  `aria-hidden` stack of every place's explanation, and its body keeps its tallest height, so
+  the stepper's slot outlives the stepper; both reservations only grow while the row stays
+  open. Collapse, the chosen place, and holds are per draft (the list remounts on a draft
+  switch) and drop with a row that leaves. Pins: `LinterPanel.svelte.test.ts` (*keeps an
+  answered row in its slot…*, *holds the actions and the stepper still…*, *starts each draft’s
+  rows fresh…*).
+- Review's counts use one vocabulary: an issue is one place, a decision is one row. Rows are
+  counted from one grouping per snapshot (`unignoredDecisions` and `reviewDecisions` on the
+  panel view): the tab badge (`3 decisions to review`), the phone `Review (3)`, `Show tools,
+  3 decisions to review`, the severity chips, the filter notes (`2 more decisions hidden by the
+  severity filters.`), `N of M`, and the navigator (`Navigate decisions`, `Previous decision`,
+  `Next decision`). `Fix N issues automatically` and `Fix all N` count the places their press
+  changes. The remainder (`2 decisions left`) and the announcement (`Fixed 15 issues
+  automatically. 2 decisions left.`) count the rows in `planBulkFix`'s `remaining`. Pins:
+  `RightPanel.svelte.test.ts` (*counts Review rows…*), `LinterPanel.svelte.test.ts`.
 - Occurrence suppression and the ignored-list location use the same derived match result.
   Repeated line-number queries share `core/line-numbers.ts` and its indexed lookup.
 
 - In phone task views, tapping an editor underline or count badge opens that finding in
   Review, with the real lyric context and shared actions, inside the decision row that holds
-  the tapped place and on that place. A count badge starts with its first finding;
-  Previous/Next handles the rest. No diagnostic popover or cluster menu opens.
+  the tapped place and on that place. A count badge starts with its first finding. Previous
+  and Next step by decision and open a row on its first place; the place stepper reaches the
+  row's other places. No diagnostic popover or cluster menu opens.
   Hover and native text selection do not navigate. `e2e/mobile-workbench.spec.ts` pins taps,
   the selected occurrence, fixes, focus handoff, and the absence of floating diagnostics.
 
@@ -48,7 +67,8 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   card's preview. Pins: `LinterPanel.svelte.test.ts` (*collapses the open finding…*,
   *retires the review preview…*).
 - Review offers Previous/Next and `Alt-Shift-Up/Down` in its existing reading order, one
-  decision per step; `F2` and `Ctrl-Alt-.` in the editor still step by place. These
+  decision per step, each opening a row on its first place; `F2` and `Ctrl-Alt-.` in the
+  editor still step by place. These
   commands and opening a card reveal the lyric range without taking keyboard focus from the
   panel. Text fields, IME composition, and visible pickers keep ownership of their keys. Removing a finding resolves focus against the newly rendered rows, whose keys never
   include their array index. Pins: `LinterPanel.svelte.test.ts` (*moves between findings…*,
@@ -432,6 +452,26 @@ diff on screen.
 Counts follow the rows, because the badge and the chips describe the list a reader works
 through. The bulk command is the exception: it changes places, and its count says how many.
 
+The first version had four ways to move what the reader was aiming at, and an audit found each.
+The meta line read `10 places, lines 8 to 33`, which beside the derivation mark and a folded
+`Sources` broke onto a second line with a stray separator, so the count stays on the meta line
+and the place's line moved into the stepper (`Place 2 of 10, line 9`); the `lines 8 to 33`
+wording is superseded. A row sorts by its first place, so answering that place re-sorted the
+open row by its next one, and `Don’t` on line 2, a comma on line 3, and `I’m` on line 4 slid
+the open card below the comma row; an answered row now holds its slot until it leaves.
+`section.header-prose` gives `Chorus`, `chorus`, and `CHORUS:` one row whose explanations quote
+each header and wrap differently, so the explanation reserves its tallest place's height,
+measured at the current width from text drawn by `attr()` so it stays out of the page's text.
+And a row that fell to one place lost its stepper and lifted the rows below, so the body keeps
+its tallest height while open.
+
+Content keys made a row's collapse outlive its draft: collapsing the curly-apostrophe row in
+one draft opened the next draft's curly-apostrophe row collapsed. The list remounts per draft
+and forgets a choice whose row has left. The stepper's live region announced the place after
+every fix, on top of the fix's own announcement, so the place is said only when the stepper is
+pressed. `countDecisionsLeft` re-derived `planBulkFix`'s settled test beside it; the plan now
+returns `remaining`, and its old promise that the two numbers add up to the list is gone.
+
 ### One diagnostic, one implementation
 
 The expanded card in the linter panel and the popover anchored under an underline are the same
@@ -549,7 +589,9 @@ selected card unless the reader explicitly collapsed it.
 
 The card reveals the range without focusing the editor, so keyboard users can open an
 explanation and continue through its decisions. Previous and Next name the panel's existing
-reading order and disclose their `Alt-Shift-Up/Down` twins. Row identities no longer contain an
+reading order and disclose their `Alt-Shift-Up/Down` twins. (Superseded in part: since *Review
+draws one row per decision* they step by decision and are named `Previous decision` and `Next
+decision`.) Row identities no longer contain an
 array index: removing one finding must not destroy every subsequent control. A removing action
 finds the surviving expanded row after rendering and focuses its heading, with the remaining
 row or Review tab as the fallback.

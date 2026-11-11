@@ -355,9 +355,10 @@ inset; reduced-motion preferences make the change immediate. Collapsing tools be
 immediately, while their visible surface travels with the shrinking grid track.
 
 The editor tray's Expand editor control gives the document the available writing space on a phone
-or desktop. Show tools occupies the same icon-only slot and includes the visible-finding count in
-its accessible name while the tools are hidden. The shared tooltip names each action;
-no visible label or count accompanies the icon. The tray ends with this control, and
+or desktop. Show tools occupies the same icon-only slot and, while the tools are hidden, includes
+the count of rows Review draws, one per decision, in its accessible name (`Show tools, 3 decisions
+to review`); before Review drew one row per decision it counted visible findings. The shared
+tooltip names each action; no visible label or count accompanies the icon. The tray ends with this control, and
 the document toolbar no longer offers it. The editor and panels remain mounted so selection, scroll position, and
 in-progress tool state survive. Expanding focuses the editor; restoring focuses the selected
 tab. Choosing a different tool programmatically also restores the panels. The Review preview
