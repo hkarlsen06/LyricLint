@@ -149,9 +149,10 @@ export const docsPages: readonly DocsPage[] = [
 		sections: [
 			{ id: 'copy', title: 'Copy the lyrics' },
 			{ id: 'paste', title: 'Paste from Genius' },
+			{ id: 'bookmarklet', title: 'Open Genius lyrics with a bookmarklet' },
 			{ id: 'between', title: "Between 'scribes" }
 		],
-		keywords: ['clipboard', 'export', 'import', 'markup', 'html']
+		keywords: ['clipboard', 'export', 'import', 'markup', 'html', 'extension']
 	},
 	{
 		slug: 'audio',

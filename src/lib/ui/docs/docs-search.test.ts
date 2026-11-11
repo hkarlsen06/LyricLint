@@ -26,6 +26,11 @@ describe('searchDocs', () => {
 		expect(where(section.title)).toContain(`${page.slug}#${section.id}`);
 	});
 
+	it('finds the Genius bookmarklet by its name and by Genius', () => {
+		expect(where('bookmarklet')[0]).toBe('copy-paste#bookmarklet');
+		expect(where('Genius')).toContain('copy-paste#bookmarklet');
+	});
+
 	it('requires every word, folding case and curly apostrophes', () => {
 		expect(where('zzzz')).toEqual([]);
 		expect(where('’SCRIBES')).toEqual(where("'scribes"));

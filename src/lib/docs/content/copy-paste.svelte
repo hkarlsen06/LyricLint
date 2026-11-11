@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { handoffBookmarklet } from '#lib/core/handoff-bookmarklet.js';
 	import Keys from '#lib/ui/docs/Keys.svelte';
 </script>
 
@@ -57,6 +58,28 @@
 	words themselves are not changed.
 </p>
 
+<div class="bookmarklet">
+	<h2 id="bookmarklet">Open Genius lyrics with a bookmarklet</h2>
+	<p>
+		The <strong>Open in LyricLint</strong> bookmarklet opens the lyrics you are editing on Genius as
+		a new 'scribe in a new tab. The 'scribe you have open stays as it was.
+	</p>
+	<p>
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- a bookmarklet is dragged to the bookmarks bar, not followed. -->
+		<a class="button" href={handoffBookmarklet()}>Open in LyricLint</a>
+	</p>
+	<ol>
+		<li>Drag <strong>Open in LyricLint</strong> to your browser's bookmarks bar.</li>
+		<li>On a Genius lyrics editing page, click into the lyrics box.</li>
+		<li>Press <strong>Open in LyricLint</strong> in the bookmarks bar.</li>
+	</ol>
+	<p>The lyrics travel inside the link to the new tab and reach no server.</p>
+	<p>
+		To put the corrected lyrics back, press <strong>Copy lyrics</strong>, follow
+		<strong>Open Genius page</strong> in the Song panel, and paste them into the lyrics box.
+	</p>
+</div>
+
 <h2 id="between">Between 'scribes</h2>
 <p>
 	Copy a passage from one 'scribe with <Keys combo="Mod-c" /> and paste it into another, and more
@@ -86,3 +109,16 @@
 		>'scribes list</a
 	>. To move one to another browser, export it as a Scribe file.
 </p>
+
+<style>
+	/*
+	 * A bookmarks bar belongs to a desktop browser and is filled by dragging with
+	 * a mouse, so phones, in either orientation, and narrow windows go without.
+	 * The first query is `PHONE_LAYOUT_QUERY`.
+	 */
+	@media (pointer: coarse) and (max-width: 68rem), (max-width: 40rem) {
+		.bookmarklet {
+			display: none;
+		}
+	}
+</style>
