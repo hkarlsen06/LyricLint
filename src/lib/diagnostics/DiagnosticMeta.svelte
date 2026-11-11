@@ -25,7 +25,7 @@
 		sources: ReadonlyMap<string, SourceReference> | readonly SourceReference[];
 		/**
 		 * Where the finding is, when the surface has to say so: `Line 7`, or
-		 * `10 places, lines 8 to 33` for a panel row that stands for several. The
+		 * `10 places` for a panel row that stands for several. The
 		 * editor's popover is already anchored under the underline it describes,
 		 * so it passes nothing and the citation follows the severity.
 		 */

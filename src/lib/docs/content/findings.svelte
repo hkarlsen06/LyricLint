@@ -18,16 +18,16 @@
 />
 
 <p>
-	When the same finding turns up in several places, such as ten lines that end in a comma, the list
-	shows it once. You make one decision and work through its places.
+	When several findings ask the same question, such as ten lines that end in a comma, the list shows
+	them as one decision with ten places, and you work through its places.
 </p>
 
-<p>Each finding starts with one line of facts:</p>
+<p>Each decision in the list starts with one line of facts:</p>
 
 <ul>
 	<li>A mark for how serious it is (see the table below).</li>
 	<li>
-		The line it is on. A finding in several places says how many instead, such as <strong
+		The line it is on. A decision with several places says how many instead, such as <strong
 			>10 places</strong
 		>, and the place you have open names its line, such as <strong>Place 2 of 10, line 9</strong>.
 	</li>
@@ -85,14 +85,16 @@
 <p>
 	The chips above the list (<strong>Errors</strong>, <strong>Warnings</strong>, <strong
 		>Suggestions</strong
-	>, <strong>Manual review</strong>) show how many of each there are in the list, counting a
-	finding in several places once. Press a chip to hide or show that kind.
+	>, <strong>Manual review</strong>) show how many decisions of each kind there are in the list,
+	counting a decision with several places once. Press a chip to hide or show that kind. The list
+	keeps its order while you work through it, and sorts itself again when you press a chip or come
+	back to the <strong>Review</strong> tab.
 </p>
 
 <p>
-	Press a finding to open it and read the explanation. A finding in several places opens on its first
-	place, and <strong>Place 1 of 10, line 8</strong> under its buttons steps to the others with
-	<strong>Previous place</strong> and <strong>Next place</strong>. In the lyrics, point at an
+	Press a decision in the list to open it and read the explanation. A decision with several places
+	opens on its first place, and <strong>Place 1 of 10, line 8</strong> under its line of facts steps
+	to the others with <strong>Previous place</strong> and <strong>Next place</strong>. In the lyrics, point at an
 	underline to see the same finding in a popover. When a line has several findings, a count at the
 	end of the line lists them.
 </p>
@@ -108,7 +110,7 @@
 	<li>
 		In the <strong>Review</strong> tab, use <strong>Previous</strong> and <strong>Next</strong>, or
 		<Keys combo="Alt-Shift-ArrowUp" /> and <Keys combo="Alt-Shift-ArrowDown" />, to move from one
-		finding in the list to the next. Each opens on its first place; <strong>Previous place</strong>
+		decision in the list to the next. Each opens on its first place; <strong>Previous place</strong>
 		and <strong>Next place</strong> reach the rest.
 	</li>
 </ul>
@@ -137,7 +139,7 @@
 </ol>
 
 <p>
-	The fix is one step you can undo, and the next finding opens so you can keep going. In a finding
+	The fix is one step you can undo, and the next finding opens so you can keep going. In a decision
 	with several places, its next place opens in the same spot. When a finding
 	offers more than one fix, the first is the recommended one. Point at or focus any of them to
 	preview it.
@@ -148,7 +150,7 @@
 	focused. Press <Keys combo="Mod-." /> again to apply it.
 </p>
 
-<p>Some findings need a decision rather than a replacement, so they carry a different button:</p>
+<p>Some findings need a choice rather than a replacement, so they carry a different button:</p>
 
 <ul>
 	<li><strong>Choose header</strong> opens the section header picker.</li>
@@ -170,7 +172,9 @@
 <p>
 	At the top of the <strong>Review</strong> tab, <strong>Fix … issues automatically</strong> applies
 	every such fix in the list at once. Its count is the number of places it changes. The note beside it
-	counts the findings in the list that will still need you, such as <strong>2 decisions left</strong>.
+	counts the decisions in the list that will still need you afterwards, such as <strong
+		>2 decisions left</strong
+	>.
 </p>
 
 <p>
@@ -183,7 +187,7 @@
 
 <p>
 	If a finding is wrong for this song, press <strong>Ignore</strong>. It disappears for this 'scribe
-	only, and a message offers <strong>Undo</strong>. In a finding with several places, Ignore sets
+	only, and a message offers <strong>Undo</strong>. In a decision with several places, Ignore sets
 	aside only the place that is open.
 </p>
 
