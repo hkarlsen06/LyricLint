@@ -130,6 +130,20 @@ describe('handoff optional fields', () => {
 		);
 	});
 
+	test('cuts the title between whole characters, never inside a joined emoji', async () => {
+		const family = '👩‍👩‍👧‍👦';
+		for (const lead of [maxHandoffTitleLength - 4, maxHandoffTitleLength - 3]) {
+			const decoded = await decodeHandoff(
+				await encodeHandoff({ text: '[Verse]\nLine', title: 'a'.repeat(lead) + family })
+			);
+			expect(decoded?.title).toBe('a'.repeat(lead));
+		}
+		const fits = 'a'.repeat(maxHandoffTitleLength - 7) + family;
+		expect(
+			(await decodeHandoff(await encodeHandoff({ text: '[Verse]\nLine', title: fits })))?.title
+		).toBe(fits);
+	});
+
 	test('trims the title, caps it in code points, and drops a blank or foreign one', async () => {
 		const decode = async (title: unknown) =>
 			(await decodeHandoff(await fragmentFor(JSON.stringify({ text: 'Line', title }))))?.title;

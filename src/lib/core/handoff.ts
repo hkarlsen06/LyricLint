@@ -20,7 +20,7 @@ interface JsonObject {
 export const maxHandoffPayloadLength = 400_000;
 /** The most inflated bytes read; the stream is cancelled once it passes this. */
 export const maxHandoffInflatedBytes = 1_048_576;
-/** In code points, so a cut never splits a surrogate pair. */
+/** In code points. The cut falls between whole characters. */
 export const maxHandoffTitleLength = 200;
 /**
  * How many compressed bytes the decompressor is given at a time. Deflate
@@ -69,15 +69,29 @@ export async function decodeHandoff(fragment: string): Promise<DraftHandoff | nu
 
 	const handoff: DraftHandoff = { text };
 	if (typeof title === 'string') {
-		const trimmed = Array.from(plainLine(title).trim())
-			.slice(0, maxHandoffTitleLength)
-			.join('')
-			.trim();
+		const trimmed = capTitle(plainLine(title).trim());
 		if (trimmed) handoff.title = trimmed;
 	}
 	const url = normalizeGeniusUrl(geniusUrl);
 	if (url !== undefined) handoff.geniusUrl = url;
 	return handoff;
+}
+
+/**
+ * At most `maxHandoffTitleLength` code points, cut between whole characters, so
+ * an emoji joined from several code points is kept or dropped as one.
+ */
+function capTitle(title: string): string {
+	let kept = '';
+	let length = 0;
+	for (const { segment } of new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(
+		title
+	)) {
+		length += Array.from(segment).length;
+		if (length > maxHandoffTitleLength) break;
+		kept += segment;
+	}
+	return kept.trim();
 }
 
 /**
