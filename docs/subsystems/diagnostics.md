@@ -41,8 +41,9 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   finding the native rules withdraw while its line is typed on, or a Harper finding dropped
   by the edit) takes its old slot. Every edit carries Harper's unaffected findings until
   Harper answers (`carryHarperDiagnosticsAcrossEdit`), so they do not blink out. An atomic
-  edit (a fix) drops only the findings it touched; any other edit (typing, paste, drop, undo)
-  drops every finding on a line it changed. A row never drawn before enters above the first drawn row ranked below it, or after
+  edit (a fix, a `[?]` insertion, a performer or section-header pick, a performer rename, the
+  toolbar paste that replaces the document) drops only the findings it touched; any other edit
+  (typing, a keyboard paste, a drop, undo) drops every finding on a line it changed. A row never drawn before enters above the first drawn row ranked below it, or after
   the last drawn row, and among the absent rows at that point by rank from their last members
   (`keepOrder` in `decisions.ts`), so every native row stays above every Harper row. The order
   returns to rank (`orderDiagnostics`) only when the reader changes what the list shows: a
@@ -565,7 +566,7 @@ Harper row was gone for about 280 ms, and an open Harper row came back closed, l
 below it by 36 pixels. Harper's unaffected findings were carried across a fix but not across a
 typed edit, for no recorded reason; the carry now runs on every edit that changes the text. After
 a typed edit, a finding on any line the edit changed drops until Harper answers, not only one the
-edit touched; a fix keeps the narrower rule, because it is one reviewed replacement:
+edit touched; an atomic edit keeps the narrower rule, because it is one known replacement:
 a word typed one letter at a time only grows at its own edge, so a finding on `Walki` would have
 stayed on `Walking` with an applicable fix, and `a` flagged before `apple` would have kept
 offering `an` after `apple` became `banana`.

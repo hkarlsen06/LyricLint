@@ -67,7 +67,7 @@ function mapPoint(point: number, change: ContiguousChange): number | undefined {
  * neighbours, and in lyrics the line is the sentence: `a` before `apple` turns
  * stale when `apple` becomes `banana`, and a word typed one letter at a time
  * only ever grows at its own edge. So nothing on a line a typed edit changed is
- * carried. A fix is one reviewed replacement and keeps the narrower rule.
+ * carried. An atomic edit is one known replacement and keeps the narrower rule.
  */
 function changedLines(previousText: string, change: ContiguousChange): TextRange {
 	const lineEnd = previousText.indexOf('\n', change.oldTo);
@@ -134,8 +134,8 @@ function mapFix(
  *
  * Native rules answer synchronously, while Harper waits behind its debounce and
  * worker. Without this bridge every edit briefly publishes the native-only list.
- * Findings the edit touched are dropped, and with `typed` (any edit that is not
- * one atomic fix) so is every finding on a line it changed. The rest move to
+ * Findings the edit touched are dropped, and with `typed` (any edit that did not
+ * arrive as one atomic dispatch) so is every finding on a line it changed. The rest move to
  * their new offsets, and their fixes are retargeted to the new revision until
  * Harper's authoritative replacement result arrives.
  */
