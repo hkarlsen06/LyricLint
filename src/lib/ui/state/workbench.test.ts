@@ -113,6 +113,7 @@ function setup(options: {
 	mediaRepository?: MediaRepository;
 	exportText?: (text: string, filename: string) => void;
 	workspaceShown?: Promise<void>;
+	loadHandoffCodec?: () => Promise<typeof import('#lib/core/handoff.js')>;
 }) {
 	const initial = options.initial ?? draft('draft-a');
 	const repository =
@@ -180,7 +181,8 @@ function setup(options: {
 		copy: options.copy ?? (() => Promise.resolve()),
 		onOpenDraft,
 		exportText: options.exportText,
-		workspaceShown: options.workspaceShown
+		workspaceShown: options.workspaceShown,
+		loadHandoffCodec: options.loadHandoffCodec
 	};
 	// Absent unless the test asked for audio: a controller with a media store is
 	// one more thing running behind every unrelated assertion.
@@ -1729,32 +1731,17 @@ describe('workbench lyric hand-over', () => {
 	});
 
 	test('says so, rather than blaming the link, when the codec fails to load', async () => {
-		vi.resetModules();
-		vi.doMock('#lib/core/handoff.js', () => {
-			throw new Error('Failed to fetch dynamically imported module');
+		const { controller, repository } = setup({
+			loadHandoffCodec: () =>
+				Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
 		});
-		try {
-			const { createWorkbenchController: create } = await import('./workbench.svelte.js');
-			const repository = createInMemoryDraftRepository([draft('draft-a')]);
-			const controller = create({
-				editor: setup({}).editor,
-				initialSnapshot: snapshot(draft('draft-a')),
-				initialDraft: draft('draft-a'),
-				repository,
-				autosave: controllableAutosave(repository).autosave,
-				ignoreStore: createContractIgnoreStore(createMemorySessionStorage())
-			});
 
-			expect(await controller.openHandoff(await encodeHandoff(handoff))).toBe(false);
+		expect(await controller.openHandoff(await encodeHandoff(handoff))).toBe(false);
 
-			expect(await repository.list()).toHaveLength(1);
-			expect(controller.feedback.announcement).toBe(
-				"This link's lyrics could not be loaded. Reload the page and open the link again."
-			);
-		} finally {
-			vi.doUnmock('#lib/core/handoff.js');
-			vi.resetModules();
-		}
+		expect(await repository.list()).toHaveLength(1);
+		expect(controller.feedback.announcement).toBe(
+			"This link's lyrics could not be loaded. Reload the page and open the link again."
+		);
 	});
 
 	test('creates nothing for the lyric that is already open', async () => {

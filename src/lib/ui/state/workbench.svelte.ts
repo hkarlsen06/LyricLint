@@ -90,6 +90,8 @@ interface WorkbenchDependencies {
 	 * the app, so it waits rather than counting down on a blank page.
 	 */
 	workspaceShown?: Promise<void>;
+	/** The hand-over codec, a chunk of its own; a test supplies one that fails to load. */
+	loadHandoffCodec?: () => Promise<typeof import('#lib/core/handoff.js')>;
 }
 
 export interface WorkbenchController {
@@ -583,7 +585,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		}
 		let decodeHandoff;
 		try {
-			({ decodeHandoff } = await import('#lib/core/handoff.js'));
+			({ decodeHandoff } = await (
+				deps.loadHandoffCodec ?? (() => import('#lib/core/handoff.js'))
+			)());
 		} catch {
 			reportHandoff(
 				"This link's lyrics could not be loaded. Reload the page and open the link again."
