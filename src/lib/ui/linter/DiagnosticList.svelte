@@ -249,7 +249,14 @@
 			const card = Array.from(currentList.children).find(
 				(candidate) => candidate.getAttribute('data-diagnostic-key') === key
 			);
-			card?.scrollIntoView({ block: 'nearest' });
+			if (!(card instanceof HTMLElement)) return;
+			// A row taller than the panel aligns its top, so its heading stays in
+			// view: `nearest` would push the heading out, and focusing it after a
+			// fix would scroll the panel back.
+			let port = card.parentElement;
+			while (port && port.scrollHeight <= port.clientHeight) port = port.parentElement;
+			const tall = port !== null && card.offsetHeight > port.clientHeight;
+			card.scrollIntoView({ block: tall ? 'start' : 'nearest' });
 		});
 	});
 
