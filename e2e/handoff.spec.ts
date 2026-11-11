@@ -200,6 +200,31 @@ for (const kind of ['an HTML', 'an SVG'] as const) {
 	});
 }
 
+test('a hand-over link around an SVG anchor with no href is taken at the outer link', async ({
+	page
+}) => {
+	const link = await cityLightsLink();
+	const payload = link.slice(link.indexOf('.') + 1);
+	await writeFirstDraft(page, '[Verse]\nFirst');
+
+	await page.evaluate((href) => {
+		const outer = document.createElement('a');
+		outer.href = href;
+		outer.innerHTML =
+			'<svg width="40" height="40"><a><rect width="40" height="40" fill="currentColor"></rect></a></svg>';
+		document.body.append(outer);
+		outer
+			.querySelector('rect')!
+			.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true }));
+	}, link);
+	await expect.poll(() => docText(page)).toBe(cityLights);
+
+	await page.getByRole('tab', { name: 'Song' }).click();
+	await expect(page).toHaveURL(/[?&]panel=song/u);
+	expect(page.url()).not.toContain('#open=');
+	expect(await page.evaluate(() => JSON.stringify(history.state))).not.toContain(payload);
+});
+
 test('a hand-over link clicked on another page loads the workbench in full', async ({ page }) => {
 	const link = await cityLightsLink();
 	const payload = link.slice(link.indexOf('.') + 1);

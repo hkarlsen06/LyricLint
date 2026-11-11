@@ -47,19 +47,25 @@ export function captureHandoffLinks(workbenchPath: string): void {
 			if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
 				return;
 			}
-			// The router follows an SVG `<a>` too, and a `download` link not at all.
+			// The anchor the router follows: the nearest HTML or SVG `<a>` with an
+			// `href`, and never a `download` link.
 			const anchor = event
 				.composedPath()
 				.find(
 					(node): node is HTMLAnchorElement | SVGAElement =>
-						node instanceof HTMLAnchorElement || node instanceof SVGAElement
+						(node instanceof HTMLAnchorElement || node instanceof SVGAElement) &&
+						node.hasAttribute('href')
 				);
 			if (!anchor || anchor.hasAttribute('download')) return;
 			const svg = anchor instanceof SVGAElement;
 			const target = svg ? anchor.target.baseVal : anchor.target;
-			const href = svg ? anchor.href.baseVal : anchor.href;
-			if ((target !== '' && target !== '_self') || !URL.canParse(href, document.baseURI)) return;
-			const url = new URL(href, document.baseURI);
+			if (target !== '' && target !== '_self') return;
+			let url: URL;
+			try {
+				url = new URL(svg ? anchor.href.baseVal : anchor.href, document.baseURI);
+			} catch {
+				return;
+			}
 			if (
 				url.origin !== location.origin ||
 				url.pathname !== workbenchPath ||
