@@ -43,7 +43,9 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   Harper answers (`carryHarperDiagnosticsAcrossEdit`), so they do not blink out. An atomic
   edit (a fix, a `[?]` insertion, a performer or section-header pick, a performer rename, the
   toolbar paste that replaces the document) drops only the findings it touched; any other edit
-  (typing, a keyboard paste, a drop, undo) drops every finding on a line it changed. A row never drawn before enters above the first drawn row ranked below it, or after
+  (typing, a keyboard paste, a drop, undo) drops every finding on a line it changed. The same
+  text re-linted for a new key (the language detector loading, a language or performer
+  change) keeps every Harper finding as it is until Harper answers. A row never drawn before enters above the first drawn row ranked below it, or after
   the last drawn row, and among the absent rows at that point by rank from their last members
   (`keepOrder` in `decisions.ts`), so every native row stays above every Harper row. The order
   returns to rank (`orderDiagnostics`) only when the reader changes what the list shows: a

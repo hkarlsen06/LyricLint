@@ -600,6 +600,38 @@ describe('Workspace and toolbar', () => {
 		).toBe(controller.snapshot.revision);
 	});
 
+	test('keeps Harper findings while the same text is re-linted for a new lint key', async () => {
+		const text = '[Verse]\nThis sentnce stays\nWalking home';
+		let callCount = 0;
+		const lint = vi.fn(({ text: requestText }) => {
+			callCount += 1;
+			const from = requestText.indexOf('sentnce');
+			const findings: Diagnostic[] = [
+				{
+					from,
+					to: from + 7,
+					ruleId: 'spelling.harper',
+					severity: 'suggestion',
+					message: 'Keep this re-linted finding.',
+					explanation: 'Spelling detected by Harper.',
+					sourceIds: ['G-SECTIONS']
+				}
+			];
+			// Every answer after the first never lands, so only the carry can show it.
+			return callCount === 1 ? Promise.resolve(findings) : new Promise<Diagnostic[]>(() => {});
+		});
+		const { controller } = createTestWorkbench({ text });
+		await renderWorkspace(controller, { lint, dispose: async () => {} });
+		await waitFor(() => expect(screen.getByText('Keep this re-linted finding.')).toBeTruthy());
+
+		// Still English, so Harper runs again, but the lint key changed and the text did not:
+		// the same path the language detector takes when it finishes loading.
+		controller.setLanguage('en-GB');
+		await waitFor(() => expect(lint).toHaveBeenCalledTimes(2));
+
+		expect(screen.getByText('Keep this re-linted finding.')).toBeTruthy();
+	});
+
 	test('keeps unaffected Harper findings in place while a normal fix is re-linted', async () => {
 		const text = '[Verse]\nok then song';
 		let callCount = 0;

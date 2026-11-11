@@ -27,6 +27,7 @@
 	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	import { workspaceEntrance } from './workspace-entrance.js';
 	import type { HarperDiagnosticProvider } from '#lib/rules/harper.js';
+	import { isHarperRuleId } from '#lib/rules/harper-ids.js';
 	import { mergeHarperDiagnostics } from '#lib/rules/results.js';
 	import { useAssistantState } from '#lib/assistant/assistant.svelte.js';
 	import type { AssistantDraftBridge } from '#lib/assistant/draft-bridge.js';
@@ -636,17 +637,23 @@
 			// replacement answer is still behind its debounce and worker pass. Carry
 			// only unaffected findings across it so the list does not blink to
 			// native-only and back: after a typed keystroke as much as after a fix,
-			// because an open Harper row that blinked out came back closed. A
-			// republish of an old snapshot is not an edit, hence the text comparison.
-			const carriedHarper =
-				snapshot.text !== controller.snapshot.text && shouldRunHarper(snapshot)
-					? carryHarperDiagnosticsAcrossEdit(
+			// because an open Harper row that blinked out came back closed. The
+			// same snapshot re-linted for a new key (the language detector loading,
+			// a language or performer change) keeps its Harper findings as they are:
+			// they describe this very text and revision until Harper answers again.
+			const sameSnapshot =
+				snapshot.text === controller.snapshot.text &&
+				snapshot.revision === controller.snapshot.revision;
+			const carriedHarper = !shouldRunHarper(snapshot)
+				? []
+				: sameSnapshot
+					? lastDiagnostics.filter((diagnostic) => isHarperRuleId(diagnostic.ruleId))
+					: carryHarperDiagnosticsAcrossEdit(
 							controller.snapshot,
 							snapshot,
 							lastDiagnostics,
 							!snapshot.atomic
-						)
-					: [];
+						);
 			lastDiagnostics = mergeHarperDiagnostics(nativeDiagnostics, carriedHarper);
 			lastLintKey = key;
 			scheduleLanguageDetector(snapshot);
