@@ -64,6 +64,43 @@ Att jag fortfarande väntar på dig`);
 		expect(detectSongLanguage(document, 'sv')?.tag).toBe('sv');
 	});
 
+	it('detects a Danish lyric worded close to Norwegian as Danish', () => {
+		const document = parseDocument(`[Vers]
+Jeg går hjem gennem byen i aften
+Lygterne tændes én efter én
+Du sagde, vi skulle mødes ved havnen
+Men jeg står her alene igen
+Vinden er kold, og himlen er grå
+Jeg tænker på alt, hvad vi havde
+Hvorfor er det så svært at forstå
+At du aldrig kommer tilbage
+Jeg kan høre dit navn i regnen
+Det synger så stille for mig
+Og når morgenen kommer, ved jeg
+At jeg stadig venter på dig`);
+
+		expect(detectSongLanguage(document, 'en')?.tag).toBe('da');
+		expect(detectSongLanguage(document, 'da')?.tag).toBe('da');
+	});
+
+	it('keeps the same lyric in Norwegian detecting as Norwegian', () => {
+		const document = parseDocument(`[Vers]
+Jeg går hjem gjennom byen i kveld
+Gatelysene tennes én etter én
+Du sa at vi skulle møtes ved havna
+Men jeg står her alene igjen
+Vinden er kald, og himmelen er grå
+Jeg tenker på alt vi hadde
+Hvorfor er det så vanskelig å forstå
+At du aldri kommer tilbake
+Jeg kan høre navnet ditt i regnet
+Det synger så stille for meg
+Og når morgenen kommer, vet jeg
+At jeg fortsatt venter på deg`);
+
+		expect(detectSongLanguage(document, 'en')?.tag).toBe('no');
+	});
+
 	it('recognizes Japanese and Korean from their scripts', () => {
 		expect(
 			detectSongLanguage(

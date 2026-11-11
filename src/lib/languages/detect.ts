@@ -7,6 +7,17 @@ const minimumStatisticalScore = 0.2;
 const minimumSelectedScoreRatio = 1.15;
 const norwegianMarkers =
 	/(?<!\p{L})(?:fortsatt|gjør|gjøre|hva|mer|mye|noe|noen|røyke|skjer)(?!\p{L})/giu;
+const danishMarkers =
+	/(?<!\p{L})(?:aldrig|dig|gennem|havde|hvad|igen|mig|noget|nogen|sagde|tilbage)(?!\p{L})/giu;
+/**
+ * Danish and Norwegian profiles score within a few points of each other, so a
+ * narrow lead goes to the rival when the text carries two of the rival's own
+ * spellings (`hva`, `noe` against `hvad`, `noget`).
+ */
+const closeRivals = new Map([
+	['da', { tag: 'no', markers: norwegianMarkers }],
+	['no', { tag: 'da', markers: danishMarkers }]
+]);
 const selectableTags = new Set(['en', ...languageSourceInventory.map((entry) => entry.tag)]);
 
 let detector: typeof import('./statistical-detector.js') | undefined;
@@ -221,14 +232,16 @@ export function detectSongLanguage(
 	const scores = statisticalScores(text);
 
 	let best = [...scores].sort((left, right) => right[1] - left[1])[0];
-	const norwegianScore = scores.get('no');
+	const rival = best && closeRivals.get(best[0]);
+	const rivalScore = rival && scores.get(rival.tag);
 	if (
-		best?.[0] === 'da' &&
-		norwegianScore !== undefined &&
-		best[1] < norwegianScore * minimumSelectedScoreRatio &&
-		countMatches(text, norwegianMarkers) >= 2
+		best &&
+		rival &&
+		rivalScore !== undefined &&
+		best[1] < rivalScore * minimumSelectedScoreRatio &&
+		countMatches(text, rival.markers) >= 2
 	) {
-		best = ['no', norwegianScore];
+		best = [rival.tag, rivalScore];
 	}
 	if (!best || best[1] < minimumStatisticalScore) return undefined;
 	const selectedScore = scores.get(selectedTag) ?? 0;
