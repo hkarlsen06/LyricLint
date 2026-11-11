@@ -171,7 +171,6 @@
 		row.key === selectedKey && selected ? selected.member : row.members[0]!;
 	const placeText = (row: Decision, index: number) =>
 		`Place ${index + 1} of ${row.members.length}${lineFor ? `, line ${lineFor(row.members[index]!.from)}` : ''}`;
-	const placeLabel = $derived(selected ? placeText(selected.row, place) : '');
 
 	// A choice belongs to the row it was made on. A row that leaves the list takes
 	// its choice with it, so the same question arriving later starts fresh. Read
@@ -283,19 +282,36 @@
 		if (target) open(target, target.members[0]!);
 	}
 
-	async function stepPlace(direction: -1 | 1, trigger: HTMLButtonElement): Promise<void> {
-		const target = selected?.row.members[place + direction];
-		if (!selected || !target) return;
-		open(selected.row, target);
-		await tick();
-		// Announced here and nowhere else: after a fix the reader has just heard
-		// what the fix did, and the place it leads to is already the open card.
-		onAnnounce?.(placeLabel);
-		// The end of the row disables the button that was pressed, and a disabled
-		// button drops focus to the page; the other direction is still a step.
-		if (trigger.disabled) {
-			trigger.parentElement?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
-		}
+	// Landing on an end disables the button that was pressed, and a disabled
+	// button drops focus to the page; the other direction is still a step. It is
+	// decided from the target when pressed and carried out once the target is
+	// drawn, because on a phone the open place follows a tick later.
+	let handoff: { target: string; from: HTMLButtonElement; to: HTMLButtonElement } | undefined;
+	$effect(() => {
+		const drawn = selected && rowKey(selected.member);
+		if (!handoff || drawn !== handoff.target) return;
+		const { from, to } = handoff;
+		handoff = undefined;
+		if (document.activeElement === from) to.focus();
+	});
+
+	function stepPlace(direction: -1 | 1, trigger: HTMLButtonElement): void {
+		if (!selected) return;
+		const { row } = selected;
+		const index = place + direction;
+		const target = row.members[index];
+		if (!target) return;
+		const other = Array.from(trigger.parentElement?.querySelectorAll('button') ?? []).find(
+			(button) => button !== trigger
+		);
+		handoff =
+			other && (index === 0 || index === row.members.length - 1)
+				? { target: rowKey(target), from: trigger, to: other }
+				: undefined;
+		open(row, target);
+		// Announced here and nowhere else, since after a fix the reader has just
+		// heard what the fix did; from the target, for the same reason as above.
+		onAnnounce?.(placeText(row, index));
 	}
 
 	function navigateWithKeyboard(event: KeyboardEvent): void {
@@ -481,7 +497,7 @@
 								aria-label="Previous place"
 								disabled={place <= 0}
 								{@attach describeControl(() => ({ label: 'Previous place' }))}
-								onclick={(event) => void stepPlace(-1, event.currentTarget)}
+								onclick={(event) => stepPlace(-1, event.currentTarget)}
 							>
 								<CaretLeftIcon aria-hidden="true" size={14} weight="bold" />
 							</button>
@@ -491,11 +507,11 @@
 								aria-label="Next place"
 								disabled={place >= row.members.length - 1}
 								{@attach describeControl(() => ({ label: 'Next place' }))}
-								onclick={(event) => void stepPlace(1, event.currentTarget)}
+								onclick={(event) => stepPlace(1, event.currentTarget)}
 							>
 								<CaretRightIcon aria-hidden="true" size={14} weight="bold" />
 							</button>
-							<span>{placeLabel}</span>
+							<span>{placeText(row, place)}</span>
 						</div>
 					{:else if expanded && reserving}
 						<div class="diagnostic-list__places" aria-hidden="true"></div>

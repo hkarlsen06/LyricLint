@@ -66,6 +66,28 @@ test('the phone Review control counts decisions, not the places they cover', asy
 	);
 });
 
+test('the phone place stepper hands focus to the other direction at either end', async () => {
+	await page.viewport(390, 844);
+	await mount();
+	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
+	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
+	await fireEvent.click((await screen.findAllByRole('button', { name: /^Go to / }))[0]!);
+	const previous = await screen.findByRole('button', { name: 'Previous place' });
+	const next = screen.getByRole('button', { name: 'Next place' });
+
+	// The phone's editor learns of the place a tick after the press.
+	next.focus();
+	await fireEvent.click(next);
+	await waitFor(() => expect(screen.getByText(/^Place 2 of 2, /u)).toBeTruthy());
+	await waitFor(() => expect((next as HTMLButtonElement).disabled).toBe(true));
+	expect(document.activeElement).toBe(previous);
+
+	await fireEvent.click(previous);
+	await waitFor(() => expect(screen.getByText(/^Place 1 of 2, /u)).toBeTruthy());
+	await waitFor(() => expect((previous as HTMLButtonElement).disabled).toBe(true));
+	expect(document.activeElement).toBe(next);
+});
+
 test('the keyboard gives its space to writing and restores navigation only after dismissal', async () => {
 	await page.viewport(390, 844);
 	const events = new EventTarget();
