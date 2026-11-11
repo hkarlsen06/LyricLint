@@ -1,5 +1,10 @@
-import { maxHandoffPayloadLength } from './handoff.js';
 import { siteUrl } from '../seo.js';
+
+/**
+ * `maxHandoffPayloadLength`, which the test holds this to. Importing it would
+ * load the hand-over codec on the docs page that draws the link.
+ */
+const payloadLimit = 400_000;
 
 /**
  * Runs on the transcriber's Genius tab, not here: `handoffBookmarklet` turns
@@ -38,7 +43,7 @@ export async function openInLyricLint(workbenchUrl: string, maxPayloadLength: nu
 
 /** The `javascript:` link a transcriber drags to the bookmarks bar. */
 export function handoffBookmarklet(workbenchUrl = siteUrl('/workbench/')): string {
-	const call = `void (${openInLyricLint.toString()})(${JSON.stringify(workbenchUrl)}, ${maxHandoffPayloadLength})`;
+	const call = `void (${openInLyricLint.toString()})(${JSON.stringify(workbenchUrl)}, ${payloadLimit})`;
 	// A `javascript:` URL is percent-decoded before it runs.
 	return `javascript:${encodeURIComponent(call)}`;
 }
