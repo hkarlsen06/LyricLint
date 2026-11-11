@@ -24,6 +24,14 @@
   # make silently.
   Strict-Transport-Security: max-age=31536000; includeSubDomains
 
+/workbench/
+  # A link can hand the workbench a lyric to save as a new draft, so a page
+  # that opened this tab must not keep a handle on it and set its address again
+  # and again. `allow-popups` keeps the window this page opens itself, Apple
+  # Music's sign-in, talking to it. The page bounds hand-overs on its own as
+  # well, since this header only exists in production.
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+
 /_app/immutable/*
   Cache-Control: public, max-age=31536000, immutable
 
