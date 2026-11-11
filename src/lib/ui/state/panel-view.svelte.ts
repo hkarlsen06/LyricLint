@@ -618,6 +618,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			});
 		},
 		leadOnNextSnapshot(replace) {
+			const place = { aimedOccurrence, passageFrom, leadDecision };
 			releaseOnNextSnapshot = true;
 			aimedOccurrence = undefined;
 			passageFrom = undefined;
@@ -628,6 +629,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			} catch (error) {
 				releaseOnNextSnapshot = false;
 				leadPending = false;
+				({ aimedOccurrence, passageFrom, leadDecision } = place);
 				throw error;
 			}
 		},
