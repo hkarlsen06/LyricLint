@@ -1,7 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
-import { cdp, page } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, beforeEach, expect, test } from 'vitest';
+import type { Diagnostic } from '#lib/core/types.js';
+import type { HarperDiagnosticProvider } from '#lib/rules/index.js';
 import { createTestWorkbench } from '../test-utils.js';
 import MockEditorPane from './MockEditorPane.svelte';
 import Workspace from './Workspace.svelte';
@@ -18,14 +20,46 @@ afterEach(async () => {
 	await page.viewport(800, 600);
 });
 
-async function mount(text = '[Verse]\nImma go\nImma stay') {
+async function mount(
+	text = '[Verse]\nImma go\nImma stay',
+	harperProvider: HarperDiagnosticProvider = { lint: async () => [], dispose: async () => {} }
+) {
 	const { controller } = createTestWorkbench({ text });
-	await render(Workspace, {
-		controller,
-		editorComponent: MockEditorPane,
-		harperProvider: { lint: async () => [], dispose: async () => {} }
-	});
+	await render(Workspace, { controller, editorComponent: MockEditorPane, harperProvider });
 	return controller;
+}
+
+// One Harper spelling finding from the first lint. Every later answer never
+// lands, so a typed edit's carry is all that decides whether it stays.
+const typoLyrics = '[Verse]\nImma go\nI write a sentnce now';
+function firstLintTypo(): HarperDiagnosticProvider {
+	let calls = 0;
+	return {
+		lint: async ({ text, revision }) => {
+			calls += 1;
+			if (calls > 1) return new Promise<Diagnostic[]>(() => {});
+			const from = text.indexOf('sentnce');
+			return [
+				{
+					from,
+					to: from + 7,
+					ruleId: 'spelling.harper',
+					severity: 'suggestion',
+					message: 'Spelling: sentnce.',
+					explanation: 'Spelling detected by Harper.',
+					sourceIds: ['G-SECTIONS'],
+					fixes: [
+						{
+							kind: 'preview',
+							label: 'Replace with sentence',
+							edit: { baseRevision: revision, edits: [{ from, to: from + 7, insert: 'sentence' }] }
+						}
+					]
+				}
+			];
+		},
+		dispose: async () => {}
+	};
 }
 
 test('phone review opens one decision, releases it on return, and retains the editor', async () => {
@@ -171,4 +205,57 @@ test('revealing an ignored finding opens its lyrics without restoring it or focu
 	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
 	expect(screen.getAllByRole('button', { name: /^Go to / })).toHaveLength(1);
 	expect(screen.getByRole('button', { name: '1 diagnostic ignored' })).toBeTruthy();
+});
+
+test('typing away an open phone finding leaves the caret where the user is typing', async () => {
+	await page.viewport(390, 844);
+	const controller = await mount(typoLyrics, firstLintTypo());
+	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
+	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
+	await fireEvent.click(await screen.findByRole('button', { name: /^Go to Spelling: sentnce/u }));
+	const editor = screen.getByLabelText<HTMLTextAreaElement>('Lyrics editor');
+	await waitFor(() => expect(editor.closest<HTMLElement>('.editor-region')!.inert).toBe(false));
+
+	const end = typoLyrics.length;
+	editor.focus();
+	editor.setSelectionRange(end, end);
+	await fireEvent.select(editor);
+	await userEvent.keyboard('e');
+	await waitFor(() => expect(screen.queryByText('Spelling: sentnce.')).toBeNull());
+	await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+	expect([editor.selectionStart, editor.selectionEnd]).toEqual([end + 1, end + 1]);
+	expect(document.activeElement).toBe(editor);
+	await userEvent.keyboard('xtra');
+	expect(controller.snapshot.text).toBe(`${typoLyrics}extra`);
+});
+
+test('opening another finding after All findings navigates the editor once', async () => {
+	await page.viewport(390, 844);
+	const controller = await mount(typoLyrics, firstLintTypo());
+	// A loop here never yields, so stop delegating after a bound and count.
+	const navigate = controller.navigateToDiagnostic;
+	let navigations = 0;
+	controller.navigateToDiagnostic = (...args) => {
+		navigations += 1;
+		if (navigations <= 20) navigate(...args);
+	};
+	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
+	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
+	const harperRow = await screen.findByRole('button', { name: /^Go to Spelling: sentnce/u });
+	await fireEvent.click(screen.getByRole('button', { name: /^Go to Use “I'ma”/u }));
+	const editor = screen.getByLabelText<HTMLTextAreaElement>('Lyrics editor');
+	await waitFor(() => expect(editor.closest<HTMLElement>('.editor-region')!.inert).toBe(false));
+	editor.focus();
+	await fireEvent.click(screen.getByRole('button', { name: 'All findings' }));
+	navigations = 0;
+
+	await fireEvent.click(harperRow);
+	await waitFor(() => expect(screen.getByText('Spelling detected by Harper.')).toBeTruthy());
+	await new Promise((resolve) => setTimeout(resolve, 100));
+
+	expect(navigations).toBe(1);
+	const from = typoLyrics.indexOf('sentnce');
+	expect(controller.editor.getSnapshot().selection).toEqual({ anchor: from, head: from + 7 });
+	expect(screen.getAllByRole('button', { name: /^Go to / })).toHaveLength(1);
 });
