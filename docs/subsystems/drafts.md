@@ -2,7 +2,8 @@
 
 Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.svelte`, `src/lib/ui/primitives/RemoveButton.svelte`,
 `src/lib/ui/styles/rows.css`, `src/lib/ui/drafts/draft-date.ts`,
-`src/lib/ui/state/draft-store.svelte.ts`, `src/lib/persistence/`, `src/lib/core/handoff.ts`
+`src/lib/ui/state/draft-store.svelte.ts`, `src/lib/persistence/`, `src/lib/core/handoff.ts`,
+`src/lib/ui/state/handoff-links.ts`, `src/hooks.client.ts`, `src/app.html`
 
 ## The rules
 
@@ -37,10 +38,15 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   optional field and asserts the record comes back whole; `workbench.test.ts` drives the real
   copier in its editor stub on purpose.
 - A link hands over a lyric as `/workbench/#open=1.<payload>` (`core/handoff.ts`): base64url of
-  `deflate-raw` UTF-8 JSON `{ text, title?, geniusUrl? }`. The page removes the fragment before its
-  first await, `decodeHandoff` trusts nothing in it, and `openHandoff` writes a new 'scribe through
-  the tail it shares with `importScribe`. It never calls `replaceDocument`, a failed flush refuses
-  and stays put, and a refused payload creates nothing. It owns no `DraftRecord` field and no control.
+  `deflate-raw` UTF-8 JSON `{ text, title?, geniusUrl? }`. An inline script at the top of
+  `src/app.html` takes the fragment out of the address while the page parses, the client `init` hook
+  (`handoff-links.ts`) collects it and takes later ones before the router reads them,
+  `decodeHandoff` trusts nothing in it, and `openHandoff` writes a new 'scribe through the tail it shares with `importScribe`. It
+  never calls `replaceDocument`, a failed flush refuses and stays put, and a refused payload creates
+  nothing. Hand-overs run one at a time; one whose text is already open creates nothing; a page opens
+  at most `MAX_HANDOFFS_PER_PAGE` and then says to reload. Its messages are fixed text that never
+  repeats the link's title, and they wait for the workspace to draw. `static/_headers` severs a
+  cross-origin opener of `/workbench/`. It owns no `DraftRecord` field and no control.
 - The song names the draft only while it still carries `DEFAULT_DRAFT_TITLE` (exported from
   `draft-repository.ts`, compared against, never respelled). See
   `docs/subsystems/media.md` for what counts as a name worth having.
@@ -248,24 +254,62 @@ are refused before workspace state changes; older files with no link still load.
 ### A link opens a lyric as a new draft
 
 Copying a lyric out of Genius by hand was the first step of every session. A hand-over link carries
-it instead, in the URL fragment, because a fragment is never sent in an HTTP request. The page
-removes it with `history.replaceState` before its first await, so a reload, a Back press, or a later
-script reading the address finds nothing; the Cloudflare beacon strips fragments too, but it is a
-third party's script. The same link followed in a tab already on the workbench changes only the
-fragment, so a `hashchange` listener takes the same path. The codec loads with a dynamic `import()`
-only for such a link.
+it instead, in the URL fragment, because a fragment is never sent in an HTTP request. The codec loads
+with a dynamic `import()` only for such a link; a failed load says to reload and open the link again,
+since the link itself may be fine.
 
 Any website can write the link, so `decodeHandoff` refuses a wrong prefix or version, a payload over
-400,000 characters, an inflated stream past 1 MiB (counted while reading, so a small payload cannot
-inflate gigabytes first), invalid UTF-8, a non-object, and a missing or blank `text`. A link that
-`normalizeGeniusUrl` rejects is dropped and the lyric kept; the title is trimmed and capped at 200
-code points, a cap of its own because the title field has none.
+400,000 characters, an inflated stream past 1 MiB, invalid UTF-8, a non-object, and a missing or
+blank `text`. The inflated bytes are counted while they are read, and the compressed bytes go into
+the decompressor 256 at a time, each write waiting for the reader, because a browser can inflate a
+whole input chunk before the reader sees any of it: one 300 KB chunk can expand about a thousand
+times. A link that `normalizeGeniusUrl` rejects is dropped and the lyric kept. The title becomes one
+plain line (line breaks and control characters turn into a space, direction overrides and isolates
+are removed), then is trimmed and capped at 200 code points, a cap of its own because the title field
+has none.
 
 The lyric becomes a new 'scribe, never a replacement: **Paste lyrics** calls `replaceDocument`,
 which keeps the old text only in undo, and a link from another site must not reach that far. The
 shared tail with `importScribe` flushes, then refuses if the flush reported a failure (the flush
-reports and never throws), then writes and opens the record. On a fresh boot it runs before the
-workspace first draws, so the editor mounts on the handed-over lyric.
+reports and never throws), then writes and opens the record. The refusal names the cause for both
+callers: the open 'scribe could not be saved, so nothing new was opened. On a fresh boot it runs
+before the workspace first draws, so the editor mounts on the handed-over lyric.
+
+**The fragment leaves before anything else reads it.** Two readers came first when the page's
+mount code cleared it. SvelteKit copies the address into `page.url` as it hydrates, and a shallow
+navigation (every right-panel tab switch) writes `page.url` into `history.state` as `pageUrl`; after
+leaving the workbench in the app, a Back press restored the payload and opened the lyric a second
+time. And Cloudflare injects its analytics beacon as a deferred script at the end of the body, which
+on a slow phone runs before any of the application's modules: with the CPU throttled six times, a
+stand-in beacon read the fragment even from the client `init` hook's earliest point.
+
+So an inline script at the top of `src/app.html` takes the fragment out of the address while the page
+parses and leaves it on `window.__lyriclintHandoff`. `script-src` names its hash, computed from the
+file in `vite.config.ts`; the meta policy governs only what follows it, but a header policy would
+not. `captureHandoffLinks` runs from the client `init` hook, which SvelteKit awaits before it reads
+the address: it collects that fragment, and its `popstate` listener is registered before the
+router's, the one that adopts the address of a fragment-only navigation (the same link followed in a
+tab already on the workbench). `hashchange` covers a browser that skips `popstate` there. The page
+takes the captured fragments through `receiveHandoffLinks`. This supersedes the first version of
+this record, which cleared the fragment at the top of the page's `onMount`, listened for
+`hashchange` there, and built tab-switch URLs from `location` because `page.url` kept the fragment.
+
+**A page that opened the tab is bounded three ways.** It can run `window.open` on one click and then
+set the window's address to a new fragment in a loop; only the fragment changes, so nothing reloads,
+and each tick would write a draft of up to 1 MiB. `static/_headers` answers `/workbench/` with
+`Cross-Origin-Opener-Policy: same-origin-allow-popups`, which takes that handle away and keeps the
+window the workbench opens itself, Apple Music's sign-in, connected; Spotify signs in with a
+full-page redirect. The header exists only on Cloudflare, so the controller bounds hand-overs too:
+they run one at a time, a lyric equal to the open text creates nothing and says it is already open,
+and after `MAX_HANDOFFS_PER_PAGE` (5) opened in one page lifetime the next is refused with a message
+to reload the tab. A reload resets the count, which needs a person.
+
+**Its feedback is fixed text and waits for the workspace.** The success message used to repeat the
+title, which the linking page chooses, in the app's own voice. It now reads `Opened the linked
+lyrics as a new 'scribe.`, and the title, shown in the toolbar anyway, is one plain line. Every
+hand-over message takes the notice duration and waits on `workspaceShown`, which the page settles
+when the editor reports ready: on a slow phone a confirmation counted down from before the first
+paint could expire unseen, and it is the only sign of an action the user did not take in the app.
 
 ### The drafts popover initializes on first opening
 

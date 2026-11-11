@@ -254,9 +254,20 @@ Roster-only metadata changes use a separate action with toast undo. A normal doc
 - Pasted content is treated as untrusted plain text.
 - A hand-over link (`/workbench/#open=1.<payload>`) is untrusted input from any website.
   `decodeHandoff` in `core/handoff.ts` caps the payload at 400,000 characters and the inflated
-  stream at 1 MiB while reading it, requires UTF-8 JSON with a non-blank `text`, and keeps a
-  `geniusUrl` only through `normalizeGeniusUrl`. The text is plain text like a paste, opens as a new
-  'scribe, and the fragment leaves the address bar before the page's first await.
+  stream at 1 MiB while reading it, feeding the decompressor small slices so memory stays near that
+  cap, requires UTF-8 JSON with a non-blank `text`, makes the title one plain line, and keeps a
+  `geniusUrl` only through `normalizeGeniusUrl`. The text is plain text like a paste and opens as a
+  new 'scribe. A page opens at most `MAX_HANDOFFS_PER_PAGE` of them, one at a time, and
+  `static/_headers` severs a cross-origin opener of `/workbench/`.
+- The hand-over fragment leaves the address in an inline script at the top of `src/app.html`, while
+  the page parses, before SvelteKit or any other script reads `location`. That covers the Cloudflare
+  Web Analytics beacon, which the edge injects as a deferred script and which can otherwise run
+  before the application's modules. The beacon does not need that to keep the lyric out of its
+  reports: on 2026-11-10, and again on 2026-11-11, the script served at
+  `static.cloudflareinsights.com/beacon.min.js` passed the page address through a function that set
+  `username`, `password`, `hash` and `search` to empty before reporting it. That is a third party's
+  code, read on those dates, and it can change without notice, so the inline script is the guarantee
+  and the beacon's behavior is only a second layer.
 - External source links open with safe new-tab attributes.
 - Local data has an explicit delete-all control, and it covers assistant conversations as well as drafts.
 - The copy action copies canonical Genius markup, not rendered DOM text.
