@@ -36,15 +36,21 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
 - Rows never reorder on their own. `reviewDecisions` on the panel view is the order Review
   draws: a row that survives from one snapshot to the next keeps its position relative to the
   other surviving rows, whoever answered a place and wherever (the panel, the editor, its
-  popover, `Mod-.`, the bulk strip, another row's `Fix all`), and a new row enters after the
-  nearest row ranked above it (`keepOrder` in `decisions.ts`). The order returns to rank
-  (`orderDiagnostics`) only when the reader changes what the list shows: a severity chip is
-  toggled, the draft changes, the document is replaced wholesale (on the snapshot after
-  `leadOnNextSnapshot`), or Review is shown again after being hidden (`releaseReviewOrder`,
-  called by `LinterPanel.svelte`). The only state is the drawn keys of the last snapshot, and
-  each of those moments drops it. Pins: `decisions.test.ts` (*keepOrder*),
+  popover, `Mod-.`, the bulk strip, another row's `Fix all`). The state is every row drawn
+  since the last release, absent ones included, so a row that leaves and comes back (every
+  Harper row after an edit, which the native-only publish drops for about 250 ms) takes its
+  old slot. A row never drawn before enters above the first drawn row ranked below it, or after
+  the last drawn row, and among the absent rows at that point by rank from their last members
+  (`keepOrder` in `decisions.ts`), so every native row stays above every Harper row. The order
+  returns to rank (`orderDiagnostics`) only when the reader changes what the list shows: a
+  severity chip is toggled, the draft changes, the document is replaced wholesale (on the
+  snapshot after `leadOnNextSnapshot`), or Review is shown again after being hidden
+  (`releaseReviewOrder`, called by `LinterPanel.svelte`). Each of those moments drops the
+  state. Pins: `decisions.test.ts` (*keepOrder*), `workbench.test.ts` (*the order Review
+  draws*),
   `LinterPanel.svelte.test.ts` (*keeps the open row where it was drawn…*, *keeps every row where
-  it was drawn…*, *returns to rank order when a severity chip…*).
+  it was drawn…*, *returns to rank order when a severity chip…*, *…when Review is shown
+  again…*).
 - An open grouped row does not move while it is answered or stepped. It reserves its
   explanation's height from the tallest of its places at the current width, measured from an
   `aria-hidden` stack of every place's explanation drawn by `attr()`, and separately the height
@@ -103,9 +109,9 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   Both leads read the drawn rows, not a fresh ranking, so the panel and the selection agree on
   what comes next. Pins: `workbench.test.ts` (*continues from a deliberately chosen passage…*),
   `LinterPanel.svelte.test.ts` (*leads to the row drawn first…*). Any wholesale
-  document replacement arms the same advance through `leadOnNextSnapshot`, called from
-  `replaceDocument`'s `onBeforeReplace` hook, before the dispatch, and never on a paste that
-  failed.
+  document replacement arms the same advance through `leadOnNextSnapshot`, which
+  `replaceDocument`'s `aroundReplace` hook hands the dispatch: it arms before the dispatch,
+  disarms if the dispatch throws, and never runs on a paste that failed.
 - One document, one diff: the preview slot belongs to whichever surface mounted last, and a
   surface leaving hands it back (`shownPreviews` in `DiagnosticActions.svelte`).
   `selectDiagnostic` does not clear the preview.
@@ -150,8 +156,11 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   line down, shared by the panel card and the popover;
   `diagnostic-parity.svelte.test.ts` renders both and compares them. The directory sits
   outside `src/lib/ui/` because the editor may not depend on the shell.
-- The panel's order ranks provider first (native, then Harper), then severity, then position,
-  a pure function of the findings, pinned in `order.test.ts`. The editor's document-order
+- The panel's rank (`orderDiagnostics`) puts provider first (native, then Harper), then
+  severity, then position, a pure function of the findings, pinned in `order.test.ts`. Review
+  draws that rank after each release and then keeps rows where they were drawn (above), so the
+  drawn order also depends on what was drawn since the release; it still keeps every native
+  row above every Harper row. The editor's document-order
   sorts are deliberately untouched. `harperRuleIds` lives in `harper-ids.ts` so `order.ts`
   never pulls the WASM bridge's imports.
 - A diagnostic's facts are one line (severity glyph, line number, citation) with the
@@ -508,7 +517,8 @@ above a held warning, turning the Errors chip off and on drew the warning above 
 until every place in it was answered. The rule is now that rows never reorder on their own.
 The panel view keeps the drawn order from one snapshot to the next, because it sees every way a
 place is answered and because the lead after a fix has to read the same order the list draws;
-a list that kept its own order would open one row while the panel led with another. Returning
+a list that kept its own order would open one row while the panel led with another (the
+snapshot-to-snapshot memory is superseded by the third fix round below). Returning
 to rank order when the reader changes what is shown (a chip, a draft, a wholesale replacement,
 Review shown again) is the intentional structural change `DESIGN.md` allows. The passage lead
 still advances in document order, which `workbench.test.ts` pins; only the rank-based lead and
@@ -526,6 +536,26 @@ a tick late, so the stepper read its own button before it was disabled and focus
 the page; the handoff is now decided from the target place. And the list only refreshed its
 rows while visible, so a collapse survived its row leaving on another tab; the forgetting now
 reads the current rows.
+
+The third fix round made the drawn order remember rows that are away. Every typed edit
+publishes the native findings first and Harper's about 250 ms later, so the first snapshot after
+a keystroke has no Harper rows. Remembering only the last snapshot's keys meant every Harper row
+returned as a new row, entering after the nearest drawn row ranked above it. With a curly
+apostrophe on lines 2 and 6, a line-end comma on line 3, and Harper's `sentnce` on line 4,
+answering the apostrophe's line 2 in the panel and typing one character elsewhere put the
+grammar row above the comma within 300 ms and moved the comma row from 526 to 600 pixels; two
+Harper rows held out of rank snapped back to rank on the next keystroke. The panel view now
+keeps every row drawn since the last release, which grows only with the distinct rows seen
+until a chip, a draft, a replacement, or Review shown again drops it. A new row anchors on the
+drawn rows (above the first one ranked below it, or after the last one), as the round's brief
+specified, but appending it at the very end of the remembered rows would put a native row
+typed while Harper's rows are away below them once they return, so within the absent rows at
+that point it goes by rank from their last members. A seeded run of snapshots in
+`decisions.test.ts` pins that every native row stays above every Harper row. The same round
+found that `leadOnNextSnapshot` stayed armed when the replace dispatch threw, so the next
+keystroke reordered the list and moved the selection; the panel now runs the dispatch and
+disarms on a throw. Arming still comes first, because the editor emits the replacement's
+snapshot from inside the dispatch.
 
 ### One diagnostic, one implementation
 
@@ -571,10 +601,13 @@ can now only ever land _below_ every native card and never above the lead.
 
 Three things about it:
 
-- **It is a rank, not a rule about arrival.** The order stays a pure function of the findings, so
+- **It is a rank, not a rule about arrival.** The rank stays a pure function of the findings, so
   the same document lists the same way whether Harper answered first, last or twice. Sorting late
   arrivals to the bottom _because_ they were late would make the list depend on history and this
-  sort unrepeatable; `order.test.ts` pins the two orderings against each other.
+  sort unrepeatable; `order.test.ts` pins the two orderings against each other. (Review's
+  drawn order has depended on history since G1, by design: rows stay where they were drawn
+  until a release. It keeps the guarantee that matters here, every native row above every
+  Harper row; see *Review draws one row per decision*.)
 - **It says something true.** A reviewed rule cites a Genius guideline and carries a checked
   example; Harper is a general-purpose English proofreader that cites itself and knows nothing
   about lyrics. The merge already lets any native finding win a shared range, and the reference

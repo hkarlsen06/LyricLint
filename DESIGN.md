@@ -126,7 +126,7 @@ of controls and neighboring content before and after real interactions on deskto
 - Diagnostic cards use severity colors only for labels and state emphasis. The source explanation remains neutral.
 - Every decision about a diagnostic (the fix, ignore, the guided actions, a popover's close) shares one control geometry and one type size, in one row, in one order. Emphasis is carried by the button tier alone.
 - A proposed edit is shown in the document as a diff, with outgoing text struck through in `--color-danger` and incoming text washed in `--color-suggestion`, rather than behind a preview step. The surface that shows it offers one control for the fix, labelled with the fix itself (`Replace with Don't`), never with a verb prefixed to a label that is already a command.
-- A diagnostic looks the same wherever it is shown. The linter panel's card and the editor's popover render the same severity marker, action row, and provenance from the same components, stacked in the same order: message, meta line, reasoning; each adds only its own chrome.
+- A diagnostic looks the same wherever it is shown. The linter panel's card and the editor's popover render the same severity marker, action row, and provenance from the same components, stacked in the same order: message, meta line, reasoning; each adds only its own chrome. The panel's place stepper, on a row with several places, is the panel's own chrome between the meta line and the reasoning.
 - Performer identity must include text or markup cues in addition to color.
 
 ## Accessibility

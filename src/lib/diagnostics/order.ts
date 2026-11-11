@@ -31,10 +31,12 @@ export function diagnosticKey(diagnostic: Diagnostic): string {
  * can now only ever land *below* every native card, never above the lead.
  *
  * **It is a rank rather than a rule about arrival**, which is what makes it
- * safe: the order is still a pure function of the findings, so the same
- * document lists the same way whether Harper answered first, last, or twice.
- * Ordering by what arrived when would make the list depend on history and this
- * sort unrepeatable.
+ * safe: the rank is still a pure function of the findings, so the same
+ * document ranks the same way whether Harper answered first, last, or twice.
+ * Ordering by what arrived when would make this sort unrepeatable. Review draws
+ * this rank only after a release and then keeps rows where they were drawn
+ * (`keepOrder`), which keeps the same promise: a Harper row never sits above a
+ * native one.
  *
  * It also says something true. The reviewed rules cite a Genius guideline and
  * carry an example somebody checked; Harper is a general-purpose English
