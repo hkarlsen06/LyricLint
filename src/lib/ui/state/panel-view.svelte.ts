@@ -21,6 +21,7 @@ import {
 	countDecisions,
 	decisionKey,
 	groupDecisions,
+	keepOrder,
 	type Decision
 } from '#lib/diagnostics/decisions.js';
 import { diagnosticKey, orderDiagnostics } from '#lib/diagnostics/order.js';
@@ -62,7 +63,11 @@ interface PanelView {
 	 * badges, the severity chips, the filter notes) reads it.
 	 */
 	readonly unignoredDecisions: readonly Decision[];
-	/** The rows Review draws: `unignoredDecisions` the severity filters let through. */
+	/**
+	 * The rows Review draws: `unignoredDecisions` the severity filters let
+	 * through, in the order they were drawn. Rows never reorder on their own;
+	 * see `releaseReviewOrder`.
+	 */
 	readonly reviewDecisions: readonly Decision[];
 	/**
 	 * What a whole-document bulk fix would settle, and what it would leave. It is
@@ -76,6 +81,12 @@ interface PanelView {
 	diagnosticRowKey(diagnostic: Diagnostic): string;
 	setActiveTab(tab: RightPanelTab): void;
 	toggleSeverity(severity: Severity): void;
+	/**
+	 * Draw Review's rows in rank order again, because the reader changed what it
+	 * shows. The panel calls it when Review is shown again after being hidden;
+	 * a severity chip, a draft change, and a wholesale replacement release it here.
+	 */
+	releaseReviewOrder(): void;
 	/** Re-read the stored ignores for whichever draft is current now. */
 	refreshIgnoredDiagnostics(): void;
 	/** Follow surviving occurrences through actual edits, retiring findings that disappeared. */
@@ -84,7 +95,7 @@ interface PanelView {
 	 * Once an applied fix has been re-linted, mark the diagnostic the panel now
 	 * leads with and put the editor's line wash on it.
 	 */
-	leadAfterFix(diagnostics: readonly Diagnostic[]): void;
+	leadAfterFix(): void;
 	navigateToDiagnostic(
 		diagnostic: Diagnostic,
 		options?: { focus?: boolean; range?: TextRange }
@@ -224,24 +235,14 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		}
 	}
 
-	function unignoredIn(diagnostics: readonly Diagnostic[]): Diagnostic[] {
-		const matches =
-			diagnostics === deps.snapshot().diagnostics
-				? ignoredDiagnosticMatches
-				: matchIgnoredDiagnostics(diagnostics, deps.snapshot().text, ignoredDiagnosticKeys);
+	const unignoredDiagnostics = $derived.by(() => {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local membership index; the complete filtered result is derived
-		const ignored = new Set(matches.values());
-		const unignored = diagnostics.filter((diagnostic) => !ignored.has(diagnosticKey(diagnostic)));
+		const ignored = new Set(ignoredDiagnosticMatches.values());
+		const unignored = deps
+			.snapshot()
+			.diagnostics.filter((diagnostic) => !ignored.has(diagnosticKey(diagnostic)));
 		return filterProvisionalVerseNumbering(unignored, deps.snapshot().parsed, deps.ruleContext());
-	}
-
-	function visibleIn(diagnostics: readonly Diagnostic[]): Diagnostic[] {
-		return unignoredIn(diagnostics).filter((diagnostic) =>
-			severityFilter.includes(diagnostic.severity)
-		);
-	}
-
-	const unignoredDiagnostics = $derived.by(() => unignoredIn(deps.snapshot().diagnostics));
+	});
 	const visibleDiagnostics = $derived(
 		unignoredDiagnostics.filter((diagnostic) => severityFilter.includes(diagnostic.severity))
 	);
@@ -257,9 +258,21 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	const unignoredDecisions = $derived(
 		groupDecisions(orderDiagnostics(unignoredDiagnostics), diagnosticRowKey)
 	);
-	const reviewDecisions = $derived(
-		unignoredDecisions.filter((decision) => severityFilter.includes(decision.members[0]!.severity))
-	);
+	// A row sorts by its first place, so a ranked list would move whenever a
+	// place was answered, from the panel or anywhere else. The drawn order is
+	// kept instead, only from one snapshot's rows to the next, and released
+	// when the reader changes what the list shows.
+	let orderRelease = $state(0);
+	let releaseOnNextSnapshot = false;
+	let drawnOrder: { release: number; keys: readonly string[] } | undefined;
+	const reviewDecisions = $derived.by(() => {
+		const ranked = unignoredDecisions.filter((decision) =>
+			severityFilter.includes(decision.members[0]!.severity)
+		);
+		const rows = drawnOrder?.release === orderRelease ? keepOrder(ranked, drawnOrder.keys) : ranked;
+		drawnOrder = { release: orderRelease, keys: rows.map(({ key }) => key) };
+		return rows;
+	});
 
 	// Review keeps the aimed occurrence without changing the finding's identity.
 	// Repeated card navigation and guided actions resolve the same validated range.
@@ -327,21 +340,25 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		return key === null ? undefined : { key, from };
 	}
 
-	function nextInReview(diagnostics: readonly Diagnostic[]): Diagnostic | undefined {
-		const ordered = orderDiagnostics(visibleIn(diagnostics));
+	// Read from the rows as drawn, so the lead after a row leaves is the one the
+	// list shows next rather than the one a fresh sort would.
+	function nextInReview(): Diagnostic | undefined {
+		const rows = reviewDecisions;
 		const decision = leadDecision;
 		leadDecision = undefined;
 		if (decision) {
-			const places = ordered
-				.filter((item) => decisionKey(item) === decision.key)
-				.sort((a, b) => a.from - b.from);
+			const places = rows.find((row) => row.key === decision.key)?.members ?? [];
 			const next = places.find((item) => item.from >= decision.from) ?? places[0];
 			if (next) return next;
 		}
+		const lead = rows[0]?.members[0];
 		const from = passageFrom;
-		if (from === undefined) return ordered[0];
+		if (from === undefined) return lead;
 		return (
-			[...ordered].sort((a, b) => a.from - b.from).find((item) => item.from >= from) ?? ordered[0]
+			rows
+				.flatMap((row) => row.members)
+				.sort((a, b) => a.from - b.from)
+				.find((item) => item.from >= from) ?? lead
 		);
 	}
 
@@ -422,13 +439,18 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			setActiveTab(tab);
 		},
 		toggleSeverity(severity) {
+			orderRelease += 1;
 			severityFilter = severityFilter.includes(severity)
 				? severityFilter.filter((candidate) => candidate !== severity)
 				: allSeverities.filter(
 						(candidate) => candidate === severity || severityFilter.includes(candidate)
 					);
 		},
+		releaseReviewOrder() {
+			orderRelease += 1;
+		},
 		refreshIgnoredDiagnostics() {
+			orderRelease += 1;
 			aimedOccurrence = undefined;
 			passageFrom = undefined;
 			leadDecision = undefined;
@@ -438,6 +460,10 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			ignoreEpoch += 1;
 		},
 		adoptSnapshot(previous, next) {
+			if (releaseOnNextSnapshot) {
+				releaseOnNextSnapshot = false;
+				orderRelease += 1;
+			}
 			const diagnostics = next.diagnostics;
 			if (
 				previous.text !== next.text ||
@@ -465,12 +491,12 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 				activeDiagnosticKey = undefined;
 			}
 		},
-		leadAfterFix(diagnostics) {
+		leadAfterFix() {
 			if (!leadPending) return;
 			leadPending = false;
 			// Whichever tab is showing stays: the press that applied the fix does
 			// not also get to choose what panel the user is looking at.
-			const next = nextInReview(diagnostics);
+			const next = nextInReview();
 			if (next) selectDiagnostic(next);
 		},
 		navigateToDiagnostic(diagnostic, options) {
@@ -569,7 +595,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			setIgnored(key, true);
 			if (passageFrom !== undefined) passageFrom = diagnostic.from;
 			leadDecision = answeredDecision(diagnostic);
-			const next = nextInReview(deps.snapshot().diagnostics);
+			const next = nextInReview();
 			if (next) selectDiagnostic(next);
 			// The suppression is the same either way; what the reader answered is
 			// not, and a card that led with `It's correct` must not report back that
@@ -588,6 +614,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			});
 		},
 		leadOnNextSnapshot() {
+			releaseOnNextSnapshot = true;
 			aimedOccurrence = undefined;
 			passageFrom = undefined;
 			leadDecision = undefined;

@@ -523,12 +523,17 @@ describe('one row per decision', () => {
 	const lint = (body: string, at: number) =>
 		runRules(parseDocument(body), ruleContext({ revision: at }));
 
-	/** A workbench on the real findings for `text`, re-linted after every dispatch. */
+	/** A workbench on the findings `linter` gives for `text`, re-linted after every dispatch. */
 	function lintedWorkbench(
 		text: string,
-		options: Omit<Parameters<typeof createTestWorkbench>[0] & {}, 'text' | 'diagnostics'> = {}
+		options: Omit<Parameters<typeof createTestWorkbench>[0] & {}, 'text' | 'diagnostics'> = {},
+		linter: (body: string, at: number) => Diagnostic[] = lint
 	) {
-		const workbench = createTestWorkbench({ ...options, text, diagnostics: lint(text, revision) });
+		const workbench = createTestWorkbench({
+			...options,
+			text,
+			diagnostics: linter(text, revision)
+		});
 		const { controller, editor } = workbench;
 		editor.dispatchAtomic = (edit: AtomicDocumentEdit) => {
 			const current = controller.snapshot;
@@ -541,7 +546,7 @@ describe('one row per decision', () => {
 				revision: current.revision + 1,
 				text: next,
 				parsed: parseDocument(next),
-				diagnostics: lint(next, current.revision + 1),
+				diagnostics: linter(next, current.revision + 1),
 				documentChange: { baseRevision: current.revision, edits: edit.edits }
 			});
 		};
@@ -706,7 +711,7 @@ describe('one row per decision', () => {
 	});
 
 	test.each([1350, 390])(
-		'keeps an answered row in its slot and the rows below still at %ipx',
+		'keeps an answered row where it was drawn and the rows below still at %ipx',
 		async (width) => {
 			await page.viewport(width, 940);
 			try {
@@ -723,9 +728,9 @@ describe('one row per decision', () => {
 
 				await fireEvent.click(screen.getByRole('button', { name: "Replace with '" }));
 
-				// The row now sorts by line 4, below the comma on line 3, but it was
-				// answered while open, so it holds its slot; and the stepper it no
-				// longer needs leaves its slot behind rather than lifting the rows below.
+				// The row now ranks by line 4, below the comma on line 3, but rows never
+				// reorder on their own; and the stepper it no longer needs leaves its
+				// slot behind rather than lifting the rows below.
 				await waitFor(() =>
 					expect(rowFor(apostrophe).querySelector('.diagnostic-meta__line')?.textContent).toBe(
 						'Line 4'
@@ -746,6 +751,149 @@ describe('one row per decision', () => {
 			}
 		}
 	);
+
+	/**
+	 * One finding per capital letter, each with a safe fix that deletes it: `E`
+	 * is an error and every other letter a warning, so letters rank by severity,
+	 * then by where they first appear.
+	 */
+	const markers = (body: string, at: number) =>
+		Array.from(body.matchAll(/[A-Z]/gu), ({ 0: letter, index: from }) =>
+			diagnostic({
+				ruleId: `test.${letter}`,
+				severity: letter === 'E' ? 'error' : 'warning',
+				message: `Marker ${letter}.`,
+				from,
+				to: from + 1,
+				fixes: [
+					{
+						kind: 'safe',
+						label: `Remove ${letter}`,
+						edit: { baseRevision: at, edits: [{ from, to: from + 1, insert: '' }] }
+					}
+				]
+			})
+		);
+	/** Forty filler lines with a marker letter on each numbered line. */
+	const markedLines = (letters: Record<number, string>) =>
+		Array.from({ length: 40 }, (_, index) => letters[index + 1] ?? 'la').join('\n');
+	const marker = (letter: string) => `Marker ${letter}.`;
+	const lineOf = (letter: string) =>
+		rowFor(marker(letter)).querySelector('.diagnostic-meta__line')?.textContent;
+	const removeFirst = (
+		controller: ReturnType<typeof lintedWorkbench>['controller'],
+		letter: string
+	) => {
+		const found = controller.snapshot.diagnostics.find((item) => item.message === marker(letter))!;
+		return { found, fix: found.fixes![0]! };
+	};
+	const xayz = markedLines({ 1: 'X', 2: 'A', 5: 'Y', 10: 'Z', 30: 'A', 40: 'X' });
+
+	test('keeps the open row where it was drawn when another row is answered in the editor', async () => {
+		const { controller, editor } = lintedWorkbench(xayz, {}, markers);
+		await render(LinterPanel, { controller });
+		expect(rowTexts()).toEqual(['X', 'A', 'Y', 'Z'].map(marker));
+		await fireEvent.click(rowFor(marker('A')).querySelector('button')!);
+		await frame();
+		const top = rowFor(marker('A')).getBoundingClientRect().top;
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Remove A' }));
+		await waitFor(() => expect(lineOf('A')).toBe('Line 30'));
+		// Typed in the lyrics, so nothing in the panel saw it coming.
+		const x = controller.snapshot.text.indexOf('X');
+		editor.dispatchAtomic({
+			baseRevision: controller.snapshot.revision,
+			edits: [{ from: x, to: x + 1, insert: '' }]
+		});
+
+		await waitFor(() => expect(lineOf('X')).toBe('Line 40'));
+		expect(rowTexts()).toEqual(['X', 'A', 'Y', 'Z'].map(marker));
+		expect(rowFor(marker('A')).classList.contains('diagnostic-card--expanded')).toBe(true);
+		await frame();
+		expect(rowFor(marker('A')).getBoundingClientRect().top).toBe(top);
+	});
+
+	test('keeps every row where it was drawn when a fix arrives from the editor', async () => {
+		const { controller } = lintedWorkbench(xayz, {}, markers);
+		await render(LinterPanel, { controller });
+		await fireEvent.click(rowFor(marker('Y')).querySelector('button')!);
+
+		// The popover and `Mod-.` apply a fix through the controller, not the card.
+		const { found, fix } = removeFirst(controller, 'X');
+		controller.applyFix(found, fix);
+
+		await waitFor(() => expect(lineOf('X')).toBe('Line 40'));
+		expect(rowTexts()).toEqual(['X', 'A', 'Y', 'Z'].map(marker));
+		// The lead after the fix is the answered row's next place, in its own slot.
+		expect(rowFor(marker('X')).classList.contains('diagnostic-card--expanded')).toBe(true);
+	});
+
+	test('leads to the row drawn first, not the row ranked first, after a row leaves', async () => {
+		const { controller } = lintedWorkbench(xayz, {}, markers);
+		await render(LinterPanel, { controller });
+		// From the editor, so no passage was chosen and the lead is the list's own.
+		const answer = (letter: string) => {
+			const { found, fix } = removeFirst(controller, letter);
+			controller.applyFix(found, fix);
+		};
+		answer('X');
+		answer('A');
+		await waitFor(() => expect(lineOf('A')).toBe('Line 30'));
+		// Drawn X, A, Y, Z, but ranked Y, Z, A, X.
+		expect(rowTexts()).toEqual(['X', 'A', 'Y', 'Z'].map(marker));
+
+		answer('Y');
+
+		await waitFor(() => expect(rowTexts()).toEqual(['X', 'A', 'Z'].map(marker)));
+		expect(rowFor(marker('X')).classList.contains('diagnostic-card--expanded')).toBe(true);
+	});
+
+	test('returns to rank order when a severity chip changes what the list shows', async () => {
+		const { controller } = lintedWorkbench(
+			markedLines({ 1: 'E', 2: 'A', 5: 'W', 30: 'A' }),
+			{},
+			markers
+		);
+		await render(LinterPanel, { controller });
+		expect(rowTexts()).toEqual(['E', 'A', 'W'].map(marker));
+		await fireEvent.click(rowFor(marker('A')).querySelector('button')!);
+		await fireEvent.click(screen.getByRole('button', { name: 'Remove A' }));
+		await waitFor(() => expect(lineOf('A')).toBe('Line 30'));
+		expect(rowTexts()).toEqual(['E', 'A', 'W'].map(marker));
+
+		await fireEvent.click(screen.getByRole('button', { name: /^Errors/ }));
+		expect(rowTexts()).toEqual(['W', 'A'].map(marker));
+		await fireEvent.click(screen.getByRole('button', { name: /^Errors/ }));
+
+		expect(rowTexts()).toEqual(['E', 'W', 'A'].map(marker));
+	});
+
+	test('forgets a collapse whose row left while another tab was showing', async () => {
+		const { controller, editor } = lintedWorkbench(
+			markedLines({ 1: 'A', 2: 'Y', 3: 'A' }),
+			{},
+			markers
+		);
+		await render(LinterPanel, { controller });
+		await fireEvent.click(rowFor(marker('A')).querySelector('button')!);
+		expect(rowFor(marker('A')).classList.contains('diagnostic-card--expanded')).toBe(false);
+
+		controller.setActiveTab('performers');
+		const places = controller.snapshot.diagnostics.filter((item) => item.message === marker('A'));
+		editor.dispatchAtomic({
+			baseRevision: controller.snapshot.revision,
+			edits: places.map(({ from, to }) => ({ from, to, insert: '' }))
+		});
+		await frame();
+		editor.dispatchAtomic({
+			baseRevision: controller.snapshot.revision,
+			edits: [{ from: 0, to: 0, insert: 'A' }]
+		});
+		controller.setActiveTab('linter');
+
+		await waitFor(() => expect(rowTexts()).toEqual(['A', 'Y'].map(marker)));
+		expect(rowFor(marker('A')).classList.contains('diagnostic-card--expanded')).toBe(true);
+	});
 
 	test.each([
 		['the default desktop panel', 363],
@@ -847,8 +995,7 @@ describe('one row per decision', () => {
 
 		await fireEvent.click(rowFor(apostrophe).querySelector('button')!);
 		expect(rowFor(apostrophe).classList.contains('diagnostic-card--expanded')).toBe(false);
-		// Switched from another tab, the list never sees the old row leave, so only
-		// the switch itself can start it over.
+		// Another draft opened from another tab starts its list over.
 		controller.setActiveTab('linking');
 		await controller.openDraft('draft-2');
 		controller.onSnapshot({

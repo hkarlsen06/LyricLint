@@ -211,6 +211,8 @@ export interface WorkbenchController {
 	readonly grammarCheckEnabled: boolean;
 	setGrammarCheckEnabled(enabled: boolean): void;
 	toggleSeverity(severity: Severity): void;
+	/** Draw Review's rows in rank order again, after Review was hidden and is shown again. */
+	releaseReviewOrder(): void;
 	setTitle(title: string): Promise<void>;
 	setLanguage(language: string): void;
 	undo(): void;
@@ -777,7 +779,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			panel.adoptSnapshot(previous, nextSnapshot);
 			// A fix's own re-lint arrives here. Drop its active card before the
 			// panel leads with the next one.
-			panel.leadAfterFix(nextSnapshot.diagnostics);
+			panel.leadAfterFix();
 			if (change.unchanged) return;
 			if (change.textDelta >= largePasteThreshold) roster.importFromSnapshot(nextSnapshot);
 			draft.scheduleSave();
@@ -880,6 +882,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			void deps.repository.setPreference(grammarCheckPreference, String(enabled)).catch(() => {});
 		},
 		toggleSeverity: panel.toggleSeverity,
+		releaseReviewOrder: panel.releaseReviewOrder,
 		setTitle: draft.setTitle,
 		setLanguage: draft.setLanguage,
 		undo: editorSession.undo,

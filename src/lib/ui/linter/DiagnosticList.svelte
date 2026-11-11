@@ -40,9 +40,9 @@
 	}: {
 		diagnostics: readonly Diagnostic[];
 		/**
-		 * The rows, already grouped by the shell, which shares one grouping per
-		 * snapshot with every count of them. Without it the list groups
-		 * `diagnostics` itself.
+		 * The rows in the order to draw them, from the shell, which shares one
+		 * grouping per snapshot with every count of them and keeps their order.
+		 * Without it the list groups `diagnostics` itself.
 		 */
 		decisions?: readonly Decision[];
 		rowKey: (diagnostic: Diagnostic) => string;
@@ -110,48 +110,20 @@
 	const activeKey = $derived(active ? activeDiagnosticKey : undefined);
 	// One row per decision. A decision whose findings cannot share a row is keyed
 	// by its one finding's row identity, so it survives edits above it.
+	const latest = $derived(decisions ?? groupDecisions(orderDiagnostics(diagnostics), rowKey));
 	let lastRows: Array<Decision & { location: string | undefined }> = [];
-	// Rows a place was answered in. A row sorts by its first place, so answering
-	// that place would re-sort it by its next one, which can carry the open card
-	// past a neighbour. A held row keeps its slot among the rows that remain
-	// instead, until it leaves the list.
-	let heldKeys: string[] = [];
 	const rows = $derived.by(() => {
-		// Keep the same controls while hidden, without sorting, numbering, or
-		// updating their contents for a pane the user cannot see. Activation reads
-		// the latest complete snapshot before these controls become actionable.
+		// Keep the same controls while hidden, without numbering or updating
+		// their contents for a pane the user cannot see. Activation reads the
+		// latest complete snapshot before these controls become actionable.
 		if (active) {
-			const ranked = decisions ?? groupDecisions(orderDiagnostics(diagnostics), rowKey);
-			lastRows = holdAnswered(ranked, lastRows).map((decision) => ({
+			lastRows = latest.map((decision) => ({
 				...decision,
 				location: location(decision.members)
 			}));
 		}
 		return lastRows;
 	});
-
-	function holdAnswered(ranked: readonly Decision[], previous: readonly Decision[]): Decision[] {
-		const drawn = (key: string, list: readonly Decision[]) => list.some((row) => row.key === key);
-		heldKeys = heldKeys.filter((key) => drawn(key, ranked) && drawn(key, previous));
-		const arranged = ranked.filter((row) => !heldKeys.includes(row.key));
-		for (const [index, { key }] of previous.entries()) {
-			if (!heldKeys.includes(key)) continue;
-			const after = previous
-				.slice(0, index)
-				.findLast((candidate) => drawn(candidate.key, arranged));
-			const at = after ? arranged.findIndex((row) => row.key === after.key) + 1 : 0;
-			arranged.splice(
-				at,
-				0,
-				ranked.find((row) => row.key === key)!
-			);
-		}
-		return arranged;
-	}
-
-	function hold(row: Decision): void {
-		if (!heldKeys.includes(row.key)) heldKeys = [...heldKeys, row.key];
-	}
 
 	// A grouped row says how many places it stands for and nothing more, so its
 	// meta line stays one line; the stepper says which place is open and where.
@@ -203,14 +175,16 @@
 	);
 
 	// A choice belongs to the row it was made on. A row that leaves the list takes
-	// its choice with it, so the same question arriving later starts fresh.
+	// its choice with it, so the same question arriving later starts fresh. Read
+	// from the current rows rather than the drawn ones, so a row that leaves
+	// while the list is hidden still takes its choice with it.
 	$effect(() => {
-		const drawn = (key: string) => rows.some((row) => row.key === key);
+		const drawn = (key: string) => latest.some((row) => row.key === key);
 		if (collapsedKey && !drawn(collapsedKey)) collapsedKey = undefined;
 		if (chosenDecision && !drawn(chosenDecision)) chosenDecision = undefined;
 		if (
 			chosenKey &&
-			!rows.some((row) => row.members.some((member) => rowKey(member) === chosenKey))
+			!latest.some((row) => row.members.some((member) => rowKey(member) === chosenKey))
 		)
 			chosenKey = undefined;
 	});
@@ -486,21 +460,12 @@
 								onSetLanguage={setLanguageAndMoveFocus}
 								onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
 								{onCancelPreview}
-								onApplyFix={(fix) => {
-									hold(row);
-									fixAndMoveFocus(() => onApplyFix(diagnostic, fix));
-								}}
+								onApplyFix={(fix) => fixAndMoveFocus(() => onApplyFix(diagnostic, fix))}
 								fixBatchSize={fixBatchSize ? (fix) => fixBatchSize(diagnostic, fix) : undefined}
 								onApplyFixBatch={onApplyFixBatch
-									? (fix) => {
-											hold(row);
-											fixAndMoveFocus(() => onApplyFixBatch?.(diagnostic, fix));
-										}
+									? (fix) => fixAndMoveFocus(() => onApplyFixBatch?.(diagnostic, fix))
 									: undefined}
-								onIgnore={(trigger) => {
-									hold(row);
-									ignoreAndMoveFocus(diagnostic, trigger);
-								}}
+								onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic, trigger)}
 							/>
 						{/key}
 						<!-- Under the actions, so its arrival and departure never move them. The

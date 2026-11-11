@@ -8,7 +8,7 @@
 	import SeverityIcon from '#lib/diagnostics/SeverityIcon.svelte';
 	import { severityPluralLabels } from '#lib/diagnostics/severity-labels.js';
 	import { countDecisions } from '#lib/diagnostics/decisions.js';
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 
 	let {
 		controller,
@@ -55,6 +55,15 @@
 		await tick();
 		if (nextDraft?.isConnected) nextDraft.focus();
 	}
+
+	// Rows hold their drawn order only while the reader watches them. A list
+	// shown again after being hidden is drawn in rank order.
+	const listShown = $derived(active && controller.activeTab === 'linter');
+	let shownBefore = untrack(() => listShown);
+	$effect.pre(() => {
+		if (listShown && !shownBefore) controller.releaseReviewOrder();
+		shownBefore = listShown;
+	});
 
 	const filters: Array<{ value: Severity; label: string }> = [
 		{ value: 'error', label: severityPluralLabels.error },
@@ -286,14 +295,14 @@
 		{/if}
 	{/snippet}
 
-	<!-- A row's collapse, its chosen place, and its held slot are about one
+	<!-- A row's collapse and its chosen place are about one
 	     draft's lyrics. Another draft can raise the same question, so switching
 	     drafts starts the list over rather than carrying them across. -->
 	{#key controller.draftId}
 		<DiagnosticList
 			overview={mobile && !reviewFocused}
 			focusedOnly={mobile && reviewFocused}
-			active={active && controller.activeTab === 'linter'}
+			active={listShown}
 			diagnostics={controller.visibleDiagnostics}
 			decisions={controller.reviewDecisions}
 			rowKey={controller.diagnosticRowKey}
