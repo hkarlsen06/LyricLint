@@ -312,7 +312,7 @@ the advance, consumed on the snapshot that dispatch emits.
 (loading the sample, pasting into an empty draft) lands the panel on a leading finding while the
 wash sits wherever the edit left the caret, which is the same failure with a different cause. So
 the arming is its own call, `leadOnNextSnapshot`, and `replaceDocument` in
-`editor-session.svelte.ts` makes it through the `onBeforeReplace` hook rather than each caller
+`editor-session.svelte.ts` makes it through the `aroundReplace` hook rather than each caller
 remembering to. It has to run _before_ the dispatch, because the editor emits the re-linted
 snapshot from inside it, and it must not run on a paste that never reached the document, because
 a lead left armed fires on whatever the user types next.
@@ -562,8 +562,12 @@ snapshot from inside the dispatch.
 Remembering slots kept the order, but the live check still failed: on every keystroke each
 Harper row was gone for about 280 ms, and an open Harper row came back closed, lifting the rows
 below it by 36 pixels. Harper's unaffected findings were carried across a fix but not across a
-typed edit, for no recorded reason; the carry now runs on every edit that changes the text, and
-a finding the edit touched still drops until Harper answers.
+typed edit, for no recorded reason; the carry now runs on every edit that changes the text. After
+a typed edit, a finding on any line the edit changed drops until Harper answers, not only one the
+edit touched; a fix keeps the narrower rule, because it is one reviewed replacement:
+a word typed one letter at a time only grows at its own edge, so a finding on `Walki` would have
+stayed on `Walking` with an applicable fix, and `a` flagged before `apple` would have kept
+offering `an` after `apple` became `banana`.
 
 ### One diagnostic, one implementation
 
