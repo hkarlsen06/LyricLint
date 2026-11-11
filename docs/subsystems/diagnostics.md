@@ -38,10 +38,11 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   other surviving rows, whoever answered a place and wherever (the panel, the editor, its
   popover, `Mod-.`, the bulk strip, another row's `Fix all`). The state is every row drawn
   since the last release, absent ones included, so a row that leaves and comes back (a
-  finding the native rules withdraw while its line is typed on, or a Harper finding the edit
-  touched) takes its old slot. Every edit, typed or atomic, carries Harper's unaffected
-  findings until Harper answers (`carryHarperDiagnosticsAcrossEdit`), so they do not blink
-  out. A row never drawn before enters above the first drawn row ranked below it, or after
+  finding the native rules withdraw while its line is typed on, or a Harper finding dropped
+  by the edit) takes its old slot. Every edit carries Harper's unaffected findings until
+  Harper answers (`carryHarperDiagnosticsAcrossEdit`), so they do not blink out. An atomic
+  edit (a fix) drops only the findings it touched; any other edit (typing, paste, drop, undo)
+  drops every finding on a line it changed. A row never drawn before enters above the first drawn row ranked below it, or after
   the last drawn row, and among the absent rows at that point by rank from their last members
   (`keepOrder` in `decisions.ts`), so every native row stays above every Harper row. The order
   returns to rank (`orderDiagnostics`) only when the reader changes what the list shows: a

@@ -130,13 +130,14 @@ function mapFix(
 }
 
 /**
- * Keep unaffected Harper findings visible across a completed atomic edit.
+ * Keep unaffected Harper findings visible across a completed edit.
  *
  * Native rules answer synchronously, while Harper waits behind its debounce and
- * worker. Without this bridge every fix briefly publishes the native-only list.
- * Findings the edit touched, or on a line a typed edit changed, are dropped; the rest are moved to their new
- * offsets and their fixes are retargeted to the new revision until Harper's
- * authoritative replacement result arrives.
+ * worker. Without this bridge every edit briefly publishes the native-only list.
+ * Findings the edit touched are dropped, and with `typed` (any edit that is not
+ * one atomic fix) so is every finding on a line it changed. The rest move to
+ * their new offsets, and their fixes are retargeted to the new revision until
+ * Harper's authoritative replacement result arrives.
  */
 export function carryHarperDiagnosticsAcrossEdit(
 	previous: Pick<EditorSnapshot, 'revision' | 'text'>,
