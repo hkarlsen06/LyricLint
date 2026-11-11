@@ -5,7 +5,7 @@ import { runRules } from '#lib/rules/engine.js';
 import { ruleContext } from '#lib/rules/rule-test-utils.js';
 import { sampleDraftText } from '#lib/ui/sample-draft.js';
 import { cityLightsPasted } from './decision-test-utils.js';
-import { countDecisions, decisionKey, groupDecisions } from './decisions.js';
+import { countDecisions, decisionKey, groupDecisions, keepOrder } from './decisions.js';
 import { orderDiagnostics } from './order.js';
 
 function finding(from: number, overrides: Partial<Diagnostic> = {}): Diagnostic {
@@ -112,5 +112,36 @@ describe('groupDecisions', () => {
 
 	it('counts rows without needing the reading order', () => {
 		expect(countDecisions([finding(30), finding(10), finding(20, { severity: 'error' })])).toBe(2);
+	});
+});
+
+describe('keepOrder', () => {
+	const row = (key: string) => ({ key, members: [finding(0)] });
+	const keys = (rows: readonly { key: string }[]) => rows.map(({ key }) => key);
+
+	it('keeps surviving rows where they were drawn, whatever their rank now', () => {
+		expect(keys(keepOrder(['Y', 'Z', 'A', 'X'].map(row), ['X', 'A', 'Y', 'Z']))).toEqual([
+			'X',
+			'A',
+			'Y',
+			'Z'
+		]);
+	});
+
+	it('closes the gap a leaving row leaves without moving the others', () => {
+		expect(keys(keepOrder(['Z', 'X'].map(row), ['X', 'A', 'Z']))).toEqual(['X', 'Z']);
+	});
+
+	it('lets a new row in after the nearest row ranked above it', () => {
+		expect(keys(keepOrder(['N', 'Y', 'M', 'X'].map(row), ['X', 'Y']))).toEqual([
+			'N',
+			'X',
+			'Y',
+			'M'
+		]);
+	});
+
+	it('draws the ranked order when nothing was drawn before', () => {
+		expect(keys(keepOrder(['B', 'A'].map(row), []))).toEqual(['B', 'A']);
 	});
 });

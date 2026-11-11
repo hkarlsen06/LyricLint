@@ -55,6 +55,25 @@ export function groupDecisions(
 	}));
 }
 
+/**
+ * Arrange this snapshot's ranked rows in the order they were drawn before.
+ * Rows that survive keep their order relative to each other, whatever answered
+ * a place in them; a new row enters after the nearest row ranked above it that
+ * is already drawn, or first when there is none.
+ */
+export function keepOrder(ranked: readonly Decision[], drawn: readonly string[]): Decision[] {
+	const current = new Map(ranked.map((decision) => [decision.key, decision]));
+	const arranged = drawn.flatMap((key) => current.get(key) ?? []);
+	const placed = new Set(arranged);
+	for (const [index, decision] of ranked.entries()) {
+		if (placed.has(decision)) continue;
+		const above = ranked.slice(0, index).findLast((candidate) => placed.has(candidate));
+		arranged.splice(above ? arranged.indexOf(above) + 1 : 0, 0, decision);
+		placed.add(decision);
+	}
+	return arranged;
+}
+
 /** How many rows Review draws for these findings. Order does not matter. */
 export function countDecisions(diagnostics: readonly Diagnostic[]): number {
 	return groupDecisions(diagnostics).length;
