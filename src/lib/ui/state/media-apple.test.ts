@@ -704,6 +704,23 @@ describe('createAppleMusicSource', () => {
 		expect(events.log).toContain('ended');
 	});
 
+	it('names the reason MusicKit gives for a refused play', async () => {
+		const refusal = Object.assign(new Error('Playback Error'), { errorCode: 'MEDIA_LICENSE' });
+		const { instance, emit } = stubMusic({ play: vi.fn(async () => Promise.reject(refusal)) });
+		const { source, events } = build(instance);
+		await source.load(songId);
+
+		emit('mediaPlaybackError', { errorCode: 'DEVICE_LIMIT' });
+		expect(events.log).toContain(
+			'failed:Apple Music is playing on another device. Stop it there, then press play again.'
+		);
+
+		source.play();
+		await vi.waitFor(() => {
+			expect(events.log).toContain('failed:Apple Music could not play that song (MEDIA_LICENSE).');
+		});
+	});
+
 	it('reports rejected play and seek presses, and settles a rejected stop', async () => {
 		const { instance, emit } = stubMusic({
 			play: vi.fn(async () => Promise.reject(new Error('subscription lapsed'))),

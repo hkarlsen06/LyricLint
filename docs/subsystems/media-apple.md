@@ -39,6 +39,11 @@ Touches: `src/lib/ui/state/media-apple.ts`, `scripts/apple-music-token.mjs`
 - Catalogue limits are the catalogue's: no producers exist to fetch, writers are one flat
   `composerName` passed through unsplit, the label is the played release's. Absent fields
   are left out, not emptied. The read asks `include=albums` for the label.
+- A refused play names its reason. `playbackFailureMessage` reads MusicKit's `errorCode` (or a
+  `DOMException`'s `name`) from both `mediaPlaybackError` and a rejected `play()`/`seekToTime`,
+  gives a sentence to the codes a user can act on (`DEVICE_LIMIT` first), and appends any other
+  code in parentheses. MusicKit's logger is silent by default, so the strip is the only place the
+  reason shows.
 - Unverified: whether `playbackRate` holds on DRM-protected full tracks. If not, `rates`
   narrows to `[1]` in the `apple()` factory and the picker gains the third fact.
 
@@ -312,3 +317,15 @@ extra, so nothing a guideline requires rides only inside it.
   passed through unresolved the panel draws a broken image. The size is chosen in `media-apple.ts`
   at roughly twice the panel's narrowest width, because the CDN renders whatever is asked for and
   the alternative is every surface picking its own.
+
+### A refused play says why
+
+Every playback refusal used to read "Apple Music could not play that song.", and the payload was
+deliberately unread. A user who hit it on a song whose catalogue read and queue had both succeeded
+had nothing to go on: the console was empty too, because MusicKit's logger is off by default and
+the `.catch` swallowed the rejection. MusicKit attaches a code to every `MKError` (`DEVICE_LIMIT`
+when the account is streaming on another device, `SUBSCRIPTION_ERROR`, `GEO_BLOCK`,
+`MEDIA_LICENSE`, and so on), so the source now reads it. Codes with a clear remedy get their own
+sentence; the rest keep the old sentence with the code appended, so a report names the cause.
+The sign-in codes say the sign-in was not accepted without promising that reconnecting fixes it,
+because `load` skips `authorize()` while MusicKit still reports `isAuthorized`.

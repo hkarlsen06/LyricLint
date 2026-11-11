@@ -47,9 +47,8 @@ export interface AppleMusicTimeEvent {
  *
  * Hand-written for the same reason `AppleMusicInstance` is, and it is what keeps
  * a listener from having to be cast on its way in. `mediaPlaybackError` is
- * `unknown` because this module reports the failure and reads no field of the
- * payload. Naming fields nobody has verified would be a claim about Apple's
- * shape rather than a record of what is actually read.
+ * `unknown` because its payload is parsed by `playbackFailureMessage`, the one
+ * place that reads it.
  */
 export interface AppleMusicEventMap {
 	playbackTimeDidChange: AppleMusicTimeEvent;
@@ -339,6 +338,47 @@ function appleSignInMessage(outcome: AppleAuthorizationOutcome): string | undefi
 	}
 	if (outcome === 'refused') return 'Apple Music sign-in was cancelled.';
 	return 'Apple Music sign-in did not finish.';
+}
+
+/**
+ * What a refused play tells the user, from the code MusicKit attached.
+ *
+ * MusicKit's own logger is silent by default, so this message is the only place
+ * the reason ever surfaces. Codes the user can act on get a sentence; any other
+ * code rides along in parentheses so a report still names it. `errorCode` is
+ * MusicKit's `MKError` getter; a `DOMException` (Safari refusing `play()`)
+ * carries its `name` instead.
+ */
+export function playbackFailureMessage(error: unknown): string {
+	const code =
+		typeof error === 'object' &&
+		error !== null &&
+		'errorCode' in error &&
+		typeof error.errorCode === 'string'
+			? error.errorCode
+			: error instanceof DOMException
+				? error.name
+				: undefined;
+	switch (code) {
+		case 'DEVICE_LIMIT':
+			return 'Apple Music is playing on another device. Stop it there, then press play again.';
+		case 'SUBSCRIPTION_ERROR':
+		case 'STREAM_UPSELL':
+			return 'Apple Music needs an active subscription to play full songs.';
+		case 'CONTENT_RESTRICTED':
+			return 'Apple Music restricts this song on your account.';
+		case 'CONTENT_UNAVAILABLE':
+		case 'GEO_BLOCK':
+			return 'Apple Music cannot stream this song in your region.';
+		case 'AUTHORIZATION_ERROR':
+		case 'UNAUTHORIZED_ERROR':
+		case 'TOKEN_EXPIRED':
+			return 'Apple Music did not accept your sign-in.';
+		case undefined:
+			return 'Apple Music could not play that song.';
+		default:
+			return `Apple Music could not play that song (${code}).`;
+	}
 }
 
 /**
@@ -836,8 +876,8 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		if (event.state === map.paused || event.state === map.stopped) events.stopped();
 	}
 
-	function onError(): void {
-		events.failed('Apple Music could not play that song.');
+	function onError(error: unknown): void {
+		events.failed(playbackFailureMessage(error));
 	}
 
 	function listen(instance: AppleMusicInstance): void {
@@ -998,10 +1038,10 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 					if (songId !== id) return;
 					queuedAt = startTime;
 					await instance.play();
-				})().catch(() => events.failed('Apple Music could not play that song.'));
+				})().catch((error: unknown) => events.failed(playbackFailureMessage(error)));
 				return;
 			}
-			void music?.play().catch(() => events.failed('Apple Music could not play that song.'));
+			void music?.play().catch((error: unknown) => events.failed(playbackFailureMessage(error)));
 		},
 
 		pause() {
@@ -1025,7 +1065,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			targetEvents = 0;
 			void music
 				?.seekToTime(Math.max(0, seconds))
-				.catch(() => events.failed('Apple Music could not play that song.'));
+				.catch((error: unknown) => events.failed(playbackFailureMessage(error)));
 		},
 
 		setRate(next) {
