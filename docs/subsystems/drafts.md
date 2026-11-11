@@ -254,7 +254,9 @@ are refused before workspace state changes; older files with no link still load.
 ### A link opens a lyric as a new draft
 
 Copying a lyric out of Genius by hand was the first step of every session. A hand-over link carries
-it instead, in the URL fragment, because a fragment is never sent in an HTTP request. The codec loads
+it instead, in the URL fragment, because a fragment is never sent in an HTTP request. The `Open in LyricLint`
+bookmarklet on the docs (`core/handoff-bookmarklet.ts`, `docs/subsystems/docs.md`) writes these
+links from a Genius editing page. The codec loads
 with a dynamic `import()` only for such a link; a failed load says to reload and open the link again,
 since the link itself may be fine.
 

@@ -104,6 +104,10 @@ their own machine.
 - **Round trip.** `Open in LyricLint` from a Genius editing page, and `Send back` when the
   transcription is clean. The lyric travels through the user's own clipboard and their own tab,
   never through us.
+  _Partly shipped November 2026:_ the `Open in LyricLint` bookmarklet on `/docs/copy-paste/`
+  opens the lyric being edited on Genius as a new 'scribe through a hand-over link. The way back
+  is still `Copy lyrics`, `Open Genius page`, and a paste; `Send back` waits for the extension,
+  which stays deferred.
 - **Shareable drafts with no server.** A draft encoded into a URL fragment, compressed, never
   sent, since a fragment is not transmitted in an HTTP request. Two transcribers can pass a
   work-in-progress back and forth without either of them having an account, and the privacy claim
@@ -155,7 +159,7 @@ interrupt anybody's editing.
 | Enabled rules | 60 | ~100 |
 | Reviewed language packs | 12 | 40 |
 | Audio sources | 4 | 4 (deliberately) |
-| Outputs | Genius markup, `.txt` | + `.lrc`, `.vtt`, cover art, song facts |
+| Outputs | Genius markup, `.txt`, `.lrc`, `.srt`, `.vtt` | + cover art, song facts |
 | Surfaces | Web workbench | + browser extension, phone-first sync |
 | Reaches a network | YouTube, Spotify, Apple, the rules assistant (each opted into) | unchanged |
 

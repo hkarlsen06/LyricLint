@@ -3,7 +3,8 @@
 Touches: `src/lib/docs/catalog.ts`, `src/lib/docs/content/`, `src/lib/docs/keys.ts`,
 `src/routes/+layout.svelte`, `src/lib/docs/shortcuts.ts`, `src/lib/ui/docs/`, `src/lib/ui/primitives/`,
 `src/routes/(site)/docs/`, `src/routes/sitemap.xml/+server.ts`, `scripts/render-docs.mjs`,
-`scripts/shot-cursor.mjs`, `scripts/write-shot-dimensions.mjs`, `src/lib/assets/shot-dimensions.json`
+`scripts/shot-cursor.mjs`, `scripts/write-shot-dimensions.mjs`, `src/lib/assets/shot-dimensions.json`,
+`src/lib/core/handoff-bookmarklet.ts`
 
 ## The rules
 
@@ -36,6 +37,12 @@ Touches: `src/lib/docs/catalog.ts`, `src/lib/docs/content/`, `src/lib/docs/keys.
   changes. Entering or leaving `/docs/` still plays it.
 - Docs stills are left out of the service worker's install precache; a docs page joins the
   offline snapshot by being read, like a guide page. Loops are excluded with every other WebM.
+- The copy and paste page offers the `Open in LyricLint` bookmarklet as one draggable link, built
+  by `handoffBookmarklet` from the source of `openInLyricLint`, which therefore uses nothing
+  outside its own body and arguments. It writes the hand-over link `docs/subsystems/drafts.md`
+  describes, to the production origin, and makes no request. Its section is not drawn on a phone
+  (`PHONE_LAYOUT_QUERY`) or below 40rem, where there is no bookmarks bar.
+  `handoff-bookmarklet.svelte.test.ts` runs the shipped link, not only the function.
 
 ## Decision record
 
@@ -56,3 +63,21 @@ Tailwind for one section would have meant a second styling system beside the tok
 other surface consumes. shadcn's own model is copying components into the project and owning
 them, so the ports keep its component API over the `bits-ui` primitives already installed and
 restyle them with the design system.
+
+### A bookmarklet, not an extension yet
+
+The roadmap's round trip starts with `Open in LyricLint` on a Genius editing page. A bookmarklet
+does that with no install, no store review, and no permission over Genius: it runs only when
+pressed, reads only what the transcriber has focused or selected, and hands the lyric over in a
+URL fragment, which no request carries. It reads no Genius selector, so a redesign of the Genius
+editor does not break it as long as the lyrics box is a textarea or an editable box. The way back
+stays `Copy lyrics`, `Open Genius page`, and a paste; a `Send back` control needs the extension.
+
+The link is a link rather than a `Copy bookmarklet` button because nothing refused it. The page's
+CSP stops a press on it from running here (`script-src` has no `unsafe-inline`), which is harmless:
+the link is for dragging, and the policy of the page it is pressed on later is the one that
+applies. `svelte/no-navigation-without-resolve` flags any computed `href`, so the line carries the
+same reasoned exception as the site's other computed links. Its source comes from whichever build
+renders it: the prerendered page keeps the server build's text through hydration. A Genius page
+whose own CSP blocks bookmarklets would block this one; that is what the operator's check on a
+real editing page settles.
