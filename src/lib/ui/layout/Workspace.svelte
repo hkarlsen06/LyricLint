@@ -632,13 +632,14 @@
 			const nativeDiagnostics = nativeRules(snapshot.parsed, context);
 			nativeRulesStatus = 'ready';
 			lastNativeDiagnostics = nativeDiagnostics;
-			// A fix is complete the moment this atomic snapshot arrives, but Harper's
+			// An edit is complete the moment this snapshot arrives, but Harper's
 			// replacement answer is still behind its debounce and worker pass. Carry
-			// only unaffected findings across that known edit so the list does not
-			// blink to native-only and back. A republish of an old atomic snapshot is
-			// not an edit, hence the text comparison as well as the annotation.
+			// only unaffected findings across it so the list does not blink to
+			// native-only and back: after a typed keystroke as much as after a fix,
+			// because an open Harper row that blinked out came back closed. A
+			// republish of an old snapshot is not an edit, hence the text comparison.
 			const carriedHarper =
-				snapshot.atomic && snapshot.text !== controller.snapshot.text && shouldRunHarper(snapshot)
+				snapshot.text !== controller.snapshot.text && shouldRunHarper(snapshot)
 					? carryHarperDiagnosticsAcrossEdit(controller.snapshot, snapshot, lastDiagnostics)
 					: [];
 			lastDiagnostics = mergeHarperDiagnostics(nativeDiagnostics, carriedHarper);

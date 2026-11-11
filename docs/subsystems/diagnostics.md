@@ -37,9 +37,11 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   draws: a row that survives from one snapshot to the next keeps its position relative to the
   other surviving rows, whoever answered a place and wherever (the panel, the editor, its
   popover, `Mod-.`, the bulk strip, another row's `Fix all`). The state is every row drawn
-  since the last release, absent ones included, so a row that leaves and comes back (every
-  Harper row after an edit, which the native-only publish drops for about 250 ms) takes its
-  old slot. A row never drawn before enters above the first drawn row ranked below it, or after
+  since the last release, absent ones included, so a row that leaves and comes back (a
+  finding the native rules withdraw while its line is typed on, or a Harper finding the edit
+  touched) takes its old slot. Every edit, typed or atomic, carries Harper's unaffected
+  findings until Harper answers (`carryHarperDiagnosticsAcrossEdit`), so they do not blink
+  out. A row never drawn before enters above the first drawn row ranked below it, or after
   the last drawn row, and among the absent rows at that point by rank from their last members
   (`keepOrder` in `decisions.ts`), so every native row stays above every Harper row. The order
   returns to rank (`orderDiagnostics`) only when the reader changes what the list shows: a
@@ -47,7 +49,7 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   snapshot after `leadOnNextSnapshot`), or Review is shown again after being hidden
   (`releaseReviewOrder`, called by `LinterPanel.svelte`). Each of those moments drops the
   state. Pins: `decisions.test.ts` (*keepOrder*), `workbench.test.ts` (*the order Review
-  draws*),
+  draws*), `Workspace.svelte.test.ts` (*…while a keystroke is re-linted*),
   `LinterPanel.svelte.test.ts` (*keeps the open row where it was drawn…*, *keeps every row where
   it was drawn…*, *returns to rank order when a severity chip…*, *…when Review is shown
   again…*).
@@ -557,6 +559,12 @@ keystroke reordered the list and moved the selection; the panel now runs the dis
 disarms on a throw. Arming still comes first, because the editor emits the replacement's
 snapshot from inside the dispatch.
 
+Remembering slots kept the order, but the live check still failed: on every keystroke each
+Harper row was gone for about 280 ms, and an open Harper row came back closed, lifting the rows
+below it by 36 pixels. Harper's unaffected findings were carried across a fix but not across a
+typed edit, for no recorded reason; the carry now runs on every edit that changes the text, and
+a finding the edit touched still drops until Harper answers.
+
 ### One diagnostic, one implementation
 
 The expanded card in the linter panel and the popover anchored under an underline are the same
@@ -586,7 +594,8 @@ of both: every native finding, then every Harper one. That is a layout bug's rep
 was the visible half of something worse.
 
 Harper is a WASM proofreader that answers about 250ms behind the rule engine, so **every edit
-publishes twice**: the native findings at once, then the union re-sorted when Harper lands
+publishes twice**: the native findings at once (with Harper's findings the edit did not touch
+carried across it), then the union re-sorted when Harper lands
 (`scheduleHarper` in `Workspace.svelte`, `mergeHarperDiagnostics`). Interleaved by severity and
 position, a Harper finding earlier in the document than the card the reader is on was _inserted
 above it_ on that second publish. After a fix that card is the one `leadAfterFix` has just

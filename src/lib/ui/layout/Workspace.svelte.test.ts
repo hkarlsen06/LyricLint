@@ -554,6 +554,52 @@ describe('Workspace and toolbar', () => {
 		expect(screen.getByText('Use is here.')).toBeTruthy();
 	});
 
+	test('keeps unaffected Harper findings in place while a keystroke is re-linted', async () => {
+		const text = '[Verse]\nThis sentnce stays\nWalking home';
+		let callCount = 0;
+		const lint = vi.fn(({ text: requestText, revision }) => {
+			callCount += 1;
+			const from = requestText.indexOf('sentnce');
+			const findings: Diagnostic[] = [
+				{
+					from,
+					to: from + 7,
+					ruleId: 'spelling.harper',
+					severity: 'suggestion',
+					message: 'Keep this typed-past finding.',
+					explanation: 'Spelling detected by Harper.',
+					sourceIds: ['G-SECTIONS'],
+					fixes: [
+						{
+							kind: 'preview',
+							label: 'Replace sentnce',
+							edit: { baseRevision: revision, edits: [{ from, to: from + 7, insert: 'sentence' }] }
+						}
+					]
+				}
+			];
+			// Every answer after the first never lands, so only the carry can show it.
+			return callCount === 1 ? Promise.resolve(findings) : new Promise<Diagnostic[]>(() => {});
+		});
+		const { controller } = createTestWorkbench({ text });
+		await renderWorkspace(controller, { lint, dispose: async () => {} });
+		await waitFor(() => expect(screen.getByText('Keep this typed-past finding.')).toBeTruthy());
+
+		const end = controller.snapshot.text.length;
+		controller.editor.setSelection({ anchor: end, head: end });
+		controller.editor.focus();
+		await userEvent.keyboard('s');
+		await waitFor(() => expect(controller.snapshot.text).toBe(`${text}s`));
+		await waitFor(() => expect(lint).toHaveBeenCalledTimes(2));
+
+		expect(screen.getByText('Keep this typed-past finding.')).toBeTruthy();
+		expect(
+			controller.snapshot.diagnostics.find(
+				(diagnostic) => diagnostic.message === 'Keep this typed-past finding.'
+			)?.fixes?.[0]?.edit.baseRevision
+		).toBe(controller.snapshot.revision);
+	});
+
 	test('keeps unaffected Harper findings in place while a normal fix is re-linted', async () => {
 		const text = '[Verse]\nok then song';
 		let callCount = 0;
