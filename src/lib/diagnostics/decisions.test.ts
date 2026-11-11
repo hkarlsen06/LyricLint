@@ -200,6 +200,39 @@ describe('keepOrder', () => {
 		expect(arrange([y, x], []).rows).toEqual(['x', 'y']);
 	});
 
+	it('keeps every native row above every Harper row through any run of snapshots', () => {
+		let seed = 7;
+		const random = (below: number) => {
+			seed = (seed * 1103515245 + 12345) % 2 ** 31;
+			return seed % below;
+		};
+		const pool = Array.from({ length: 12 }, (_, index) =>
+			row(index < 6 ? `n${index}` : `h${index}`, 0)
+		);
+		let remembered: Decision[] = [];
+		for (let step = 0; step < 300; step += 1) {
+			// Rows come and go, and answering a place moves a row's first member.
+			const ranked = orderedRows(
+				pool
+					.filter(() => random(3) > 0)
+					.map((decision) => ({
+						key: decision.key,
+						members: [{ ...decision.members[0]!, from: random(100) }]
+					}))
+			);
+			const kept = keepOrder(ranked, remembered);
+			expect([...kept.rows].sort((a, b) => a.key.localeCompare(b.key))).toEqual(
+				[...ranked].sort((a, b) => a.key.localeCompare(b.key))
+			);
+			const drawn = keys(kept.rows);
+			const firstHarper = drawn.findIndex((key) => key.startsWith('h'));
+			if (firstHarper !== -1)
+				expect(drawn.slice(firstHarper).every((key) => key.startsWith('h'))).toBe(true);
+			// A release now and then, as a chip, a draft, or a replacement would.
+			remembered = random(25) === 0 ? [] : kept.remembered;
+		}
+	});
+
 	it('draws nothing for no rows and still remembers the drawn ones', () => {
 		expect(arrange([], [x, a])).toMatchObject({ rows: [], remembered: ['x', 'a'] });
 	});
