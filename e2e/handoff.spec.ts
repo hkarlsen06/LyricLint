@@ -225,6 +225,30 @@ test('a hand-over link around an SVG anchor with no href is taken at the outer l
 	expect(await page.evaluate(() => JSON.stringify(history.state))).not.toContain(payload);
 });
 
+test('an SVG hand-over link with only xlink:href is taken at the click', async ({ page }) => {
+	const link = await cityLightsLink();
+	await writeFirstDraft(page, '[Verse]\nFirst');
+	const before = await page.evaluate(() => history.length);
+
+	await page.evaluate((href) => {
+		const namespace = 'http://www.w3.org/2000/svg';
+		const drawing = document.createElementNS(namespace, 'svg');
+		const inside = document.createElementNS(namespace, 'a');
+		inside.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', href);
+		const shape = document.createElementNS(namespace, 'rect');
+		shape.setAttribute('width', '40');
+		shape.setAttribute('height', '40');
+		inside.append(shape);
+		drawing.append(inside);
+		document.body.append(drawing);
+		shape.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+	}, link);
+	await expect.poll(() => docText(page)).toBe(cityLights);
+
+	expect(await page.evaluate(() => history.length)).toBe(before);
+	expect(page.url()).not.toContain('#open=');
+});
+
 test('a hand-over link clicked on another page loads the workbench in full', async ({ page }) => {
 	const link = await cityLightsLink();
 	const payload = link.slice(link.indexOf('.') + 1);
