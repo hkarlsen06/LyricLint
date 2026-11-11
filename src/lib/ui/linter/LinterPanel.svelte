@@ -286,34 +286,41 @@
 		{/if}
 	{/snippet}
 
-	<DiagnosticList
-		overview={mobile && !reviewFocused}
-		focusedOnly={mobile && reviewFocused}
-		active={active && controller.activeTab === 'linter'}
-		diagnostics={controller.visibleDiagnostics}
-		rowKey={controller.diagnosticRowKey}
-		sources={controller.sources}
-		activeDiagnosticKey={controller.activeDiagnosticKey}
-		activeDiagnosticRange={controller.activeDiagnosticRange}
-		{emptyState}
-		{emptyActions}
-		{lineFor}
-		onNavigate={(diagnostic) => {
-			if (mobile) onOpenFinding?.(diagnostic);
-			else controller.navigateToDiagnostic(diagnostic, { focus: false });
-		}}
-		onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
-		canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
-		onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
-		onLinkSections={(diagnostic) => controller.linkDiagnosticSections(diagnostic)}
-		onSetLanguage={(language) => controller.setLanguage(language)}
-		onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
-		onCancelPreview={() => controller.clearFixPreview()}
-		onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
-		fixBatchSize={(diagnostic, fix) => controller.fixBatchSize(diagnostic, fix)}
-		onApplyFixBatch={(diagnostic, fix) => controller.applyFixBatch(diagnostic, fix)}
-		onIgnore={(diagnostic) => controller.ignoreDiagnostic(diagnostic)}
-	/>
+	<!-- A row's collapse, its chosen place, and its held slot are about one
+	     draft's lyrics. Another draft can raise the same question, so switching
+	     drafts starts the list over rather than carrying them across. -->
+	{#key controller.draftId}
+		<DiagnosticList
+			overview={mobile && !reviewFocused}
+			focusedOnly={mobile && reviewFocused}
+			active={active && controller.activeTab === 'linter'}
+			diagnostics={controller.visibleDiagnostics}
+			decisions={controller.reviewDecisions}
+			rowKey={controller.diagnosticRowKey}
+			sources={controller.sources}
+			activeDiagnosticKey={controller.activeDiagnosticKey}
+			activeDiagnosticRange={controller.activeDiagnosticRange}
+			{emptyState}
+			{emptyActions}
+			{lineFor}
+			onNavigate={(diagnostic) => {
+				if (mobile) onOpenFinding?.(diagnostic);
+				else controller.navigateToDiagnostic(diagnostic, { focus: false });
+			}}
+			onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
+			canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
+			onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
+			onLinkSections={(diagnostic) => controller.linkDiagnosticSections(diagnostic)}
+			onSetLanguage={(language) => controller.setLanguage(language)}
+			onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
+			onCancelPreview={() => controller.clearFixPreview()}
+			onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
+			fixBatchSize={(diagnostic, fix) => controller.fixBatchSize(diagnostic, fix)}
+			onApplyFixBatch={(diagnostic, fix) => controller.applyFixBatch(diagnostic, fix)}
+			onIgnore={(diagnostic) => controller.ignoreDiagnostic(diagnostic)}
+			onAnnounce={(message) => controller.feedback.announce(message)}
+		/>
+	{/key}
 	{#if controller.visibleDiagnostics.length > 0}
 		<p class="linter-panel__afterword">{afterword}</p>
 	{/if}

@@ -13,6 +13,7 @@
 
 	let {
 		diagnostics,
+		decisions,
 		rowKey,
 		active = true,
 		overview = false,
@@ -34,9 +35,16 @@
 		onApplyFix,
 		fixBatchSize,
 		onApplyFixBatch,
-		onIgnore
+		onIgnore,
+		onAnnounce
 	}: {
 		diagnostics: readonly Diagnostic[];
+		/**
+		 * The rows, already grouped by the shell, which shares one grouping per
+		 * snapshot with every count of them. Without it the list groups
+		 * `diagnostics` itself.
+		 */
+		decisions?: readonly Decision[];
 		rowKey: (diagnostic: Diagnostic) => string;
 		active?: boolean;
 		overview?: boolean;
@@ -91,6 +99,8 @@
 			fix: NonNullable<Diagnostic['fixes']>[number]
 		) => void;
 		onIgnore: (diagnostic: Diagnostic) => void;
+		/** Say something to a screen reader without drawing it. */
+		onAnnounce?: (message: string) => void;
 	} = $props();
 
 	// The panel's reading order is shared with the state that follows it: after a
@@ -101,12 +111,18 @@
 	// One row per decision. A decision whose findings cannot share a row is keyed
 	// by its one finding's row identity, so it survives edits above it.
 	let lastRows: Array<Decision & { location: string | undefined }> = [];
+	// Rows a place was answered in. A row sorts by its first place, so answering
+	// that place would re-sort it by its next one, which can carry the open card
+	// past a neighbour. A held row keeps its slot among the rows that remain
+	// instead, until it leaves the list.
+	let heldKeys: string[] = [];
 	const rows = $derived.by(() => {
 		// Keep the same controls while hidden, without sorting, numbering, or
 		// updating their contents for a pane the user cannot see. Activation reads
 		// the latest complete snapshot before these controls become actionable.
 		if (active) {
-			lastRows = groupDecisions(orderDiagnostics(diagnostics), rowKey).map((decision) => ({
+			const ranked = decisions ?? groupDecisions(orderDiagnostics(diagnostics), rowKey);
+			lastRows = holdAnswered(ranked, lastRows).map((decision) => ({
 				...decision,
 				location: location(decision.members)
 			}));
@@ -114,16 +130,37 @@
 		return lastRows;
 	});
 
-	function location(members: readonly Diagnostic[]): string | undefined {
-		if (!lineFor) return undefined;
-		const [first] = members;
-		const last = members.at(-1);
-		if (!first || !last) return undefined;
-		if (first === last) {
-			return `Line ${lineFor(cardKey(first) === activeKey ? (activeDiagnosticRange?.from ?? first.from) : first.from)}`;
+	function holdAnswered(ranked: readonly Decision[], previous: readonly Decision[]): Decision[] {
+		const drawn = (key: string, list: readonly Decision[]) => list.some((row) => row.key === key);
+		heldKeys = heldKeys.filter((key) => drawn(key, ranked) && drawn(key, previous));
+		const arranged = ranked.filter((row) => !heldKeys.includes(row.key));
+		for (const [index, { key }] of previous.entries()) {
+			if (!heldKeys.includes(key)) continue;
+			const after = previous
+				.slice(0, index)
+				.findLast((candidate) => drawn(candidate.key, arranged));
+			const at = after ? arranged.findIndex((row) => row.key === after.key) + 1 : 0;
+			arranged.splice(
+				at,
+				0,
+				ranked.find((row) => row.key === key)!
+			);
 		}
-		const [from, to] = [lineFor(first.from), lineFor(last.from)];
-		return `${members.length} places, ${from === to ? `line ${from}` : `lines ${from} to ${to}`}`;
+		return arranged;
+	}
+
+	function hold(row: Decision): void {
+		if (!heldKeys.includes(row.key)) heldKeys = [...heldKeys, row.key];
+	}
+
+	// A grouped row says how many places it stands for and nothing more, so its
+	// meta line stays one line; the stepper says which place is open and where.
+	function location(members: readonly Diagnostic[]): string | undefined {
+		const [first] = members;
+		if (!first) return undefined;
+		if (members.length > 1) return `${members.length} places`;
+		if (!lineFor) return undefined;
+		return `Line ${lineFor(cardKey(first) === activeKey ? (activeDiagnosticRange?.from ?? first.from) : first.from)}`;
 	}
 
 	// Exactly one row sits expanded at a time, open on one of its places; before
@@ -159,6 +196,45 @@
 	const currentIndex = $derived(rows.findIndex((row) => row.key === selectedKey));
 	const shownMember = (row: Decision) =>
 		row.key === selectedKey && selected ? selected.member : row.members[0]!;
+	const placeLabel = $derived(
+		selected
+			? `Place ${place + 1} of ${selected.row.members.length}${lineFor ? `, line ${lineFor(selected.member.from)}` : ''}`
+			: ''
+	);
+
+	// A choice belongs to the row it was made on. A row that leaves the list takes
+	// its choice with it, so the same question arriving later starts fresh.
+	$effect(() => {
+		const drawn = (key: string) => rows.some((row) => row.key === key);
+		if (collapsedKey && !drawn(collapsedKey)) collapsedKey = undefined;
+		if (chosenDecision && !drawn(chosenDecision)) chosenDecision = undefined;
+		if (
+			chosenKey &&
+			!rows.some((row) => row.members.some((member) => rowKey(member) === chosenKey))
+		)
+			chosenKey = undefined;
+	});
+
+	// The open row's reserved heights in pixels: its explanation's, measured from
+	// the tallest of its places at the current width, and its body's, so the
+	// stepper's slot outlives the stepper. Both only grow while the row stays
+	// open, so neither stepping nor answering moves its actions or the rows below.
+	let reserve = $state<{ key: string; explanation: number; body: number }>();
+	const openReserve = $derived(reserve?.key === expandedKey ? reserve : undefined);
+
+	$effect(() => {
+		if (reserve && reserve.key !== expandedKey) reserve = undefined;
+	});
+
+	function grow(key: string, part: 'explanation' | 'body', height: number): void {
+		const current = reserve?.key === key ? reserve : { key, explanation: 0, body: 0 };
+		if (height > current[part]) reserve = { ...current, [part]: height };
+	}
+
+	/** Each distinct explanation among a row's places, the candidates for its tallest. */
+	const explanations = (row: Decision) => [
+		...new Set(row.members.map((member) => member.explanation))
+	];
 
 	$effect(() => {
 		const key = activeKey;
@@ -201,9 +277,19 @@
 		if (target) open(target, target.members[0]!);
 	}
 
-	function stepPlace(direction: -1 | 1): void {
+	async function stepPlace(direction: -1 | 1, trigger: HTMLButtonElement): Promise<void> {
 		const target = selected?.row.members[place + direction];
-		if (selected && target) open(selected.row, target);
+		if (!selected || !target) return;
+		open(selected.row, target);
+		await tick();
+		// Announced here and nowhere else: after a fix the reader has just heard
+		// what the fix did, and the place it leads to is already the open card.
+		onAnnounce?.(placeLabel);
+		// The end of the row disables the button that was pressed, and a disabled
+		// button drops focus to the page; the other direction is still a step.
+		if (trigger.disabled) {
+			trigger.parentElement?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+		}
 	}
 
 	function navigateWithKeyboard(event: KeyboardEvent): void {
@@ -379,52 +465,84 @@
 					<DiagnosticMeta {diagnostic} {sources} location={row.location} />
 				</div>
 				{#if expanded}
-					<!-- One place's card at a time, keyed by that place's row identity so
-					     another place never inherits its controls. -->
-					{#key rowKey(diagnostic)}
-						<DiagnosticDetails
-							{diagnostic}
-							onChooseHeader={() => onChooseHeader(diagnostic)}
-							onAssignPerformers={canAssignPerformers(diagnostic)
-								? () => onAssignPerformers(diagnostic)
-								: undefined}
-							onLinkSections={onLinkSections ? () => onLinkSections(diagnostic) : undefined}
-							onSetLanguage={setLanguageAndMoveFocus}
-							onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
-							{onCancelPreview}
-							onApplyFix={(fix) => fixAndMoveFocus(() => onApplyFix(diagnostic, fix))}
-							fixBatchSize={fixBatchSize ? (fix) => fixBatchSize(diagnostic, fix) : undefined}
-							onApplyFixBatch={onApplyFixBatch
-								? (fix) => fixAndMoveFocus(() => onApplyFixBatch?.(diagnostic, fix))
-								: undefined}
-							onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic, trigger)}
-						/>
-					{/key}
-					<!-- Under the actions, so its arrival and departure never move them. The
-					     buttons come first so the count's width cannot push them. -->
+					<div
+						class="diagnostic-list__body"
+						style:min-height={openReserve?.body ? `${openReserve.body}px` : undefined}
+						style:--diagnostic-list-explanation-reserve={openReserve?.explanation
+							? `${openReserve.explanation}px`
+							: undefined}
+						bind:offsetHeight={null, (height) => grow(row.key, 'body', height ?? 0)}
+					>
+						<!-- One place's card at a time, keyed by that place's row identity so
+						     another place never inherits its controls. -->
+						{#key rowKey(diagnostic)}
+							<DiagnosticDetails
+								{diagnostic}
+								onChooseHeader={() => onChooseHeader(diagnostic)}
+								onAssignPerformers={canAssignPerformers(diagnostic)
+									? () => onAssignPerformers(diagnostic)
+									: undefined}
+								onLinkSections={onLinkSections ? () => onLinkSections(diagnostic) : undefined}
+								onSetLanguage={setLanguageAndMoveFocus}
+								onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
+								{onCancelPreview}
+								onApplyFix={(fix) => {
+									hold(row);
+									fixAndMoveFocus(() => onApplyFix(diagnostic, fix));
+								}}
+								fixBatchSize={fixBatchSize ? (fix) => fixBatchSize(diagnostic, fix) : undefined}
+								onApplyFixBatch={onApplyFixBatch
+									? (fix) => {
+											hold(row);
+											fixAndMoveFocus(() => onApplyFixBatch?.(diagnostic, fix));
+										}
+									: undefined}
+								onIgnore={(trigger) => {
+									hold(row);
+									ignoreAndMoveFocus(diagnostic, trigger);
+								}}
+							/>
+						{/key}
+						<!-- Under the actions, so its arrival and departure never move them. The
+						     buttons come first so the count's width cannot push them. -->
+						{#if row.members.length > 1}
+							<div class="diagnostic-list__places" role="group" aria-label="Places">
+								<button
+									type="button"
+									class="icon-button button--quiet"
+									aria-label="Previous place"
+									disabled={place <= 0}
+									{@attach describeControl(() => ({ label: 'Previous place' }))}
+									onclick={(event) => void stepPlace(-1, event.currentTarget)}
+								>
+									<CaretLeftIcon aria-hidden="true" size={14} weight="bold" />
+								</button>
+								<button
+									type="button"
+									class="icon-button button--quiet"
+									aria-label="Next place"
+									disabled={place >= row.members.length - 1}
+									{@attach describeControl(() => ({ label: 'Next place' }))}
+									onclick={(event) => void stepPlace(1, event.currentTarget)}
+								>
+									<CaretRightIcon aria-hidden="true" size={14} weight="bold" />
+								</button>
+								<span>{placeLabel}</span>
+							</div>
+						{/if}
+					</div>
+					<!-- Every place's explanation at this width, stacked in one cell so the
+					     cell is as tall as the tallest. The text is drawn from an attribute,
+					     so none of it reaches the page's text or the accessibility tree. -->
 					{#if row.members.length > 1}
-						<div class="diagnostic-list__places" role="group" aria-label="Places">
-							<button
-								type="button"
-								class="icon-button button--quiet"
-								aria-label="Previous place"
-								disabled={place <= 0}
-								{@attach describeControl(() => ({ label: 'Previous place' }))}
-								onclick={() => stepPlace(-1)}
-							>
-								<CaretLeftIcon aria-hidden="true" size={14} weight="bold" />
-							</button>
-							<button
-								type="button"
-								class="icon-button button--quiet"
-								aria-label="Next place"
-								disabled={place >= row.members.length - 1}
-								{@attach describeControl(() => ({ label: 'Next place' }))}
-								onclick={() => stepPlace(1)}
-							>
-								<CaretRightIcon aria-hidden="true" size={14} weight="bold" />
-							</button>
-							<span aria-live="polite">Place {place + 1} of {row.members.length}</span>
+						<div
+							class="diagnostic-list__reserve"
+							aria-hidden="true"
+							bind:offsetHeight={null, (height) => grow(row.key, 'explanation', height ?? 0)}
+						>
+							{#each explanations(row) as text (text)}
+								<p class="diagnostic-explanation" data-text={text}></p>
+							{/each}
 						</div>
 					{/if}
 				{/if}
@@ -626,6 +744,29 @@
 
 	.diagnostic-list__places > span {
 		margin-inline-start: var(--space-1);
+	}
+
+	.diagnostic-list__body :global(.diagnostic-explanation) {
+		min-height: var(--diagnostic-list-explanation-reserve);
+	}
+
+	/* Laid out against the same width as the explanation it measures (the
+	   details' inline inset) and kept out of the row's flow and hit area. */
+	.diagnostic-list__reserve {
+		position: absolute;
+		top: 0;
+		display: grid;
+		inset-inline: var(--space-4);
+		visibility: hidden;
+		pointer-events: none;
+	}
+
+	.diagnostic-list__reserve > p {
+		grid-area: 1 / 1;
+	}
+
+	.diagnostic-list__reserve > p::before {
+		content: attr(data-text);
 	}
 
 	.diagnostic-list__places > button {
