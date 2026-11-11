@@ -70,12 +70,16 @@ const decisionOrder = (diagnostic: Diagnostic): number =>
  * apart.
  */
 export function orderDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[] {
-	return [...diagnostics].sort(
-		(left, right) =>
-			decisionOrder(left) - decisionOrder(right) ||
-			providerOrder(left) - providerOrder(right) ||
-			severityRank[left.severity] - severityRank[right.severity] ||
-			left.from - right.from ||
-			left.ruleId.localeCompare(right.ruleId)
+	return [...diagnostics].sort(compareDiagnostics);
+}
+
+/** `orderDiagnostics` for two findings: negative when `left` reads first. */
+export function compareDiagnostics(left: Diagnostic, right: Diagnostic): number {
+	return (
+		decisionOrder(left) - decisionOrder(right) ||
+		providerOrder(left) - providerOrder(right) ||
+		severityRank[left.severity] - severityRank[right.severity] ||
+		left.from - right.from ||
+		left.ruleId.localeCompare(right.ruleId)
 	);
 }
