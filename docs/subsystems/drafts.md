@@ -301,8 +301,10 @@ and each tick would write a draft of up to 1 MiB. `static/_headers` answers `/wo
 window the workbench opens itself, Apple Music's sign-in, connected; Spotify signs in with a
 full-page redirect. The header exists only on Cloudflare, so the controller bounds hand-overs too:
 they run one at a time, a lyric equal to the open text creates nothing and says it is already open,
-and after `MAX_HANDOFFS_PER_PAGE` (5) opened in one page lifetime the next is refused with a message
-to reload the tab. A reload resets the count, which needs a person.
+and after `MAX_HANDOFFS_PER_PAGE` (5) links taken in one page lifetime, opened or refused, the next
+is refused with a message to reload the tab. The count belongs to one page load. Where the header is
+absent (the local preview, the dev server), a page that opened the tab can force a reload and start
+a new count, so there the header's absence is the gap and the count only bounds a single load.
 
 **Its feedback is fixed text and waits for the workspace.** The success message used to repeat the
 title, which the linking page chooses, in the app's own voice. It now reads `Opened the linked

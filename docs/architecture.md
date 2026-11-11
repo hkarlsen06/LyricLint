@@ -266,8 +266,12 @@ Roster-only metadata changes use a separate action with toast undo. A normal doc
   reports: on 2026-11-10, and again on 2026-11-11, the script served at
   `static.cloudflareinsights.com/beacon.min.js` passed the page address through a function that set
   `username`, `password`, `hash` and `search` to empty before reporting it. That is a third party's
-  code, read on those dates, and it can change without notice, so the inline script is the guarantee
-  and the beacon's behavior is only a second layer.
+  code, read on those dates, and it can change without notice, so the inline script is what the
+  project relies on and the beacon's behavior is only a second layer. The inline script clears the
+  address bar and the history entry. It cannot clear the browser's own Navigation Timing entry:
+  `performance.getEntriesByType('navigation')[0].name` keeps the address the page was loaded with,
+  fragment included, for any script on the page to read. On 2026-11-10 the beacon copied timing
+  fields from that entry and not its `name`.
 - External source links open with safe new-tab attributes.
 - Local data has an explicit delete-all control, and it covers assistant conversations as well as drafts.
 - The copy action copies canonical Genius markup, not rendered DOM text.
