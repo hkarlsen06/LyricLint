@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/dom';
+import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
@@ -765,9 +765,6 @@ describe('one row per decision', () => {
 				expect(rowFor(apostrophe)).toBe(open);
 				expect(open.classList.contains('diagnostic-card--expanded')).toBe(true);
 				await frame();
-				console.log(
-					`[g1] ${width}px open row top ${before.open} -> ${open.getBoundingClientRect().top}, row below ${before.below} -> ${rowFor(comma).getBoundingClientRect().top}`
-				);
 				expect(Math.abs(open.getBoundingClientRect().top - before.open)).toBeLessThan(1);
 				expect(Math.abs(rowFor(comma).getBoundingClientRect().top - before.below)).toBeLessThan(1);
 			} finally {
@@ -969,27 +966,32 @@ describe('one row per decision', () => {
 		expect(widened).toBe(row().getBoundingClientRect().height);
 	});
 
-	test.each([
-		['the default desktop panel', 363],
-		['a 390px phone', 390]
-	])('keeps a grouped row’s meta on one line in %s', async (_label, width) => {
-		const { controller } = lintedWorkbench(cityLightsPasted);
-		const screenView = await render(LinterPanel, { controller });
-		screenView.container.style.width = `${width}px`;
-		await frame();
-		{
-			const row = commaRow().closest('li')!;
-			const meta = row.querySelector<HTMLElement>('.diagnostic-meta__row')!;
-			expect(meta.querySelector('.diagnostic-meta__derivation')).not.toBeNull();
-			expect(meta.querySelector('.diagnostic-meta__disclosure, .source-citation')).not.toBeNull();
-			const parts = Array.from(meta.children).filter((part) => part.getClientRects().length > 0);
-			const first = parts[0]!.getBoundingClientRect();
-			for (const part of parts) expect(part.getBoundingClientRect().top).toBeLessThan(first.bottom);
+	test.each([363, 390])(
+		'keeps a grouped row’s meta as tall as a lone finding’s at %ipx',
+		async (width) => {
+			const meta = async (text: string) => {
+				const view = await render(LinterPanel, { controller: lintedWorkbench(text).controller });
+				view.container.style.width = `${width}px`;
+				return () =>
+					within(view.container)
+						.getByRole('button', { name: `Go to ${comma}` })
+						.closest('li')!
+						.querySelector<HTMLElement>('.diagnostic-meta__row')!;
+			};
+			const grouped = await meta(cityLightsPasted);
+			// The same rule's meta with a line number in place of the count, measured
+			// in the same run, so the fonts installed cannot decide the outcome.
+			const lone = await meta('[Verse]\nKeep going,\nStill here');
+			await frame();
+			expect(grouped().querySelector('.diagnostic-meta__line')?.textContent).toBe('10 places');
+			expect(grouped().querySelector('.diagnostic-meta__derivation')).not.toBeNull();
+			expect(
+				grouped().querySelector('.diagnostic-meta__disclosure, .source-citation')
+			).not.toBeNull();
+			expect(lone().querySelector('.diagnostic-meta__line')?.textContent).toBe('Line 2');
+			expect(grouped().getBoundingClientRect().height).toBe(lone().getBoundingClientRect().height);
 		}
-		expect(commaRow().closest('li')!.querySelector('.diagnostic-meta__line')?.textContent).toBe(
-			'10 places'
-		);
-	});
+	);
 
 	test('holds the actions and the stepper still across places whose explanations wrap differently', async () => {
 		const { controller } = lintedWorkbench(
@@ -999,31 +1001,30 @@ describe('one row per decision', () => {
 		expect(screen.getByText(/^Place 1 of 3, /u)).toBeTruthy();
 		const fix = () => screen.getByRole('button', { name: 'Use [Chorus]' });
 		const stepper = () => screen.getByRole('group', { name: 'Places' });
-		const textHeight = () => {
-			const range = document.createRange();
-			range.selectNodeContents(
-				view.container.querySelector('.diagnostic-list__body .diagnostic-explanation')!
-			);
-			return Math.round(range.getBoundingClientRect().height);
+		const explanation = () =>
+			view.container.querySelector<HTMLElement>('.diagnostic-list__body .diagnostic-explanation')!;
+		/** The open place's explanation without the reserve, the reference for it. */
+		const natural = () => {
+			explanation().style.minHeight = '0px';
+			const height = explanation().getBoundingClientRect().height;
+			explanation().style.removeProperty('min-height');
+			return height;
 		};
 		const where = () => [fix().getBoundingClientRect().top, stepper().getBoundingClientRect().top];
-		let differed = 0;
-		// Narrowing only, so every width's reservation is its own measurement.
 		for (let width = 440; width >= 260; width -= 6) {
 			view.container.style.width = `${width}px`;
 			await frame();
-			const heights = new Set<number>();
+			const heights: number[] = [];
 			const anchor = where();
 			for (const direction of ['Next place', 'Next place', 'Previous place', 'Previous place']) {
-				heights.add(textHeight());
+				heights.push(natural());
 				await fireEvent.click(screen.getByRole('button', { name: direction }));
 				await frame();
 				expect(where()).toEqual(anchor);
 			}
-			if (heights.size > 1) differed += 1;
+			// Exactly the tallest place's explanation at this width, nothing more.
+			expect(explanation().getBoundingClientRect().height).toBe(Math.max(...heights));
 		}
-		// The sweep met widths where the three explanations wrap to different heights.
-		expect(differed).toBeGreaterThan(0);
 
 		const anchor = where();
 		await fireEvent.click(fix());
