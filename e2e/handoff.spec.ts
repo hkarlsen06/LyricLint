@@ -160,6 +160,51 @@ for (const entry of ['a fresh boot', 'a fragment-only navigation']) {
 	});
 }
 
+test('a hand-over link clicked inside the app never reaches the router', async ({ page }) => {
+	const link = await cityLightsLink();
+	const payload = link.slice(link.indexOf('.') + 1);
+	await writeFirstDraft(page, '[Verse]\nFirst');
+
+	await page.evaluate((href) => {
+		const inside = document.createElement('a');
+		inside.href = href;
+		document.body.append(inside);
+		inside.click();
+	}, link);
+	await expect.poll(() => docText(page)).toBe(cityLights);
+	expect(page.url()).not.toContain('#open=');
+
+	await page.getByRole('tab', { name: 'Song' }).click();
+	await expect(page).toHaveURL(/[?&]panel=song/u);
+	const state = await page.evaluate(() => JSON.stringify(history.state));
+	expect(state).toContain('pageUrl');
+	expect(state).not.toContain(payload);
+	expect(page.url()).not.toContain('#open=');
+	expect((await savedDraftTitles(page)).sort()).toEqual(['City Lights', 'First']);
+});
+
+test('a hand-over link clicked on another page loads the workbench in full', async ({ page }) => {
+	const link = await cityLightsLink();
+	const payload = link.slice(link.indexOf('.') + 1);
+	await page.goto('/docs/');
+	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+	await page.evaluate((href) => {
+		const outside = document.createElement('a');
+		outside.href = href;
+		document.body.append(outside);
+		outside.click();
+	}, link);
+	// The click starts a full load, which ends any evaluation still running.
+	await page.waitForURL(/\/workbench\/$/u);
+	await expect.poll(() => docText(page)).toBe(cityLights);
+	expect(page.url()).not.toContain('#open=');
+
+	await page.getByRole('tab', { name: 'Song' }).click();
+	await expect(page).toHaveURL(/[?&]panel=song/u);
+	expect(await page.evaluate(() => JSON.stringify(history.state))).not.toContain(payload);
+});
+
 test('a script the edge injects never sees the fragment', async ({ page }) => {
 	// Cloudflare adds its analytics beacon as a deferred script at the end of the
 	// body. On a slow phone it runs before any of the application's modules,

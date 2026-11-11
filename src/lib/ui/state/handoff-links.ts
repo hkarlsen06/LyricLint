@@ -9,7 +9,8 @@
  * because a deferred script injected at the edge runs before any module here.
  * The client `init` hook collects that and listens for later ones ahead of the
  * router's own `popstate` listener, the one that adopts a fragment-only
- * navigation.
+ * navigation. A link clicked inside the app is taken at the click, because the
+ * router copies a clicked address into `page.url` before either event fires.
  */
 
 declare global {
@@ -40,6 +41,34 @@ export function captureHandoffLinks(workbenchPath: string): void {
 	// this one. `hashchange` covers a browser that skips the first.
 	addEventListener('popstate', take);
 	addEventListener('hashchange', take);
+	addEventListener(
+		'click',
+		(event) => {
+			if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+				return;
+			}
+			const anchor = event
+				.composedPath()
+				.find((node): node is HTMLAnchorElement => node instanceof HTMLAnchorElement);
+			if (
+				!anchor ||
+				(anchor.target !== '' && anchor.target !== '_self') ||
+				anchor.origin !== location.origin ||
+				anchor.pathname !== workbenchPath ||
+				!anchor.hash.startsWith('#open=')
+			) {
+				return;
+			}
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			// From another page the workbench has to load, and a full load puts the
+			// fragment through the inline script instead of the router.
+			if (location.pathname !== workbenchPath) location.assign(anchor.href);
+			else if (deliver) deliver(anchor.hash);
+			else pending.push(anchor.hash);
+		},
+		{ capture: true }
+	);
 }
 
 /**

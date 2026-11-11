@@ -178,9 +178,6 @@
 					initialActiveTab: rightPanelTabFromUrl(page.url),
 					onActiveTabChange: (tab) => {
 						const next = urlForRightPanelTab(page.url, tab);
-						// A hand-over link clicked inside the app reaches `page.url` before
-						// it is taken, and its lyric must not be written back to the address.
-						if (next.hash.startsWith('#open=')) next.hash = '';
 						// SAFETY: `URL.search` is empty or opens with `?`, and `URL.hash` is
 						// empty or opens with `#`, so this is one of exactly the three route
 						// shapes named here, which a template literal type cannot express.
