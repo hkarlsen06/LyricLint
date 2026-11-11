@@ -5,10 +5,19 @@
  * A fragment is never sent in a request, but every script on the page can read
  * `location`, and SvelteKit copies the address into `page.url` and from there
  * into `history.state` on the next shallow navigation, where a Back press can
- * replay it. So the fragment leaves from the client `init` hook, which runs
- * before the router first reads the address and before the router's own
- * `popstate` listener, the one that adopts a fragment-only navigation.
+ * replay it. On a page load the inline script in `src/app.html` takes it first,
+ * because a deferred script injected at the edge runs before any module here.
+ * The client `init` hook collects that and listens for later ones ahead of the
+ * router's own `popstate` listener, the one that adopts a fragment-only
+ * navigation.
  */
+
+declare global {
+	interface Window {
+		/** Set by the inline script in `src/app.html` and removed on collection. */
+		__lyriclintHandoff?: string;
+	}
+}
 
 const pending: string[] = [];
 let deliver: ((fragment: string) => void) | undefined;
@@ -22,6 +31,9 @@ export function captureHandoffLinks(workbenchPath: string): void {
 		if (deliver) deliver(fragment);
 		else pending.push(fragment);
 	};
+	const early = window.__lyriclintHandoff;
+	delete window.__lyriclintHandoff;
+	if (early) pending.push(early);
 	take();
 	// A fragment-only navigation fires `popstate` before `hashchange`, and the
 	// router adopts the address in its `popstate` listener, registered after

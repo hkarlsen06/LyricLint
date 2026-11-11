@@ -159,3 +159,33 @@ for (const entry of ['a fresh boot', 'a fragment-only navigation']) {
 		expect((await savedDraftTitles(page)).sort()).toEqual([...before, 'City Lights'].sort());
 	});
 }
+
+test('a script the edge injects never sees the fragment', async ({ page }) => {
+	// Cloudflare adds its analytics beacon as a deferred script at the end of the
+	// body. On a slow phone it runs before any of the application's modules,
+	// which the delay on SvelteKit's entry chunks stands in for.
+	await page.route('**/_app/immutable/entry/**', async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		await route.continue();
+	});
+	await page.route('**/workbench/', async (route) => {
+		const response = await route.fetch();
+		const body = (await response.text()).replace(
+			'</body>',
+			'<script defer src="https://static.cloudflareinsights.com/beacon.min.js"></script></body>'
+		);
+		await route.fulfill({ response, body });
+	});
+	await page.route('https://static.cloudflareinsights.com/beacon.min.js', (route) =>
+		route.fulfill({
+			contentType: 'application/javascript',
+			body: 'window.__beaconSaw = location.href;'
+		})
+	);
+
+	await page.goto(await cityLightsLink());
+
+	await expect.poll(() => docText(page)).toBe(cityLights);
+	const saw = await page.evaluate(() => (window as { __beaconSaw?: string }).__beaconSaw);
+	expect(saw).toMatch(/\/workbench\/$/u);
+});

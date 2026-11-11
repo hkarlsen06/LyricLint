@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 import type { ResolvedConfig as VitestResolvedConfig } from 'vitest/node';
@@ -35,6 +36,19 @@ import { legacyWorkbenchDestination } from './src/lib/workbench-redirect.js';
  * port when one server is already up, since `strictPort` is left off.
  */
 const DEV_PORT = 5173;
+
+/**
+ * The inline script at the top of `src/app.html`, which takes a hand-over
+ * link's fragment out of the address before any other script runs. The meta
+ * policy governs only what follows it, so this source matters the day the
+ * policy becomes a header; computed from the file, it cannot drift from it.
+ */
+const handoffScriptSource = ((): `sha256-${string}` => {
+	const html = readFileSync(new URL('./src/app.html', import.meta.url), 'utf8');
+	const script = /<script>([\s\S]*?)<\/script>/u.exec(html)?.[1];
+	if (script === undefined) throw new Error('src/app.html no longer carries its hand-over script.');
+	return `sha256-${createHash('sha256').update(script).digest('base64')}`;
+})();
 
 // Chromium can report pointer:none after CDP touch emulation is disabled.
 // Vitest isolates files with iframes but reuses their containing page, so a
@@ -320,10 +334,12 @@ export default defineConfig(({ mode }) => ({
 					// The first four hosts are scripts injected by a press:
 					// Turnstile's challenge, YouTube's IFrame API, Spotify's Web
 					// Playback SDK, and Apple's MusicKit. SvelteKit appends the
-					// `sha256-` for its own inline hydration script.
+					// `sha256-` for its own inline hydration script; the one before it
+					// is `src/app.html`'s.
 					'script-src': [
 						'self',
 						'wasm-unsafe-eval',
+						handoffScriptSource,
 						'https://challenges.cloudflare.com',
 						'https://www.youtube.com',
 						'https://sdk.scdn.co',

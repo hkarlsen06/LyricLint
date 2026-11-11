@@ -2,6 +2,14 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
+		<script>
+			// A hand-over link's lyric leaves the address before any other script can
+			// read it, an edge-injected one included. `handoff-links.ts` takes it from here.
+			if (location.pathname === '/workbench/' && location.hash.startsWith('#open=')) {
+				window.__lyriclintHandoff = location.hash;
+				history.replaceState(history.state, '', location.pathname + location.search);
+			}
+		</script>
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		%sveltekit.head%
 	</head>
