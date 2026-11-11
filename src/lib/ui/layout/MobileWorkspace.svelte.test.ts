@@ -88,6 +88,24 @@ test('the phone place stepper hands focus to the other direction at either end',
 	expect(document.activeElement).toBe(next);
 });
 
+test('a phone decision keeps its stepper’s slot when one place is left', async () => {
+	await page.viewport(390, 844);
+	await mount();
+	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
+	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
+	await fireEvent.click((await screen.findAllByRole('button', { name: /^Go to / }))[0]!);
+	await screen.findByRole('group', { name: 'Places' });
+	const fixTop = () =>
+		screen.getByRole('button', { name: "Replace with I'ma" }).getBoundingClientRect().top;
+	const before = fixTop();
+
+	await fireEvent.click(screen.getByRole('button', { name: "Replace with I'ma" }));
+
+	await waitFor(() => expect(screen.queryByRole('group', { name: 'Places' })).toBeNull());
+	await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+	expect(fixTop()).toBe(before);
+});
+
 test('the keyboard gives its space to writing and restores navigation only after dismissal', async () => {
 	await page.viewport(390, 844);
 	const events = new EventTarget();

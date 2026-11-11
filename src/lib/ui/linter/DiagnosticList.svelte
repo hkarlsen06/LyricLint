@@ -514,7 +514,10 @@
 							<span>{placeText(row, place)}</span>
 						</div>
 					{:else if expanded && reserving}
-						<div class="diagnostic-list__places" aria-hidden="true"></div>
+						<!-- As tall as a stepper button on this device: touch screens raise it. -->
+						<div class="diagnostic-list__places" aria-hidden="true">
+							<span class="icon-button diagnostic-list__slot"></span>
+						</div>
 					{/if}
 				</div>
 				{#if expanded}
@@ -751,11 +754,8 @@
 		font-weight: var(--font-weight-medium);
 	}
 
-	/* As tall as its buttons, so the empty slot a row keeps after falling to one
-	   place is as tall as the stepper was. */
 	.diagnostic-list__places {
 		display: flex;
-		min-height: var(--control-height-md);
 		align-items: center;
 		gap: var(--space-1);
 		color: var(--color-text-muted);
@@ -765,6 +765,11 @@
 
 	.diagnostic-list__places > span {
 		margin-inline-start: var(--space-1);
+	}
+
+	.diagnostic-list__places > .diagnostic-list__slot {
+		margin: 0;
+		visibility: hidden;
 	}
 
 	.diagnostic-list__body :global(.diagnostic-explanation) {
