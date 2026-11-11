@@ -98,7 +98,7 @@ export const languageSourceInventory: readonly LanguageSourceInventoryEntry[] = 
 	{ language: 'Pannonian Rusyn', tag: 'rsk', annotationId: 35157957, policy: 'unreviewed' },
 	{ language: 'Persian', tag: 'fa', annotationId: 16073054, policy: 'unreviewed' },
 	{ language: 'Polish', tag: 'pl', annotationId: 14345856, policy: 'unreviewed' },
-	{ language: 'Portuguese', tag: 'pt', annotationId: 12745694, policy: 'unreviewed' },
+	{ language: 'Portuguese', tag: 'pt', annotationId: 12745694, policy: 'localized' },
 	{ language: 'Romani', tag: 'rom', annotationId: 35156001, policy: 'unreviewed' },
 	{ language: 'Romanian', tag: 'ro', annotationId: 17239183, policy: 'unreviewed' },
 	{ language: 'Romansh', tag: 'rm', annotationId: 15872416, policy: 'unreviewed' },

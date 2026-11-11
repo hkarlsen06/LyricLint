@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyEdits, applyRuleFixes, checkRule, markedText } from '../rule-test-utils.js';
+import { reviewedLanguagePacks } from '#lib/languages/registry.js';
 import { sectionHeaderLanguageRule as rule } from './section-header-language.js';
 
 describe('section.header-language', () => {
@@ -35,6 +36,8 @@ describe('section.header-language', () => {
 		['fr', 'Instrumental Break', ['Pause instrumentale', 'Coupure']],
 		['ja', 'Couplet', ['Verse']],
 		['ko', 'Pont', ['Bridge', '브릿지']],
+		['pt', 'Couplet', ['Verso', 'Estrofe']],
+		['pt', 'Chorus', ['Refrão']],
 		['en', 'Intermède', ['Interlude']]
 	] as const)('offers reviewed %s alternatives for %s', (language, input, replacements) => {
 		const text = `[${input} 2: Avery]\nA lyric`;
@@ -48,4 +51,13 @@ describe('section.header-language', () => {
 			expect(checkRule(rule, `[${replacement}]\nA lyric`, { language })).toEqual([]);
 		}
 	});
+
+	it.each(reviewedLanguagePacks.map((pack) => [pack.tag, pack] as const))(
+		'accepts every reviewed %s term with its own pack selected',
+		(language, pack) => {
+			for (const term of pack.headers.flatMap((header) => header.terms)) {
+				expect(checkRule(rule, `[${term} 2]\nA lyric`, { language }), term).toEqual([]);
+			}
+		}
+	);
 });

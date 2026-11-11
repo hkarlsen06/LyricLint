@@ -448,6 +448,19 @@ const sources: SourceReference[] = [
 		'editorial'
 	),
 	{
+		// Captured 2026-11-11 from operator-supplied screenshots. No unreviewed
+		// banner shows, but the roster (8 contributors) was not expanded, so staff
+		// presence is unread and the source keeps the conservative community tier.
+		...annotation(
+			'G-LANG-PT',
+			12745694,
+			'Song Headers in Different Languages',
+			'Reviewed Portuguese section-header vocabulary'
+		),
+		retrievedAt: '2026-11-11',
+		lastVerifiedAt: '2026-11-11'
+	},
+	{
 		// Re-read in full on 2026-08-12, seeding the guidance catalog's numbers
 		// topic: the spelled-out default, the digit exemptions, and the times
 		// format; staff tier reconfirmed.

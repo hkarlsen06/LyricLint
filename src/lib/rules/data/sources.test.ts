@@ -41,6 +41,7 @@ const reviewedIds = [
 	'G-LANG-FR',
 	'G-LANG-JA',
 	'G-LANG-KO',
+	'G-LANG-PT',
 	'G-NUMBERS',
 	'APPLE-LINE-PUNCTUATION',
 	'G-QE-MARKS',
@@ -86,7 +87,12 @@ const reviewedToday = new Set<string>([...latestHashes.keys(), 'L-NO-ACCENT']);
 // and mined on the same day.
 const sourcedFromIndex = new Set<string>(['G-STREAMING', 'G-REVERSED', 'G-YODELING', 'G-PLURALS']);
 
+// Language-pack annotations captured from operator screenshots. Their rosters
+// were not expanded, so they stay community until a roster check promotes them.
+const capturedLanguagePacks = new Set<string>(['G-LANG-PT']);
+
 function retrievedOn(id: string): string {
+	if (capturedLanguagePacks.has(id)) return '2026-11-11';
 	if (id === 'G-NO-CHORUS') return '2026-09-21';
 	if (sourcedFromIndex.has(id)) {
 		return '2026-08-12';
@@ -249,8 +255,8 @@ describe('source registry', () => {
 		}
 	});
 
-	it('contains only the 62 specified source records', () => {
-		expect(sourceRegistry.size).toBe(62);
+	it('contains only the 63 specified source records', () => {
+		expect(sourceRegistry.size).toBe(63);
 		expect([...sourceRegistry.keys()].sort()).toEqual([...reviewedIds].sort());
 	});
 });

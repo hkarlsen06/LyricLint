@@ -4,8 +4,8 @@ import type { AssistantCorpus } from './rules-context';
 export const corpus = {
 	formatVersion: 6,
 	ruleSetVersion: '2026.09.21.2',
-	generatedAt: '2026-10-30T18:04:38.175Z',
-	contentHash: '677bad79af943beba633b1a70c96734ef0126cbe033768131558eb828d1dd55c',
+	generatedAt: '2026-11-11T02:19:52.988Z',
+	contentHash: 'ce4689f4e20bef73b1d5b600474fc288b7257ab45e5556e44ad4100b1a044413',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -227,7 +227,8 @@ export const corpus = {
 				'G-LANG-ES',
 				'G-LANG-FR',
 				'G-LANG-JA',
-				'G-LANG-KO'
+				'G-LANG-KO',
+				'G-LANG-PT'
 			]
 		},
 		{
@@ -2353,6 +2354,14 @@ export const corpus = {
 			authority: 'editorial'
 		},
 		{
+			id: 'G-LANG-PT',
+			pageTitle: 'Song Headers in Different Languages',
+			sectionTitle: 'Reviewed Portuguese section-header vocabulary',
+			url: 'https://genius.com/12745694',
+			lastVerifiedAt: '2026-11-11',
+			authority: 'community'
+		},
+		{
 			id: 'G-LANG-PURPOSE',
 			pageTitle: 'Song Headers in Different Languages',
 			sectionTitle: 'Purpose of localized section-header guidance',
@@ -2868,6 +2877,23 @@ export const corpus = {
 				{ semanticPart: 'Interlude', terms: ['Interlude', '인털루드'] },
 				{ semanticPart: 'Instrumental', terms: ['Instrumental', '기악'] },
 				{ semanticPart: 'Outro', terms: ['Outro', '아웃트로'] }
+			]
+		},
+		{
+			tag: 'pt',
+			displayName: 'Portuguese',
+			policy: 'localized',
+			headerTerms: [
+				{ semanticPart: 'Instrumental', terms: ['Instrumental'] },
+				{ semanticPart: 'Intro', terms: ['Intro', 'Introdução'] },
+				{ semanticPart: 'Verse', terms: ['Verso', 'Estrofe'] },
+				{ semanticPart: 'Pre-Chorus', terms: ['Pré-Refrão'] },
+				{ semanticPart: 'Chorus', terms: ['Refrão'] },
+				{ semanticPart: 'Refrain', terms: ['Estribilho'] },
+				{ semanticPart: 'Post-Chorus', terms: ['Pós-Refrão'] },
+				{ semanticPart: 'Bridge', terms: ['Ponte'] },
+				{ semanticPart: 'Interlude', terms: ['Interlúdio'] },
+				{ semanticPart: 'Outro', terms: ['Outro', 'Saída'] }
 			]
 		}
 	],

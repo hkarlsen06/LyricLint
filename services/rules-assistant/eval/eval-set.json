@@ -294,6 +294,15 @@
 			}
 		},
 		{
+			"id": "lang-pt",
+			"category": "language",
+			"language": "pt",
+			"question": "Estou transcrevendo uma música em português. Escrevo [Refrão] ou [Chorus]?",
+			"expect": {
+				"scopes": ["reviewed", "mixed"]
+			}
+		},
+		{
 			"id": "policy-vs-grammar-comma",
 			"category": "policy-vs-grammar",
 			"language": "en",
