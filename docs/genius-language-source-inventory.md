@@ -6,6 +6,12 @@ Reviewed inventory date: 2026-07-24.
 
 This inventory records annotation identifiers, not trusted normalized translations. Each annotation must be reviewed independently before its contents ship as a language pack.
 
+Reviewed into packs: English, Norwegian, Arabic, German, Spanish, French, Japanese, and Korean
+(2026-07-24), then Portuguese, Italian, Swedish, and Danish (captured 2026-11-11 from operator
+screenshots with the rosters collapsed, so those four stay at the community tier until a roster
+check). Portuguese `Saída` is the annotation's Brazilian Outro, and Danish `Bro` is Pre-Chorus
+where Norwegian `Bro` is Bridge.
+
 The page is community-maintained and mutable. Some entries retain English headers, vary by genre, distinguish original songs from translations, contain uncertain translations, or provide terms without a clear semantic mapping.
 
 | Language | Annotation ID |

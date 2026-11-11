@@ -1,8 +1,8 @@
 {
 	"formatVersion": 6,
-	"ruleSetVersion": "2026.09.21.2",
-	"generatedAt": "2026-11-11T02:23:43.383Z",
-	"contentHash": "b18ac31645623190405ab785f77b504e179062fd4f073971455dc0c81ee3b49a",
+	"ruleSetVersion": "2026.11.11.0",
+	"generatedAt": "2026-11-11T02:25:17.984Z",
+	"contentHash": "1430007695150da29d8d2d984b5135c82f725be292cf86d57b7802a0cd043eb1",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",

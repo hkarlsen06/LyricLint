@@ -68,6 +68,9 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   - **Nothing**: bumping `currentRuleSet.version` and `publishedAt`, which a pack needs because it
     changes findings. The Worker keys each corpus by version and hash, so an unbumped release
     still deploys.
+- A term two packs claim for different parts reads as the selected pack's part, and as the first
+  claiming pack's part under every other language: `Bro` is a Pre-Chorus in Danish, a Bridge in
+  Norwegian, and the Norwegian Bridge everywhere else. `section-header-language.test.ts` pins it.
 - `RulePolicyCase.title` names the failure, not the convention, and is the one written string
   in the reference; `variant` collapses per-language families in the index only.
   `reference.test.ts` pins title constraints.
@@ -93,6 +96,10 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   lyric text only. It still analyzes the full current lyrics synchronously, applies current
   selected-language thresholds, and constructs fresh document ranges. Cache bounds are retention
   limits, never sampling or detection limits. Native benchmarks initialize the statistical detector.
+- Danish and Norwegian profiles score within a few points of each other, so a narrow lead between
+  them goes to the rival when the text carries two of the rival's own spellings (`closeRivals` in
+  `detect.ts`). Only that pair is modeled; Swedish separates on its own. `detect.test.ts` pins a
+  Danish lyric worded close to Norwegian, the same lyric in Norwegian, and a Swedish one.
 
 - Norwegian `section.localized-header-preference` checks the whole document: use `Chorus`
   with `Pre-Chorus` or `Post-Chorus` sections, and `Refreng` without them. The eight

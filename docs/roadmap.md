@@ -38,7 +38,8 @@ hand back.
 - **Language packs 8 → 20.** `docs/genius-language-source-inventory.md` holds 63 annotation IDs
   and each one is its own review unit. The next twelve are chosen by where transcription volume
   actually is: Portuguese, Italian, Dutch, Russian, Turkish, Polish, Swedish, Danish, Finnish,
-  Indonesian, Hindi, Chinese.
+  Indonesian, Hindi, Chinese. Portuguese, Italian, Swedish, and Danish shipped on 2026-11-11,
+  which makes 12.
 - **The Apple Music rate question is answered.** `docs/` records it as unverified: whether
   `playbackRate` holds on a DRM-protected full track rather than a preview. It is either real, in
   which case Apple becomes the recommended remote source, because it is the only one with a rate and
@@ -152,7 +153,7 @@ interrupt anybody's editing.
 | | Today | July 2027 |
 |---|---|---|
 | Enabled rules | 60 | ~100 |
-| Reviewed language packs | 8 | 40 |
+| Reviewed language packs | 12 | 40 |
 | Audio sources | 4 | 4 (deliberately) |
 | Outputs | Genius markup, `.txt` | + `.lrc`, `.vtt`, cover art, song facts |
 | Surfaces | Web workbench | + browser extension, phone-first sync |
