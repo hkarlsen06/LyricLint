@@ -47,15 +47,23 @@ export function captureHandoffLinks(workbenchPath: string): void {
 			if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
 				return;
 			}
+			// The router follows an SVG `<a>` too, and a `download` link not at all.
 			const anchor = event
 				.composedPath()
-				.find((node): node is HTMLAnchorElement => node instanceof HTMLAnchorElement);
+				.find(
+					(node): node is HTMLAnchorElement | SVGAElement =>
+						node instanceof HTMLAnchorElement || node instanceof SVGAElement
+				);
+			if (!anchor || anchor.hasAttribute('download')) return;
+			const svg = anchor instanceof SVGAElement;
+			const target = svg ? anchor.target.baseVal : anchor.target;
+			const href = svg ? anchor.href.baseVal : anchor.href;
+			if ((target !== '' && target !== '_self') || !URL.canParse(href, document.baseURI)) return;
+			const url = new URL(href, document.baseURI);
 			if (
-				!anchor ||
-				(anchor.target !== '' && anchor.target !== '_self') ||
-				anchor.origin !== location.origin ||
-				anchor.pathname !== workbenchPath ||
-				!anchor.hash.startsWith('#open=')
+				url.origin !== location.origin ||
+				url.pathname !== workbenchPath ||
+				!url.hash.startsWith('#open=')
 			) {
 				return;
 			}
@@ -63,9 +71,9 @@ export function captureHandoffLinks(workbenchPath: string): void {
 			event.stopImmediatePropagation();
 			// From another page the workbench has to load, and a full load puts the
 			// fragment through the inline script instead of the router.
-			if (location.pathname !== workbenchPath) location.assign(anchor.href);
-			else if (deliver) deliver(anchor.hash);
-			else pending.push(anchor.hash);
+			if (location.pathname !== workbenchPath) location.assign(url.href);
+			else if (deliver) deliver(url.hash);
+			else pending.push(url.hash);
 		},
 		{ capture: true }
 	);

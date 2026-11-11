@@ -160,28 +160,45 @@ for (const entry of ['a fresh boot', 'a fragment-only navigation']) {
 	});
 }
 
-test('a hand-over link clicked inside the app never reaches the router', async ({ page }) => {
-	const link = await cityLightsLink();
-	const payload = link.slice(link.indexOf('.') + 1);
-	await writeFirstDraft(page, '[Verse]\nFirst');
+for (const kind of ['an HTML', 'an SVG'] as const) {
+	test(`a hand-over link clicked inside the app as ${kind} anchor never reaches the router`, async ({
+		page
+	}) => {
+		const link = await cityLightsLink();
+		const payload = link.slice(link.indexOf('.') + 1);
+		await writeFirstDraft(page, '[Verse]\nFirst');
 
-	await page.evaluate((href) => {
-		const inside = document.createElement('a');
-		inside.href = href;
-		document.body.append(inside);
-		inside.click();
-	}, link);
-	await expect.poll(() => docText(page)).toBe(cityLights);
-	expect(page.url()).not.toContain('#open=');
+		await page.evaluate(
+			({ href, svg }) => {
+				if (!svg) {
+					const inside = document.createElement('a');
+					inside.href = href;
+					document.body.append(inside);
+					inside.click();
+					return;
+				}
+				const namespace = 'http://www.w3.org/2000/svg';
+				const drawing = document.createElementNS(namespace, 'svg');
+				const inside = document.createElementNS(namespace, 'a');
+				inside.setAttribute('href', href);
+				drawing.append(inside);
+				document.body.append(drawing);
+				inside.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+			},
+			{ href: link, svg: kind === 'an SVG' }
+		);
+		await expect.poll(() => docText(page)).toBe(cityLights);
+		expect(page.url()).not.toContain('#open=');
 
-	await page.getByRole('tab', { name: 'Song' }).click();
-	await expect(page).toHaveURL(/[?&]panel=song/u);
-	const state = await page.evaluate(() => JSON.stringify(history.state));
-	expect(state).toContain('pageUrl');
-	expect(state).not.toContain(payload);
-	expect(page.url()).not.toContain('#open=');
-	expect((await savedDraftTitles(page)).sort()).toEqual(['City Lights', 'First']);
-});
+		await page.getByRole('tab', { name: 'Song' }).click();
+		await expect(page).toHaveURL(/[?&]panel=song/u);
+		const state = await page.evaluate(() => JSON.stringify(history.state));
+		expect(state).toContain('pageUrl');
+		expect(state).not.toContain(payload);
+		expect(page.url()).not.toContain('#open=');
+		expect((await savedDraftTitles(page)).sort()).toEqual(['City Lights', 'First']);
+	});
+}
 
 test('a hand-over link clicked on another page loads the workbench in full', async ({ page }) => {
 	const link = await cityLightsLink();

@@ -289,7 +289,12 @@ file in `vite.config.ts`; the meta policy governs only what follows it, but a he
 not. `captureHandoffLinks` runs from the client `init` hook, which SvelteKit awaits before it reads
 the address: it collects that fragment, and its `popstate` listener is registered before the
 router's, the one that adopts the address of a fragment-only navigation (the same link followed in a
-tab already on the workbench). `hashchange` covers a browser that skips `popstate` there. The page
+tab already on the workbench). `hashchange` covers a browser that skips `popstate` there. A link
+clicked inside the app fires neither before the router acts: the router copies a clicked address
+into `page.url` at the click. So the same function takes a plain click on an HTML or SVG anchor to
+the workbench in the capture phase and stops it there. On the workbench the fragment goes straight
+to the hand-over queue, and from another page the workbench loads in full, which puts the fragment
+through the inline script. The page
 takes the captured fragments through `receiveHandoffLinks`. This supersedes the first version of
 this record, which cleared the fragment at the top of the page's `onMount`, listened for
 `hashchange` there, and built tab-switch URLs from `location` because `page.url` kept the fragment.
