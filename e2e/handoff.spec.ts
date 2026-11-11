@@ -6,7 +6,7 @@ const cityLights: string = JSON.parse(
 	readFileSync('scripts/fixtures/city-lights.json', 'utf8')
 ).lyrics;
 const geniusUrl = 'https://genius.com/Example-city-lights-lyrics';
-const opened = "Opened City Lights as a new 'scribe.";
+const opened = "Opened the linked lyrics as a new 'scribe.";
 const refused = "This link's lyrics could not be read, so no 'scribe was created.";
 
 function editor(page: Page): Locator {
@@ -61,12 +61,15 @@ test('a hand-over link opens its lyric as a new draft and leaves the address bar
 }) => {
 	await page.goto(await cityLightsLink());
 
+	// The confirmation waits for the workspace, so it is checked first and the
+	// editor is already there when it shows.
+	await expect(toasts(page).getByText(opened)).toBeVisible();
+	await expect(editor(page)).toBeVisible();
+	await expect(page.getByTestId('live-region')).toHaveText(opened);
 	await expect.poll(() => docText(page)).toBe(cityLights);
 	await expect(page.getByRole('textbox', { name: "'Scribe title" })).toHaveValue('City Lights');
 	expect(new URL(page.url()).hash).toBe('');
 	expect(new URL(page.url()).pathname).toBe('/workbench/');
-	await expect(toasts(page).getByText(opened)).toBeVisible();
-	await expect(page.getByTestId('live-region')).toHaveText(opened);
 
 	await page.getByRole('tab', { name: 'Song' }).click();
 	await expect(page.getByRole('link', { name: 'Open Genius page' })).toHaveAttribute(
@@ -120,3 +123,39 @@ test('a damaged link is refused and creates no draft', async ({ page }) => {
 	expect(new URL(page.url()).hash).toBe('');
 	expect(await savedDraftTitles(page)).toEqual(['First']);
 });
+
+for (const entry of ['a fresh boot', 'a fragment-only navigation']) {
+	test(`after ${entry}, the router never holds the payload, so Back opens nothing twice`, async ({
+		page
+	}) => {
+		const link = await cityLightsLink();
+		const payload = link.slice(link.indexOf('.') + 1);
+		if (entry === 'a fragment-only navigation') await writeFirstDraft(page, '[Verse]\nFirst');
+		const before = entry === 'a fresh boot' ? [] : ['First'];
+
+		await page.goto(link);
+		await expect.poll(() => docText(page)).toBe(cityLights);
+		// A tab switch is a shallow navigation, which writes `page.url` into
+		// `history.state`.
+		await page.getByRole('tab', { name: 'Song' }).click();
+		await expect(page).toHaveURL(/[?&]panel=song/u);
+		const state = await page.evaluate(() => JSON.stringify(history.state));
+		expect(state).toContain('pageUrl');
+		expect(state).not.toContain(payload);
+		expect(state).not.toContain('#open=');
+
+		await page.evaluate(() => {
+			const away = document.createElement('a');
+			away.href = '/docs/';
+			document.body.append(away);
+			away.click();
+		});
+		await expect(page).toHaveURL(/\/docs\/$/u);
+		await page.goBack();
+		await expect.poll(() => docText(page)).toBe(cityLights);
+		expect(page.url()).not.toContain('#open=');
+		expect(await page.evaluate(() => JSON.stringify(history.state))).not.toContain(payload);
+
+		expect((await savedDraftTitles(page)).sort()).toEqual([...before, 'City Lights'].sort());
+	});
+}

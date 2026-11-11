@@ -31,6 +31,7 @@
 	import Workspace from '#lib/ui/layout/Workspace.svelte';
 	import { finishWorkbenchNavigation } from '#lib/ui/layout/workbench-navigation.js';
 	import { useFeedbackState } from '#lib/ui/state/feedback.svelte.js';
+	import { receiveHandoffLinks } from '#lib/ui/state/handoff-links.js';
 	import { guardWorkbenchTab, type TabGuard } from '#lib/ui/state/tab-guard.js';
 	import { ensurePersistentStorage } from '#lib/ui/state/storage-persistence.svelte.js';
 	import {
@@ -90,31 +91,9 @@
 		};
 	}
 
-	/**
-	 * A link from another page can hand over a lyric in the fragment, which no
-	 * request carries. It leaves the address bar and this history entry before
-	 * anything awaits, so a reload or a Back press cannot open it twice.
-	 */
-	function takeHandoff(): string | undefined {
-		const fragment = location.hash;
-		if (!fragment.startsWith('#open=')) return undefined;
-		history.replaceState(history.state, '', `${location.pathname}${location.search}`);
-		return fragment;
-	}
-
 	onMount(() => {
 		let cancelled = false;
-
-		const handoff = takeHandoff();
-		let markReady: (ready: WorkbenchController) => void = () => {};
-		const ready = new Promise<WorkbenchController>((resolve) => (markReady = resolve));
-		// The same link followed in a tab already showing the workbench changes
-		// only the fragment, which reloads nothing.
-		const onHashChange = () => {
-			const next = takeHandoff();
-			if (next) void ready.then((opened) => opened.openHandoff(next));
-		};
-		window.addEventListener('hashchange', onHashChange);
+		let stopHandoffs: (() => void) | undefined;
 
 		/**
 		 * One workbench per browser profile, and this tab waits for it.
@@ -198,9 +177,7 @@
 					feedback,
 					initialActiveTab: rightPanelTabFromUrl(page.url),
 					onActiveTabChange: (tab) => {
-						// The address bar, not `page.url`, which still holds a hand-over
-						// fragment removed outside the router.
-						const next = urlForRightPanelTab(new URL(location.href), tab);
+						const next = urlForRightPanelTab(page.url, tab);
 						// SAFETY: `URL.search` is empty or opens with `?`, and `URL.hash` is
 						// empty or opens with `#`, so this is one of exactly the three route
 						// shapes named here, which a template literal type cannot express.
@@ -217,14 +194,19 @@
 						return snapshot;
 					}
 				});
-				// Opened before the workspace first draws, so the editor mounts on the
-				// handed-over lyric rather than flashing the draft it replaces.
-				if (handoff) {
-					await created.openHandoff(handoff);
+				// A link captured at boot (`handoff-links.ts`) is opened before the
+				// workspace first draws, so the editor mounts on the handed-over lyric
+				// rather than flashing the draft it replaces. Later ones, such as the
+				// same link followed in a tab already on the workbench, open in place.
+				let opening: Promise<boolean> | undefined;
+				stopHandoffs = receiveHandoffLinks((fragment) => {
+					opening = created.openHandoff(fragment);
+				});
+				if (opening) {
+					await opening;
 					if (cancelled) return;
 				}
 				controller = created;
-				markReady(created);
 			} catch (error) {
 				if (!cancelled) {
 					bootError = "Local storage is unavailable, so 'scribes cannot be saved in this browser.";
@@ -246,7 +228,7 @@
 		document.addEventListener('visibilitychange', flushWhenHidden);
 		return () => {
 			cancelled = true;
-			window.removeEventListener('hashchange', onHashChange);
+			stopHandoffs?.();
 			document.removeEventListener('visibilitychange', flushWhenHidden);
 		};
 	});
