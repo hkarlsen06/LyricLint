@@ -721,6 +721,17 @@ describe('createAppleMusicSource', () => {
 		});
 	});
 
+	it('names the reason MusicKit gives for a refused queue', async () => {
+		const refusal = Object.assign(new Error('Queue'), { errorCode: 'CONTENT_RESTRICTED' });
+		const { instance } = stubMusic({ setQueue: vi.fn(async () => Promise.reject(refusal)) });
+		const { source, events } = build(instance);
+		await source.load(songId);
+
+		expect(events.log).toContain(
+			'failed:This song is explicit, and your Apple ID blocks explicit content.'
+		);
+	});
+
 	it('reports rejected play and seek presses, and settles a rejected stop', async () => {
 		const { instance, emit } = stubMusic({
 			play: vi.fn(async () => Promise.reject(new Error('subscription lapsed'))),

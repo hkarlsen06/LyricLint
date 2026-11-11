@@ -349,7 +349,10 @@ function appleSignInMessage(outcome: AppleAuthorizationOutcome): string | undefi
  * MusicKit's `MKError` getter; a `DOMException` (Safari refusing `play()`)
  * carries its `name` instead.
  */
-export function playbackFailureMessage(error: unknown): string {
+export function playbackFailureMessage(
+	error: unknown,
+	fallback = 'Apple Music could not play that song.'
+): string {
 	const code =
 		typeof error === 'object' &&
 		error !== null &&
@@ -377,9 +380,9 @@ export function playbackFailureMessage(error: unknown): string {
 		case 'TOKEN_EXPIRED':
 			return 'Apple Music did not accept your sign-in.';
 		case undefined:
-			return 'Apple Music could not play that song.';
+			return fallback;
 		default:
-			return `Apple Music could not play that song (${code}).`;
+			return `${fallback.slice(0, -1)} (${code}).`;
 	}
 }
 
@@ -1003,13 +1006,13 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			if (startTime !== 0) queue.startTime = startTime;
 			try {
 				await instance.setQueue(queue);
-			} catch {
+			} catch (error: unknown) {
 				// A newer load or a detach superseded this one while the queue was
 				// building, so the refusal belongs to a song nothing is attached to:
 				// reporting it would put an error on the strip about the song the user
 				// has just moved off. The same guard `play`'s own rebuild makes.
 				if (songId !== nextSongId) return;
-				events.failed('Apple Music would not queue that song.');
+				events.failed(playbackFailureMessage(error, 'Apple Music would not queue that song.'));
 				return;
 			}
 			// And a superseded queue that *succeeded* must not claim the bookkeeping

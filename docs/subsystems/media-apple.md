@@ -40,7 +40,7 @@ Touches: `src/lib/ui/state/media-apple.ts`, `scripts/apple-music-token.mjs`
   `composerName` passed through unsplit, the label is the played release's. Absent fields
   are left out, not emptied. The read asks `include=albums` for the label.
 - A refused play names its reason. `playbackFailureMessage` reads MusicKit's `errorCode` (or a
-  `DOMException`'s `name`) from both `mediaPlaybackError` and a rejected `play()`/`seekToTime`,
+  `DOMException`'s `name`) from `mediaPlaybackError` and a rejected `setQueue`, `play()` or `seekToTime`,
   gives a sentence to the codes a user can act on (`DEVICE_LIMIT` first), and appends any other
   code in parentheses. MusicKit's logger is silent by default, so the strip is the only place the
   reason shows.
