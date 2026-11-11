@@ -748,7 +748,7 @@ describe('one row per decision', () => {
 	);
 
 	test.each([
-		['the default desktop panel', 372],
+		['the default desktop panel', 363],
 		['a 390px phone', 390]
 	])('keeps a grouped row’s meta on one line in %s', async (_label, width) => {
 		const { controller } = lintedWorkbench(cityLightsPasted);

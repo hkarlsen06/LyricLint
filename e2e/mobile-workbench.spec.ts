@@ -341,11 +341,11 @@ test('phone review steps through a decision’s places and sets one aside', asyn
 	});
 	// Two places that ask the same question are one row.
 	await expect(findings).toHaveCount(1);
-	await expect(page.locator('.diagnostic-list')).toContainText('2 places, lines 2 to 3');
+	await expect(page.locator('.diagnostic-list')).toContainText('2 places');
 	await findings.click();
-	await expect(page.locator('.diagnostic-list')).toContainText('Place 1 of 2');
+	await expect(page.locator('.diagnostic-list')).toContainText('Place 1 of 2, line 2');
 	await page.getByRole('button', { name: 'Next place', exact: true }).click();
-	await expect(page.locator('.diagnostic-list')).toContainText('Place 2 of 2');
+	await expect(page.locator('.diagnostic-list')).toContainText('Place 2 of 2, line 3');
 	await page.getByRole('button', { name: 'Previous place', exact: true }).click();
 	await expect(page.locator('.diagnostic-list')).toContainText('Place 1 of 2');
 	await page.getByRole('button', { name: 'Ignore', exact: true }).click();
