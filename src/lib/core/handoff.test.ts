@@ -140,4 +140,14 @@ describe('handoff optional fields', () => {
 		expect(await decode('   ')).toBeUndefined();
 		expect(await decode(['City Lights'])).toBeUndefined();
 	});
+
+	test('makes the title one plain line', async () => {
+		const decode = async (title: string) =>
+			(await decodeHandoff(await fragmentFor(JSON.stringify({ text: 'Line', title }))))?.title;
+		expect(await decode('City\nLights')).toBe('City Lights');
+		expect(await decode('City \r\n\t Lights Remix\u0085Live')).toBe('City Lights Remix Live');
+		expect(await decode('‮gnos‬ ⁧שלום⁩ ⁦x⁩')).toBe('gnos שלום x');
+		expect(await decode('\u0000\u001B[31m\u007F')).toBe('[31m');
+		expect(await decode('\n‮⁩\n')).toBeUndefined();
+	});
 });

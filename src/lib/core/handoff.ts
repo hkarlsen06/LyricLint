@@ -22,6 +22,12 @@ export const maxHandoffPayloadLength = 400_000;
 export const maxHandoffInflatedBytes = 1_048_576;
 /** In code points, so a cut never splits a surrogate pair. */
 export const maxHandoffTitleLength = 200;
+/**
+ * How many compressed bytes the decompressor is given at a time. Deflate
+ * expands at most about 1,032 times, so one slice can inflate to about 264 KB
+ * before the byte count sees it.
+ */
+const inflateSliceBytes = 256;
 
 /** The URL fragment, `#open=1.<payload>`, that carries `handoff`. */
 export async function encodeHandoff(handoff: DraftHandoff): Promise<string> {
@@ -38,8 +44,8 @@ export async function encodeHandoff(handoff: DraftHandoff): Promise<string> {
  * Read a fragment written by `encodeHandoff`, or `null` when it is not one.
  *
  * Any website can link here, so every byte is untrusted: the payload is
- * size-checked before it is decoded and the inflated stream is counted while it
- * is read, which stops a small payload that inflates to gigabytes at the limit.
+ * size-checked before it is decoded, and the inflated stream is counted while it
+ * is read, so a payload that would inflate to about 300 MB stops at the limit.
  */
 export async function decodeHandoff(fragment: string): Promise<DraftHandoff | null> {
 	if (!fragment.startsWith(fragmentPrefix)) return null;
@@ -63,7 +69,10 @@ export async function decodeHandoff(fragment: string): Promise<DraftHandoff | nu
 
 	const handoff: DraftHandoff = { text };
 	if (typeof title === 'string') {
-		const trimmed = Array.from(title.trim()).slice(0, maxHandoffTitleLength).join('').trim();
+		const trimmed = Array.from(plainLine(title).trim())
+			.slice(0, maxHandoffTitleLength)
+			.join('')
+			.trim();
 		if (trimmed) handoff.title = trimmed;
 	}
 	const url = normalizeGeniusUrl(geniusUrl);
@@ -71,11 +80,34 @@ export async function decodeHandoff(fragment: string): Promise<DraftHandoff | nu
 	return handoff;
 }
 
+/**
+ * The title as one plain line: the toolbar and the drafts menu show it, and a
+ * page that wrote the link chose every character. Line breaks and control
+ * characters become one space, and direction overrides and isolates go.
+ */
+function plainLine(title: string): string {
+	return title
+		.replace(/(?: *[\p{Cc}\p{Zl}\p{Zp}] *)+/gu, ' ')
+		.replace(/[\u202A-\u202E\u2066-\u2069]/gu, '');
+}
+
+/**
+ * Inflate `bytes`, or `null` past `maxHandoffInflatedBytes`. The input goes in
+ * one small slice at a time, each waiting for the reader, because a browser can
+ * inflate a whole input chunk before the reader sees any of its output.
+ */
 async function readInflated(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array | null> {
-	const reader = new Blob([bytes])
-		.stream()
-		.pipeThrough(new DecompressionStream('deflate-raw'))
-		.getReader();
+	const stream = new DecompressionStream('deflate-raw');
+	const writer = stream.writable.getWriter();
+	const reader = stream.readable.getReader();
+	// A failed write also errors the read side, which is where it is reported.
+	void (async () => {
+		for (let offset = 0; offset < bytes.byteLength; offset += inflateSliceBytes) {
+			await writer.write(bytes.subarray(offset, offset + inflateSliceBytes));
+		}
+		await writer.close();
+	})().catch(() => {});
+
 	const chunks: Uint8Array[] = [];
 	let total = 0;
 	for (;;) {
