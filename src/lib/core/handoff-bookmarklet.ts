@@ -19,8 +19,32 @@ export async function openInLyricLint(workbenchUrl: string, maxPayloadLength: nu
 	const focused = document.activeElement;
 	let text: string;
 	if (focused instanceof HTMLTextAreaElement) text = focused.value;
-	else if (focused instanceof HTMLElement && focused.isContentEditable) text = focused.innerText;
-	else text = String(getSelection() ?? '');
+	else if (focused instanceof HTMLElement && focused.isContentEditable) {
+		// `innerText` reads a browser's blank line, `<div><br></div>`, as two
+		// line breaks, so every stanza break would double.
+		text = '';
+		const read = (node: Node) => {
+			for (const child of node.childNodes) {
+				if (child instanceof Text) {
+					const space = getComputedStyle(child.parentElement ?? focused).whiteSpace;
+					// Collapsed as the page draws it, unless the box keeps its spacing.
+					text += /^(pre|break-spaces)/.test(space)
+						? child.data
+						: child.data.replace(/[ \t\n\r\f]+/g, ' ');
+				} else if (child instanceof HTMLBRElement) text += '\n';
+				else if (child instanceof Element) {
+					const display = getComputedStyle(child).display;
+					if (display === 'none') continue;
+					const block = !display.startsWith('inline');
+					if (block && text !== '' && !text.endsWith('\n')) text += '\n';
+					read(child);
+					if (block && !text.endsWith('\n')) text += '\n';
+				}
+			}
+		};
+		read(focused);
+		text = text.replace(/^ +| +$/gm, '').replace(/\n$/, '');
+	} else text = String(getSelection() ?? '');
 	if (text.trim() === '') {
 		alert('Click into the lyrics box first, then press Open in LyricLint again.');
 		return;
