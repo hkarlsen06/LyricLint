@@ -302,7 +302,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		readClipboard,
 		// `panel` is declared below and only read when a replacement actually
 		// dispatches, which is long after this module has finished evaluating.
-		onBeforeReplace: () => panel.leadOnNextSnapshot()
+		aroundReplace: (dispatch) => panel.leadOnNextSnapshot(dispatch)
 	});
 
 	// The anchors this draft is known to have, not a one-shot hand-off. Every

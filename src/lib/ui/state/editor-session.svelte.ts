@@ -15,12 +15,13 @@ interface EditorSessionDependencies {
 	copy: (text: string) => Promise<void>;
 	readClipboard: () => Promise<string>;
 	/**
-	 * Called immediately before a whole-document replacement is dispatched, so
-	 * the panel can arm its hand-off to the leading finding. It has to run before
-	 * the dispatch, because the editor emits the re-linted snapshot from inside
-	 * it, and it must not run on a paste that never reached the document.
+	 * Runs a whole-document replacement's dispatch, so the panel can arm its
+	 * hand-off to the leading finding around it. Arming has to come before the
+	 * dispatch, because the editor emits the re-linted snapshot from inside it,
+	 * and must not outlive a dispatch that threw or a paste that never reached
+	 * the document.
 	 */
-	onBeforeReplace?: () => void;
+	aroundReplace?: (dispatch: () => void) => void;
 }
 
 interface EditorSession {
@@ -66,16 +67,18 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 	// would arrive unbound.
 	function replaceDocument(text: string, announcement: string): void {
 		const current = snapshot;
-		deps.onBeforeReplace?.();
-		editor.dispatchAtomic({
-			baseRevision: current.revision,
-			edits: [{ from: 0, to: current.text.length, insert: text }],
-			// The top of the document, not the end of the insert. Whatever arrives
-			// this way is a document the reader has not read yet, and the panel is
-			// about to select its leading finding anyway; a caret parked on the last
-			// line would put the wash below everything they are about to look at.
-			selectionAfter: { anchor: 0, head: 0 }
-		});
+		const dispatch = () =>
+			editor.dispatchAtomic({
+				baseRevision: current.revision,
+				edits: [{ from: 0, to: current.text.length, insert: text }],
+				// The top of the document, not the end of the insert. Whatever arrives
+				// this way is a document the reader has not read yet, and the panel is
+				// about to select its leading finding anyway; a caret parked on the last
+				// line would put the wash below everything they are about to look at.
+				selectionAfter: { anchor: 0, head: 0 }
+			});
+		if (deps.aroundReplace) deps.aroundReplace(dispatch);
+		else dispatch();
 		deps.feedback.announce(announcement);
 	}
 

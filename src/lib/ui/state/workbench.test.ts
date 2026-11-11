@@ -1069,6 +1069,57 @@ describe('workbench diagnostic navigation', () => {
 		});
 	});
 
+	describe('the order Review draws', () => {
+		const text = '[Verse]\n' + 'la\n'.repeat(20);
+		const second = draft('draft-b', text);
+		const marker = (message: string, from: number): Diagnostic => ({
+			...diagnostic,
+			message,
+			from,
+			to: from + 1
+		});
+		const messages = (controller: ReturnType<typeof setup>['controller']) =>
+			controller.reviewDecisions.map((decision) => decision.members[0]!.message);
+		/** Draws X above Y, then moves X below Y the way answering its first place would. */
+		function heldOutOfRank() {
+			const record = draft('draft-a', text);
+			const workbench = setup({ initial: record, drafts: [record, second] });
+			const { controller } = workbench;
+			controller.onSnapshot({
+				...snapshot(record, 1),
+				diagnostics: [marker('X', 10), marker('Y', 20)]
+			});
+			expect(messages(controller)).toEqual(['X', 'Y']);
+			controller.onSnapshot({
+				...snapshot(record, 2),
+				diagnostics: [marker('X', 30), marker('Y', 20)]
+			});
+			expect(messages(controller)).toEqual(['X', 'Y']);
+			return { ...workbench, record };
+		}
+
+		// A stale replacement throws from the dispatch. Left armed, the release and
+		// the lead would fire on whatever the reader typed next.
+		test('arms nothing when the replacement throws', () => {
+			const { controller, editor, record } = heldOutOfRank();
+			const selections: unknown[] = [];
+			editor.setSelection = (selection) => selections.push(selection);
+			editor.dispatchAtomic = () => {
+				throw new Error('stale');
+			};
+
+			expect(() => controller.loadSample()).toThrow('stale');
+			controller.onSnapshot({
+				...snapshot(record, 3),
+				diagnostics: [marker('X', 31), marker('Y', 20)]
+			});
+
+			expect(messages(controller)).toEqual(['X', 'Y']);
+			expect(selections).toEqual([]);
+			expect(controller.activeDiagnosticKey).toBeUndefined();
+		});
+	});
+
 	// The three refusals of the toolbar's one contrast action. Each used to reach
 	// the `sr-only` live region and nothing else, which on the empty document the
 	// paste button appears over is a pixel-identical screen: the caret moves into

@@ -145,9 +145,10 @@ interface PanelView {
 	 * edit that did not come from a fix. Replacing the whole document has the
 	 * same problem applying a fix does: the panel leads with a diagnostic while
 	 * the wash stays wherever the edit left the caret, describing a place the
-	 * reader is not looking.
+	 * reader is not looking. `replace` dispatches the edit; if it throws, nothing
+	 * stays armed for the next keystroke.
 	 */
-	leadOnNextSnapshot(): void;
+	leadOnNextSnapshot(replace: () => void): void;
 }
 
 export function createPanelView(deps: PanelViewDependencies): PanelView {
@@ -616,12 +617,19 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 				}
 			});
 		},
-		leadOnNextSnapshot() {
+		leadOnNextSnapshot(replace) {
 			releaseOnNextSnapshot = true;
 			aimedOccurrence = undefined;
 			passageFrom = undefined;
 			leadDecision = undefined;
 			leadPending = true;
+			try {
+				replace();
+			} catch (error) {
+				releaseOnNextSnapshot = false;
+				leadPending = false;
+				throw error;
+			}
 		},
 		recordAcceptedOccurrence(key) {
 			if (ignoredDiagnosticKeys.includes(key)) return;
