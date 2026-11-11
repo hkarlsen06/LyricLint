@@ -262,10 +262,13 @@
 				(child) => !child.contains(card) && getComputedStyle(child).position === 'sticky'
 			);
 			const covered = header?.getBoundingClientRect().height ?? 0;
-			if (card.offsetHeight > port.clientHeight - covered) {
-				port.scrollTop +=
-					card.getBoundingClientRect().top - port.getBoundingClientRect().top - covered;
-			} else card.scrollIntoView({ block: 'nearest' });
+			const view = port.getBoundingClientRect();
+			const box = card.getBoundingClientRect();
+			const top = view.top + covered;
+			// Like `block: 'nearest'`, but measured from below the header, and a
+			// row too tall to fit shows its heading rather than its end.
+			if (box.top < top || box.height > view.bottom - top) port.scrollTop += box.top - top;
+			else if (box.bottom > view.bottom) port.scrollTop += box.bottom - view.bottom;
 		});
 	});
 
