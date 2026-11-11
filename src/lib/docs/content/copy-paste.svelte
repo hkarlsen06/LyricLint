@@ -58,17 +58,20 @@
 	words themselves are not changed.
 </p>
 
-<div class="bookmarklet">
+<div>
 	<h2 id="bookmarklet">Open Genius lyrics with a bookmarklet</h2>
 	<p>
 		The <strong>Open in LyricLint</strong> bookmarklet opens the lyrics you are editing on Genius as
 		a new 'scribe in a new tab. The 'scribe you have open stays as it was.
 	</p>
-	<p>
+	<p class="bookmarklet__phone">
+		It needs a desktop browser's bookmarks bar, so open this page on a computer to add it.
+	</p>
+	<p class="bookmarklet__desktop">
 		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- a bookmarklet is dragged to the bookmarks bar, not followed. -->
 		<a class="button" href={handoffBookmarklet()}>Open in LyricLint</a>
 	</p>
-	<ol>
+	<ol class="bookmarklet__desktop">
 		<li>Drag <strong>Open in LyricLint</strong> to your browser's bookmarks bar.</li>
 		<li>On a Genius lyrics editing page, click into the lyrics box.</li>
 		<li>Press <strong>Open in LyricLint</strong> in the bookmarks bar.</li>
@@ -113,11 +116,19 @@
 <style>
 	/*
 	 * A bookmarks bar belongs to a desktop browser and is filled by dragging with
-	 * a mouse, so phones, in either orientation, and narrow windows go without.
-	 * The first query is `PHONE_LAYOUT_QUERY`.
+	 * a mouse, so phones, in either orientation, and narrow windows get the
+	 * heading and a pointer to a computer instead of the link. The heading stays
+	 * so that docs search never leads to nothing. The first query is
+	 * `PHONE_LAYOUT_QUERY`.
 	 */
+	.bookmarklet__phone {
+		display: none;
+	}
 	@media (pointer: coarse) and (max-width: 68rem), (max-width: 40rem) {
-		.bookmarklet {
+		.bookmarklet__phone {
+			display: block;
+		}
+		.bookmarklet__desktop {
 			display: none;
 		}
 	}

@@ -139,14 +139,16 @@ test('the copy and paste page offers the Genius bookmarklet as one draggable lin
 test.describe('on a phone', () => {
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
-	test('the copy and paste page leaves out the bookmarklet, which needs a bookmarks bar', async ({
+	test('the copy and paste page points to a computer for the bookmarklet, which needs a bookmarks bar', async ({
 		page
 	}) => {
-		await visit(page, '/docs/copy-paste/');
-		await expect(page.getByRole('heading', { level: 2, name: 'Paste from Genius' })).toBeVisible();
-		await expect(
-			page.getByRole('heading', { level: 2, name: 'Open Genius lyrics with a bookmarklet' })
-		).toBeHidden();
+		await visit(page, '/docs/copy-paste/#bookmarklet');
+		const heading = page.getByRole('heading', {
+			level: 2,
+			name: 'Open Genius lyrics with a bookmarklet'
+		});
+		await expect(heading).toBeInViewport();
+		await expect(page.getByText('open this page on a computer to add it')).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Open in LyricLint' })).toBeHidden();
 		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
 			390

@@ -70,7 +70,11 @@ The roadmap's round trip starts with `Open in LyricLint` on a Genius editing pag
 does that with no install, no store review, and no permission over Genius: it runs only when
 pressed, reads only what the transcriber has focused or selected, and hands the lyric over in a
 URL fragment, which no request carries. It reads no Genius selector, so a redesign of the Genius
-editor does not break it as long as the lyrics box is a textarea or an editable box. The way back
+editor does not break it as long as the lyrics box is a textarea or an editable box. An editable
+box is read node by node rather than through `innerText`, which reads a browser's blank line
+(`<div><br></div>`) as two line breaks and doubles every stanza break. On a phone the section keeps
+its heading and says to open the page on a computer, because docs search lists the heading and a
+search result must land on something. The way back
 stays `Copy lyrics`, `Open Genius page`, and a paste; a `Send back` control needs the extension.
 
 The link is a link rather than a `Copy bookmarklet` button because nothing refused it. The page's
