@@ -366,7 +366,9 @@ export function playbackFailureMessage(error: unknown): string {
 		case 'STREAM_UPSELL':
 			return 'Apple Music needs an active subscription to play full songs.';
 		case 'CONTENT_RESTRICTED':
-			return 'Apple Music restricts this song on your account.';
+			// MusicKit raises this for an explicit song when the Apple ID blocks
+			// explicit content (its queue drops `isExplicitItem` songs).
+			return 'This song is explicit, and your Apple ID blocks explicit content.';
 		case 'CONTENT_UNAVAILABLE':
 		case 'GEO_BLOCK':
 			return 'Apple Music cannot stream this song in your region.';
