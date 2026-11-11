@@ -600,6 +600,30 @@ describe('one row per decision', () => {
 	});
 
 	test.each([390, 1350])(
+		'draws the stepper under the meta line that counts the places at %ipx',
+		async (width) => {
+			await page.viewport(width, 844);
+			try {
+				const { controller } = lintedWorkbench(cityLightsPasted);
+				await render(LinterPanel, { controller });
+				await fireEvent.click(commaRow());
+				const row = commaRow().closest('li')!;
+				const meta = row.querySelector('.diagnostic-meta')!;
+				const places = screen.getByRole('group', { name: 'Places' });
+				expect(meta.nextElementSibling).toBe(places);
+				expect(places.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+					meta.getBoundingClientRect().bottom
+				);
+				expect(places.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+					row.querySelector('.diagnostic-explanation')!.getBoundingClientRect().top
+				);
+			} finally {
+				await page.viewport(800, 600);
+			}
+		}
+	);
+
+	test.each([390, 1350])(
 		'holds the open row still and opens its next place after a fix at %ipx',
 		async (width) => {
 			await page.viewport(width, 940);
@@ -893,6 +917,56 @@ describe('one row per decision', () => {
 
 		await waitFor(() => expect(rowTexts()).toEqual(['A', 'Y'].map(marker)));
 		expect(rowFor(marker('A')).classList.contains('diagnostic-card--expanded')).toBe(true);
+	});
+
+	/** The row's height with every reserve it carries taken off. */
+	async function unreservedHeight(row: HTMLElement): Promise<number> {
+		for (const styled of row.querySelectorAll<HTMLElement>('[style]'))
+			styled.removeAttribute('style');
+		await frame();
+		return row.getBoundingClientRect().height;
+	}
+
+	test.each([
+		['a grouped row on its tallest place', cityLightsPasted, comma],
+		['a row with one place', '[Verse]\nKeep going,\nStill here', comma]
+	])('adds not even a fraction of a pixel to %s', async (_label, text, message) => {
+		const { controller } = lintedWorkbench(text);
+		const view = await render(LinterPanel, { controller });
+		view.container.style.width = '390px';
+		// A font size that sets no line on a whole pixel, so a rounded reserve shows.
+		view.container.style.setProperty('--font-size-sm', '13.3px');
+		await fireEvent.click(rowFor(message).querySelector('button')!);
+		if (!rowFor(message).classList.contains('diagnostic-card--expanded'))
+			await fireEvent.click(rowFor(message).querySelector('button')!);
+		await frame();
+		const row = rowFor(message);
+		const height = row.getBoundingClientRect().height;
+		expect(Number.isInteger(height)).toBe(false);
+		expect(await unreservedHeight(row)).toBe(height);
+	});
+
+	test('measures its reserve afresh when the panel gets wider', async () => {
+		const { controller } = lintedWorkbench(
+			'[Verse]\nOne line\n\nChorus\nTwo line\n\nchorus\nThree line\n\nCHORUS:\nFour line'
+		);
+		const view = await render(LinterPanel, { controller });
+		const row = () => view.container.querySelector<HTMLElement>('.diagnostic-card--expanded')!;
+		view.container.style.width = '260px';
+		await frame();
+		const narrow = row().getBoundingClientRect().height;
+		view.container.style.width = '440px';
+		await frame();
+		await frame();
+		const widened = row().getBoundingClientRect().height;
+
+		// Opened afresh at the wider width, the row reserves only what that width needs.
+		const head = row().querySelector('button')!;
+		await fireEvent.click(head);
+		await fireEvent.click(head);
+		await frame();
+		expect(widened).toBeLessThan(narrow);
+		expect(widened).toBe(row().getBoundingClientRect().height);
 	});
 
 	test.each([

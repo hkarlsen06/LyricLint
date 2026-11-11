@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Diagnostic, SourceReference, TextRange } from '#lib/core/types.js';
 	import { tick, type Snippet } from 'svelte';
+	import type { Attachment } from 'svelte/attachments';
 	import BookOpenIcon from 'phosphor-svelte/lib/BookOpenIcon';
 	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeftIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
@@ -168,11 +169,9 @@
 	const currentIndex = $derived(rows.findIndex((row) => row.key === selectedKey));
 	const shownMember = (row: Decision) =>
 		row.key === selectedKey && selected ? selected.member : row.members[0]!;
-	const placeLabel = $derived(
-		selected
-			? `Place ${place + 1} of ${selected.row.members.length}${lineFor ? `, line ${lineFor(selected.member.from)}` : ''}`
-			: ''
-	);
+	const placeText = (row: Decision, index: number) =>
+		`Place ${index + 1} of ${row.members.length}${lineFor ? `, line ${lineFor(row.members[index]!.from)}` : ''}`;
+	const placeLabel = $derived(selected ? placeText(selected.row, place) : '');
 
 	// A choice belongs to the row it was made on. A row that leaves the list takes
 	// its choice with it, so the same question arriving later starts fresh. Read
@@ -189,21 +188,54 @@
 			chosenKey = undefined;
 	});
 
-	// The open row's reserved heights in pixels: its explanation's, measured from
-	// the tallest of its places at the current width, and its body's, so the
-	// stepper's slot outlives the stepper. Both only grow while the row stays
-	// open, so neither stepping nor answering moves its actions or the rows below.
-	let reserve = $state<{ key: string; explanation: number; body: number }>();
+	// The open grouped row's reserved heights in pixels: its explanation's, the
+	// tallest of its places' at the current width, and what sits under the
+	// explanation, which loses `Fix all` when one place is left. Neither stepping
+	// nor answering moves its actions or the rows below. Each only grows while
+	// the row stays open at one width, and a new width measures afresh. A row
+	// that opens with one place reserves nothing.
+	type Extent = { width: number; height: number };
+	let reserve = $state<{ key: string; explanation?: Extent; actions?: Extent }>();
 	const openReserve = $derived(reserve?.key === expandedKey ? reserve : undefined);
+	const reserving = $derived(
+		expandedKey !== undefined &&
+			selected?.row.key === expandedKey &&
+			(selected.row.members.length > 1 || openReserve !== undefined)
+	);
 
 	$effect(() => {
 		if (reserve && reserve.key !== expandedKey) reserve = undefined;
 	});
 
-	function grow(key: string, part: 'explanation' | 'body', height: number): void {
-		const current = reserve?.key === key ? reserve : { key, explanation: 0, body: 0 };
-		if (height > current[part]) reserve = { ...current, [part]: height };
-	}
+	const measure =
+		(
+			key: string,
+			part: 'explanation' | 'actions',
+			height: (element: HTMLElement) => number
+		): Attachment<HTMLElement> =>
+		(element) => {
+			// Unrounded, because `offsetHeight` would add up to half a pixel to the
+			// row; and once on arrival, so the reserve is in place before a press
+			// can land in the first frame.
+			const take = () => {
+				const extent = { width: element.getBoundingClientRect().width, height: height(element) };
+				const kept = reserve?.key === key ? reserve : { key };
+				const current = kept[part];
+				if (current?.width === extent.width && current.height >= extent.height) return;
+				reserve = { ...kept, [part]: extent };
+			};
+			take();
+			const observer = new ResizeObserver(take);
+			observer.observe(element);
+			return () => observer.disconnect();
+		};
+
+	const boxHeight = (element: Element | null | undefined) =>
+		element?.getBoundingClientRect().height ?? 0;
+	// Measured without the explanation, so this reserve never feeds on the other.
+	const belowExplanation = (body: HTMLElement) =>
+		boxHeight(body.querySelector('.diagnostic-details')) -
+		boxHeight(body.querySelector('.diagnostic-explanation'));
 
 	/** Each distinct explanation among a row's places, the candidates for its tallest. */
 	const explanations = (row: Decision) => [
@@ -437,15 +469,48 @@
 						<span class="diagnostic-list__title">{diagnostic.message}</span>
 					</button>
 					<DiagnosticMeta {diagnostic} {sources} location={row.location} />
+					<!-- Under the meta line that counts the places, above the explanation, so
+					     its position never depends on how long the explanation is. The
+					     buttons come first so the count's width cannot push them. A row that
+					     falls to one place keeps the slot while it stays open. -->
+					{#if expanded && row.members.length > 1}
+						<div class="diagnostic-list__places" role="group" aria-label="Places">
+							<button
+								type="button"
+								class="icon-button button--quiet"
+								aria-label="Previous place"
+								disabled={place <= 0}
+								{@attach describeControl(() => ({ label: 'Previous place' }))}
+								onclick={(event) => void stepPlace(-1, event.currentTarget)}
+							>
+								<CaretLeftIcon aria-hidden="true" size={14} weight="bold" />
+							</button>
+							<button
+								type="button"
+								class="icon-button button--quiet"
+								aria-label="Next place"
+								disabled={place >= row.members.length - 1}
+								{@attach describeControl(() => ({ label: 'Next place' }))}
+								onclick={(event) => void stepPlace(1, event.currentTarget)}
+							>
+								<CaretRightIcon aria-hidden="true" size={14} weight="bold" />
+							</button>
+							<span>{placeLabel}</span>
+						</div>
+					{:else if expanded && reserving}
+						<div class="diagnostic-list__places" aria-hidden="true"></div>
+					{/if}
 				</div>
 				{#if expanded}
 					<div
 						class="diagnostic-list__body"
-						style:min-height={openReserve?.body ? `${openReserve.body}px` : undefined}
-						style:--diagnostic-list-explanation-reserve={openReserve?.explanation
-							? `${openReserve.explanation}px`
+						style:min-height={openReserve?.explanation && openReserve.actions
+							? `${openReserve.explanation.height + openReserve.actions.height}px`
 							: undefined}
-						bind:offsetHeight={null, (height) => grow(row.key, 'body', height ?? 0)}
+						style:--diagnostic-list-explanation-reserve={openReserve?.explanation
+							? `${openReserve.explanation.height}px`
+							: undefined}
+						{@attach reserving && measure(row.key, 'actions', belowExplanation)}
 					>
 						<!-- One place's card at a time, keyed by that place's row identity so
 						     another place never inherits its controls. -->
@@ -468,42 +533,15 @@
 								onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic, trigger)}
 							/>
 						{/key}
-						<!-- Under the actions, so its arrival and departure never move them. The
-						     buttons come first so the count's width cannot push them. -->
-						{#if row.members.length > 1}
-							<div class="diagnostic-list__places" role="group" aria-label="Places">
-								<button
-									type="button"
-									class="icon-button button--quiet"
-									aria-label="Previous place"
-									disabled={place <= 0}
-									{@attach describeControl(() => ({ label: 'Previous place' }))}
-									onclick={(event) => void stepPlace(-1, event.currentTarget)}
-								>
-									<CaretLeftIcon aria-hidden="true" size={14} weight="bold" />
-								</button>
-								<button
-									type="button"
-									class="icon-button button--quiet"
-									aria-label="Next place"
-									disabled={place >= row.members.length - 1}
-									{@attach describeControl(() => ({ label: 'Next place' }))}
-									onclick={(event) => void stepPlace(1, event.currentTarget)}
-								>
-									<CaretRightIcon aria-hidden="true" size={14} weight="bold" />
-								</button>
-								<span>{placeLabel}</span>
-							</div>
-						{/if}
 					</div>
 					<!-- Every place's explanation at this width, stacked in one cell so the
 					     cell is as tall as the tallest. The text is drawn from an attribute,
 					     so none of it reaches the page's text or the accessibility tree. -->
-					{#if row.members.length > 1}
+					{#if reserving}
 						<div
 							class="diagnostic-list__reserve"
 							aria-hidden="true"
-							bind:offsetHeight={null, (height) => grow(row.key, 'explanation', height ?? 0)}
+							{@attach measure(row.key, 'explanation', boxHeight)}
 						>
 							{#each explanations(row) as text (text)}
 								<p class="diagnostic-explanation" data-text={text}></p>
@@ -697,10 +735,12 @@
 		font-weight: var(--font-weight-medium);
 	}
 
+	/* As tall as its buttons, so the empty slot a row keeps after falling to one
+	   place is as tall as the stepper was. */
 	.diagnostic-list__places {
 		display: flex;
+		min-height: var(--control-height-md);
 		align-items: center;
-		padding: 0 var(--space-4) var(--space-3);
 		gap: var(--space-1);
 		color: var(--color-text-muted);
 		font-size: var(--font-size-sm);
