@@ -251,5 +251,6 @@ describe('source registry', () => {
 
 	it('contains only the 62 specified source records', () => {
 		expect(sourceRegistry.size).toBe(62);
+		expect([...sourceRegistry.keys()].sort()).toEqual([...reviewedIds].sort());
 	});
 });

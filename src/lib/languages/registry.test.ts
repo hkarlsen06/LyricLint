@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { languageSourceInventory } from './inventory.js';
@@ -39,6 +39,13 @@ describe('language packs', () => {
 		expect(getLanguagePack('ko')).toMatchObject({ policy: 'contextual', reviewed: true });
 		expect(getLanguagePack('xx-ZZ')).toMatchObject({ tag: 'und', reviewed: false });
 		expect(canLintHeaderLanguage(getLanguagePack('xx-ZZ'))).toBe(false);
+	});
+
+	it('registers every pack file in this directory', () => {
+		const packFiles = readdirSync(__dirname)
+			.filter((name) => /^[a-z]{2,3}\.ts$/.test(name))
+			.map((name) => name.slice(0, -'.ts'.length));
+		expect(packFiles.sort()).toEqual(reviewedLanguagePacks.map((pack) => pack.tag).sort());
 	});
 
 	it("gives every reviewed pack's inventory entry the pack's policy", () => {
