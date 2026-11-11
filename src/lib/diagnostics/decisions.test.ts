@@ -4,7 +4,7 @@ import type { Diagnostic } from '#lib/core/types.js';
 import { runRules } from '#lib/rules/engine.js';
 import { ruleContext } from '#lib/rules/rule-test-utils.js';
 import { sampleDraftText } from '#lib/ui/sample-draft.js';
-import { cityLightsPasted } from './decision-fixture.js';
+import { cityLightsPasted } from './decision-test-utils.js';
 import { countDecisions, decisionKey, groupDecisions } from './decisions.js';
 import { orderDiagnostics } from './order.js';
 

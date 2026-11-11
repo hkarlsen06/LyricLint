@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { parseDocument } from '#lib/core/parser.js';
 import type { AtomicDocumentEdit, Diagnostic } from '#lib/core/types.js';
-import { cityLightsPasted } from '#lib/diagnostics/decision-fixture.js';
+import { cityLightsPasted } from '#lib/diagnostics/decision-test-utils.js';
 import { runRules } from '#lib/rules/engine.js';
 import { ruleContext } from '#lib/rules/rule-test-utils.js';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
