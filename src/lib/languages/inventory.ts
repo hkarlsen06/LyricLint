@@ -29,7 +29,7 @@ export const languageSourceInventory: readonly LanguageSourceInventoryEntry[] = 
 		policy: 'contextual',
 		policyNote: `${englishPreferred} Local alternatives may be used in context.`
 	},
-	{ language: 'Danish', tag: 'da', annotationId: 12816647, policy: 'unreviewed' },
+	{ language: 'Danish', tag: 'da', annotationId: 12816647, policy: 'localized' },
 	{
 		language: 'Dutch',
 		tag: 'nl',

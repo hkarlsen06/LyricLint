@@ -1,4 +1,5 @@
 import { arabicLanguagePack } from './ar.js';
+import { danishLanguagePack } from './da.js';
 import { germanLanguagePack } from './de.js';
 import { englishLanguagePack } from './en.js';
 import { spanishLanguagePack } from './es.js';
@@ -23,7 +24,8 @@ export const reviewedLanguagePacks: readonly LanguagePack[] = [
 	koreanLanguagePack,
 	portugueseLanguagePack,
 	italianLanguagePack,
-	swedishLanguagePack
+	swedishLanguagePack,
+	danishLanguagePack
 ];
 
 /** Every reviewed pack's sources, in pack order, each once. */

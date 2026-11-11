@@ -44,6 +44,7 @@ const reviewedIds = [
 	'G-LANG-PT',
 	'G-LANG-IT',
 	'G-LANG-SV',
+	'G-LANG-DA',
 	'G-NUMBERS',
 	'APPLE-LINE-PUNCTUATION',
 	'G-QE-MARKS',
@@ -91,7 +92,7 @@ const sourcedFromIndex = new Set<string>(['G-STREAMING', 'G-REVERSED', 'G-YODELI
 
 // Language-pack annotations captured from operator screenshots. Their rosters
 // were not expanded, so they stay community until a roster check promotes them.
-const capturedLanguagePacks = new Set<string>(['G-LANG-PT', 'G-LANG-IT', 'G-LANG-SV']);
+const capturedLanguagePacks = new Set<string>(['G-LANG-PT', 'G-LANG-IT', 'G-LANG-SV', 'G-LANG-DA']);
 
 function retrievedOn(id: string): string {
 	if (capturedLanguagePacks.has(id)) return '2026-11-11';
@@ -257,8 +258,8 @@ describe('source registry', () => {
 		}
 	});
 
-	it('contains only the 65 specified source records', () => {
-		expect(sourceRegistry.size).toBe(65);
+	it('contains only the 66 specified source records', () => {
+		expect(sourceRegistry.size).toBe(66);
 		expect([...sourceRegistry.keys()].sort()).toEqual([...reviewedIds].sort());
 	});
 });

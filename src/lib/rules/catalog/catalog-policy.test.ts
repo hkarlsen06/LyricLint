@@ -136,7 +136,8 @@ describe('rule regressions', () => {
 		['fr', '[Verse]\nParoles', 'Couplet'],
 		['pt', '[Verse]\nLetra', 'Verso'],
 		['it', '[Verse]\nTesto', 'Strofa'],
-		['sv', '[Verse]\nText', 'Vers']
+		['sv', '[Verse]\nText', 'Vers'],
+		['da', '[Verse]\nTekst', 'Vers']
 	])('uses the reviewed %s header vocabulary', (language, input, replacement) => {
 		const [finding] = diagnostics('section.header-language', input, language);
 		expect(finding?.fixes?.map((fix) => fix.edit.edits[0]?.insert)).toContain(replacement);

@@ -42,6 +42,8 @@ describe('section.header-language', () => {
 		['it', 'Refrain', ['Ritornello']],
 		['sv', 'Refreng', ['Refräng']],
 		['sv', 'Bridge', ['Stick']],
+		['da', 'Chorus', ['Omkvæd']],
+		['da', 'Interlude', ['Mellemstykke', 'Mellemspil']],
 		['en', 'Intermède', ['Interlude']]
 	] as const)('offers reviewed %s alternatives for %s', (language, input, replacements) => {
 		const text = `[${input} 2: Avery]\nA lyric`;
@@ -54,6 +56,14 @@ describe('section.header-language', () => {
 		for (const replacement of replacements) {
 			expect(checkRule(rule, `[${replacement}]\nA lyric`, { language })).toEqual([]);
 		}
+	});
+
+	it('reads Bro as each claiming pack reads it and keeps Norwegian first for the rest', () => {
+		expect(checkRule(rule, '[Bro]\nA lyric', { language: 'da' })).toEqual([]);
+		expect(checkRule(rule, '[Bro]\nA lyric', { language: 'no' })).toEqual([]);
+		const [finding] = checkRule(rule, '[Bro]\nA lyric', { language: 'en' });
+		expect(finding?.explanation).toContain('recognized Norwegian Bridge header');
+		expect(finding?.fixes?.map((fix) => fix.label)).toEqual(['Replace with Bridge']);
 	});
 
 	it.each(reviewedLanguagePacks.map((pack) => [pack.tag, pack] as const))(

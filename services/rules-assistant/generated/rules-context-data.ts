@@ -4,8 +4,8 @@ import type { AssistantCorpus } from './rules-context';
 export const corpus = {
 	formatVersion: 6,
 	ruleSetVersion: '2026.09.21.2',
-	generatedAt: '2026-11-11T02:21:36.018Z',
-	contentHash: '423415434377925abedc55b00899cfec303b2851b3a77683cf5df5aba24f205a',
+	generatedAt: '2026-11-11T02:23:43.383Z',
+	contentHash: 'b18ac31645623190405ab785f77b504e179062fd4f073971455dc0c81ee3b49a',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -230,7 +230,8 @@ export const corpus = {
 				'G-LANG-KO',
 				'G-LANG-PT',
 				'G-LANG-IT',
-				'G-LANG-SV'
+				'G-LANG-SV',
+				'G-LANG-DA'
 			]
 		},
 		{
@@ -2292,6 +2293,14 @@ export const corpus = {
 			authority: 'editorial'
 		},
 		{
+			id: 'G-LANG-DA',
+			pageTitle: 'Song Headers in Different Languages',
+			sectionTitle: 'Reviewed Danish section-header vocabulary',
+			url: 'https://genius.com/12816647',
+			lastVerifiedAt: '2026-11-11',
+			authority: 'community'
+		},
+		{
 			id: 'G-LANG-DE',
 			pageTitle: 'Song Headers in Different Languages',
 			sectionTitle: 'Reviewed German genre-dependent section-header vocabulary',
@@ -2947,6 +2956,23 @@ export const corpus = {
 				{ semanticPart: 'Post-Chorus', terms: ['Post-Refräng'] },
 				{ semanticPart: 'Bridge', terms: ['Stick'] },
 				{ semanticPart: 'Interlude', terms: ['Mellanspel'] },
+				{ semanticPart: 'Outro', terms: ['Outro'] }
+			]
+		},
+		{
+			tag: 'da',
+			displayName: 'Danish',
+			policy: 'localized',
+			headerTerms: [
+				{ semanticPart: 'Instrumental', terms: ['Instrumental'] },
+				{ semanticPart: 'Intro', terms: ['Intro'] },
+				{ semanticPart: 'Verse', terms: ['Vers'] },
+				{ semanticPart: 'Pre-Chorus', terms: ['Bro'] },
+				{ semanticPart: 'Chorus', terms: ['Omkvæd'] },
+				{ semanticPart: 'Post-Chorus', terms: ['Post-omkvæd'] },
+				{ semanticPart: 'Refrain', terms: ['Refræn'] },
+				{ semanticPart: 'Bridge', terms: ['Kontraststykke'] },
+				{ semanticPart: 'Interlude', terms: ['Mellemstykke', 'Mellemspil'] },
 				{ semanticPart: 'Outro', terms: ['Outro'] }
 			]
 		}

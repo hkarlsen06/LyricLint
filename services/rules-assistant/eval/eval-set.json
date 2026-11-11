@@ -321,6 +321,15 @@
 			}
 		},
 		{
+			"id": "lang-da",
+			"category": "language",
+			"language": "da",
+			"question": "Jeg transskriberer en dansk sang. Skal overskrifterne være [Omkvæd] eller [Chorus]?",
+			"expect": {
+				"scopes": ["reviewed", "mixed"]
+			}
+		},
+		{
 			"id": "policy-vs-grammar-comma",
 			"category": "policy-vs-grammar",
 			"language": "en",
