@@ -62,12 +62,32 @@ function mapPoint(point: number, change: ContiguousChange): number | undefined {
 	return undefined;
 }
 
+/**
+ * The changed lines, whole, in the previous text. Harper reads a word with its
+ * neighbours, and in lyrics the line is the sentence: `a` before `apple` turns
+ * stale when `apple` becomes `banana`, and a word typed one letter at a time
+ * only ever grows at its own edge. So nothing on a line a typed edit changed is
+ * carried. A fix is one reviewed replacement and keeps the narrower rule.
+ */
+function changedLines(previousText: string, change: ContiguousChange): TextRange {
+	const lineEnd = previousText.indexOf('\n', change.oldTo);
+	return {
+		from: previousText.lastIndexOf('\n', change.from - 1) + 1,
+		to: lineEnd === -1 ? previousText.length : lineEnd
+	};
+}
+
 function mapUnchangedRange(
 	range: TextRange,
 	change: ContiguousChange,
 	previousText: string,
-	nextText: string
+	nextText: string,
+	typed: boolean
 ): TextRange | undefined {
+	if (typed) {
+		const lines = changedLines(previousText, change);
+		if (range.to >= lines.from && range.from <= lines.to) return undefined;
+	}
 	const mapped = mapRange(range, change);
 	if (
 		!mapped ||
@@ -93,11 +113,12 @@ function mapFix(
 	change: ContiguousChange,
 	revision: number,
 	previousText: string,
-	nextText: string
+	nextText: string,
+	typed: boolean
 ): DiagnosticFix | undefined {
 	const edits: TextEdit[] = [];
 	for (const edit of fix.edit.edits) {
-		const mapped = mapUnchangedRange(edit, change, previousText, nextText);
+		const mapped = mapUnchangedRange(edit, change, previousText, nextText, typed);
 		if (!mapped) return undefined;
 		edits.push({ ...mapped, insert: edit.insert });
 	}
@@ -113,14 +134,15 @@ function mapFix(
  *
  * Native rules answer synchronously, while Harper waits behind its debounce and
  * worker. Without this bridge every fix briefly publishes the native-only list.
- * Findings touched by the edit are dropped; the rest are moved to their new
+ * Findings the edit touched, or on a line a typed edit changed, are dropped; the rest are moved to their new
  * offsets and their fixes are retargeted to the new revision until Harper's
  * authoritative replacement result arrives.
  */
 export function carryHarperDiagnosticsAcrossEdit(
 	previous: Pick<EditorSnapshot, 'revision' | 'text'>,
 	next: Pick<EditorSnapshot, 'revision' | 'text'>,
-	diagnostics: readonly Diagnostic[]
+	diagnostics: readonly Diagnostic[],
+	typed: boolean
 ): Diagnostic[] {
 	const change = contiguousChange(previous.text, next.text);
 	if (!change || next.revision <= previous.revision) return [];
@@ -128,18 +150,18 @@ export function carryHarperDiagnosticsAcrossEdit(
 	const carried: Diagnostic[] = [];
 	diagnosticLoop: for (const diagnostic of diagnostics) {
 		if (!isHarperRuleId(diagnostic.ruleId)) continue;
-		const range = mapUnchangedRange(diagnostic, change, previous.text, next.text);
+		const range = mapUnchangedRange(diagnostic, change, previous.text, next.text, typed);
 		if (!range) continue;
 
 		const sourceRelatedRanges = diagnostic.relatedRanges;
 		const relatedRanges: TextRange[] = [];
 		for (const related of sourceRelatedRanges ?? []) {
-			const mapped = mapUnchangedRange(related, change, previous.text, next.text);
+			const mapped = mapUnchangedRange(related, change, previous.text, next.text, typed);
 			if (!mapped) continue diagnosticLoop;
 			relatedRanges.push(mapped);
 		}
 		const fixes = diagnostic.fixes
-			?.map((fix) => mapFix(fix, change, next.revision, previous.text, next.text))
+			?.map((fix) => mapFix(fix, change, next.revision, previous.text, next.text, typed))
 			.filter((fix): fix is DiagnosticFix => fix !== undefined);
 
 		const moved: Diagnostic = { ...diagnostic, ...range };

@@ -640,7 +640,12 @@
 			// republish of an old snapshot is not an edit, hence the text comparison.
 			const carriedHarper =
 				snapshot.text !== controller.snapshot.text && shouldRunHarper(snapshot)
-					? carryHarperDiagnosticsAcrossEdit(controller.snapshot, snapshot, lastDiagnostics)
+					? carryHarperDiagnosticsAcrossEdit(
+							controller.snapshot,
+							snapshot,
+							lastDiagnostics,
+							!snapshot.atomic
+						)
 					: [];
 			lastDiagnostics = mergeHarperDiagnostics(nativeDiagnostics, carriedHarper);
 			lastLintKey = key;
