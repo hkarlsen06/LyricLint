@@ -121,8 +121,37 @@ test('search opens from the keyboard and follows a section', async ({ page }) =>
 	await expect(dialog).toBeHidden();
 });
 
+test('the copy and paste page offers the Genius bookmarklet as one draggable link', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 1350, height: 900 });
+	await visit(page, '/docs/copy-paste/');
+
+	await expect(
+		page.getByRole('heading', { level: 2, name: 'Open Genius lyrics with a bookmarklet' })
+	).toBeVisible();
+	const bookmarklet = page.getByRole('link', { name: 'Open in LyricLint' });
+	await expect(bookmarklet).toHaveCount(1);
+	await expect(bookmarklet).toHaveAttribute('href', /^javascript:/u);
+	await expect(page.getByRole('button', { name: /bookmarklet/iu })).toHaveCount(0);
+});
+
 test.describe('on a phone', () => {
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+	test('the copy and paste page leaves out the bookmarklet, which needs a bookmarks bar', async ({
+		page
+	}) => {
+		await visit(page, '/docs/copy-paste/');
+		await expect(page.getByRole('heading', { level: 2, name: 'Paste from Genius' })).toBeVisible();
+		await expect(
+			page.getByRole('heading', { level: 2, name: 'Open Genius lyrics with a bookmarklet' })
+		).toBeHidden();
+		await expect(page.getByRole('link', { name: 'Open in LyricLint' })).toBeHidden();
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			390
+		);
+	});
 
 	test('the contents open in a sheet that dismisses three ways', async ({ page }) => {
 		await visit(page, `/docs/${second.slug}/`);

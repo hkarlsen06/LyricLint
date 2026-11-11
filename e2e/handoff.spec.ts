@@ -1,11 +1,14 @@
 import { readFileSync } from 'node:fs';
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import { encodeHandoff } from '../src/lib/core/handoff.js';
 
 const cityLights: string = JSON.parse(
 	readFileSync('scripts/fixtures/city-lights.json', 'utf8')
 ).lyrics;
 const geniusUrl = 'https://genius.com/Example-city-lights-lyrics';
+const standIn = readFileSync('e2e/fixtures/lyric-editor-stand-in.html', 'utf8');
+const standInTitle = 'Example – City Lights Lyrics | Genius Lyrics';
+const geniusEditUrl = `${geniusUrl}/edit`;
 const opened = "Opened the linked lyrics as a new 'scribe.";
 const refused = "This link's lyrics could not be read, so no 'scribe was created.";
 
@@ -299,4 +302,104 @@ test('a script the edge injects never sees the fragment', async ({ page }) => {
 	await expect.poll(() => docText(page)).toBe(cityLights);
 	const saw = await page.evaluate(() => (window as { __beaconSaw?: string }).__beaconSaw);
 	expect(saw).toMatch(/\/workbench\/$/u);
+});
+
+/**
+ * The script of the bookmarklet the docs page draws, pointed at this server
+ * instead of production.
+ */
+async function docsBookmarklet(page: Page, baseURL: string): Promise<string> {
+	await page.goto('/docs/copy-paste/');
+	const href = await page.getByRole('link', { name: 'Open in LyricLint' }).getAttribute('href');
+	expect(href).toMatch(/^javascript:/u);
+	const script = decodeURIComponent(href!.slice('javascript:'.length));
+	const production = JSON.stringify('https://lyriclint.com/workbench/');
+	expect(script).toContain(production);
+	return script.replace(production, JSON.stringify(new URL('/workbench/', baseURL).href));
+}
+
+/** The stand-in Genius editing page, served without touching the network. */
+async function openStandIn(page: Page): Promise<void> {
+	await page.route(geniusEditUrl, (route) =>
+		route.fulfill({ contentType: 'text/html', body: standIn })
+	);
+	await page.goto(geniusEditUrl);
+}
+
+/** Run the bookmarklet the way a browser runs a `javascript:` link, and take the tab it opens. */
+async function pressBookmarklet(
+	context: BrowserContext,
+	page: Page,
+	script: string
+): Promise<Page> {
+	const opened = context.waitForEvent('page');
+	await page.addScriptTag({ content: script });
+	const tab = await opened;
+	await tab.waitForLoadState();
+	return tab;
+}
+
+test('the docs bookmarklet opens the focused Genius lyric as a new draft and sends it nowhere', async ({
+	page,
+	context,
+	baseURL
+}) => {
+	const script = await docsBookmarklet(page, baseURL!);
+	await openStandIn(page);
+	await page.getByRole('textbox', { name: 'Lyrics', exact: true }).fill(cityLights);
+	const requests: string[] = [];
+	context.on('request', (request) => requests.push(`${request.url()} ${request.postData() ?? ''}`));
+
+	const tab = await pressBookmarklet(context, page, script);
+
+	await expect.poll(() => docText(tab)).toBe(cityLights);
+	await expect(tab.getByRole('textbox', { name: "'Scribe title" })).toHaveValue(standInTitle);
+	await tab.getByRole('tab', { name: 'Song' }).click();
+	await expect(tab.getByRole('link', { name: 'Open Genius page' })).toHaveAttribute(
+		'href',
+		geniusEditUrl
+	);
+	const lines = cityLights.split('\n').filter((line) => line.trim().length > 3);
+	const leaks = requests.filter(
+		(request) => request.includes('open=1.') || lines.some((line) => request.includes(line))
+	);
+	expect(leaks).toEqual([]);
+});
+
+test('the docs bookmarklet takes an editable box line by line, without its markup', async ({
+	page,
+	context,
+	baseURL
+}) => {
+	const script = await docsBookmarklet(page, baseURL!);
+	await openStandIn(page);
+	await page.getByRole('textbox', { name: 'Rich lyrics' }).focus();
+
+	const tab = await pressBookmarklet(context, page, script);
+
+	await expect.poll(() => docText(tab)).toBe('[Chorus]\nCity lights are calling\nOh, oh');
+});
+
+test('the docs bookmarklet asks for the lyrics box and opens nothing when there is no lyric', async ({
+	page,
+	context,
+	baseURL
+}) => {
+	const script = await docsBookmarklet(page, baseURL!);
+	await openStandIn(page);
+	const dialog = page.waitForEvent('dialog');
+	const tabs: Page[] = [];
+	context.on('page', (tab) => tabs.push(tab));
+
+	// The message holds the script until it is answered.
+	const pressed = page.addScriptTag({ content: script });
+
+	const message = await dialog;
+	expect(message.message()).toBe(
+		'Click into the lyrics box first, then press Open in LyricLint again.'
+	);
+	await message.accept();
+	await pressed;
+	await expect(page.getByRole('heading', { name: 'Stand-in lyric editor' })).toBeVisible();
+	expect(tabs).toEqual([]);
 });

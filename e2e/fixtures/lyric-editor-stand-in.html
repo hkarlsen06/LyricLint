@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Example – City Lights Lyrics | Genius Lyrics</title>
+		<style>
+			textarea,
+			[contenteditable] {
+				display: block;
+				box-sizing: border-box;
+				width: 40rem;
+				min-height: 8rem;
+				margin-block-end: 1rem;
+				padding: 0.5rem;
+				border: 1px solid;
+				font: 16px/1.4 system-ui;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Stand-in lyric editor</h1>
+		<label for="lyrics">Lyrics</label>
+		<textarea id="lyrics"></textarea>
+		<div id="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Rich lyrics">
+			[Chorus]<br />City <i>lights</i> are calling<br />Oh, oh
+		</div>
+		<div id="plain">
+			<div>Selected line one</div>
+			<div>Selected line two</div>
+			<div>Selected line three</div>
+		</div>
+		<button type="button" id="nothing">Nothing</button>
+	</body>
+</html>
