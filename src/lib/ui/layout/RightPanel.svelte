@@ -16,7 +16,6 @@
 	import IgnoredRules from '../linter/IgnoredRules.svelte';
 	import MediaVideo from '../media/MediaVideo.svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import { countDecisions } from '#lib/diagnostics/decisions.js';
 
 	let {
 		controller,
@@ -78,7 +77,7 @@
 	// the places they cover. Local for the same reason as the status bar's helper
 	// in Workspace.svelte: tab chrome is always English, so the lyric-language
 	// packs under #lib/languages do not apply.
-	const decisionCount = $derived(countDecisions(controller.visibleDiagnostics));
+	const decisionCount = $derived(controller.reviewDecisions.length);
 	const diagnosticBadgeLabel = $derived(
 		`${decisionCount} ${decisionCount === 1 ? 'decision' : 'decisions'} to review`
 	);

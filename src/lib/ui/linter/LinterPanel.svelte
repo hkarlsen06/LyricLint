@@ -7,11 +7,7 @@
 	import DiagnosticList from './DiagnosticList.svelte';
 	import SeverityIcon from '#lib/diagnostics/SeverityIcon.svelte';
 	import { severityPluralLabels } from '#lib/diagnostics/severity-labels.js';
-	import {
-		countDecisions,
-		countDecisionsLeft,
-		groupDecisions
-	} from '#lib/diagnostics/decisions.js';
+	import { countDecisions } from '#lib/diagnostics/decisions.js';
 	import { tick } from 'svelte';
 
 	let {
@@ -76,7 +72,7 @@
 		} satisfies Record<Severity, number>;
 		// Rows, not places: a decision never straddles a severity, so each chip
 		// counts exactly the rows it shows or hides.
-		for (const { members } of groupDecisions(controller.unignoredDiagnostics)) {
+		for (const { members } of controller.unignoredDecisions) {
 			result[members[0]!.severity] += 1;
 		}
 		return result;
@@ -94,14 +90,10 @@
 	// document with no findings draws no row at all.
 	const chips = $derived(filters.filter((filter) => counts[filter.value] > 0));
 
-	// Diagnostics the severity chips are currently hiding. Ignored rules do not
-	// count: the filters only take the blame for what they actually hide.
+	// Rows the severity chips are currently hiding. Ignored rules do not count:
+	// the filters only take the blame for what they actually hide.
 	const hiddenByFilters = $derived(
-		countDecisions(
-			controller.unignoredDiagnostics.filter(
-				(diagnostic) => !controller.severityFilter.includes(diagnostic.severity)
-			)
-		)
+		controller.unignoredDecisions.length - controller.reviewDecisions.length
 	);
 
 	// Only blame the filters when they are actually what is hiding something;
@@ -162,7 +154,7 @@
 	// The button counts the places its press changes; the remainder counts the
 	// rows that will still stand in the list below.
 	const bulk = $derived(controller.bulkFixPlan);
-	const decisionsLeft = $derived(countDecisionsLeft(controller.visibleDiagnostics, bulk.fixes));
+	const decisionsLeft = $derived(countDecisions(bulk.remaining));
 
 	// A fresh open is only empty because it opened a *new* draft, and the work a
 	// returning user came back for is behind the drafts menu, which they have to

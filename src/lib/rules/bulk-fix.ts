@@ -53,27 +53,28 @@ export interface BulkFixPlan {
 	fixes: readonly DiagnosticFix[];
 	/** Diagnostics the batch resolves, the number the button offers to fix. */
 	automatic: number;
-	/** Diagnostics it does not touch, which the user has to decide about. */
-	manual: number;
+	/** Diagnostics it does not touch, which the user still has to answer. */
+	remaining: readonly Diagnostic[];
 }
 
 /**
  * Split the diagnostics the panel is showing into what a bulk fix settles and
  * what it leaves.
  *
- * Both numbers count diagnostics rather than fixes, because they are read as
- * one sentence about the panel's own list: `22 automatically` and `18 need a
- * decision` have to add up to what the user can see.
+ * `automatic` counts diagnostics rather than fixes, because the button reads it
+ * as the places its press changes. `remaining` is handed back whole rather than
+ * counted, because the panel counts what is left in its own unit, the rows it
+ * will still draw, and that grouping is not this module's to know.
  */
 export function planBulkFix(diagnostics: readonly Diagnostic[]): BulkFixPlan {
 	const accepted = new Set(collectSafeFixes(diagnostics));
-	const automatic = diagnostics.filter((diagnostic) =>
-		(diagnostic.fixes ?? []).some((fix) => accepted.has(fix))
-	).length;
+	const remaining = diagnostics.filter(
+		(diagnostic) => !(diagnostic.fixes ?? []).some((fix) => accepted.has(fix))
+	);
 	return {
 		fixes: [...accepted],
-		automatic,
-		manual: diagnostics.length - automatic
+		automatic: diagnostics.length - remaining.length,
+		remaining
 	};
 }
 

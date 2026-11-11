@@ -8,7 +8,6 @@
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import { countDecisions } from '#lib/diagnostics/decisions.js';
 
 	let {
 		controller,
@@ -23,7 +22,7 @@
 	} = $props();
 
 	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
-	const reviewCount = $derived(countDecisions(controller.visibleDiagnostics));
+	const reviewCount = $derived(controller.reviewDecisions.length);
 	const canAssign = $derived(
 		!controller.snapshot.composing &&
 			controller.editor.requestPerformerAssignment !== undefined &&

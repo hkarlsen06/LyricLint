@@ -1,4 +1,4 @@
-import type { Diagnostic, DiagnosticFix } from '#lib/core/types.js';
+import type { Diagnostic } from '#lib/core/types.js';
 import { diagnosticKey } from './order.js';
 
 /**
@@ -58,19 +58,4 @@ export function groupDecisions(
 /** How many rows Review draws for these findings. Order does not matter. */
 export function countDecisions(diagnostics: readonly Diagnostic[]): number {
 	return groupDecisions(diagnostics).length;
-}
-
-/**
- * The rows still standing after `settled` (a bulk plan's fixes) is applied. A
- * finding counts as settled by the same test `planBulkFix` uses for its
- * automatic count, so the strip's two numbers describe one press.
- */
-export function countDecisionsLeft(
-	diagnostics: readonly Diagnostic[],
-	settled: readonly DiagnosticFix[]
-): number {
-	const fixes = new Set(settled);
-	return countDecisions(
-		diagnostics.filter((diagnostic) => !(diagnostic.fixes ?? []).some((fix) => fixes.has(fix)))
-	);
 }

@@ -128,7 +128,7 @@ describe('a batch becomes exactly one edit', () => {
 });
 
 describe('the whole-document plan counts what the panel is showing', () => {
-	it('splits the visible list into automatic and manual', () => {
+	it('splits the visible list into automatic and remaining', () => {
 		const diagnostics = [
 			...mixedSpellingDocument(),
 			diagnostic('contraction.apostrophe', 100, 104, [
@@ -141,8 +141,10 @@ describe('the whole-document plan counts what the panel is showing', () => {
 		// The five spelling findings go automatically; the preview fix and the
 		// unfixable finding are the two that need the user.
 		expect(plan.automatic).toBe(5);
-		expect(plan.manual).toBe(2);
-		expect(plan.automatic + plan.manual).toBe(diagnostics.length);
+		expect(plan.remaining.map((item) => item.ruleId)).toEqual([
+			'contraction.apostrophe',
+			'line.prose-density'
+		]);
 		expect(plan.fixes).toHaveLength(5);
 	});
 
@@ -156,13 +158,13 @@ describe('the whole-document plan counts what the panel is showing', () => {
 		// The dropped fix is not discarded, and it is offered again against the next
 		// revision, so it counts as still needing a decision now.
 		expect(plan.automatic).toBe(1);
-		expect(plan.manual).toBe(1);
+		expect(plan.remaining).toEqual([diagnostics[1]]);
 	});
 
 	it('offers nothing for a document with no safe fixes', () => {
 		const plan = planBulkFix([diagnostic('line.prose-density', 0, 10, [])]);
 		expect(plan.fixes).toEqual([]);
 		expect(plan.automatic).toBe(0);
-		expect(plan.manual).toBe(1);
+		expect(plan.remaining).toHaveLength(1);
 	});
 });

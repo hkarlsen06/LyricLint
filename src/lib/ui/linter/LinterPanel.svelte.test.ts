@@ -65,9 +65,8 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 				{ from: 20, to: 24, insert: "I'ma" }
 			]
 		});
-		expect(controller.feedback.announcement).toContain('Fixed 2 issues automatically');
 		// The two prose findings ask one question, so they are one row left.
-		expect(controller.feedback.announcement).toContain('1 still needs a decision');
+		expect(controller.feedback.announcement).toBe('Fixed 2 issues automatically. 1 decision left.');
 	});
 
 	test('is chrome, so it never reads as the open card below it', async () => {

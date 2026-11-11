@@ -30,6 +30,7 @@ import { createEditorSession } from './editor-session.svelte.js';
 import type { FeedbackState, ToastMessage } from './feedback.svelte.js';
 import { createFeedbackState, NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 import type { BulkFixPlan } from '#lib/rules/bulk-fix.js';
+import type { Decision } from '#lib/diagnostics/decisions.js';
 import type { RightPanelTab } from './panel-view.svelte.js';
 import { createPanelView } from './panel-view.svelte.js';
 import type { RosterMergeSuggestion } from './roster-store.svelte.js';
@@ -123,6 +124,8 @@ export interface WorkbenchController {
 	readonly severityFilter: readonly Severity[];
 	readonly unignoredDiagnostics: readonly Diagnostic[];
 	readonly visibleDiagnostics: readonly Diagnostic[];
+	readonly unignoredDecisions: readonly Decision[];
+	readonly reviewDecisions: readonly Decision[];
 	readonly bulkFixPlan: BulkFixPlan;
 	readonly ignoredDiagnosticKeys: readonly string[];
 	readonly ignoredDiagnosticMatches: ReadonlyMap<string, string>;
@@ -680,6 +683,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		get visibleDiagnostics() {
 			return panel.visibleDiagnostics;
+		},
+		get unignoredDecisions() {
+			return panel.unignoredDecisions;
+		},
+		get reviewDecisions() {
+			return panel.reviewDecisions;
 		},
 		get bulkFixPlan() {
 			return panel.bulkFixPlan;

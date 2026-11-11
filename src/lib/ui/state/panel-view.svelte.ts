@@ -17,7 +17,12 @@ import {
 	ignoredDiagnosticAccepted,
 	ignoredDiagnosticRuleId
 } from '#lib/diagnostics/ignore.js';
-import { countDecisionsLeft, decisionKey } from '#lib/diagnostics/decisions.js';
+import {
+	countDecisions,
+	decisionKey,
+	groupDecisions,
+	type Decision
+} from '#lib/diagnostics/decisions.js';
 import { diagnosticKey, orderDiagnostics } from '#lib/diagnostics/order.js';
 import { diagnosticRowSignature, reconcileDiagnosticRows } from '#lib/diagnostics/row-identity.js';
 import { filterProvisionalVerseNumbering } from '#lib/diagnostics/prerequisites.js';
@@ -51,6 +56,14 @@ interface PanelView {
 	readonly severityFilter: readonly Severity[];
 	readonly unignoredDiagnostics: readonly Diagnostic[];
 	readonly visibleDiagnostics: readonly Diagnostic[];
+	/**
+	 * The unignored findings as Review's rows, in its reading order, one per
+	 * decision. Grouped once per snapshot, because every count of rows (the
+	 * badges, the severity chips, the filter notes) reads it.
+	 */
+	readonly unignoredDecisions: readonly Decision[];
+	/** The rows Review draws: `unignoredDecisions` the severity filters let through. */
+	readonly reviewDecisions: readonly Decision[];
 	/**
 	 * What a whole-document bulk fix would settle, and what it would leave. It is
 	 * planned over the *visible* diagnostics: a severity chip the user switched
@@ -234,6 +247,20 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	);
 	const bulkFixPlan = $derived(planBulkFix(visibleDiagnostics));
 
+	function diagnosticRowKey(diagnostic: Diagnostic): string {
+		const signature = diagnosticRowSignature(diagnostic);
+		return rowKeys.get(signature) ?? signature;
+	}
+
+	// A decision never straddles a severity, so filtering the grouped rows is the
+	// same as grouping the filtered findings.
+	const unignoredDecisions = $derived(
+		groupDecisions(orderDiagnostics(unignoredDiagnostics), diagnosticRowKey)
+	);
+	const reviewDecisions = $derived(
+		unignoredDecisions.filter((decision) => severityFilter.includes(decision.members[0]!.severity))
+	);
+
 	// Review keeps the aimed occurrence without changing the finding's identity.
 	// Repeated card navigation and guided actions resolve the same validated range.
 	let aimedOccurrence = $state.raw<{ key: string; range: TextRange } | undefined>();
@@ -375,6 +402,12 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		get visibleDiagnostics() {
 			return visibleDiagnostics;
 		},
+		get unignoredDecisions() {
+			return unignoredDecisions;
+		},
+		get reviewDecisions() {
+			return reviewDecisions;
+		},
 		get bulkFixPlan() {
 			return bulkFixPlan;
 		},
@@ -384,10 +417,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		get ignoredDiagnosticMatches() {
 			return ignoredDiagnosticMatches;
 		},
-		diagnosticRowKey(diagnostic) {
-			const signature = diagnosticRowSignature(diagnostic);
-			return rowKeys.get(signature) ?? signature;
-		},
+		diagnosticRowKey,
 		setActiveTab(tab) {
 			setActiveTab(tab);
 		},
@@ -525,10 +555,10 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 				return;
 			}
 			const fixed = `Fixed ${plan.automatic} ${plan.automatic === 1 ? 'issue' : 'issues'} automatically.`;
-			const left = countDecisionsLeft(visibleDiagnostics, plan.fixes);
+			const left = countDecisions(plan.remaining);
 			dispatchFixEdit(
 				mergeFixes(plan.fixes),
-				left === 0 ? fixed : `${fixed} ${left} still ${left === 1 ? 'needs' : 'need'} a decision.`
+				left === 0 ? fixed : `${fixed} ${left} ${left === 1 ? 'decision' : 'decisions'} left.`
 			);
 		},
 		ignoreDiagnostic(diagnostic) {
