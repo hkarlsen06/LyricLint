@@ -26,7 +26,10 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   editor above one decision surface, sharing the ordinary diagnostic implementation and
   diff. Tapping an editor underline or count badge opens the chosen finding in this same
   Review surface and transfers focus out of the editor; mobile diagnostic popovers and
-  cluster menus stay closed. All findings returns to the list. `e2e/mobile-workbench.spec.ts` pins the fix flow.
+  cluster menus stay closed. A decision with several places draws its place stepper under
+  the meta line, so it is in view above the bottom navigation when the decision opens, and
+  the rows keep the order they were drawn in until Review is shown again. All findings
+  returns to the list. `e2e/mobile-workbench.spec.ts` pins the fix flow.
 - Revealing a saved ignored or accepted finding opens its passage in Write without restoring
   the finding or opening the typing keyboard. `MobileWorkspace.svelte.test.ts` pins the reveal,
   selection, retained choice, and focus on the Write control.

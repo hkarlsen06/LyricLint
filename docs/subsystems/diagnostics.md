@@ -23,22 +23,44 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   or `detectedLanguage` keys `null` and always has its own row, keyed by its row identity. The
   open row shows the unchanged per-place card for one member, held by that member's row
   identity and remounted per member, plus a `Places` group of `Previous place`, `Next place`,
-  and `Place 2 of 10, line 9` under the actions. Its meta line reads `Line 7` alone and
-  `10 places` grouped, so the line stays one line beside the derivation mark and `Sources`.
-  The place is announced through the shared feedback only when the stepper is pressed, never
-  after a fix; a stepper button disabled by its own press hands focus to the other one.
-  A fix or an ignore answers one place only. Pins: `decisions.test.ts`,
-  `LinterPanel.svelte.test.ts` (*one row per decision*).
-- An open row does not move while it is answered or stepped. A row a place was answered in
-  holds its slot among the remaining rows (`holdAnswered` in `DiagnosticList.svelte`) rather
-  than re-sorting by its next place, until it leaves the list. The open row reserves its
+  and `Place 2 of 10, line 9` directly under the meta line and above the explanation, at
+  every width, so it sits beside the count it explains and is in view when a row opens on a
+  phone. Its meta line reads `Line 7` alone and `10 places` grouped, so the line stays one
+  line beside the derivation mark and `Sources`. The place is announced through the shared
+  feedback only when the stepper is pressed, never after a fix. A stepper press that lands on
+  either end hands focus to the other button; the handoff is decided from the target place
+  when pressed and carried out once that place is drawn, because on a phone the open place
+  follows a tick later. A fix or an ignore answers one place only. Pins: `decisions.test.ts`,
+  `LinterPanel.svelte.test.ts` (*one row per decision*), `MobileWorkspace.svelte.test.ts`
+  (*the phone place stepper hands focus…*).
+- Rows never reorder on their own. `reviewDecisions` on the panel view is the order Review
+  draws: a row that survives from one snapshot to the next keeps its position relative to the
+  other surviving rows, whoever answered a place and wherever (the panel, the editor, its
+  popover, `Mod-.`, the bulk strip, another row's `Fix all`), and a new row enters after the
+  nearest row ranked above it (`keepOrder` in `decisions.ts`). The order returns to rank
+  (`orderDiagnostics`) only when the reader changes what the list shows: a severity chip is
+  toggled, the draft changes, the document is replaced wholesale (on the snapshot after
+  `leadOnNextSnapshot`), or Review is shown again after being hidden (`releaseReviewOrder`,
+  called by `LinterPanel.svelte`). The only state is the drawn keys of the last snapshot, and
+  each of those moments drops it. Pins: `decisions.test.ts` (*keepOrder*),
+  `LinterPanel.svelte.test.ts` (*keeps the open row where it was drawn…*, *keeps every row where
+  it was drawn…*, *returns to rank order when a severity chip…*).
+- An open grouped row does not move while it is answered or stepped. It reserves its
   explanation's height from the tallest of its places at the current width, measured from an
-  `aria-hidden` stack of every place's explanation, and its body keeps its tallest height, so
-  the stepper's slot outlives the stepper; both reservations only grow while the row stays
-  open. Collapse, the chosen place, and holds are per draft (the list remounts on a draft
-  switch) and drop with a row that leaves. Pins: `LinterPanel.svelte.test.ts` (*keeps an
-  answered row in its slot…*, *holds the actions and the stepper still…*, *starts each draft’s
-  rows fresh…*).
+  `aria-hidden` stack of every place's explanation drawn by `attr()`, and separately the height
+  under the explanation, so the rows below stay still when `Fix all` leaves with the last
+  sibling. Both are measured unrounded (never `offsetHeight`), grow while the row stays open at
+  one width, and are measured afresh when the width changes. A row that falls to one place
+  keeps an empty slot of the stepper's height while it stays open. A row that opens with one
+  place reserves nothing and draws exactly as it did before decisions. Pins:
+  `LinterPanel.svelte.test.ts` (*keeps an answered row where it was drawn…*, *holds the actions
+  and the stepper still…*, *adds not even a fraction of a pixel…*, *measures its reserve
+  afresh…*).
+- Collapse and the chosen place are per draft (the list remounts on a draft switch). A row
+  that leaves the current rows takes them with it, even while the list is hidden on another
+  tab, so the same question arriving later starts fresh; a row that leaves and returns within
+  one snapshot never left. Pins: `LinterPanel.svelte.test.ts` (*forgets a collapse whose row
+  left while another tab was showing*, *starts each draft’s rows fresh…*).
 - Review's counts use one vocabulary: an issue is one place, a decision is one row. Rows are
   counted from one grouping per snapshot (`unignoredDecisions` and `reviewDecisions` on the
   panel view): the tab badge (`3 decisions to review`), the phone `Review (3)`, `Show tools,
@@ -66,7 +88,7 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   or hiding the panels releases that card's preview; returning to Review resumes an expanded
   card's preview. Pins: `LinterPanel.svelte.test.ts` (*collapses the open finding…*,
   *retires the review preview…*).
-- Review offers Previous/Next and `Alt-Shift-Up/Down` in its existing reading order, one
+- Review offers Previous/Next and `Alt-Shift-Up/Down` in the order it draws, one
   decision per step, each opening a row on its first place; `F2` and `Ctrl-Alt-.` in the
   editor still step by place. These
   commands and opening a card reveal the lyric range without taking keyboard focus from the
@@ -77,8 +99,10 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   on one place of a decision leads first to that decision's next place in document order,
   wrapping within it, so its row stays open and still; otherwise a deliberately
   selected passage advances to the next finding in document order from that passage, wrapping
-  to the ranked lead when none remain after it. Default triage retains the ranked lead.
-  Pin: `workbench.test.ts` (*continues from a deliberately chosen passage…*). Any wholesale
+  to the lead when none remain after it. Default triage leads with the row Review draws first.
+  Both leads read the drawn rows, not a fresh ranking, so the panel and the selection agree on
+  what comes next. Pins: `workbench.test.ts` (*continues from a deliberately chosen passage…*),
+  `LinterPanel.svelte.test.ts` (*leads to the row drawn first…*). Any wholesale
   document replacement arms the same advance through `leadOnNextSnapshot`, called from
   `replaceDocument`'s `onBeforeReplace` hook, before the dispatch, and never on a paste that
   failed.
@@ -444,8 +468,9 @@ place, so they never fold.
 The card inside the row is the existing per-place card, unchanged, so the panel and the popover
 stay one implementation. The open place is held by its row identity, never by its index: an
 answered place hands over to its decision's next place through `leadAfterFix`, and the
-`{#key}` around the card means another place never inherits its controls. The stepper sits
-under the actions, so its arrival and departure never move them. G1 adds no batch for
+`{#key}` around the card means another place never inherits its controls. The stepper sat
+under the actions, so its arrival and departure never moved them (superseded by the second fix
+round below: it now sits under the meta line). G1 adds no batch for
 `preview` fixes and no group-wide Ignore: ten commas are still ten presses, each with its
 diff on screen.
 
@@ -458,12 +483,13 @@ The meta line read `10 places, lines 8 to 33`, which beside the derivation mark 
 and the place's line moved into the stepper (`Place 2 of 10, line 9`); the `lines 8 to 33`
 wording is superseded. A row sorts by its first place, so answering that place re-sorted the
 open row by its next one, and `Don’t` on line 2, a comma on line 3, and `I’m` on line 4 slid
-the open card below the comma row; an answered row now holds its slot until it leaves.
+the open card below the comma row; an answered row then held its slot until it left (superseded
+by the second fix round below: rows never reorder on their own).
 `section.header-prose` gives `Chorus`, `chorus`, and `CHORUS:` one row whose explanations quote
 each header and wrap differently, so the explanation reserves its tallest place's height,
 measured at the current width from text drawn by `attr()` so it stays out of the page's text.
-And a row that fell to one place lost its stepper and lifted the rows below, so the body keeps
-its tallest height while open.
+And a row that fell to one place lost its stepper and lifted the rows below, so the body kept
+its tallest height while open (superseded in part by the second fix round below).
 
 Content keys made a row's collapse outlive its draft: collapsing the curly-apostrophe row in
 one draft opened the next draft's curly-apostrophe row collapsed. The list remounts per draft
@@ -471,6 +497,35 @@ and forgets a choice whose row has left. The stepper's live region announced the
 every fix, on top of the fix's own announcement, so the place is said only when the stepper is
 pressed. `countDecisionsLeft` re-derived `planBulkFix`'s settled test beside it; the plan now
 returns `remaining`, and its old promise that the two numbers add up to the list is gone.
+
+The second fix round replaced the held slot, because an audit found it wrong in both halves. A
+held row was put back after the row that came before it, so it followed that neighbour: with
+X on lines 1 and 40, A on 2 and 30, Y on 5, and Z on 10, answering A's line 2 in the panel and
+then X's line 1 in the editor ranked X by line 40, and A, still open, dropped two slots behind
+it. Only presses inside the panel started a hold, so the popover, `Mod-.`, the bulk strip, and
+another row's `Fix all` moved rows too. And a hold outlived the row closing: with an error
+above a held warning, turning the Errors chip off and on drew the warning above the error
+until every place in it was answered. The rule is now that rows never reorder on their own.
+The panel view keeps the drawn order from one snapshot to the next, because it sees every way a
+place is answered and because the lead after a fix has to read the same order the list draws;
+a list that kept its own order would open one row while the panel led with another. Returning
+to rank order when the reader changes what is shown (a chip, a draft, a wholesale replacement,
+Review shown again) is the intentional structural change `DESIGN.md` allows. The passage lead
+still advances in document order, which `workbench.test.ts` pins; only the rank-based lead and
+its fallback now read the drawn rows.
+
+The same audit found four smaller faults. At 390 by 844 the open comma row was 404 pixels tall
+in a 368 pixel scroll area, and the stepper under the actions sat behind the bottom bar, so it
+moved under the meta line, beside the count it explains. The body's reserve came from
+`offsetHeight`, which rounds, so an open row was half a pixel taller than before decisions
+(154.5 became 155) even with one place, and it never shrank, so widening the panel left a blank
+band. Both reserves are now unrounded, kept only for a row that opened with several places, and
+measured afresh at a new width; the body's became the height under the explanation, measured
+without it, so neither reserve feeds on the other. On a phone the editor learns of a new place
+a tick late, so the stepper read its own button before it was disabled and focus dropped to
+the page; the handoff is now decided from the target place. And the list only refreshed its
+rows while visible, so a collapse survived its row leaving on another tab; the forgetting now
+reads the current rows.
 
 ### One diagnostic, one implementation
 
@@ -596,7 +651,8 @@ array index: removing one finding must not destroy every subsequent control. A r
 finds the surviving expanded row after rendering and focuses its heading, with the remaining
 row or Review tab as the fallback.
 
-There are two valid ways into review. Default triage works the ranked list from its lead, while
+There are two valid ways into review. Default triage works the list from its lead (since
+*Review draws one row per decision*, the row drawn first rather than the ranked first), while
 someone who deliberately selects a passage has already said where to work. After that person's
 fix or acceptance, choose the next remaining occurrence from that passage in document order,
 wrapping to the ranked lead only when the rest of the passage is clear. Whole-document
