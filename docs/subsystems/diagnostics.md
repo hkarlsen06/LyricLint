@@ -90,6 +90,12 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   row's other places. No diagnostic popover or cluster menu opens.
   Hover and native text selection do not navigate. `e2e/mobile-workbench.spec.ts` pins taps,
   the selected occurrence, fixes, focus handoff, and the absence of floating diagnostics.
+- Only the reader's own press moves the editor to a finding: a row, a stepper, an underline
+  or badge tap, or the lead after a fix or an ignore. The list never navigates because the
+  row it shows changed. When the open row leaves because the reader typed it away, Review
+  shows another row, but the editor's selection and focus stay where the reader is typing.
+  Pins: `MobileWorkspace.svelte.test.ts` (*typing away an open phone finding…*, *opening
+  another finding after All findings navigates the editor once*).
 
 - Show, don't ask: selecting a diagnostic previews its fix in the document as a diff; the card
   carries one control labelled with the fix itself (no `Apply`, no `Preview`, no `Cancel`).

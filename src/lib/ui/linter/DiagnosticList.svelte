@@ -272,15 +272,6 @@
 		});
 	});
 
-	let revealedKey: string | undefined;
-	$effect(() => {
-		const current = active && focusedOnly ? selected?.member : undefined;
-		const key = current && rowKey(current);
-		if (key === revealedKey) return;
-		revealedKey = key;
-		if (current) void tick().then(() => onNavigate(current));
-	});
-
 	function open(row: Decision, member: Diagnostic): void {
 		collapsedKey = undefined;
 		chosenDecision = row.key;

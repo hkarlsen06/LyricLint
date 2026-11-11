@@ -29,7 +29,9 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   cluster menus stay closed. A decision with several places draws its place stepper under
   the meta line, so it is in view above the bottom navigation when the decision opens, and
   the rows keep the order they were drawn in until Review is shown again. All findings
-  returns to the list. `e2e/mobile-workbench.spec.ts` pins the fix flow.
+  returns to the list. Typing that removes the open finding never moves the editor's
+  selection or focus (see the diagnostics rules). `e2e/mobile-workbench.spec.ts` pins the
+  fix flow.
 - Revealing a saved ignored or accepted finding opens its passage in Write without restoring
   the finding or opening the typing keyboard. `MobileWorkspace.svelte.test.ts` pins the reveal,
   selection, retained choice, and focus on the Write control.
@@ -138,6 +140,13 @@ one changes the layout to show the actual lyric passage and a single finding's a
 The list's shared ordering, preview, and focus logic still owns Previous, Next, fix, and
 set-aside behavior. Other rows leave layout and the accessibility tree during the decision.
 All findings restores the overview and releases the preview; Write restores the writing area.
+
+The decision view once navigated the editor to whichever row it showed, from an effect in
+`DiagnosticList.svelte`. Every deliberate entry already navigates on its own, so the effect
+only acted on rows nobody chose. Typing away an open Harper finding let it select the next
+row's word, so the next keystroke replaced that word. After All findings, the effect chased
+the stale active finding while the tapped row navigated to itself, and the two re-entered
+each other through `tick()` until the page hung. The effect was removed in November 2026.
 
 Saved choices have no active decision card. Their location controls therefore reveal the
 passage in Write, after the editor becomes visible, and return focus to the Write control.
