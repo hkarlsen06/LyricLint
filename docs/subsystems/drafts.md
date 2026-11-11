@@ -308,7 +308,9 @@ a new count, so there the header's absence is the gap and the count only bounds 
 
 **Its feedback is fixed text and waits for the workspace.** The success message used to repeat the
 title, which the linking page chooses, in the app's own voice. It now reads `Opened the linked
-lyrics as a new 'scribe.`, and the title, shown in the toolbar anyway, is one plain line. Every
+lyrics as a new 'scribe.`, and the title, shown in the toolbar anyway, is one plain line. One
+announcement still carries that title: `openDraft` tells the live region `Opened <title>.` for any
+draft it opens, a handed-over one included, just before the fixed message replaces it. Every
 hand-over message takes the notice duration and waits on `workspaceShown`, which the page settles
 when the editor reports ready: on a slow phone a confirmation counted down from before the first
 paint could expire unseen, and it is the only sign of an action the user did not take in the app.
