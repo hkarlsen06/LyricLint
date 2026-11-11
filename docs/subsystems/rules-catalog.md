@@ -97,9 +97,12 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   selected-language thresholds, and constructs fresh document ranges. Cache bounds are retention
   limits, never sampling or detection limits. Native benchmarks initialize the statistical detector.
 - Danish and Norwegian profiles score within a few points of each other, so a narrow lead between
-  them goes to the rival when the text carries two of the rival's own spellings (`closeRivals` in
-  `detect.ts`). Only that pair is modeled; Swedish separates on its own. `detect.test.ts` pins a
-  Danish lyric worded close to Norwegian, the same lyric in Norwegian, and a Swedish one.
+  them goes to the rival when the text carries at least two of the rival's spellings and more of
+  them than of the leader's (`closeRivals` in `detect.ts`). The Danish list leaves out `mig`,
+  `dig`, and `aldrig`, which Norwegian lyrics in older or dialect spelling use too. Only that pair
+  is modeled; Swedish separates on its own. `detect.test.ts` pins a Danish lyric worded close to
+  Norwegian, the same lyric in Norwegian, a Norwegian one that spells `mig` and `dig`, and a
+  Swedish one.
 
 - Norwegian `section.localized-header-preference` checks the whole document: use `Chorus`
   with `Pre-Chorus` or `Post-Chorus` sections, and `Refreng` without them. The eight

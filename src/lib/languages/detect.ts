@@ -7,16 +7,18 @@ const minimumStatisticalScore = 0.2;
 const minimumSelectedScoreRatio = 1.15;
 const norwegianMarkers =
 	/(?<!\p{L})(?:fortsatt|gjør|gjøre|hva|mer|mye|noe|noen|røyke|skjer)(?!\p{L})/giu;
-const danishMarkers =
-	/(?<!\p{L})(?:aldrig|dig|gennem|havde|hvad|igen|mig|noget|nogen|sagde|tilbage)(?!\p{L})/giu;
+// `mig`, `dig`, and `aldrig` are left out: Norwegian lyrics in older or
+// dialect spelling use them too.
+const danishMarkers = /(?<!\p{L})(?:gennem|havde|hvad|igen|noget|nogen|sagde|tilbage)(?!\p{L})/giu;
 /**
  * Danish and Norwegian profiles score within a few points of each other, so a
- * narrow lead goes to the rival when the text carries two of the rival's own
- * spellings (`hva`, `noe` against `hvad`, `noget`).
+ * narrow lead goes to the rival when the text carries at least two of the
+ * rival's spellings and more of them than of the leader's (`hva`, `noe`
+ * against `hvad`, `noget`).
  */
 const closeRivals = new Map([
-	['da', { tag: 'no', markers: norwegianMarkers }],
-	['no', { tag: 'da', markers: danishMarkers }]
+	['da', { tag: 'no', markers: norwegianMarkers, own: danishMarkers }],
+	['no', { tag: 'da', markers: danishMarkers, own: norwegianMarkers }]
 ]);
 const selectableTags = new Set(['en', ...languageSourceInventory.map((entry) => entry.tag)]);
 
@@ -239,7 +241,8 @@ export function detectSongLanguage(
 		rival &&
 		rivalScore !== undefined &&
 		best[1] < rivalScore * minimumSelectedScoreRatio &&
-		countMatches(text, rival.markers) >= 2
+		countMatches(text, rival.markers) >= 2 &&
+		countMatches(text, rival.markers) > countMatches(text, rival.own)
 	) {
 		best = [rival.tag, rivalScore];
 	}

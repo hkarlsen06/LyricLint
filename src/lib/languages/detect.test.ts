@@ -101,6 +101,24 @@ At jeg fortsatt venter på deg`);
 		expect(detectSongLanguage(document, 'en')?.tag).toBe('no');
 	});
 
+	it('keeps a Norwegian lyric that spells mig and dig as Norwegian', () => {
+		const document = parseDocument(`[Vers]
+Hva skal jeg gjøre når du ser på mig
+Jeg vil ha mer av dig, mer enn noen gang
+Du sa at vi skulle møtes ved havna
+Men jeg står her alene igjen
+Hva er det du vil at jeg skal si til dig
+Det er noe ved dig som jeg aldri glemmer
+Hvorfor er det så vanskelig å forstå
+At du aldri kommer tilbake til mig
+Jeg kan høre navnet ditt i regnet
+Det synger så stille for dig
+Og når morgenen kommer, vet jeg
+At jeg fortsatt venter på dig`);
+
+		expect(detectSongLanguage(document, 'en')?.tag).toBe('no');
+	});
+
 	it('recognizes Japanese and Korean from their scripts', () => {
 		expect(
 			detectSongLanguage(
