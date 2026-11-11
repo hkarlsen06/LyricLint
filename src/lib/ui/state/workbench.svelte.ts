@@ -44,8 +44,14 @@ import { headerNameAtoms, isMirrorableHeaderName } from '#lib/performers/index.j
 import { buildRuleContext } from './wiring.js';
 import { maxScribeBytes, ScribeFormatError } from '#lib/scribe/contracts.js';
 import type { ScribeProjectInput } from '#lib/scribe/format.js';
-import type { DraftHandoff } from '#lib/core/handoff.js';
 import { canonicalLineBreaks } from '#lib/core/line-numbers.js';
+
+/**
+ * Linked lyrics one page may open as new drafts. A page that opened this tab
+ * can set its fragment again and again without a reload, and each one would
+ * otherwise write a draft of up to 1 MiB.
+ */
+export const MAX_HANDOFFS_PER_PAGE = 5;
 
 interface WorkbenchDependencies {
 	editor: EditorHandle;
@@ -78,6 +84,12 @@ interface WorkbenchDependencies {
 	initialActiveTab?: RightPanelTab;
 	onActiveTabChange?: (tab: RightPanelTab) => void;
 	onBackupRestored?: () => void;
+	/**
+	 * Settles once the workspace has drawn. A hand-over on a fresh boot opens
+	 * before that, and its feedback is the only sign of an action taken outside
+	 * the app, so it waits rather than counting down on a blank page.
+	 */
+	workspaceShown?: Promise<void>;
 }
 
 export interface WorkbenchController {
@@ -243,10 +255,10 @@ export interface WorkbenchController {
 	/** Validate and import a Scribe as a new local draft, without overwriting this one. */
 	importScribe(file: File): Promise<boolean>;
 	/**
-	 * Open a lyric handed over by a link as a new local draft, without
-	 * overwriting this one. `null` is a link `decodeHandoff` refused.
+	 * Open the lyric a link's `#open=` fragment hands over as a new local draft,
+	 * without overwriting this one. Hand-overs run one at a time.
 	 */
-	openHandoff(handoff: DraftHandoff | null): Promise<boolean>;
+	openHandoff(fragment: string): Promise<boolean>;
 	deleteDraft(id: string): Promise<void>;
 	deleteAllDrafts(): Promise<void>;
 	backupWorkspace(): Promise<void>;
@@ -519,32 +531,97 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 
 	/**
 	 * Write `record` as a new draft and open it, leaving the open one as it is.
-	 * `false` means it was not opened, and the reason has been reported.
+	 * `false` means it was not opened, and the reason has been passed to `report`.
 	 */
 	async function openAsNewDraft(
 		record: DraftRecord,
 		failure: string,
+		report: (message: string) => void,
 		beforeOpen?: () => Promise<void>
 	): Promise<boolean> {
 		await draft.flushAutosave();
 		// The flush reports its own failure and never throws, so this is the one
 		// place to see it. Switching away now would leave the unsaved words behind.
-		let written = draft.saveStatus !== 'failed';
-		if (written) {
-			try {
-				await deps.repository.create(record);
-				await beforeOpen?.();
-			} catch {
-				written = false;
-			}
+		if (draft.saveStatus === 'failed') {
+			report("The open 'scribe could not be saved, so nothing new was opened.");
+			return false;
 		}
-		if (!written) {
-			feedback.announce(failure);
-			feedback.addToast({ message: failure });
+		try {
+			await deps.repository.create(record);
+			await beforeOpen?.();
+		} catch {
+			report(failure);
 			return false;
 		}
 		await draft.openDraft(record.id);
 		return draft.draftId === record.id;
+	}
+
+	function reportNow(message: string): void {
+		feedback.announce(message);
+		feedback.addToast({ message });
+	}
+
+	let handoffsOpened = 0;
+	let handoffQueue: Promise<unknown> = Promise.resolve();
+
+	function reportHandoff(message: string): void {
+		const say = () => {
+			feedback.announce(message);
+			feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+		};
+		if (deps.workspaceShown) void deps.workspaceShown.then(say);
+		else say();
+	}
+
+	async function openOneHandoff(fragment: string): Promise<boolean> {
+		if (handoffsOpened >= MAX_HANDOFFS_PER_PAGE) {
+			reportHandoff(
+				`This tab has opened ${MAX_HANDOFFS_PER_PAGE} linked 'scribes. Reload it to open another link.`
+			);
+			return false;
+		}
+		let decodeHandoff;
+		try {
+			({ decodeHandoff } = await import('#lib/core/handoff.js'));
+		} catch {
+			reportHandoff(
+				"This link's lyrics could not be loaded. Reload the page and open the link again."
+			);
+			return false;
+		}
+		const handoff = await decodeHandoff(fragment);
+		if (!handoff) {
+			reportHandoff("This link's lyrics could not be read, so no 'scribe was created.");
+			return false;
+		}
+		const text = canonicalLineBreaks(handoff.text);
+		if (text === editorSession.snapshot.text) {
+			reportHandoff("This link's lyrics are already open.");
+			return false;
+		}
+		const timestamp = now();
+		const handed: DraftRecord = {
+			id: idFactory(),
+			title: handoff.title ?? DEFAULT_DRAFT_TITLE,
+			text,
+			language: draft.language,
+			performers: [],
+			createdAt: timestamp,
+			updatedAt: timestamp,
+			ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion
+		};
+		if (handoff.geniusUrl !== undefined) handed.geniusUrl = handoff.geniusUrl;
+		const opened = await openAsNewDraft(
+			handed,
+			"The linked lyrics could not be saved as a new 'scribe.",
+			reportHandoff
+		);
+		if (opened) {
+			handoffsOpened += 1;
+			reportHandoff("Opened the linked lyrics as a new 'scribe.");
+		}
+		return opened;
 	}
 
 	const controller: WorkbenchController = {
@@ -960,6 +1037,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			const opened = await openAsNewDraft(
 				imported,
 				'The Scribe could not be imported into local storage.',
+				reportNow,
 				async () => {
 					for (const key of project.ignoredDiagnostics) deps.ignoreStore.ignore(imported.id, key);
 					if (project.song && deps.mediaRepository) {
@@ -981,35 +1059,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			if (opened) feedback.announce(`Imported ${imported.title}.`);
 			return opened;
 		},
-		async openHandoff(handoff) {
-			if (!handoff) {
-				const message = "This link's lyrics could not be read, so no 'scribe was created.";
-				feedback.announce(message);
-				feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
-				return false;
-			}
-			const timestamp = now();
-			const handed: DraftRecord = {
-				id: idFactory(),
-				title: handoff.title ?? DEFAULT_DRAFT_TITLE,
-				text: canonicalLineBreaks(handoff.text),
-				language: draft.language,
-				performers: [],
-				createdAt: timestamp,
-				updatedAt: timestamp,
-				ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion
-			};
-			if (handoff.geniusUrl !== undefined) handed.geniusUrl = handoff.geniusUrl;
-			const opened = await openAsNewDraft(
-				handed,
-				"The linked lyrics could not be saved as a new 'scribe."
-			);
-			if (opened) {
-				const message = `Opened ${handed.title} as a new 'scribe.`;
-				feedback.announce(message);
-				feedback.addToast({ message });
-			}
-			return opened;
+		openHandoff(fragment) {
+			const opening = handoffQueue.then(() => openOneHandoff(fragment));
+			handoffQueue = opening.catch(() => {});
+			return opening;
 		},
 		deleteDraft: draft.deleteDraft,
 		async deleteAllDrafts() {

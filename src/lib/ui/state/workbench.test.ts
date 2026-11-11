@@ -26,7 +26,8 @@ import { createMediaPlayer } from './media-player.svelte.js';
 import { StubAudio } from './media-test-audio.js';
 import { sampleDraftText } from '../sample-draft.js';
 import { unknownVoiceAcceptanceKey } from '#lib/diagnostics/ignore.js';
-import { createWorkbenchController } from './workbench.svelte.js';
+import { createWorkbenchController, MAX_HANDOFFS_PER_PAGE } from './workbench.svelte.js';
+import { encodeHandoff } from '#lib/core/handoff.js';
 import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 import { buildRuleContext } from './wiring.js';
 
@@ -111,6 +112,7 @@ function setup(options: {
 	headless?: boolean;
 	mediaRepository?: MediaRepository;
 	exportText?: (text: string, filename: string) => void;
+	workspaceShown?: Promise<void>;
 }) {
 	const initial = options.initial ?? draft('draft-a');
 	const repository =
@@ -177,7 +179,8 @@ function setup(options: {
 			(() => Promise.reject(new Error('Clipboard reads are unavailable.'))),
 		copy: options.copy ?? (() => Promise.resolve()),
 		onOpenDraft,
-		exportText: options.exportText
+		exportText: options.exportText,
+		workspaceShown: options.workspaceShown
 	};
 	// Absent unless the test asked for audio: a controller with a media store is
 	// one more thing running behind every unrelated assertion.
@@ -1635,13 +1638,32 @@ describe('workbench lyric hand-over', () => {
 		title: 'City Lights',
 		geniusUrl: 'https://genius.com/Example-city-lights-lyrics'
 	};
+	const opened = "Opened the linked lyrics as a new 'scribe.";
+
+	function failingAutosave(): AutosaveController {
+		let status: ReturnType<AutosaveController['status']> = 'idle';
+		// The real controller's shape: a failed write is kept and reported through
+		// the status, never thrown out of `flush`.
+		return {
+			schedule() {
+				status = 'scheduled';
+			},
+			async flush() {
+				if (status === 'scheduled') status = 'failed';
+			},
+			cancel() {
+				status = 'idle';
+			},
+			status: () => status
+		};
+	}
 
 	test('opens the lyric as a new draft and leaves the open one byte-identical', async () => {
 		const { controller, repository, editor } = setup({});
 		const dispatch = vi.spyOn(editor, 'dispatchAtomic');
 		const before = JSON.stringify(await repository.get('draft-a'));
 
-		expect(await controller.openHandoff(handoff)).toBe(true);
+		expect(await controller.openHandoff(await encodeHandoff(handoff))).toBe(true);
 
 		expect(JSON.stringify(await repository.get('draft-a'))).toBe(before);
 		expect(dispatch).not.toHaveBeenCalled();
@@ -1655,8 +1677,11 @@ describe('workbench lyric hand-over', () => {
 			geniusUrl: handoff.geniusUrl
 		});
 		expect(await repository.list()).toHaveLength(2);
-		expect(controller.feedback.announcement).toBe("Opened City Lights as a new 'scribe.");
-		expect(controller.toasts.at(-1)?.message).toBe("Opened City Lights as a new 'scribe.");
+		expect(controller.feedback.announcement).toBe(opened);
+		expect(controller.toasts.at(-1)).toMatchObject({
+			message: opened,
+			duration: NOTICE_TOAST_DURATION
+		});
 	});
 
 	test('saves the open draft’s pending words before it switches', async () => {
@@ -1665,7 +1690,7 @@ describe('workbench lyric hand-over', () => {
 		const { controller } = setup({ initial: first, repository });
 		controller.onSnapshot(snapshot(first, 1, '[Verse]\nUnsaved line'));
 
-		expect(await controller.openHandoff({ text: 'Handed over' })).toBe(true);
+		expect(await controller.openHandoff(await encodeHandoff({ text: 'Handed over' }))).toBe(true);
 
 		expect((await repository.get('draft-a'))?.text).toBe('[Verse]\nUnsaved line');
 		expect(controller.title).toBe(DEFAULT_DRAFT_TITLE);
@@ -1675,43 +1700,128 @@ describe('workbench lyric hand-over', () => {
 	test('refuses and stays on the open draft when its save fails', async () => {
 		const first = draft('draft-a');
 		const repository = createInMemoryDraftRepository([first]);
-		let status: ReturnType<AutosaveController['status']> = 'idle';
-		// The real controller's shape: a failed write is kept and reported through
-		// the status, never thrown out of `flush`.
-		const autosave: AutosaveController = {
-			schedule() {
-				status = 'scheduled';
-			},
-			async flush() {
-				if (status === 'scheduled') status = 'failed';
-			},
-			cancel() {
-				status = 'idle';
-			},
-			status: () => status
-		};
-		const { controller } = setup({ initial: first, repository, autosave });
+		const { controller } = setup({ initial: first, repository, autosave: failingAutosave() });
 		controller.onSnapshot(snapshot(first, 1, '[Verse]\nUnsaved line'));
 
-		expect(await controller.openHandoff(handoff)).toBe(false);
+		expect(await controller.openHandoff(await encodeHandoff(handoff))).toBe(false);
 
 		expect(controller.draftId).toBe('draft-a');
 		expect(controller.snapshot.text).toBe('[Verse]\nUnsaved line');
 		expect(await repository.list()).toHaveLength(1);
 		expect(controller.feedback.announcement).toBe(
-			"The linked lyrics could not be saved as a new 'scribe."
+			"The open 'scribe could not be saved, so nothing new was opened."
 		);
 	});
 
 	test('refuses a link it could not read and creates nothing', async () => {
 		const { controller, repository } = setup({});
 
-		expect(await controller.openHandoff(null)).toBe(false);
+		expect(await controller.openHandoff('#open=1.____________')).toBe(false);
 
 		expect(controller.draftId).toBe('draft-a');
 		expect(await repository.list()).toHaveLength(1);
 		const refusal = "This link's lyrics could not be read, so no 'scribe was created.";
 		expect(controller.feedback.announcement).toBe(refusal);
-		expect(controller.toasts.at(-1)?.message).toBe(refusal);
+		expect(controller.toasts.at(-1)).toMatchObject({
+			message: refusal,
+			duration: NOTICE_TOAST_DURATION
+		});
+	});
+
+	test('says so, rather than blaming the link, when the codec fails to load', async () => {
+		vi.resetModules();
+		vi.doMock('#lib/core/handoff.js', () => {
+			throw new Error('Failed to fetch dynamically imported module');
+		});
+		try {
+			const { createWorkbenchController: create } = await import('./workbench.svelte.js');
+			const repository = createInMemoryDraftRepository([draft('draft-a')]);
+			const controller = create({
+				editor: setup({}).editor,
+				initialSnapshot: snapshot(draft('draft-a')),
+				initialDraft: draft('draft-a'),
+				repository,
+				autosave: controllableAutosave(repository).autosave,
+				ignoreStore: createContractIgnoreStore(createMemorySessionStorage())
+			});
+
+			expect(await controller.openHandoff(await encodeHandoff(handoff))).toBe(false);
+
+			expect(await repository.list()).toHaveLength(1);
+			expect(controller.feedback.announcement).toBe(
+				"This link's lyrics could not be loaded. Reload the page and open the link again."
+			);
+		} finally {
+			vi.doUnmock('#lib/core/handoff.js');
+			vi.resetModules();
+		}
+	});
+
+	test('creates nothing for the lyric that is already open', async () => {
+		const { controller, repository } = setup({});
+		const link = await encodeHandoff(handoff);
+		expect(await controller.openHandoff(link)).toBe(true);
+		const id = controller.draftId;
+
+		expect(await controller.openHandoff(link)).toBe(false);
+
+		expect(controller.draftId).toBe(id);
+		expect(await repository.list()).toHaveLength(2);
+		expect(controller.feedback.announcement).toBe("This link's lyrics are already open.");
+	});
+
+	test('runs hand-overs one at a time, so a repeat waits and creates nothing', async () => {
+		const repository = createInMemoryDraftRepository([draft('draft-a')]);
+		const create = repository.create.bind(repository);
+		// A write slow enough for the second link to finish decoding meanwhile.
+		// Run side by side, each would compare against the draft that was open
+		// and write its own copy.
+		repository.create = async (record) => {
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			return create(record);
+		};
+		const { controller } = setup({ repository });
+		const link = await encodeHandoff(handoff);
+
+		expect(await Promise.all([controller.openHandoff(link), controller.openHandoff(link)])).toEqual(
+			[true, false]
+		);
+
+		expect(await repository.list()).toHaveLength(2);
+	});
+
+	test('refuses hand-overs past the per-page cap and names the way out', async () => {
+		const { controller, repository } = setup({});
+		const links = await Promise.all(
+			Array.from({ length: MAX_HANDOFFS_PER_PAGE + 2 }, (_, index) =>
+				encodeHandoff({ text: `[Verse]\nLine ${index}` })
+			)
+		);
+
+		const results = await Promise.all(links.map((link) => controller.openHandoff(link)));
+
+		expect(results.filter(Boolean)).toHaveLength(MAX_HANDOFFS_PER_PAGE);
+		expect(results.slice(MAX_HANDOFFS_PER_PAGE)).toEqual([false, false]);
+		expect(await repository.list()).toHaveLength(MAX_HANDOFFS_PER_PAGE + 1);
+		const refusal = `This tab has opened ${MAX_HANDOFFS_PER_PAGE} linked 'scribes. Reload it to open another link.`;
+		expect(controller.feedback.announcement).toBe(refusal);
+		expect(controller.toasts.at(-1)).toMatchObject({
+			message: refusal,
+			duration: NOTICE_TOAST_DURATION
+		});
+	});
+
+	test('holds its feedback until the workspace has drawn', async () => {
+		let show = () => {};
+		const workspaceShown = new Promise<void>((resolve) => (show = resolve));
+		const { controller } = setup({ workspaceShown });
+
+		expect(await controller.openHandoff(await encodeHandoff(handoff))).toBe(true);
+		expect(controller.toasts.map((toast) => toast.message)).not.toContain(opened);
+
+		show();
+		await workspaceShown;
+		expect(controller.feedback.announcement).toBe(opened);
+		expect(controller.toasts.at(-1)?.message).toBe(opened);
 	});
 });

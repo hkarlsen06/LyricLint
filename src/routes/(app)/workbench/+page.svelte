@@ -3,7 +3,6 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import type { DraftHandoff } from '#lib/core/handoff.js';
 	import { parseDocument } from '#lib/core/parser.js';
 	import type {
 		AutosaveStatus,
@@ -57,6 +56,8 @@
 	// which returns while that flush is still in flight.
 	let guard: TabGuard | undefined;
 	const feedback = useFeedbackState();
+	let markShown: () => void = () => {};
+	const workspaceShown = new Promise<void>((resolve) => (markShown = resolve));
 	const finishNavigation = finishWorkbenchNavigation();
 	$effect(() => {
 		if (revealed || bootError || tabBusy) finishNavigation();
@@ -92,16 +93,13 @@
 	/**
 	 * A link from another page can hand over a lyric in the fragment, which no
 	 * request carries. It leaves the address bar and this history entry before
-	 * anything awaits, so a reload or a Back press cannot open it twice. The codec
-	 * loads only for such a link.
+	 * anything awaits, so a reload or a Back press cannot open it twice.
 	 */
-	function takeHandoff(): Promise<DraftHandoff | null> | undefined {
+	function takeHandoff(): string | undefined {
 		const fragment = location.hash;
 		if (!fragment.startsWith('#open=')) return undefined;
 		history.replaceState(history.state, '', `${location.pathname}${location.search}`);
-		return import('#lib/core/handoff.js')
-			.then(({ decodeHandoff }) => decodeHandoff(fragment))
-			.catch(() => null);
+		return fragment;
 	}
 
 	onMount(() => {
@@ -114,8 +112,7 @@
 		// only the fragment, which reloads nothing.
 		const onHashChange = () => {
 			const next = takeHandoff();
-			if (!next) return;
-			void Promise.all([ready, next]).then(([opened, decoded]) => opened.openHandoff(decoded));
+			if (next) void ready.then((opened) => opened.openHandoff(next));
 		};
 		window.addEventListener('hashchange', onHashChange);
 
@@ -212,6 +209,7 @@
 						void goto(resolve(target), { shallow: true, replace: true, state: page.state });
 					},
 					onBackupRestored: () => location.reload(),
+					workspaceShown,
 					sources: [...sourceRegistry.values()],
 					ruleSet: currentRuleSet,
 					onOpenDraft: (draft) => {
@@ -222,7 +220,7 @@
 				// Opened before the workspace first draws, so the editor mounts on the
 				// handed-over lyric rather than flashing the draft it replaces.
 				if (handoff) {
-					await created.openHandoff(await handoff);
+					await created.openHandoff(handoff);
 					if (cancelled) return;
 				}
 				controller = created;
@@ -319,6 +317,7 @@
 		}}
 		onready={() => {
 			revealed = true;
+			markShown();
 		}}
 	/>
 {:else if tabBusy}

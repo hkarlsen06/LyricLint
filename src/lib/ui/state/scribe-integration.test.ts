@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { parseDocument } from '#lib/core/parser.js';
 import { parseScribe, serializeScribe } from '#lib/scribe/format.js';
 import { createTestWorkbench, performer } from '../test-utils.js';
 
@@ -77,5 +78,47 @@ describe('Workbench Scribe projects', () => {
 		expect(controller.snapshot.text).toBe('[Verse]\nKeep this');
 		expect(await repository.list()).toHaveLength(1);
 		expect(feedback.toasts.at(-1)?.message).toBe('This file is not valid JSON.');
+	});
+
+	const importable = serializeScribe({
+		title: 'Imported song',
+		language: 'en',
+		lyrics: '[Verse]\nImported',
+		performers: [],
+		sectionLinks: [],
+		lineAnchors: [],
+		ignoredDiagnostics: []
+	});
+
+	test('refuses before writing anything when the open draft cannot be saved', async () => {
+		const { controller, repository, feedback } = createTestWorkbench({ text: '[Verse]\nSaved' });
+		repository.save = () => Promise.reject(new Error('QuotaExceededError'));
+		const edited = '[Verse]\nUnsaved words';
+		controller.onSnapshot({
+			...controller.snapshot,
+			revision: 5,
+			text: edited,
+			parsed: parseDocument(edited)
+		});
+
+		expect(await controller.importScribe(file('Imported song.lls', importable))).toBe(false);
+
+		expect(controller.draftId).toBe('draft-1');
+		expect(controller.snapshot.text).toBe(edited);
+		expect(await repository.list()).toHaveLength(1);
+		const refusal = "The open 'scribe could not be saved, so nothing new was opened.";
+		expect(feedback.announcement).toBe(refusal);
+		expect(feedback.toasts.at(-1)?.message).toBe(refusal);
+	});
+
+	test('reports an import only when the imported draft actually opened', async () => {
+		const { controller, repository, feedback } = createTestWorkbench({ text: '[Verse]\nSaved' });
+		repository.setCurrent = () => Promise.reject(new Error('The database connection closed.'));
+
+		expect(await controller.importScribe(file('Imported song.lls', importable))).toBe(false);
+
+		expect(controller.draftId).toBe('draft-1');
+		expect(feedback.announcement).not.toBe('Imported Imported song.');
+		expect(feedback.toasts.at(-1)?.message).toBe("That 'scribe could not be opened.");
 	});
 });
