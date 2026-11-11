@@ -303,6 +303,15 @@
 			}
 		},
 		{
+			"id": "lang-it",
+			"category": "language",
+			"language": "it",
+			"question": "Sto trascrivendo una canzone italiana. Devo scrivere [Strofa 1] o [Verse 1]?",
+			"expect": {
+				"scopes": ["reviewed", "mixed"]
+			}
+		},
+		{
 			"id": "policy-vs-grammar-comma",
 			"category": "policy-vs-grammar",
 			"language": "en",

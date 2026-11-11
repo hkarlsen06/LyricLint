@@ -71,7 +71,7 @@ export const languageSourceInventory: readonly LanguageSourceInventoryEntry[] = 
 		policyNote: englishPreferred
 	},
 	{ language: 'Irish', tag: 'ga', annotationId: 15739760, policy: 'unreviewed' },
-	{ language: 'Italian', tag: 'it', annotationId: 12745215, policy: 'unreviewed' },
+	{ language: 'Italian', tag: 'it', annotationId: 12745215, policy: 'localized' },
 	{
 		language: 'Japanese',
 		tag: 'ja',

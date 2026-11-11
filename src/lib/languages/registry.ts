@@ -4,6 +4,7 @@ import { englishLanguagePack } from './en.js';
 import { spanishLanguagePack } from './es.js';
 import { frenchLanguagePack } from './fr.js';
 import { languageSourceInventory } from './inventory.js';
+import { italianLanguagePack } from './it.js';
 import { japaneseLanguagePack } from './ja.js';
 import { koreanLanguagePack } from './ko.js';
 import { norwegianLanguagePack } from './no.js';
@@ -19,7 +20,8 @@ export const reviewedLanguagePacks: readonly LanguagePack[] = [
 	frenchLanguagePack,
 	japaneseLanguagePack,
 	koreanLanguagePack,
-	portugueseLanguagePack
+	portugueseLanguagePack,
+	italianLanguagePack
 ];
 
 /** Every reviewed pack's sources, in pack order, each once. */

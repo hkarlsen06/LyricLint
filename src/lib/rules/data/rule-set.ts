@@ -116,7 +116,8 @@ export const currentRuleSet: RuleSetManifest = {
 		'L-NO-ACCENT',
 		'G-HEADER-COLLECTIVE',
 		'G-NO-CHORUS',
-		'G-LANG-PT'
+		'G-LANG-PT',
+		'G-LANG-IT'
 	],
 	// Spelled out rather than spliced from the previous set. The splice read as a
 	// changelog only while every change was an append; the moment one belonged in

@@ -461,6 +461,19 @@ const sources: SourceReference[] = [
 		lastVerifiedAt: '2026-11-11'
 	},
 	{
+		// Captured 2026-11-11 from an operator-supplied screenshot cropped above the
+		// list: neither the banner region nor the contributor line shows, so the
+		// state is unread and the source keeps the conservative community tier.
+		...annotation(
+			'G-LANG-IT',
+			12745215,
+			'Song Headers in Different Languages',
+			'Reviewed Italian section-header vocabulary'
+		),
+		retrievedAt: '2026-11-11',
+		lastVerifiedAt: '2026-11-11'
+	},
+	{
 		// Re-read in full on 2026-08-12, seeding the guidance catalog's numbers
 		// topic: the spelled-out default, the digit exemptions, and the times
 		// format; staff tier reconfirmed.
