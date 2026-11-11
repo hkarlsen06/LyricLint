@@ -255,8 +255,17 @@
 			// fix would scroll the panel back.
 			let port = card.parentElement;
 			while (port && port.scrollHeight <= port.clientHeight) port = port.parentElement;
-			const tall = port !== null && card.offsetHeight > port.clientHeight;
-			card.scrollIntoView({ block: tall ? 'start' : 'nearest' });
+			if (!port) return;
+			// A sticky header inside the port, the tab strip on a narrow desktop,
+			// covers the top of what it scrolls.
+			const header = Array.from(port.children).find(
+				(child) => !child.contains(card) && getComputedStyle(child).position === 'sticky'
+			);
+			const covered = header?.getBoundingClientRect().height ?? 0;
+			if (card.offsetHeight > port.clientHeight - covered) {
+				port.scrollTop +=
+					card.getBoundingClientRect().top - port.getBoundingClientRect().top - covered;
+			} else card.scrollIntoView({ block: 'nearest' });
 		});
 	});
 
