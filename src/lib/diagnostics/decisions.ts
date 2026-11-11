@@ -1,5 +1,5 @@
 import type { Diagnostic } from '#lib/core/types.js';
-import { diagnosticKey } from './order.js';
+import { compareDiagnostics, diagnosticKey } from './order.js';
 
 /**
  * One row in Review: every place where the reader would answer the same
@@ -57,21 +57,38 @@ export function groupDecisions(
 
 /**
  * Arrange this snapshot's ranked rows in the order they were drawn before.
- * Rows that survive keep their order relative to each other, whatever answered
- * a place in them; a new row enters after the nearest row ranked above it that
- * is already drawn, or first when there is none.
+ *
+ * `remembered` is every row drawn since the order was last released, in drawn
+ * order, including rows absent now: Harper's rows leave on the publish after
+ * every edit and come back a moment later, and a row that comes back takes its
+ * old slot. Rows that survive keep their order relative to each other,
+ * whatever answered a place in them. A row never drawn before enters just
+ * above the first drawn row ranked below it, or after the last drawn row when
+ * none is, so a new Harper row lands under every native one. Among the absent
+ * rows at that point it takes its place by rank, from each one's last members,
+ * so a native row that arrives while Harper's are away still sits above them
+ * when they return.
+ *
+ * The result is the rows to draw, a permutation of `ranked`, and what to
+ * remember for the next snapshot.
  */
-export function keepOrder(ranked: readonly Decision[], drawn: readonly string[]): Decision[] {
+export function keepOrder(ranked: readonly Decision[], remembered: readonly Decision[]) {
 	const current = new Map(ranked.map((decision) => [decision.key, decision]));
-	const arranged = drawn.flatMap((key) => current.get(key) ?? []);
-	const placed = new Set(arranged);
-	for (const [index, decision] of ranked.entries()) {
-		if (placed.has(decision)) continue;
-		const above = ranked.slice(0, index).findLast((candidate) => placed.has(candidate));
-		arranged.splice(above ? arranged.indexOf(above) + 1 : 0, 0, decision);
-		placed.add(decision);
+	const order = remembered.map((decision) => current.get(decision.key) ?? decision);
+	const known = new Set(order.map(({ key }) => key));
+	for (const decision of ranked) {
+		if (known.has(decision.key)) continue;
+		known.add(decision.key);
+		const ranksBelow = (other: Decision) =>
+			compareDiagnostics(other.members[0]!, decision.members[0]!) > 0;
+		const drawnBelow = order.findIndex((other) => current.has(other.key) && ranksBelow(other));
+		const end = drawnBelow === -1 ? order.length : drawnBelow;
+		let start = end;
+		while (start > 0 && !current.has(order[start - 1]!.key)) start -= 1;
+		const absentBelow = order.slice(start, end).findIndex(ranksBelow);
+		order.splice(absentBelow === -1 ? end : start + absentBelow, 0, decision);
 	}
-	return arranged;
+	return { rows: order.filter(({ key }) => current.has(key)), remembered: order };
 }
 
 /** How many rows Review draws for these findings. Order does not matter. */

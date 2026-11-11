@@ -260,18 +260,21 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	);
 	// A row sorts by its first place, so a ranked list would move whenever a
 	// place was answered, from the panel or anywhere else. The drawn order is
-	// kept instead, only from one snapshot's rows to the next, and released
-	// when the reader changes what the list shows.
+	// kept instead, and released when the reader changes what the list shows.
+	// It remembers each distinct row drawn since that release and no more.
 	let orderRelease = $state(0);
 	let releaseOnNextSnapshot = false;
-	let drawnOrder: { release: number; keys: readonly string[] } | undefined;
+	let drawnOrder: { release: number; remembered: readonly Decision[] } | undefined;
 	const reviewDecisions = $derived.by(() => {
 		const ranked = unignoredDecisions.filter((decision) =>
 			severityFilter.includes(decision.members[0]!.severity)
 		);
-		const rows = drawnOrder?.release === orderRelease ? keepOrder(ranked, drawnOrder.keys) : ranked;
-		drawnOrder = { release: orderRelease, keys: rows.map(({ key }) => key) };
-		return rows;
+		const kept = keepOrder(
+			ranked,
+			drawnOrder?.release === orderRelease ? drawnOrder.remembered : []
+		);
+		drawnOrder = { release: orderRelease, remembered: kept.remembered };
+		return kept.rows;
 	});
 
 	// Review keeps the aimed occurrence without changing the finding's identity.

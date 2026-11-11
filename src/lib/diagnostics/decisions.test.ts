@@ -5,7 +5,13 @@ import { runRules } from '#lib/rules/engine.js';
 import { ruleContext } from '#lib/rules/rule-test-utils.js';
 import { sampleDraftText } from '#lib/ui/sample-draft.js';
 import { cityLightsPasted } from './decision-test-utils.js';
-import { countDecisions, decisionKey, groupDecisions, keepOrder } from './decisions.js';
+import {
+	countDecisions,
+	decisionKey,
+	groupDecisions,
+	keepOrder,
+	type Decision
+} from './decisions.js';
 import { orderDiagnostics } from './order.js';
 
 function finding(from: number, overrides: Partial<Diagnostic> = {}): Diagnostic {
@@ -116,32 +122,85 @@ describe('groupDecisions', () => {
 });
 
 describe('keepOrder', () => {
-	const row = (key: string) => ({ key, members: [finding(0)] });
+	/** A native warning at `from`, or Harper's when the key starts with `h`. */
+	const row = (key: string, from: number): Decision => ({
+		key,
+		members: [finding(from, key.startsWith('h') ? { ruleId: 'spelling.harper' } : {})]
+	});
 	const keys = (rows: readonly { key: string }[]) => rows.map(({ key }) => key);
+	/** Keep order from `drawn` and return the drawn keys with the remembered ones. */
+	const arrange = (ranked: readonly Decision[], drawn: readonly Decision[]) => {
+		const kept = keepOrder(orderedRows(ranked), drawn);
+		return { rows: keys(kept.rows), remembered: keys(kept.remembered), kept };
+	};
+	/** Rank rows the way the panel does: by `orderDiagnostics` on first members. */
+	const orderedRows = (rows: readonly Decision[]) =>
+		orderDiagnostics(rows.map((decision) => decision.members[0]!)).map((member) =>
+			rows.find((decision) => decision.members[0] === member)!
+		);
+	const x = row('x', 10);
+	const a = row('a', 20);
+	const y = row('y', 30);
+	const z = row('z', 40);
+	const harper = row('h1', 5);
+	const otherHarper = row('h2', 15);
 
 	it('keeps surviving rows where they were drawn, whatever their rank now', () => {
-		expect(keys(keepOrder(['Y', 'Z', 'A', 'X'].map(row), ['X', 'A', 'Y', 'Z']))).toEqual([
-			'X',
-			'A',
-			'Y',
-			'Z'
-		]);
+		expect(arrange([a, x, y, z], [z, a, x, y]).rows).toEqual(['z', 'a', 'x', 'y']);
 	});
 
 	it('closes the gap a leaving row leaves without moving the others', () => {
-		expect(keys(keepOrder(['Z', 'X'].map(row), ['X', 'A', 'Z']))).toEqual(['X', 'Z']);
+		expect(arrange([x, z], [z, a, x]).rows).toEqual(['z', 'x']);
 	});
 
-	it('lets a new row in after the nearest row ranked above it', () => {
-		expect(keys(keepOrder(['N', 'Y', 'M', 'X'].map(row), ['X', 'Y']))).toEqual([
-			'N',
-			'X',
-			'Y',
-			'M'
+	it('remembers an absent row so it comes back to its old slot', () => {
+		// A Harper row out of rank, gone on the native-only publish after an edit.
+		const away = arrange([a, y], [y, otherHarper, a, harper]);
+		expect(away.rows).toEqual(['y', 'a']);
+		expect(away.remembered).toEqual(['y', 'h2', 'a', 'h1']);
+
+		expect(arrange([a, y, harper, otherHarper], away.kept.remembered).rows).toEqual([
+			'y',
+			'h2',
+			'a',
+			'h1'
 		]);
 	});
 
-	it('draws the ranked order when nothing was drawn before', () => {
-		expect(keys(keepOrder(['B', 'A'].map(row), []))).toEqual(['B', 'A']);
+	it('lets a new Harper row in under every native row, ranked or not', () => {
+		// `y` was answered down to rank below `a`, which drew below it.
+		expect(arrange([a, y, harper], [y, a]).rows).toEqual(['y', 'a', 'h1']);
+	});
+
+	it('lets a new native row in above Harper rows that are away', () => {
+		const typed = arrange([x, a], [x, harper, otherHarper]);
+		expect(typed.rows).toEqual(['x', 'a']);
+		expect(arrange([x, a, harper, otherHarper], typed.kept.remembered).rows).toEqual([
+			'x',
+			'a',
+			'h1',
+			'h2'
+		]);
+	});
+
+	it('lets a new row in above the first drawn row ranked below it', () => {
+		expect(arrange([x, y, z], [z, x]).rows).toEqual(['y', 'z', 'x']);
+	});
+
+	it('lets several new rows in at once, each by its own rank', () => {
+		expect(arrange([x, a, y, z, harper], [y]).rows).toEqual(['x', 'a', 'y', 'z', 'h1']);
+	});
+
+	it('puts a new row ranked above everything first', () => {
+		expect(arrange([x, a, y], [y, a]).rows).toEqual(['x', 'y', 'a']);
+	});
+
+	it('draws the ranked order when every row is new', () => {
+		expect(arrange([y, x, harper], [a, z]).rows).toEqual(['x', 'y', 'h1']);
+		expect(arrange([y, x], []).rows).toEqual(['x', 'y']);
+	});
+
+	it('draws nothing for no rows and still remembers the drawn ones', () => {
+		expect(arrange([], [x, a])).toMatchObject({ rows: [], remembered: ['x', 'a'] });
 	});
 });
