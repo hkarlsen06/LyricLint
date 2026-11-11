@@ -312,6 +312,15 @@
 			}
 		},
 		{
+			"id": "lang-sv",
+			"category": "language",
+			"language": "sv",
+			"question": "Jag transkriberar en svensk låt. Ska rubrikerna vara [Refräng] eller [Chorus]?",
+			"expect": {
+				"scopes": ["reviewed", "mixed"]
+			}
+		},
+		{
 			"id": "policy-vs-grammar-comma",
 			"category": "policy-vs-grammar",
 			"language": "en",

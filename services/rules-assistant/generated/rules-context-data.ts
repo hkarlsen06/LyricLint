@@ -4,8 +4,8 @@ import type { AssistantCorpus } from './rules-context';
 export const corpus = {
 	formatVersion: 6,
 	ruleSetVersion: '2026.09.21.2',
-	generatedAt: '2026-11-11T02:20:58.473Z',
-	contentHash: 'f28053dfcca1d725ccad2d641bb6e6aa8cf5043b75284e953ab678ea4045cbe9',
+	generatedAt: '2026-11-11T02:21:36.018Z',
+	contentHash: '423415434377925abedc55b00899cfec303b2851b3a77683cf5df5aba24f205a',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -229,7 +229,8 @@ export const corpus = {
 				'G-LANG-JA',
 				'G-LANG-KO',
 				'G-LANG-PT',
-				'G-LANG-IT'
+				'G-LANG-IT',
+				'G-LANG-SV'
 			]
 		},
 		{
@@ -2379,6 +2380,14 @@ export const corpus = {
 			authority: 'staff'
 		},
 		{
+			id: 'G-LANG-SV',
+			pageTitle: 'Song Headers in Different Languages',
+			sectionTitle: 'Reviewed Swedish section-header vocabulary',
+			url: 'https://genius.com/12745194',
+			lastVerifiedAt: '2026-11-11',
+			authority: 'community'
+		},
+		{
 			id: 'G-LINES',
 			pageTitle: 'Individual lyric lines',
 			sectionTitle: 'Split prose-like transcription into lyric lines',
@@ -2923,6 +2932,22 @@ export const corpus = {
 				{ semanticPart: 'Solo', terms: ['Assolo'] },
 				{ semanticPart: 'Interlude', terms: ['Interludio'] },
 				{ semanticPart: 'Non-Lyrical Vocals', terms: ['Senza testo'] }
+			]
+		},
+		{
+			tag: 'sv',
+			displayName: 'Swedish',
+			policy: 'localized',
+			headerTerms: [
+				{ semanticPart: 'Instrumental', terms: ['Instrumental'] },
+				{ semanticPart: 'Intro', terms: ['Intro'] },
+				{ semanticPart: 'Verse', terms: ['Vers'] },
+				{ semanticPart: 'Pre-Chorus', terms: ['Brygga'] },
+				{ semanticPart: 'Chorus', terms: ['Refräng'] },
+				{ semanticPart: 'Post-Chorus', terms: ['Post-Refräng'] },
+				{ semanticPart: 'Bridge', terms: ['Stick'] },
+				{ semanticPart: 'Interlude', terms: ['Mellanspel'] },
+				{ semanticPart: 'Outro', terms: ['Outro'] }
 			]
 		}
 	],

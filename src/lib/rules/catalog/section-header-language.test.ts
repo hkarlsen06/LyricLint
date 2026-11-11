@@ -40,6 +40,8 @@ describe('section.header-language', () => {
 		['pt', 'Chorus', ['Refrão']],
 		['it', 'Instrumental', ['Strumentale']],
 		['it', 'Refrain', ['Ritornello']],
+		['sv', 'Refreng', ['Refräng']],
+		['sv', 'Bridge', ['Stick']],
 		['en', 'Intermède', ['Interlude']]
 	] as const)('offers reviewed %s alternatives for %s', (language, input, replacements) => {
 		const text = `[${input} 2: Avery]\nA lyric`;

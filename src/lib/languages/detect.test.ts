@@ -45,6 +45,25 @@ Jeg drar hjem til Rykkinn for å røyke weeden min i fred`);
 		expect(detectSongLanguage(document, 'en')?.tag).toBe('no');
 	});
 
+	it('detects a Swedish lyric as Swedish rather than Norwegian', () => {
+		const document = parseDocument(`[Vers]
+Jag går hem genom staden i kväll
+Gatlyktorna tänds en efter en
+Du sa att vi skulle ses vid hamnen
+Men jag står här ensam igen
+Vinden är kall och himlen är grå
+Jag tänker på allt som vi hade
+Varför är det så svårt att förstå
+Att du aldrig kommer tillbaka
+Jag kan höra ditt namn i regnet
+Det sjunger så tyst för mig
+Och när morgonen kommer så vet jag
+Att jag fortfarande väntar på dig`);
+
+		expect(detectSongLanguage(document, 'en')?.tag).toBe('sv');
+		expect(detectSongLanguage(document, 'sv')?.tag).toBe('sv');
+	});
+
 	it('recognizes Japanese and Korean from their scripts', () => {
 		expect(
 			detectSongLanguage(

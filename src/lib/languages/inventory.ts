@@ -126,7 +126,7 @@ export const languageSourceInventory: readonly LanguageSourceInventoryEntry[] = 
 	},
 	{ language: 'Slovene', tag: 'sl', annotationId: 13068711, policy: 'unreviewed' },
 	{ language: 'Spanish', tag: 'es', annotationId: 12744618, policy: 'localized' },
-	{ language: 'Swedish', tag: 'sv', annotationId: 12745194, policy: 'unreviewed' },
+	{ language: 'Swedish', tag: 'sv', annotationId: 12745194, policy: 'localized' },
 	{
 		language: 'Thai',
 		tag: 'th',
