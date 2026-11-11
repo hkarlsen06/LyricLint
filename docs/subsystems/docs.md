@@ -40,8 +40,9 @@ Touches: `src/lib/docs/catalog.ts`, `src/lib/docs/content/`, `src/lib/docs/keys.
 - The copy and paste page offers the `Open in LyricLint` bookmarklet as one draggable link, built
   by `handoffBookmarklet` from the source of `openInLyricLint`, which therefore uses nothing
   outside its own body and arguments. It writes the hand-over link `docs/subsystems/drafts.md`
-  describes, to the production origin, and makes no request. Its section is not drawn on a phone
-  (`PHONE_LAYOUT_QUERY`) or below 40rem, where there is no bookmarks bar.
+  describes, to the production origin, and makes no request. On a phone (`PHONE_LAYOUT_QUERY`)
+  or below 40rem, where there is no bookmarks bar, its section keeps the heading and first
+  paragraph and points to a computer in place of the link and steps.
   `handoff-bookmarklet.svelte.test.ts` runs the shipped link, not only the function.
 
 ## Decision record

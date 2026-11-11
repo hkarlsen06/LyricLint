@@ -26,11 +26,15 @@ export async function openInLyricLint(workbenchUrl: string, maxPayloadLength: nu
 		const read = (node: Node) => {
 			for (const child of node.childNodes) {
 				if (child instanceof Text) {
-					const space = getComputedStyle(child.parentElement ?? focused).whiteSpace;
+					const style = getComputedStyle(child.parentElement ?? focused);
+					if (style.visibility !== 'visible') continue;
 					// Collapsed as the page draws it, unless the box keeps its spacing.
-					text += /^(pre|break-spaces)/.test(space)
-						? child.data
-						: child.data.replace(/[ \t\n\r\f]+/g, ' ');
+					// Spacing at the start of a line is markup layout, never drawn.
+					if (/^(pre|break-spaces)/.test(style.whiteSpace)) text += child.data;
+					else {
+						const collapsed = child.data.replace(/[ \t\n\r\f]+/g, ' ');
+						if (collapsed !== ' ' || (text !== '' && !text.endsWith('\n'))) text += collapsed;
+					}
 				} else if (child instanceof HTMLBRElement) text += '\n';
 				else if (child instanceof Element) {
 					const display = getComputedStyle(child).display;

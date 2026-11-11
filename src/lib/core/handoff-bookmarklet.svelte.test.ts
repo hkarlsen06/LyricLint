@@ -89,6 +89,21 @@ describe('openInLyricLint', () => {
 		expect(await openedText()).toBe('[Verse]\nOne\n\n[Chorus]\nTwo');
 	});
 
+	it('reads block lines laid out with source whitespace, and skips text it does not draw', async () => {
+		const box = mount(`<div contenteditable="true">
+			<div>[Verse]</div>
+			<div>One <span style="visibility:hidden">secret</span></div>
+			<div><br></div>
+			<div>[Chorus]</div>
+			<div>Two</div>
+		</div>`).firstElementChild as HTMLElement;
+		box.focus();
+
+		await openInLyricLint(workbench, maxHandoffPayloadLength);
+
+		expect(await openedText()).toBe('[Verse]\nOne\n\n[Chorus]\nTwo');
+	});
+
 	it('sends the selection when no lyrics box is focused', async () => {
 		const host = mount(
 			'<p>Before</p><div>First line</div><div>Second line</div><div>Third line</div><p>After</p>'
