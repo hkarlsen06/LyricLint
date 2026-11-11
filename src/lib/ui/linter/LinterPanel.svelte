@@ -125,7 +125,7 @@
 		if (hiddenByFilters > 0) {
 			return {
 				title: 'Hidden by filters',
-				detail: `${hiddenByFilters} ${hiddenByFilters === 1 ? 'issue is' : 'issues are'} hidden by the severity filters. Re-enable a severity to see ${hiddenByFilters === 1 ? 'it' : 'them'}.`
+				detail: `${hiddenByFilters} ${hiddenByFilters === 1 ? 'decision is' : 'decisions are'} hidden by the severity filters. Re-enable a severity to see ${hiddenByFilters === 1 ? 'it' : 'them'}.`
 			};
 		}
 		if (controller.snapshot.diagnostics.length > 0) {
@@ -146,7 +146,7 @@
 	// line after the last card says whether anything else is out of sight.
 	const afterword = $derived(
 		hiddenByFilters > 0
-			? `${hiddenByFilters} more ${hiddenByFilters === 1 ? 'issue' : 'issues'} hidden by the severity filters.`
+			? `${hiddenByFilters} more ${hiddenByFilters === 1 ? 'decision' : 'decisions'} hidden by the severity filters.`
 			: 'No further issues detected.'
 	);
 
@@ -256,7 +256,7 @@
 			     names the rows the press leaves. -->
 			{#if decisionsLeft > 0}
 				<span class="linter-panel__bulk-note"
-					>{decisionsLeft} {decisionsLeft === 1 ? 'needs' : 'need'} a decision</span
+					>{decisionsLeft} {decisionsLeft === 1 ? 'decision' : 'decisions'} left</span
 				>
 			{/if}
 		</div>

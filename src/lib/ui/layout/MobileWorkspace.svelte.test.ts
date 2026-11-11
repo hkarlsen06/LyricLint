@@ -56,6 +56,16 @@ test('phone review opens one decision, releases it on return, and retains the ed
 	expect(editor.getBoundingClientRect().height).toBeGreaterThan(600);
 });
 
+test('the phone Review control counts decisions, not the places they cover', async () => {
+	await page.viewport(390, 844);
+	const controller = await mount();
+	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
+	await waitFor(() => expect(controller.visibleDiagnostics).toHaveLength(2));
+	expect(navigation.getByRole('button', { name: /^Review/ }).textContent?.trim()).toBe(
+		'Review (1)'
+	);
+});
+
 test('the keyboard gives its space to writing and restores navigation only after dismissal', async () => {
 	await page.viewport(390, 844);
 	const events = new EventTarget();

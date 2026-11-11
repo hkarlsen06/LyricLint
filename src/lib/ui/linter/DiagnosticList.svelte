@@ -325,13 +325,14 @@
 	</div>
 {:else}
 	{#if !overview && rows.length > 1}
-		<div class="diagnostic-actions" role="group" aria-label="Navigate findings">
+		<div class="diagnostic-actions" role="group" aria-label="Navigate decisions">
 			<button
 				type="button"
 				class="button button--quiet"
 				disabled={currentIndex <= 0}
+				aria-label="Previous decision"
 				aria-keyshortcuts="Alt+Shift+ArrowUp"
-				{@attach describeControl(() => ({ label: 'Previous finding', shortcut: 'Alt+Shift+↑' }))}
+				{@attach describeControl(() => ({ label: 'Previous decision', shortcut: 'Alt+Shift+↑' }))}
 				onclick={() => step(-1)}>Previous</button
 			>
 			<span aria-live="polite">{currentIndex + 1} of {rows.length}</span>
@@ -339,8 +340,9 @@
 				type="button"
 				class="button button--quiet"
 				disabled={currentIndex >= rows.length - 1}
+				aria-label="Next decision"
 				aria-keyshortcuts="Alt+Shift+ArrowDown"
-				{@attach describeControl(() => ({ label: 'Next finding', shortcut: 'Alt+Shift+↓' }))}
+				{@attach describeControl(() => ({ label: 'Next decision', shortcut: 'Alt+Shift+↓' }))}
 				onclick={() => step(1)}>Next</button
 			>
 		</div>

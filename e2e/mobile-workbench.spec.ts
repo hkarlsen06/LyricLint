@@ -278,7 +278,7 @@ test('tapping a phone issue count opens the first finding in Review without a fl
 	await expect(page.locator('.popover')).not.toBeVisible();
 	await expect(page.locator('.ll-diagnostic-cluster-menu:visible')).toHaveCount(0);
 	await expect(lyricsEditor(page)).not.toBeFocused();
-	await page.getByRole('button', { name: 'Next', exact: true }).tap();
+	await page.getByRole('button', { name: 'Next decision', exact: true }).tap();
 	await expect(page.locator('.diagnostic-list')).toContainText('closing curly double quote');
 	await mobileNavigation(page).getByRole('button', { name: 'Write', exact: true }).tap();
 	await expectLyrics(page, '[Verse]\nShe said “hello”');

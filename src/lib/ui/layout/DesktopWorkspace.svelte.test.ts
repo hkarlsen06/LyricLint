@@ -26,7 +26,7 @@ test.each([390, 640])(
 	'a %ipx mouse-driven desktop keeps its panels and document commands',
 	async (width) => {
 		await page.viewport(width, 844);
-		await mount();
+		const controller = await mount();
 		await waitFor(() => expect(window.matchMedia('(pointer: fine)').matches).toBe(true));
 		expect(screen.queryByRole('navigation', { name: 'Workbench views' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Document' })).toBeNull();
@@ -35,7 +35,10 @@ test.each([390, 640])(
 		const editor = screen.getByTestId('editor-region');
 		await fireEvent.click(screen.getByRole('button', { name: 'Expand editor' }));
 		expect(screen.queryByRole('tab', { name: /Review/ })).toBeNull();
-		await fireEvent.click(screen.getByRole('button', { name: /Show tools/ }));
+		// Two `Imma` lines are two places and one decision, and the label counts
+		// what Review will draw.
+		expect(controller.visibleDiagnostics).toHaveLength(2);
+		await fireEvent.click(screen.getByRole('button', { name: 'Show tools, 1 decision to review' }));
 		expect(screen.getByRole('tab', { name: /Review/ })).toBeTruthy();
 		expect(screen.getByTestId('editor-region')).toBe(editor);
 	}

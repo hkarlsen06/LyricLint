@@ -116,7 +116,7 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		await render(LinterPanel, { controller });
 
 		expect(screen.getByRole('button', { name: 'Fix 1 issue automatically' })).toBeTruthy();
-		expect(screen.queryByText(/need a decision/)).toBeNull();
+		expect(screen.queryByText(/left$/u)).toBeNull();
 	});
 
 	test('ends the row with what the command will not touch', async () => {
@@ -130,7 +130,7 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		// lone button from sitting in half a row of empty gutter.
 		// The remainder counts rows: two prose lines are one decision.
 		expect(row.textContent?.replace(/\s+/gu, ' ').trim()).toBe(
-			'Fix 1 issue automatically 1 needs a decision'
+			'Fix 1 issue automatically 1 decision left'
 		);
 		expect(getComputedStyle(row).justifyContent).toBe('space-between');
 
@@ -348,7 +348,7 @@ describe('review continuity', () => {
 			diagnostics: [spelling(0, 4, "I'ma"), prose(8, 12)]
 		});
 		await render(LinterPanel, { controller });
-		const next = screen.getByRole('button', { name: 'Next' });
+		const next = screen.getByRole('button', { name: 'Next decision' });
 		next.focus();
 		await fireEvent.click(next);
 		expect(controller.activeDiagnosticKey).toBe('line.prose-density:8:12');
@@ -566,7 +566,7 @@ describe('one row per decision', () => {
 		// The button counts the places its press changes; the rest count rows.
 		expect(
 			document.querySelector('.linter-panel__bulk')?.textContent?.replace(/\s+/gu, ' ').trim()
-		).toBe('Fix 15 issues automatically 2 need a decision');
+		).toBe('Fix 15 issues automatically 2 decisions left');
 		expect(screen.getByRole('button', { name: /^Warnings/ }).textContent).toMatch(/2$/u);
 		expect(screen.getByRole('button', { name: /^Suggestions/ }).textContent).toMatch(/1$/u);
 	});

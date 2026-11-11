@@ -961,7 +961,9 @@ describe('RightPanel', () => {
 		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
 		expect(screen.getByText('Hidden by filters')).toBeTruthy();
 		expect(
-			screen.getByText('1 issue is hidden by the severity filters. Re-enable a severity to see it.')
+			screen.getByText(
+				'1 decision is hidden by the severity filters. Re-enable a severity to see it.'
+			)
 		).toBeTruthy();
 
 		// Ignoring the diagnostic is a separate reason for an empty list, so the copy
@@ -1047,6 +1049,6 @@ describe('RightPanel', () => {
 		await fireEvent.click(screen.getByRole('tab', { name: /Review/ }));
 		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
 		expect(screen.queryByText('No further issues detected.')).toBeNull();
-		expect(screen.getByText('1 more issue hidden by the severity filters.')).toBeTruthy();
+		expect(screen.getByText('1 more decision hidden by the severity filters.')).toBeTruthy();
 	});
 });

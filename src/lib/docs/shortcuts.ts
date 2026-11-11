@@ -55,12 +55,12 @@ export const shortcuts = {
 		{ combos: ['Shift-F2', 'Ctrl-Alt-,'], action: 'Previous finding' },
 		{
 			combos: ['Alt-Shift-ArrowDown'],
-			action: 'Next finding in the Review list',
+			action: 'Next decision in the Review list',
 			context: 'Focus outside the lyrics and text fields'
 		},
 		{
 			combos: ['Alt-Shift-ArrowUp'],
-			action: 'Previous finding in the Review list',
+			action: 'Previous decision in the Review list',
 			context: 'Focus outside the lyrics and text fields'
 		},
 		{ combos: ['Escape'], action: "Close a finding's popover in the lyrics" }
