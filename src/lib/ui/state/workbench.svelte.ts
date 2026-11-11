@@ -564,7 +564,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		feedback.addToast({ message });
 	}
 
-	let handoffsOpened = 0;
+	// Every link counts, opened or refused: a refused one still costs a decode
+	// and a message, and a page that sends bad links must reach the cap too.
+	let handoffsTaken = 0;
 	let handoffQueue: Promise<unknown> = Promise.resolve();
 
 	function reportHandoff(message: string): void {
@@ -577,12 +579,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	}
 
 	async function openOneHandoff(fragment: string): Promise<boolean> {
-		if (handoffsOpened >= MAX_HANDOFFS_PER_PAGE) {
+		if (handoffsTaken >= MAX_HANDOFFS_PER_PAGE) {
 			reportHandoff(
-				`This tab has opened ${MAX_HANDOFFS_PER_PAGE} linked 'scribes. Reload it to open another link.`
+				`This tab has taken ${MAX_HANDOFFS_PER_PAGE} lyric links. Reload it to open another link.`
 			);
 			return false;
 		}
+		handoffsTaken += 1;
 		let decodeHandoff;
 		try {
 			({ decodeHandoff } = await (
@@ -621,10 +624,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			"The linked lyrics could not be saved as a new 'scribe.",
 			reportHandoff
 		);
-		if (opened) {
-			handoffsOpened += 1;
-			reportHandoff("Opened the linked lyrics as a new 'scribe.");
-		}
+		if (opened) reportHandoff("Opened the linked lyrics as a new 'scribe.");
 		return opened;
 	}
 

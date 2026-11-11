@@ -1777,6 +1777,20 @@ describe('workbench lyric hand-over', () => {
 		expect(await repository.list()).toHaveLength(2);
 	});
 
+	test('counts a refused link toward the per-page cap', async () => {
+		const { controller, repository } = setup({});
+		for (let attempt = 0; attempt < MAX_HANDOFFS_PER_PAGE; attempt += 1) {
+			expect(await controller.openHandoff('#open=1.not-a-payload')).toBe(false);
+		}
+
+		expect(await controller.openHandoff(await encodeHandoff(handoff))).toBe(false);
+
+		expect(await repository.list()).toHaveLength(1);
+		expect(controller.feedback.announcement).toBe(
+			`This tab has taken ${MAX_HANDOFFS_PER_PAGE} lyric links. Reload it to open another link.`
+		);
+	});
+
 	test('refuses hand-overs past the per-page cap and names the way out', async () => {
 		const { controller, repository } = setup({});
 		const links = await Promise.all(
@@ -1790,7 +1804,7 @@ describe('workbench lyric hand-over', () => {
 		expect(results.filter(Boolean)).toHaveLength(MAX_HANDOFFS_PER_PAGE);
 		expect(results.slice(MAX_HANDOFFS_PER_PAGE)).toEqual([false, false]);
 		expect(await repository.list()).toHaveLength(MAX_HANDOFFS_PER_PAGE + 1);
-		const refusal = `This tab has opened ${MAX_HANDOFFS_PER_PAGE} linked 'scribes. Reload it to open another link.`;
+		const refusal = `This tab has taken ${MAX_HANDOFFS_PER_PAGE} lyric links. Reload it to open another link.`;
 		expect(controller.feedback.announcement).toBe(refusal);
 		expect(controller.toasts.at(-1)).toMatchObject({
 			message: refusal,
