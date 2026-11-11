@@ -305,11 +305,12 @@ test('a script the edge injects never sees the fragment', async ({ page }) => {
 });
 
 /**
- * The script of the bookmarklet the docs page draws, pointed at this server
- * instead of production.
+ * The script of the bookmarklet the docs page draws once hydrated, pointed at
+ * this server instead of production.
  */
 async function docsBookmarklet(page: Page, baseURL: string): Promise<string> {
 	await page.goto('/docs/copy-paste/');
+	await page.waitForLoadState('networkidle');
 	const href = await page.getByRole('link', { name: 'Open in LyricLint' }).getAttribute('href');
 	expect(href).toMatch(/^javascript:/u);
 	const script = decodeURIComponent(href!.slice('javascript:'.length));

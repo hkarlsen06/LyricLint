@@ -77,7 +77,8 @@ The link is a link rather than a `Copy bookmarklet` button because nothing refus
 CSP stops a press on it from running here (`script-src` has no `unsafe-inline`), which is harmless:
 the link is for dragging, and the policy of the page it is pressed on later is the one that
 applies. `svelte/no-navigation-without-resolve` flags any computed `href`, so the line carries the
-same reasoned exception as the site's other computed links. Its source comes from whichever build
-renders it: the prerendered page keeps the server build's text through hydration. A Genius page
+same reasoned exception as the site's other computed links. The prerendered page carries the
+server build's source, and hydration replaces it with the client build's minified source: one
+function in two spellings, so the e2e runs the hydrated link and the live check ran both. A Genius page
 whose own CSP blocks bookmarklets would block this one; that is what the operator's check on a
 real editing page settles.
