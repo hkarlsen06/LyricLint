@@ -889,6 +889,25 @@ describe('one row per decision', () => {
 		expect(rowTexts()).toEqual(['E', 'W', 'A'].map(marker));
 	});
 
+	test('returns to rank order when Review is shown again after being hidden', async () => {
+		const { controller } = lintedWorkbench(
+			markedLines({ 1: 'E', 2: 'A', 5: 'W', 30: 'A' }),
+			{},
+			markers
+		);
+		await render(LinterPanel, { controller });
+		await fireEvent.click(rowFor(marker('A')).querySelector('button')!);
+		await fireEvent.click(screen.getByRole('button', { name: 'Remove A' }));
+		await waitFor(() => expect(lineOf('A')).toBe('Line 30'));
+		expect(rowTexts()).toEqual(['E', 'A', 'W'].map(marker));
+
+		controller.setActiveTab('performers');
+		await frame();
+		controller.setActiveTab('linter');
+
+		await waitFor(() => expect(rowTexts()).toEqual(['E', 'W', 'A'].map(marker)));
+	});
+
 	test('forgets a collapse whose row left while another tab was showing', async () => {
 		const { controller, editor } = lintedWorkbench(
 			markedLines({ 1: 'A', 2: 'Y', 3: 'A' }),

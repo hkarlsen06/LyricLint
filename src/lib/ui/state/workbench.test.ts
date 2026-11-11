@@ -1098,6 +1098,19 @@ describe('workbench diagnostic navigation', () => {
 			return { ...workbench, record };
 		}
 
+		test('returns to rank order once the document is replaced wholesale', () => {
+			const { controller, editor, record } = heldOutOfRank();
+			editor.dispatchAtomic = () =>
+				controller.onSnapshot({
+					...snapshot(record, 3),
+					diagnostics: [marker('X', 30), marker('Y', 20)]
+				});
+
+			controller.loadSample();
+
+			expect(messages(controller)).toEqual(['Y', 'X']);
+		});
+
 		// A stale replacement throws from the dispatch. Left armed, the release and
 		// the lead would fire on whatever the reader typed next.
 		test('arms nothing when the replacement throws', () => {
@@ -1117,6 +1130,18 @@ describe('workbench diagnostic navigation', () => {
 			expect(messages(controller)).toEqual(['X', 'Y']);
 			expect(selections).toEqual([]);
 			expect(controller.activeDiagnosticKey).toBeUndefined();
+		});
+
+		test('returns to rank order when the draft changes', async () => {
+			const { controller } = heldOutOfRank();
+
+			await controller.openDraft(second.id);
+			controller.onSnapshot({
+				...snapshot(second, 3),
+				diagnostics: [marker('X', 30), marker('Y', 20)]
+			});
+
+			expect(messages(controller)).toEqual(['Y', 'X']);
 		});
 	});
 
