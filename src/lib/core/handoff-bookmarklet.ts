@@ -1,0 +1,44 @@
+import { maxHandoffPayloadLength } from './handoff.js';
+import { siteUrl } from '../seo.js';
+
+/**
+ * Runs on the transcriber's Genius tab, not here: `handoffBookmarklet` turns
+ * this function's source into a `javascript:` link, so it may use nothing
+ * outside its own body and its arguments.
+ *
+ * It reads the lyric from the focused textarea, the focused editable box, or
+ * the selection, in that order, and opens it in a new workbench tab in the
+ * fragment form `decodeHandoff` reads.
+ */
+export async function openInLyricLint(workbenchUrl: string, maxPayloadLength: number) {
+	const focused = document.activeElement;
+	let text: string;
+	if (focused instanceof HTMLTextAreaElement) text = focused.value;
+	else if (focused instanceof HTMLElement && focused.isContentEditable) text = focused.innerText;
+	else text = String(getSelection() ?? '');
+	if (text.trim() === '') {
+		alert('Click into the lyrics box first, then press Open in LyricLint again.');
+		return;
+	}
+
+	const json = JSON.stringify({ text, title: document.title, geniusUrl: location.href });
+	const deflated = new Blob([json]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+	const bytes = new Uint8Array(await new Response(deflated).arrayBuffer());
+	let binary = '';
+	for (let offset = 0; offset < bytes.length; offset += 8192) {
+		binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+	}
+	const payload = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	if (payload.length > maxPayloadLength) {
+		alert('These lyrics are too long to open in LyricLint.');
+		return;
+	}
+	window.open(`${workbenchUrl}#open=1.${payload}`, '_blank', 'noopener');
+}
+
+/** The `javascript:` link a transcriber drags to the bookmarks bar. */
+export function handoffBookmarklet(workbenchUrl = siteUrl('/workbench/')): string {
+	const call = `void (${openInLyricLint.toString()})(${JSON.stringify(workbenchUrl)}, ${maxHandoffPayloadLength})`;
+	// A `javascript:` URL is percent-decoded before it runs.
+	return `javascript:${encodeURIComponent(call)}`;
+}
