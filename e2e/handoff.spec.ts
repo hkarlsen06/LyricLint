@@ -41,7 +41,7 @@ async function cityLightsLink(): Promise<string> {
 }
 
 async function savedDraftTitles(page: Page): Promise<string[]> {
-	await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+	await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 	const rows = page.locator('.draft-list > li .list-row__action');
 	await expect(rows.first()).toBeVisible();
 	const titles = await rows.locator('.list-row__name').allTextContents();
@@ -93,7 +93,7 @@ test('the open draft stays as it was, whether the link loads the page or only it
 	expect(new URL(page.url()).hash).toBe('');
 	expect((await savedDraftTitles(page)).sort()).toEqual(['City Lights', 'First']);
 
-	await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+	await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 	await page.getByRole('button', { name: /^First/u }).click();
 	await expect.poll(() => docText(page)).toBe(first);
 });
