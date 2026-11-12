@@ -2645,9 +2645,10 @@ describe('DiagnosticPopover fix flow', () => {
 		await expect.element(accept).toBeVisible();
 		expect(accept.element().querySelector('svg')).not.toBeNull();
 		await expect.element(page.getByRole('button', { name: 'Ignore' })).not.toBeInTheDocument();
-		expect(
+		// Chromium 158 serializes the computed `flex-start` as `flow-start`.
+		expect(['flex-start', 'flow-start']).toContain(
 			getComputedStyle(screen.container.querySelector('.diagnostic-actions')!).justifyContent
-		).toBe('flex-start');
+		);
 
 		await userEvent.click(accept);
 		expect(onIgnore).toHaveBeenCalledOnce();
