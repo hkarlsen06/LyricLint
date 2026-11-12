@@ -542,16 +542,11 @@
 		 * composition depends on.
 		 *
 		 * What it costs is the step between a chrome band and the canvas, which
-		 * falls from 8.5 points of lightness to 1.5, and one surface in the
-		 * workbench reads that step. The bulk-fix strip is chrome hanging
-		 * directly over a run of cards whose *selected* member drops to
-		 * `--color-canvas`, and it was made chrome precisely so it would not be
-		 * read as a continuation of whichever card was open below it. At 1.5
-		 * points the fill no longer carries that on its own. What does is the
-		 * hairline the strip already draws along its bottom edge (`.linter-panel__bulk`
-		 * in `LinterPanel.svelte`, and `__filters` above it), which is 8.5 points off
-		 * either surface and is the same way the site's own header is told apart
-		 * from the hero it sits on. Do not take that border off.
+		 * falls from 8.5 points of lightness to 1.5. Nothing in the workbench
+		 * reads that step any more: resting findings are transparent on chrome,
+		 * the open one rises to `--color-surface` with `--shadow-raised`, and the
+		 * Review filter and bulk-fix rows above them draw no bottom hairline
+		 * (`LinterPanel.svelte`).
 		 */
 		--color-chrome: oklch(16.5% 0.004 285);
 		--color-text: oklch(97% 0.002 285);
