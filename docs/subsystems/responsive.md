@@ -46,8 +46,9 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
 - Portrait and landscape both work. There is no orientation gate or desktop recommendation
   toast. `e2e/lyriclint.spec.ts` pins both orientations and the absence of the recommendation.
 - Document and Selection language remain separate commands within Write, inside the phone Document disclosure. Closing the language modal returns to its trigger; Escape then closes Document and returns to Document without opening the keyboard.
-- Mobile document commands live behind the named Document disclosure; identity, the format
-  picker, and Copy or Paste remain visible. The toolbar reserves an identity row and a command
+- Mobile document commands live behind the named Document disclosure; identity, the fixed
+  format tag, and Copy or Paste remain visible. A new draft's two format cards sit side by
+  side at the foot of the Write view's sheet, without their samples. The toolbar reserves an identity row and a command
   row, with Document beside the truncated title; switching formats in one click never moves the Copy target. Retained section
   widgets open Song, and Show passage returns to Write without opening the keyboard.
   `e2e/profile-workbench.spec.ts` covers these bounds and handoffs. Touch editing actions are named, and assignment uses the shared

@@ -8,7 +8,8 @@ Touches: `src/lib/ui/layout/Workspace.svelte`, `src/lib/ui/layout/DocumentToolba
 `src/lib/interaction/dismiss.ts`, `src/lib/interaction/stick-to-bottom.ts`,
 `src/lib/ui/tools/` (SongPanel/PreferencesPanel: the decision record below predates the
 Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
-`src/lib/editor/extensions/document-placeholder.ts`, `src/lib/ui/layout/workspace-entrance.ts`
+`src/lib/editor/extensions/document-placeholder.ts`, `src/lib/ui/layout/workspace-entrance.ts`,
+`src/lib/ui/layout/DraftStart.svelte`
 
 ## Where each surface lives
 
@@ -27,6 +28,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 | Song, Preferences tabs                                                                     | `src/lib/ui/tools/SongPanel.svelte`, `PreferencesPanel.svelte`                                        |
 | Assistant: tab, site dialog, transcript                                                    | `AssistantPanel.svelte`, `AssistantHost.svelte` + `AssistantDialog.svelte`, `AssistantConversation.svelte` |
 | Empty document guidance (`Paste or type your lyrics here`)                                 | `src/lib/editor/extensions/document-placeholder.ts`                                                   |
+| New-draft format choice (`Choose a format`)                                                | `src/lib/ui/layout/DraftStart.svelte`                                                                 |
 | Tooltips and shortcut disclosure                                                           | `ControlTooltip.svelte`, `src/lib/ui/state/control-tooltip.svelte.ts`                                 |
 | Toasts and announcements                                                                   | `ToastRegion.svelte`, `LiveRegion.svelte` (mounted in `src/routes/(app)/+layout.svelte`), `feedback.svelte.ts` |
 | Boot screen and navigation splash (`docs/subsystems/site.md`)                              | `NavigationSplash.svelte`, `BootScreen.svelte`                                                        |
@@ -113,12 +115,18 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   languages visible even without findings, with reviewed languages and grammar limits in
   Checking coverage.
 
-- The empty new draft exposes Genius and Musixmatch creation choices in the toolbar as a
-  segmented control (`.segmented`) captioned `Format` at desktop widths. The chosen segment is
-  raised out of the track; a check and the pressed state mark it as well, and every segment
-  reserves the check's slot so choosing never moves a label. Once writing begins the format
-  is a static tag in the same track, never a raised face that invites a press. Once writing begins, the toolbar
-  names that fixed format and offers its direct Copy action and the opposite-format export.
+- The empty new draft asks for its format in the document sheet, not the toolbar
+  (`DraftStart.svelte`): a heading, one sentence, and two cards named `Lyric format: Genius`
+  and `Lyric format: Musixmatch` in a group named `Lyric format`. Each card says what the
+  format means and shows a two-line sample in the editor's faces (phones drop the samples).
+  The chosen card rises with the accent ring and a filled check, and is pressed; every card
+  keeps one box whether chosen or not. The tray rests at the sheet's foot, clear of where a
+  press starts writing, and is absolutely positioned with presses only on its cards, so the
+  ghost transcription, typing and paste behave exactly as without it, and its exit moves no
+  lyric line. It fades out over `--duration-fast` once writing begins, instantly under reduced
+  motion. While it is open the toolbar draws no format and no format divider. Once writing
+  begins the format is a static tag in the toolbar's track, never a raised face that invites
+  a press. Once writing begins, the toolbar names that fixed format and offers its direct Copy action and the opposite-format export.
   Recognized headings supply their supported section types automatically.
   Review owns the deliberate type choice and Save action for custom or unsupported labels. Song keeps advanced section editing, voices, annotations,
   language spans, authored forms and explicit conversion decisions. Hidden information is reviewed
@@ -245,8 +253,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   the imperative `showControlHint` pair and disclose only on the caret's own line. Pins:
   `diagnostic-parity.svelte.test.ts`, `line-anchoring.svelte.test.ts`.
 - The empty document is one message split across surfaces: ghost transcription in the editor,
-  `Paste lyrics` in the toolbar (refusals toast *and* announce via `report`), a waiting panel,
-  and no counts anywhere. `controller.isEmpty` / `canLoadSample` are the single answers;
+  the format choice at the sheet's foot while the draft is new, `Paste lyrics` in the toolbar
+  (refusals toast *and* announce via `report`), a waiting panel, and no counts anywhere. `controller.isEmpty` / `canLoadSample` are the single answers;
   `.right-panel__pane` must keep `[hidden]` out of its `display` rule
   (`RightPanel.svelte.test.ts` asserts exactly one pane draws).
 - Keep Song and Preferences sections focused on their own decisions. Song does not repeat
@@ -275,7 +283,25 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 ## Decision record
 
+### A designed start, an accent for what is current, and Review as the core surface
+
+The owner reviewed the first pass and asked for the transformation it had declined: a window
+someone opening it cold calls stunning, with the Musixmatch workbench in focus. Four moves
+carry it. A new draft is a designed start: the format decision moved out of the toolbar into
+the document it decides, as two described cards at the sheet's foot (Notion and Linear put
+the first decision about a new document in the document). The accent became violet and is
+spent on what is current, because the old blue was the suggestion blue and could mark
+nothing without reading as a finding. Review became the best-built surface. Editor marks
+were redrawn to sit with the type.
+
+The tray sits at the foot rather than under the ghost lines because the middle of an empty
+sheet is where people press to start typing, and a card there would turn that press into a
+format switch; the e2e suites press the editor's centre for the same reason.
+
 ### A ringed sheet, segmented choices and grouped commands
+
+Superseded in part by "A designed start, an accent for what is current, and Review as the core
+surface": the new-draft format choice left the toolbar for the document sheet.
 
 The owner asked for a look that reads as a polished, modern tool, measured against Geist,
 Linear, Raycast, Zed, LanguageTool and Figma UI3. The workbench is now a chrome frame

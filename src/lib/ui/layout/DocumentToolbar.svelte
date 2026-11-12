@@ -199,8 +199,13 @@
 				</button>
 			{/if}
 			<!-- Hairline dividers part the strip into what the commands act on: the
-			     format, the document's history and language, then its outputs. -->
-			{#if !phone.current}<span class="document-toolbar__divider" aria-hidden="true"></span>{/if}
+			     format, the document's history and language, then its outputs. A new
+			     'scribe chooses its format in the document, so it has no format group
+			     here to part from. -->
+			{#if !phone.current && controller.writing.phase !== 'new'}<span
+					class="document-toolbar__divider"
+					aria-hidden="true"
+				></span>{/if}
 			<!-- The keystrokes already exist in the editor; these are the same two
 		     commands for the pointer, and they act on the document, so they belong
 		     in this strip rather than beside the draft's name. Quiet tier: they are

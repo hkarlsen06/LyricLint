@@ -46,6 +46,7 @@
 	import ControlTooltip from '../primitives/ControlTooltip.svelte';
 	import DocumentToolbar from './DocumentToolbar.svelte';
 	import EditorActions from './EditorActions.svelte';
+	import DraftStart from './DraftStart.svelte';
 	import MediaPicker from '../media/MediaPicker.svelte';
 	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
 	import { carryHarperDiagnosticsAcrossEdit } from '../state/harper-continuity.js';
@@ -1484,6 +1485,7 @@
 				/>
 			{/key}
 		</div>
+		<DraftStart {controller} />
 	</section>
 
 	{#if panelInitialized}
