@@ -31,7 +31,7 @@
      It is absolutely positioned, so leaving moves no lyric line. -->
 {#if controller.writing.phase === 'new'}
 	<div class="draft-start" out:fade={leave()}>
-		<h2 class="draft-start__heading" id="{id}-heading">Choose a format</h2>
+		<h2 class="draft-start__heading">Choose a format</h2>
 		<p class="draft-start__lede">
 			Each 'scribe is written in one. Export makes an editable copy in the other.
 		</p>
