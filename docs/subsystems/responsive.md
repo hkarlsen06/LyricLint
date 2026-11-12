@@ -10,6 +10,8 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
 
 - Phones open in Write, with the lyrics taking the available height. The labelled
   Write, Review (with the visible finding count), and Tools controls switch task views.
+  They are one segmented control across the bar; the current view is raised out of the
+  track and pressed, so the state never rests on color.
   The editor remains mounted; selection, undo history, and scroll position survive.
   Linking is a tool within Tools: deliberate editor or Review requests open its detail and
   focus its heading without opening the keyboard. Its comparison uses the panel scroll port.

@@ -401,13 +401,16 @@
 		transition: background var(--duration-fast) var(--ease-out-quart);
 	}
 
+	/* The open tool is a raised key in the rail: the surface and the control
+	   ring, the same lift the segmented control gives its chosen segment. */
 	.right-panel__header :global(.panel-tabs button[data-state='active']) {
 		background: var(--color-surface);
+		box-shadow: var(--shadow-control);
 		color: var(--color-text);
 		font-weight: var(--font-weight-semibold);
 	}
 
-	.right-panel__header :global(.panel-tabs button:hover) {
+	.right-panel__header :global(.panel-tabs button:hover:not([data-state='active'])) {
 		background: var(--color-fill);
 		color: var(--color-text);
 	}

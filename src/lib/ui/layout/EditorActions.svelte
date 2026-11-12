@@ -211,12 +211,10 @@
 	 * went and the tray is `position: absolute` over the space that was already
 	 * empty.
 	 *
-	 * `--panel-tabs-height` is kept, so its foot still lands level with the panel's
-	 * tab strip: the chrome under the toolbar ends at one height across the window
-	 * even though the two surfaces do not touch.
-	 *
-	 * A rounded inner corner and a tonal change separate the tray; no hairline
-	 * connects it to the rest of the window.
+	 * It floats as a small toolbar, inset from the sheet's corner and drawn with
+	 * the control ring, the way Notion and Figma float formatting tools over a
+	 * canvas: a tab-shaped notch cut into the corner read as part of the sheet
+	 * missing rather than as a tool resting on it.
 	 *
 	 * `--color-chrome`, like the toolbar above it. The bulk-fix strip learned the
 	 * alternative the long way: drawn as bare canvas it took the tone of whatever it
@@ -226,17 +224,18 @@
 	 */
 	.editor-actions {
 		position: absolute;
-		top: 0;
-		right: 0;
+		top: var(--editor-actions-inset);
+		right: var(--editor-actions-inset);
 		z-index: var(--layer-toolbar);
 		display: flex;
-		min-height: var(--panel-tabs-height);
-		padding: 0 var(--space-3);
+		min-height: calc(var(--control-height-md) + 2 * var(--space-1));
+		padding: var(--space-1);
 		border: 0;
-		border-bottom-left-radius: var(--radius-panel);
-		gap: var(--space-1);
+		border-radius: calc(var(--radius-control) + var(--space-1));
+		gap: var(--space-0-5);
 		align-items: center;
 		background: var(--color-chrome);
+		box-shadow: var(--shadow-control);
 	}
 
 	.editor-actions__button {
@@ -273,7 +272,10 @@
 	 * hovered. `aria-pressed` is what carries it to anything that cannot see a
 	 * color, which is why the state is a toggle button rather than a class.
 	 */
+	/* Pressed is a fill as well as the accent, so the state survives without
+	   its color. */
 	.editor-actions__button[aria-pressed='true'] {
+		background: var(--color-fill-strong);
 		color: var(--color-accent);
 	}
 
@@ -297,6 +299,10 @@
 	}
 
 	.editor-actions--phone {
+		min-height: var(--panel-tabs-height);
+		padding-block: 0;
+		background: transparent;
+		box-shadow: none;
 		max-width: 100%;
 		padding-inline: var(--space-1);
 		gap: 0;

@@ -951,24 +951,27 @@ describe('Workspace and toolbar', () => {
 		expect(bridge!.unlinkSection(1)).toBe(false);
 	});
 
-	// It is a tray hanging off the toolbar at the right of the column, against the
-	// panel, not a band across the column. Drawn full width the row becomes the
-	// object and is then mostly empty gutter with two words at one end, so the
-	// width is measured rather than trusted to a rule: `width: 100%` or a lost
-	// `justify-self` restores the band silently. The right edge is the other half
-	// of it, because that is what makes the tray read as the tab strip's chrome
-	// carried out over the document rather than as a shape adrift on it.
-	test('sizes the action bar to its contents and hangs it at the right of the column', async () => {
+	// It is a small toolbar floating at the top-right of the document, not a band
+	// across the column. Drawn full width the row becomes the object and is then
+	// mostly empty gutter with two words at one end, so the width is measured
+	// rather than trusted to a rule: `width: 100%` or a lost `justify-self`
+	// restores the band silently. The corner is the other half of it: the tray
+	// rests the same inset from the sheet's top and right edges, so it reads as a
+	// tool placed on the document rather than as a shape adrift on it.
+	test('sizes the action bar to its contents and floats it inset from the top-right corner', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
 		await renderWorkspace(controller);
 
 		const bar = screen.getByRole('group', { name: 'Document actions' });
 		const barBox = bar.getBoundingClientRect();
 		const regionBox = bar.closest('.editor-region')!.getBoundingClientRect();
+		const inset = parseFloat(getComputedStyle(bar).right);
 
 		expect(barBox.width).toBeGreaterThan(0);
 		expect(barBox.width).toBeLessThan(regionBox.width * 0.75);
-		expect(barBox.right).toBeCloseTo(regionBox.right, 0);
+		expect(inset).toBeGreaterThan(0);
+		expect(regionBox.right - barBox.right).toBeCloseTo(inset, 0);
+		expect(barBox.top - regionBox.top).toBeCloseTo(inset, 0);
 		expect(barBox.left).toBeGreaterThan(regionBox.left);
 	});
 

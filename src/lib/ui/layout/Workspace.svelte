@@ -1547,29 +1547,31 @@
 	</div>
 
 	<nav class="mobile-navigation" aria-label="Workbench views" bind:offsetHeight={navigationHeight}>
-		<button
-			type="button"
-			class="button button--quiet"
-			aria-pressed={mobileView === 'write'}
-			onclick={() => showMobileView('write')}>Write</button
-		>
-		<button
-			id="mobile-review-control"
-			type="button"
-			class="button button--quiet"
-			aria-pressed={mobileView === 'review'}
-			onclick={() => showMobileView('review')}
-		>
-			{controller.visibleDiagnostics.length > 0
-				? `Review (${controller.visibleDiagnostics.length})`
-				: 'Review'}
-		</button>
-		<button
-			type="button"
-			class="button button--quiet"
-			aria-pressed={mobileView === 'tools'}
-			onclick={() => showMobileView('tools')}>Tools</button
-		>
+		<div class="segmented mobile-navigation__views">
+			<button
+				type="button"
+				class="button button--quiet"
+				aria-pressed={mobileView === 'write'}
+				onclick={() => showMobileView('write')}>Write</button
+			>
+			<button
+				id="mobile-review-control"
+				type="button"
+				class="button button--quiet"
+				aria-pressed={mobileView === 'review'}
+				onclick={() => showMobileView('review')}
+			>
+				{controller.visibleDiagnostics.length > 0
+					? `Review (${controller.visibleDiagnostics.length})`
+					: 'Review'}
+			</button>
+			<button
+				type="button"
+				class="button button--quiet"
+				aria-pressed={mobileView === 'tools'}
+				onclick={() => showMobileView('tools')}>Tools</button
+			>
+		</div>
 	</nav>
 
 	{#if controller.media}
@@ -1662,7 +1664,9 @@
 		/* What the find bar keeps clear so the tray never covers its way out. It is a
 		   constant because the tray is a fixed set of glyphs, and it is asserted
 		   against the tray's measured width rather than trusted. */
-		--editor-actions-reserve: calc(11rem + var(--control-height-sm) + var(--space-1));
+		--editor-actions-reserve: calc(
+			11rem + var(--control-height-sm) + var(--space-1) + var(--editor-actions-inset)
+		);
 
 		position: relative;
 		display: grid;
@@ -1675,8 +1679,12 @@
 		background: transparent;
 	}
 
+	/* The document is the window's one sheet: a ring for its edge and a long
+	   soft fall, so it lifts off the chrome frame instead of being a slightly
+	   different shade of it. */
 	.editor-region > .editor-host {
 		border-radius: var(--radius-panel);
+		box-shadow: var(--shadow-sheet);
 	}
 
 	/* Without a transport below it, keep the rounded document clear of the window edge. */
@@ -1893,16 +1901,21 @@
 			padding-bottom: max(var(--space-1), env(safe-area-inset-bottom));
 			background: var(--color-chrome);
 		}
+		/* The three views are one segmented control: a track across the bar with
+		   the current view raised out of it. The raise is the non-color cue. */
+		.mobile-navigation__views {
+			display: flex;
+			flex: 1;
+		}
 		.mobile-navigation .button {
 			flex: 1;
 			min-height: var(--control-height-touch);
 		}
-		/* `:where()` holds this at the specificity it had as a global rule, so the
-		   shared quiet tier's hover fill still outranks it. */
-		.mobile-navigation :where([aria-pressed='true']) {
-			background: var(--color-fill-strong);
+		.mobile-navigation__views > .button[aria-pressed='true'] {
+			background: var(--color-control);
+			box-shadow: var(--shadow-control);
 			color: var(--color-text);
-			box-shadow: inset 0 calc(-1 * var(--focus-ring-width)) var(--color-text);
+			font-weight: var(--font-weight-semibold);
 		}
 		/* The visual viewport supplies the keyboard floor for the whole workbench,
 		   so editor and assistant composer get the space above it, with no overlay. */

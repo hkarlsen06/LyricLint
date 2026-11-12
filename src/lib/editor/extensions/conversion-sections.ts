@@ -188,13 +188,18 @@ export const conversionSectionBoundaries: Extension = [
 			alignSelf: 'center',
 			justifySelf: 'start',
 			marginBlock: 'var(--space-1)',
+			// The label's text starts on the lyric column, and the quiet tier's
+			// hover fill reaches back into the gutter instead.
+			marginInlineStart: 'calc(var(--space-1) - var(--control-padding-inline))',
 			maxWidth: '100%',
+			color: 'var(--color-text-muted)',
 			whiteSpace: 'normal',
 			textAlign: 'start',
 			overflowWrap: 'anywhere',
 			fontFamily: 'var(--font-ui)',
 			fontSize: 'var(--font-size-sm)'
 		},
+		'.ll-conversion-section:hover': { color: 'var(--color-text)' },
 		'@media (max-width: 46rem)': {
 			'.cm-content': { '--ll-section-control-height': 'var(--control-height-lg)' }
 		},
