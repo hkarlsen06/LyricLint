@@ -59,7 +59,7 @@
 					/>{/each}</span
 			>
 			<span class="excerpt__numbers">
-				{#each sources as source (source.from)}
+				{#each sources as source, sourceIndex (sourceIndex)}
 					{@const from = source.from + (row.offset ?? 0)}
 					{@const number = lineNumberAt(documentText, from)}
 					{#if row.offset === undefined}<span class="line-number" aria-label="Added line">+</span>
@@ -110,6 +110,12 @@
 		cursor: pointer;
 		text-decoration: underline;
 		text-underline-offset: var(--space-0-5);
+	}
+	@media (pointer: coarse) {
+		button.line-number {
+			min-width: var(--control-height-touch);
+			min-height: var(--control-height-touch);
+		}
 	}
 	button.line-number:focus-visible {
 		outline: var(--focus-ring-width) solid var(--color-focus);

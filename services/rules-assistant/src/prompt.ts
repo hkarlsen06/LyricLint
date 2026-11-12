@@ -9,6 +9,18 @@ import { MAX_TOOL_ROUNDS, REQUEST_RULES } from './config';
 import type { RulesCorpus } from './corpus';
 import type { AnswerRequest } from './schema';
 
+/**
+ * What the model is told on the call that follows its last tool round. It is
+ * appended as a visitor-role message for the reason `repairMessages` appends
+ * one: the developer instructions are byte-identical per corpus so the prompt
+ * cache hits, and a per-request fact belongs after the cache breakpoint.
+ */
+export const FINAL_ROUND_INSTRUCTION =
+	`You have now used all ${MAX_TOOL_ROUNDS} 'scribe tool rounds for this turn, so no tools ` +
+	`are available on this reply. Answer with what you have: say what you did, what is still ` +
+	`outstanding and why, and that they can ask again to carry on. Do not claim work you did not ` +
+	`complete.`;
+
 const DEVELOPER_INSTRUCTIONS = `# Task
 
 You are LyricLint's rules assistant. You help an accountless visitor with Genius lyric
@@ -354,5 +366,12 @@ export function pruneHistory(messages: AnswerRequest['messages']): AnswerRequest
  * byte-identical for a given corpus.
  */
 export function developerPrompt(corpus: RulesCorpus): string {
-	return `${DEVELOPER_INSTRUCTIONS}\n\n<reviewed_corpus>\n${corpusText(corpus)}\n</reviewed_corpus>\n\n${CACHE_BREAKPOINT}`;
+	const instructions =
+		corpus.profile === 'musixmatch'
+			? DEVELOPER_INSTRUCTIONS.replace('with Genius lyric', 'with Musixmatch lyric').replace(
+					/Ground every Genius-specific claim[\s\S]*?(?=- Cite a rule by)/u,
+					'Ground every Musixmatch-specific claim in the selected Musixmatch corpus. Official Musixmatch sources are authoritative for Musixmatch; Genius author-role tiers do not rank them. Community supplements stay advisory. Every clause states its language scope and remaining automation limits. Missing Arabic/Korean evidence is not English fallback coverage. Japanese spacing/case, French times, joik and semantic roles retain unresolved scope. Do not infer words from censor masks or unknown tokens, translate, change pronunciation, invent section types, or normalize numeric meaning. Mode switching is a deterministic local representation operation and never calls you. Your optional proposals are separate, explicitly reviewed edits. Musixmatch keeps structure and performer tags outside lyric text; do not insert Genius headers or invent a native metadata handoff.\n\n'
+				)
+			: DEVELOPER_INSTRUCTIONS;
+	return `${instructions}\n\n<reviewed_corpus>\n${corpusText(corpus)}\n</reviewed_corpus>\n\n${CACHE_BREAKPOINT}`;
 }

@@ -10,10 +10,70 @@ format itself: `docs/performer-tagging.md`
 
 ## The rules
 
-- A rename runs in both directions: `headerRenameFilter` mirrors header edits into the roster
-  (`adoptHeaderRename`, alias kept), and `renamePerformer` on the controller is the reverse:
-  one atomic edit over `headerNameAtoms`, roster adopted *before* the dispatch, Undo as the
-  same rename in reverse, `isMirrorableHeaderName` refused out loud. Regressions:
+- Settled Genius source edits discover performers from complete headers before rich
+  reconciliation, regardless of inserted text length. Discovery uses the shared legend
+  extractor, never lyric words. Its additions travel with the source edit through roster
+  history, before snapshot publication; Undo preserves unrelated identities. Incomplete
+  brackets, unsupported legend markup, empty styled names and composition preedit create no identities.
+  Composition completion joins discovery to its text history event in legacy and rich drafts.
+  Native discovery reads the roster store's next position, including positions reserved by Undo.
+  Placeholder retirement checks existing header and retained-model references independently
+  of the eligibility to discover new names. Header references use the complete imported roster,
+  so newly discovered joint partners or malformed neighbours cannot delete an identity.
+  Discovery does not reassign retained anonymous voices. Genius text-file import supplies
+  the discovered roster before constructing its rich model. Pins:
+  `named-performer-discovery.svelte.test.ts`.
+
+- The Performers tool shows current lyric voices below the roster, beside its section
+  reference. It reads the cached profile voice ranges and the shared caret predicate,
+  also used by the caret announcer. For the visible context at a range end, an immediately following voice wins;
+  otherwise the preceding voice remains identified after typing. A joint voice joins names with ` & `; distinct selected
+  passages use `; `. Anonymous styled ranges say Unknown voice, and an unassigned position
+  says Voice not identified. No identity is inferred from lyric words. The readout stays out
+  of the document and floating action tray, so it does not change lyric measure or viewport.
+  Hidden panels and composition retain the last settled context. Long context wraps below
+  the roster without moving its controls. On phones this context belongs to Tools, Performers.
+  Pins: `PerformerContext.svelte.test.ts`.
+
+- In Musixmatch, the retained plain section voice is a fallback. Projected voice ranges
+  exclude styled passages from that fallback, including unnamed wrappers and assignments
+  beyond the Genius style limit. A secondary singer's words carry only that singer's label,
+  gutter attribution and caret announcement. Projection never rewrites retained assignments.
+
+- Roster toast Undo applies only its affected identities and keeps independent additions and
+  edits. It refuses visibly and announces if an affected record changed, or removal would
+  orphan a retained rich voice or legend. Record ordering stays stable across independent Undo.
+  Toasts, including legacy header rename inverses, belong to the draft load session that
+  created them. Switching drafts invalidates them even when returning or opening a duplicate
+  with identical performer IDs. Rich editor model/roster history remains atomic and independent.
+  Pins: `workbench.test.ts` (performer imports and renames).
+- A roster-only toast inverse in a rich draft commits an invertible roster effect through
+  editor history. It starts a new history branch, so earlier Redo cannot resurrect a voice
+  without its performer. Undo restores that identity before older lyric associations return.
+  Referenced name changes, alias removals and performer removals refuse, including names still present in retained
+  section legends. New roster positions do not reuse an order held by a pending Undo.
+  Pins: `roster-undo-history.svelte.test.ts` and `workbench.test.ts`.
+
+- Rich drafts retain voice assignments independently of the visible format. Musixmatch selection
+  uses retained section identity and writes a metadata action; Genius markup is derived when
+  representable. Anonymous voices remain anonymous, and excess Genius style groups remain
+  review findings. They are never discarded to fit a platform's presentation limit.
+- Rich rename, merge and removal pair the model action with an invertible roster delta. The
+  top-level performer roster remains authoritative; undo restores affected identities and their
+  exact spelling before publishing the editor snapshot, without replacing unrelated additions.
+  `conversion-roster.svelte.test.ts` pins those atomic transitions.
+
+- A rename runs in both directions: `headerRenameFilter` pairs mirrored header edits with an
+  invertible affected-record delta, and `renamePerformer` on the controller is the reverse:
+  one atomic edit over `headerNameAtoms` paired with an invertible affected-record delta.
+  The shared history listener publishes the roster before the snapshot and import, including
+  for legacy Genius drafts without promoting them to rich state. Editor Undo and Redo restore
+  both halves; toast Undo recomputes the reverse rename against current text.
+  Typed header sessions use the same history owner. Grouped inverses reverse effect order,
+  so multi-character Undo and Redo restore the final spelling rather than an intermediate one.
+  Rich reconciliation reads the prospective roster in that transaction, preserving voice IDs.
+  `renamedPerformer` owns alias construction across the header, roster and controller paths.
+  Names failing `isMirrorableHeaderName` are refused out loud. Regressions:
   `workbench performer renames` in `workbench.test.ts`.
 - Atomic domain edits (`input.atomic`), including performer assignments and lint fixes, never
   start or continue a header rename. They carry their complete scope; assigning a different
@@ -70,11 +130,11 @@ format itself: `docs/performer-tagging.md`
 - The question heads the card over an `aria-hidden` step bar spanning its width, with a
   `sr-only` `Step 2 of 2` carrying the fact; the roster and the action column share the row
   beneath, so the card is only as wide as those two.
-- The roster is `.list-row`: the name *is* the rename (press to edit in place, no pencil), no
+- The roster is `.list-row`: the name *is* the rename (press to edit in place, with a visible Rename word inside the same control, no pencil), no
   `<strong>`, trash via the shared `RemoveButton`. The collapsed Performers by section reference
   groups identical voice arrangements once, preserving style differences
   (`PerformerLegend.svelte.test.ts`).
-- An **unknown voice** is derived from the text, never stored: a styled slot the section's
+- In legacy Genius editing, an **unknown voice** is derived from the text: a styled slot the section's
   legend does not name (`unaccountedStyledSlots` in `legend-cleanup.ts`, the one owner). The
   picker draws one act-on-press chip per unaccounted slot in that slot's own styling (no dot,
   no performer colour: an unknown has no identity) plus a quiet `+ Unknown` action
@@ -197,8 +257,10 @@ A performer's name lives in two places, the roster record and every section-head
 names them, and a rename made in either has to reach both, because a legend the roster no longer
 recognizes is an unresolved voice and a duplicate import waiting to happen. Editing the name inside
 one header was already mirrored: `headerRenameFilter` rewrites the other headers in the same
-transaction and the roster adopts the spelling (`adoptHeaderRename`, silently, keeping the old one
-as an alias). **The roster-side rename shipped without the reverse half**, so the Performers tab
+transaction and the roster originally adopted the spelling outside history (`adoptHeaderRename`,
+silently, keeping the old one as an alias). That callback-only path is superseded: typed headers
+now carry the same invertible roster effect, and the callback observes the already-committed name.
+**The roster-side rename shipped without the reverse half**, so the Performers tab
 said `Renamed KrissyB to KrissyC.` over a document whose every header still read KrissyB: the one
 job a roster rename exists for, reported as done and not done.
 
@@ -209,12 +271,13 @@ Six decisions in it:
 - **The rewrite is one atomic edit over every header occurrence** (`headerNameAtoms` filtered to
   the performer, which is the same resolution the forward mirror reads), so it is one editor undo,
   exactly as a mirrored header edit is.
-- **The roster half goes through `adoptHeaderRename`, not the plain record rename**, so the old
-  spelling survives as an alias and an editor undo of the rewrite still resolves the headers to
-  this performer instead of importing a duplicate.
-- **The roster is adopted _before_ the dispatch**, because the re-lint arrives from inside it: a
-  long enough new name crosses the import threshold, and an extraction run against the old roster
-  would read the freshly written name as a stranger and import it as one.
+- **The roster half keeps the previous spelling as an alias.** Legacy Genius now pairs the
+  affected-record delta with the atomic text transaction through the shared editor history owner.
+  This supersedes the original controller-side `adoptHeaderRename` before dispatch: that kept
+  aliases resolvable but left the displayed roster name unchanged on editor Undo.
+- **The roster is published before the snapshot**, by the high-precedence history listener, so
+  extraction sees the matching spelling before it can import a duplicate. Undo and Redo restore
+  only affected records, including their aliases and color, without promoting the legacy draft.
 - **The toast's Undo is the same rename run in reverse**, recomputed against the document as it
   stands. Pressed after further edits it reverses the rename and nothing else. A restored roster
   clone alone would recreate the mismatch this exists to fix, pointed the other way.

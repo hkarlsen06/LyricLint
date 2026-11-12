@@ -14,6 +14,23 @@ export function normalizePerformerKey(value: string): string {
 	return value.normalize('NFC').trim().replace(/\s+/gu, ' ').toLocaleLowerCase('und');
 }
 
+/** Rename one identity while retaining the explicit previous spelling as an alias. */
+export function renamedPerformer(
+	record: PerformerRecord,
+	previousName: string,
+	displayName: string
+): PerformerRecord {
+	return {
+		...record,
+		displayName,
+		normalizedKey: normalizePerformerKey(displayName),
+		aliases: [...record.aliases, previousName].filter(
+			(alias, index, aliases) =>
+				alias.length > 0 && alias !== displayName && aliases.indexOf(alias) === index
+		)
+	};
+}
+
 /** Produce an order-independent identity from a non-empty performer-ID set. */
 export function makeVoiceGroupKey(performerIds: readonly PerformerId[]): VoiceGroupKey {
 	const sortedIds = [...new Set(performerIds)].sort();

@@ -57,7 +57,7 @@ describe('Workspace and toolbar', () => {
 		await render(DocumentToolbar, { controller });
 		await render(LiveRegion, { feedback });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy Genius' }));
 		expect(writeText).toHaveBeenCalledWith(canonical);
 		await waitFor(() =>
 			expect(screen.getByTestId('live-region').textContent).toContain(
@@ -74,12 +74,12 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
 		await render(DocumentToolbar, { controller });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy Genius' }));
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Lyrics copied' })).toBeTruthy());
 
 		writeText.mockRejectedValueOnce(new Error('denied'));
 		await fireEvent.click(screen.getByRole('button', { name: 'Lyrics copied' }));
-		await waitFor(() => expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy());
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeTruthy());
 	});
 
 	test('copies without interrupting with song metadata even when facts are available', async () => {
@@ -94,61 +94,21 @@ describe('Workspace and toolbar', () => {
 			media: { player } as MediaStore
 		};
 		await render(DocumentToolbar, { controller: withSong });
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy Genius' }));
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Lyrics copied' })).toBeTruthy());
 		expect(writeText).toHaveBeenCalledWith('[Verse]\nLine');
 		expect(document.querySelector('dialog.copy-receipt')).toBeNull();
 		expect(document.querySelector('dialog[open]')).toBeNull();
 	});
 
-	// The contrast tier is the loudest thing on the screen, and on an empty
-	// document `Copy lyrics` spends it pointing at the exit. Same slot, same
-	// tier, label following the state, and never both at once.
-	test('offers the paste end of the work while the document is empty', async () => {
-		const { controller } = createTestWorkbench({ text: '' });
-		await render(DocumentToolbar, { controller });
-
-		const paste = screen.getByRole('button', { name: 'Paste lyrics' });
-		expect(paste.classList.contains('button--contrast')).toBe(true);
-		expect(screen.queryByRole('button', { name: 'Copy lyrics' })).toBeNull();
-	});
-
-	test('returns the slot to copy once the document has something in it', async () => {
+	// The paste end of the work, and the empty document's other ways to begin,
+	// are the start tray's (`DraftStart.svelte.test.ts`).
+	test('holds copy in the contrast slot once the document has something in it', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
 		await render(DocumentToolbar, { controller });
 
-		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Paste lyrics' })).toBeNull();
-	});
-
-	test('pastes the clipboard into the empty document in one edit', async () => {
-		const { controller, calls } = createTestWorkbench({
-			text: '',
-			clipboardText: '[Verse]\nPasted line'
-		});
-		await render(DocumentToolbar, { controller });
-
-		await fireEvent.click(screen.getByRole('button', { name: 'Paste lyrics' }));
-
-		await waitFor(() => expect(calls.dispatched).toHaveLength(1));
-		expect(calls.dispatched[0]!.edits).toEqual([
-			{ from: 0, to: 0, insert: '[Verse]\nPasted line' }
-		]);
-	});
-
-	// Firefox gates a programmatic read behind its own prompt and Safari denies
-	// it outright, but the keyboard path is still open in both. Put the caret
-	// where that keystroke lands instead of explaining a permission.
-	test('hands over to keyboard paste when the clipboard cannot be read', async () => {
-		const { controller, calls, feedback } = createTestWorkbench({ text: '' });
-		await render(DocumentToolbar, { controller });
-		await render(LiveRegion, { feedback });
-
-		await fireEvent.click(screen.getByRole('button', { name: 'Paste lyrics' }));
-
-		await waitFor(() => expect(calls.focusCount).toBe(1));
-		expect(calls.dispatched).toEqual([]);
-		expect(screen.getByTestId('live-region').textContent).toContain('paste shortcut');
 	});
 
 	test('keeps document creation, navigation, language, and copy in the toolbar', async () => {
@@ -158,8 +118,8 @@ describe('Workspace and toolbar', () => {
 		// Section insertion and performer assignment stay reachable through the
 		// editor itself (ghost control and selection surface).
 		expect(screen.getByRole('button', { name: "New 'scribe" })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
-		expect(screen.getByRole('button', { name: "'Scribes" })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: "Open saved 'scribes" })).toBeTruthy();
 		// The left edge is the brand lockup now, and it returns to the marketing home.
 		expect(screen.getByRole('link', { name: 'LyricLint home' })).toHaveAttribute('href', '/');
 		expect(screen.queryByRole('button', { name: 'Open drafts menu' })).toBeNull();
@@ -213,19 +173,18 @@ describe('Workspace and toolbar', () => {
 
 	// The drafts trigger is the draft name's own disclosure now, not a hamburger
 	// at the far end of the command strip.
-	test('the drafts disclosure hangs off the title field and stays icon-only', async () => {
+	test('the draft list names its Open action beside the title field', async () => {
 		const { controller } = createTestWorkbench();
 		await render(DocumentToolbar, { controller });
 
-		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		const trigger = screen.getByRole('button', { name: "Open saved 'scribes" });
 		const switcher = trigger.closest('.draft-switcher');
 		expect(switcher).toBeTruthy();
 		// One control: the field you rename in and the chevron that swaps the draft.
 		expect(within(switcher as HTMLElement).getByLabelText("'Scribe title")).toBe(
 			screen.getByLabelText("'Scribe title")
 		);
-		// The word moved into the accessible name; nothing in the header spells it.
-		expect(trigger.textContent?.trim()).toBe('');
+		expect(trigger.textContent?.trim()).toBe('Open');
 		expect(trigger.getAttribute('aria-expanded')).toBe('false');
 		await userEvent.click(trigger);
 		// `bind:open` rides the details element's `toggle` event, which lands a
@@ -248,7 +207,7 @@ describe('Workspace and toolbar', () => {
 		expect((await repository.list()).map(({ id }) => id)).toEqual([initialDraftId]);
 	});
 
-	test('reads brand, draft name, then the new-draft plus across the identity strip', async () => {
+	test('reads brand, draft name, the new-draft plus, then the format across the identity strip', async () => {
 		const { controller } = createTestWorkbench();
 		await render(DocumentToolbar, { controller });
 
@@ -262,6 +221,8 @@ describe('Workspace and toolbar', () => {
 			// Creation sits with the draft it creates, in the slot the save glyph
 			// used to hold; the save readout trails it, silent unless it fails.
 			screen.getByRole('button', { name: "New 'scribe" }),
+			// The fixed format is what this draft is, so it reads with its name.
+			document.querySelector('.profile-picker--fixed'),
 			screen.getByRole('img', { name: /^Autosave status/ })
 		]);
 	});
@@ -281,6 +242,38 @@ describe('Workspace and toolbar', () => {
 		const select = vi.spyOn(title, 'select');
 		await fireEvent.click(title);
 		expect(select).not.toHaveBeenCalled();
+	});
+
+	test.each([1280, 1440])('keeps a long title clear of desktop commands at %ipx', async (width) => {
+		await page.viewport(width, 900);
+		const { controller } = createTestWorkbench({ text: '[Verse]\nA line to review' });
+		await renderWorkspace(controller);
+		const title = screen.getByLabelText("'Scribe title") as HTMLInputElement;
+		const open = screen.getByRole('button', { name: "Open saved 'scribes" });
+		const create = screen.getByRole('button', { name: "New 'scribe" });
+		const genius = screen.getByRole('button', { name: 'Export to Musixmatch' });
+		const copy = screen.getByRole('button', { name: 'Copy Genius' });
+		const commandPosition = copy.getBoundingClientRect().toJSON();
+		const longTitle =
+			'A very long song title that should stay readable beside the document controls '.repeat(3);
+
+		await userEvent.fill(title, longTitle);
+		await userEvent.tab();
+		await waitFor(() => expect(controller.title).toBe(longTitle.trim()));
+
+		function expectSeparated() {
+			const controls = [title, open, create, genius];
+			for (let index = 1; index < controls.length; index++) {
+				expect(controls[index - 1].getBoundingClientRect().right).toBeLessThanOrEqual(
+					controls[index].getBoundingClientRect().left
+				);
+			}
+			expect(copy.getBoundingClientRect().toJSON()).toEqual(commandPosition);
+			expect(title.value).toBe(longTitle.trim());
+		}
+		await waitFor(expectSeparated);
+		controller.setSaveStatus('failed');
+		await waitFor(expectSeparated);
 	});
 
 	test('draws nothing while saving is going well, then spells the failure out', async () => {
@@ -317,19 +310,22 @@ describe('Workspace and toolbar', () => {
 		expect(commands).toBeTruthy();
 		const undo = screen.getByRole('button', { name: 'Undo' });
 		const redo = screen.getByRole('button', { name: 'Redo' });
-		const language = screen.getByRole('button', { name: 'Lyric language: English' });
+		const format = screen.getByRole('button', { name: 'Export to Musixmatch' });
+		const language = screen.getByRole('button', { name: 'Document language: English' });
 		// Comparing acts on the whole document, so its trigger belongs to this
 		// strip, beside the contrast action whose press it is the review before.
 		const compare = screen.getByRole('button', { name: 'Compare' });
-		const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+		const copy = screen.getByRole('button', { name: 'Copy Genius' });
 		expect([
 			...commands!.querySelectorAll(
-				':scope > button, .document-toolbar__secondary-actions > button'
+				':scope > button, .profile-picker > button, .document-toolbar__secondary-actions > button'
 			)
-		]).toEqual([undo, redo, language, compare, copy]);
+		]).toEqual([undo, redo, language, compare, format, copy]);
 		// Navigation between drafts left the strip for the draft's own name, and
 		// creation followed it; neither acts on the document this strip commands.
-		expect(commands!.contains(screen.getByRole('button', { name: "'Scribes" }))).toBe(false);
+		expect(commands!.contains(screen.getByRole('button', { name: "Open saved 'scribes" }))).toBe(
+			false
+		);
 		expect(commands!.contains(screen.getByRole('button', { name: "New 'scribe" }))).toBe(false);
 		expect(commands!.lastElementChild).toBe(copy);
 		// Copy ends the tab order too, not just the visual row.
@@ -431,8 +427,8 @@ describe('Workspace and toolbar', () => {
 			).toBe(false)
 		);
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
-		const dialog = screen.getByRole('dialog', { name: 'Lyric language' });
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: English' }));
+		const dialog = screen.getByRole('dialog', { name: 'Document language' });
 		await fireEvent.input(within(dialog).getByPlaceholderText('Search languages'), {
 			target: { value: 'Norwegian' }
 		});
@@ -446,9 +442,9 @@ describe('Workspace and toolbar', () => {
 			).toBe(true)
 		);
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: Norwegian' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: Norwegian' }));
 		await fireEvent.click(
-			within(screen.getByRole('dialog', { name: 'Lyric language' })).getByRole('button', {
+			within(screen.getByRole('dialog', { name: 'Document language' })).getByRole('button', {
 				name: 'English'
 			})
 		);
@@ -736,8 +732,8 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench();
 		await render(DocumentToolbar, { controller });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
-		const dialog = screen.getByRole('dialog', { name: 'Lyric language' });
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: English' }));
+		const dialog = screen.getByRole('dialog', { name: 'Document language' });
 		const options = dialog.querySelectorAll('.language-option');
 		expect(options).toHaveLength(65);
 		expect(within(dialog).getByText('Recent')).toBeTruthy();
@@ -759,10 +755,10 @@ describe('Workspace and toolbar', () => {
 	test('filters languages and restores focus to the trigger when the dialog closes', async () => {
 		const { controller } = createTestWorkbench();
 		await render(DocumentToolbar, { controller });
-		const trigger = screen.getByRole('button', { name: 'Lyric language: English' });
+		const trigger = screen.getByRole('button', { name: 'Document language: English' });
 
 		await fireEvent.click(trigger);
-		const dialog = screen.getByRole('dialog', { name: 'Lyric language' });
+		const dialog = screen.getByRole('dialog', { name: 'Document language' });
 		const search = within(dialog).getByPlaceholderText('Search languages');
 		await waitFor(() => expect(document.activeElement).toBe(search));
 
@@ -780,8 +776,8 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench({ recentLanguages: ['fr', 'no'] });
 		await render(DocumentToolbar, { controller });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
-		let dialog = screen.getByRole('dialog', { name: 'Lyric language' });
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: English' }));
+		let dialog = screen.getByRole('dialog', { name: 'Document language' });
 		let options = within(dialog)
 			.getAllByRole('button')
 			.filter((button) => button.classList.contains('language-option'));
@@ -792,8 +788,8 @@ describe('Workspace and toolbar', () => {
 		]);
 
 		await fireEvent.click(within(dialog).getByRole('button', { name: 'French' }));
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: French' }));
-		dialog = screen.getByRole('dialog', { name: 'Lyric language' });
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: French' }));
+		dialog = screen.getByRole('dialog', { name: 'Document language' });
 		options = within(dialog)
 			.getAllByRole('button')
 			.filter((button) => button.classList.contains('language-option'));
@@ -995,24 +991,27 @@ describe('Workspace and toolbar', () => {
 		expect(bridge!.unlinkSection(1)).toBe(false);
 	});
 
-	// It is a tray hanging off the toolbar at the right of the column, against the
-	// panel, not a band across the column. Drawn full width the row becomes the
-	// object and is then mostly empty gutter with two words at one end, so the
-	// width is measured rather than trusted to a rule: `width: 100%` or a lost
-	// `justify-self` restores the band silently. The right edge is the other half
-	// of it, because that is what makes the tray read as the tab strip's chrome
-	// carried out over the document rather than as a shape adrift on it.
-	test('sizes the action bar to its contents and hangs it at the right of the column', async () => {
+	// It is a small toolbar floating at the top-right of the document, not a band
+	// across the column. Drawn full width the row becomes the object and is then
+	// mostly empty gutter with two words at one end, so the width is measured
+	// rather than trusted to a rule: `width: 100%` or a lost `justify-self`
+	// restores the band silently. The corner is the other half of it: the tray
+	// rests the same inset from the sheet's top and right edges, so it reads as a
+	// tool placed on the document rather than as a shape adrift on it.
+	test('sizes the action bar to its contents and floats it inset from the top-right corner', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
 		await renderWorkspace(controller);
 
 		const bar = screen.getByRole('group', { name: 'Document actions' });
 		const barBox = bar.getBoundingClientRect();
 		const regionBox = bar.closest('.editor-region')!.getBoundingClientRect();
+		const inset = parseFloat(getComputedStyle(bar).right);
 
 		expect(barBox.width).toBeGreaterThan(0);
 		expect(barBox.width).toBeLessThan(regionBox.width * 0.75);
-		expect(barBox.right).toBeCloseTo(regionBox.right, 0);
+		expect(inset).toBeGreaterThan(0);
+		expect(regionBox.right - barBox.right).toBeCloseTo(inset, 0);
+		expect(barBox.top - regionBox.top).toBeCloseTo(inset, 0);
 		expect(barBox.left).toBeGreaterThan(regionBox.left);
 	});
 
@@ -1056,7 +1055,7 @@ describe('Workspace and toolbar', () => {
 	// It is one box for the whole workbench, rendered by `ControlTooltip` rather
 	// than by the surface, which is why it is queried off the document and not off
 	// the tray.
-	test('names the action and its keystroke on hover and on focus', async () => {
+	test('names the action and its keystroke on hover and on keyboard focus', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
 		await renderWorkspace(controller);
 
@@ -1075,7 +1074,9 @@ describe('Workspace and toolbar', () => {
 		await fireEvent.pointerLeave(unknown);
 		expect(document.querySelector('.control-tooltip')).toBeNull();
 
-		await fireEvent.focus(unknown);
+		unknown.focus();
+		await userEvent.keyboard('{Shift>}{Tab}{/Shift}{Tab}');
+		expect(document.activeElement).toBe(unknown);
 		expect(document.querySelector('.control-tooltip')?.textContent).toContain('Unknown lyric');
 
 		// One box at a time, for the whole application: hover moving to another
@@ -1094,7 +1095,7 @@ describe('Workspace and toolbar', () => {
 
 		const bar = screen.getByRole('group', { name: 'Document actions' });
 		// Three editing commands and the icon-only workspace toggle.
-		expect(bar.querySelectorAll('button')).toHaveLength(4);
+		expect(within(bar).getAllByRole('button')).toHaveLength(4);
 	});
 
 	test('keeps the Preferences exit quiet', async () => {
@@ -1128,7 +1129,7 @@ describe('Workspace and toolbar', () => {
 
 		// The tray keeps the audio control in place across source changes.
 		const bar = screen.getByRole('group', { name: 'Document actions' });
-		expect(bar.querySelectorAll('button')).toHaveLength(5);
+		expect(within(bar).getAllByRole('button')).toHaveLength(5);
 		const note = within(bar).getByRole('button', { name: 'Add audio source' });
 		expect(note.querySelector('svg')).toBeTruthy();
 		expect(note.textContent?.trim()).toBe('');
@@ -1314,7 +1315,7 @@ describe('Workspace and toolbar', () => {
 			const { controller } = createTestWorkbench({ text: '[Verse]\nA line to review' });
 			await renderWorkspace(controller);
 			const toolbar = screen.getByRole('banner', { name: 'Document controls' });
-			await screen.findByRole('button', { name: 'Copy lyrics' });
+			await screen.findByRole('button', { name: 'Copy Genius' });
 			const controls = toolbar.querySelectorAll<HTMLElement>('button, .draft-title, summary');
 			for (const control of controls) {
 				if (!control.checkVisibility()) continue;
@@ -1411,4 +1412,27 @@ describe('Workspace and toolbar', () => {
 			}
 		}
 	);
+
+	test('desktop selection language belongs to writing and leaves permanent commands anchored', async () => {
+		const { controller } = createTestWorkbench({
+			text: 'Héllo 🌙\nOther words',
+			selection: { anchor: 0, head: 0 }
+		});
+		await render(Workspace, {
+			controller,
+			editorComponent: MockEditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} }
+		});
+		const section = await screen.findByRole('button', { name: 'Section header' });
+		expect(screen.queryByRole('button', { name: /^Selection language:/ })).toBeNull();
+		const before = section.getBoundingClientRect().toJSON();
+		controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 8 } });
+		const selection = await screen.findByRole('button', {
+			name: 'Selection language: English'
+		});
+		expect(selection.closest('.editor-actions')).toBeTruthy();
+		expect(selection.closest('.document-toolbar')).toBeNull();
+		expect(screen.getAllByRole('button', { name: /^Selection language:/ })).toHaveLength(1);
+		expect(section.getBoundingClientRect().toJSON()).toEqual(before);
+	});
 });

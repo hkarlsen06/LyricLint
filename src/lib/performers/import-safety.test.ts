@@ -16,6 +16,19 @@ function performer(displayName: string, id = 'known'): PerformerRecord {
 }
 
 describe('performer import safety', () => {
+	it.each(['<i></i>', '<b> </b>', '<i><b>\u00a0</b></i>'])(
+		'keeps empty styled legend %s anonymous without changing lyrics',
+		(legend) => {
+			const input = `[Verse: ${legend}]\n<i>Line</i>`;
+			const parsed = parseDocument(input);
+			const extraction = extractPerformers(parsed, []);
+
+			expect(extraction.rosterAdditions).toEqual([]);
+			expect(extraction.voiceGroups).toEqual([]);
+			expect(parsed.text).toBe(input);
+		}
+	);
+
 	it('treats “Hall and Oates” as one exact identity', () => {
 		const input = '[Chorus: Hall and Oates]\nPrivate Eyes';
 		const known = performer('Hall and Oates');

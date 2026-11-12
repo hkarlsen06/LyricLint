@@ -84,6 +84,7 @@ async function panelActions(
 		diagnostic,
 		onChooseHeader: vi.fn(),
 		onLinkSections: vi.fn(),
+		onReviewConversion: vi.fn(),
 		onSetLanguage: vi.fn(),
 		onPreviewFix: vi.fn(),
 		onCancelPreview: vi.fn(),
@@ -105,6 +106,7 @@ async function popoverActions(
 		diagnostic,
 		takeFocus,
 		onLinkSections: vi.fn(),
+		onReviewConversion: vi.fn(),
 		onSetLanguage: vi.fn(),
 		onPreviewFix: vi.fn(),
 		onCancelPreview: vi.fn(),
@@ -170,6 +172,18 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 				await screen.unmount();
 			}
 		}
+	});
+
+	it.each([
+		['mxm.numbers.context', 'Review quantity'],
+		['mxm.structure.instrumental', 'Review instrumental interval'],
+		['mxm.transcription.censor-mask', 'Review censored word'],
+		['mxm.transcription.repeat-placeholder', 'Review repeated passage']
+	])('offers the same implemented decision from %s in both surfaces', async (ruleId, label) => {
+		const diagnostic: Diagnostic = { ...contractionDiagnostic(), ruleId, fixes: undefined };
+		const panel = await panelActions(diagnostic);
+		expect(await popoverActions(diagnostic)).toEqual(panel);
+		expect(panel[0]).toEqual({ label, classes: 'button button--contrast' });
 	});
 
 	it('offers one action row, built from one component, on both surfaces', async () => {
@@ -325,6 +339,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			diagnostic: repeat,
 			onChooseHeader: vi.fn(),
 			onLinkSections: vi.fn(),
+			onReviewConversion: vi.fn(),
 			onPreviewFix: vi.fn(),
 			onCancelPreview: vi.fn(),
 			onApplyFix: vi.fn(),

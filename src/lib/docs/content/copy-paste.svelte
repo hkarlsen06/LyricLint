@@ -4,20 +4,35 @@
 	import Keys from '#lib/ui/docs/Keys.svelte';
 </script>
 
+<h2 id="formats">Main format and exports</h2>
+<p>
+	A new empty 'scribe offers Genius and Musixmatch inline. Your last deliberate choice becomes the
+	default for the next new 'scribe. Once you write lyrics or apply semantic formatting, that main
+	format stays fixed, even after clearing the lyrics.
+</p>
+<p>
+	Use <strong>Export to Genius</strong> or <strong>Export to Musixmatch</strong> for the other format.
+	The dialog contains separate editable output. Copy and Download .txt use exactly that output; Edit lyrics
+	returns to the main draft. Output edits are remembered through closing, reload and switching drafts
+	until you edit the original lyrics or their formatting details. Changing a title or moving the caret
+	keeps your edited output.
+</p>
+
 <h2 id="copy">Copy the lyrics</h2>
 <p>
-	Press <strong>Copy lyrics</strong> in the toolbar to copy the whole 'scribe. The button reads
+	Press <strong>Copy Genius</strong> or <strong>Copy Musixmatch</strong> in the toolbar to copy the
+	whole 'scribe. The button reads
 	<strong>Lyrics copied</strong> for a moment once the lyrics are on the clipboard. If the browser refuses,
 	a message asks you to check its clipboard permission.
 </p>
 <p>
-	The copy is exactly the text in the editor, character for character. Performer formatting stays
-	as the literal markup Genius uses, such as <code>&lt;i&gt;</code> and <code>&lt;b&gt;</code>, and
+	The copy is exactly the text in the editor, character for character. Performer formatting stays as
+	the literal markup Genius uses, such as <code>&lt;i&gt;</code> and <code>&lt;b&gt;</code>, and
 	annotation markup stays as it was.
 </p>
 <p>
-	Nothing LyricLint draws on top of the lyrics is copied: not the underlines, not a fix preview,
-	not the performer colors or the line times in the margin. What you paste into Genius is only the
+	Nothing LyricLint draws on top of the lyrics is copied: not the underlines, not a fix preview, not
+	the performer colors or the line times in the margin. What you paste into Genius is only the
 	lyrics.
 </p>
 <p>
@@ -37,8 +52,8 @@
 </ol>
 <p>
 	Every changed line is listed. Press a line to put the caret on it in your 'scribe. LyricLint
-	remembers the pasted page text, and <strong>Change baseline</strong> replaces it when the page has
-	moved on.
+	remembers the pasted page text, and <strong>Change baseline</strong> replaces it when the page has moved
+	on.
 </p>
 
 <h2 id="paste">Paste from Genius</h2>
@@ -53,9 +68,9 @@
 </p>
 <p>
 	To bring a 'scribe up to date with a newer version of the page, select everything with
-	<Keys combo="Mod-a" /> and paste over it. Where LyricLint can match the new sections to the old ones by their headers
-	and lyrics, your <a href={resolve('docs/section-links/')}>linked sections</a> stay linked. The pasted
-	words themselves are not changed.
+	<Keys combo="Mod-a" /> and paste over it. Where LyricLint can match the new sections to the old ones
+	by their headers and lyrics, your <a href={resolve('docs/section-links/')}>linked sections</a> stay
+	linked. The pasted words themselves are not changed.
 </p>
 
 <div>
@@ -85,8 +100,8 @@
 
 <h2 id="between">Between 'scribes</h2>
 <p>
-	Copy a passage from one 'scribe with <Keys combo="Mod-c" /> and paste it into another, and more
-	than the words comes along:
+	Copy a passage from one 'scribe with <Keys combo="Mod-c" /> and paste it into another, and more than
+	the words comes along:
 </p>
 <ul>
 	<li>
@@ -97,20 +112,19 @@
 		<strong>Section links.</strong> A link comes along when every linked section is inside what you copied.
 	</li>
 	<li>
-		<strong>Streaming audio.</strong> When the copy carries line times or links, it also carries the
-		'scribe's streaming source. If the 'scribe you paste into has no audio yet, it takes that source,
-		ready to start with one press. Audio already attached is never replaced, and local files do not
-		travel this way.
+		<strong>Streaming audio.</strong> When the copy carries line times or links, it also carries the 'scribe's
+		streaming source. If the 'scribe you paste into has no audio yet, it takes that source, ready to start
+		with one press. Audio already attached is never replaced, and local files do not travel this way.
 	</li>
 </ul>
 <p>
-	Pasted anywhere else, the same copy is plain lyrics. <strong>Copy lyrics</strong> in the toolbar never
-	carries any of this.
+	Pasted anywhere else, the same copy is plain lyrics. <strong>Copy Genius</strong> or
+	<strong>Copy Musixmatch</strong> in the toolbar never carries any of this.
 </p>
 <p>
-	To copy a whole 'scribe, use <strong>Duplicate</strong> in the <a href={resolve('docs/scribes/')}
-		>'scribes list</a
-	>. To move one to another browser, export it as a Scribe file.
+	To copy a whole 'scribe, use <strong>Duplicate</strong> in the
+	<a href={resolve('docs/scribes/')}>'scribes list</a>. To move one to another browser, export it as
+	a Scribe file.
 </p>
 
 <style>

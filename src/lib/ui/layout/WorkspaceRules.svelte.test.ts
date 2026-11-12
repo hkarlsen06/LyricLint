@@ -1,3 +1,4 @@
+import { conversionFixture } from '#lib/conversion/test-fixture.js';
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
@@ -51,6 +52,225 @@ describe('Workspace native checker startup', () => {
 		expect(load).not.toHaveBeenCalled();
 		expect(screen.queryByText('No issues found')).toBeNull();
 		expect(screen.queryByText('Checking lyrics…')).toBeNull();
+	});
+
+	it('retains sample spelling, contraction, pronoun and real worker grammar in a saved Musixmatch primary', async () => {
+		const { sampleDraftText } = await import('#lib/ui/sample-draft.js');
+		const { controller } = createTestWorkbench({ conversion: conversionFixture(sampleDraftText) });
+		await render(Workspace, { controller, editorComponent: EditorPane });
+		await waitFor(() => expect(controller.editor.switchProfile).toBeTypeOf('function'));
+
+		await waitFor(
+			() => {
+				const findings = controller.snapshot.diagnostics;
+				for (const id of [
+					'contraction.apostrophe',
+					'spelling.english-common',
+					'grammar.english-pronoun-i',
+					'grammar.harper'
+				]) {
+					expect(
+						findings.some((finding) => finding.ruleId === id),
+						id
+					).toBe(true);
+				}
+			},
+			{ timeout: 20000 }
+		);
+		const grammar = controller.snapshot.diagnostics.find(
+			(finding) => finding.ruleId === 'grammar.harper'
+		);
+		expect(grammar).toMatchObject({ sourceIds: ['T-HARPER'] });
+		if (!grammar) throw new Error('Expected the sample agreement finding');
+		expect(controller.snapshot.text.slice(grammar.from, grammar.to)).toBe('has');
+	});
+
+	it.each(['conversionRecovery', 'originalRecovery'] as const)(
+		'opens protected %s without repeatedly publishing checking snapshots',
+		async (kind) => {
+			const { importDocument } = await import('#lib/conversion/index.js');
+			const { createConversionEnvelope } = await import('#lib/persistence/conversion.js');
+			const { profilePolicyVersions } = await import('#lib/profiles/versions.js');
+			const { serializeScribe } = await import('#lib/scribe/format.js');
+			const text = '[Verse: Mira]\nArchived source lyric';
+			const model = importDocument({ text, profile: 'genius', language: 'en' });
+			if (!model.ok) throw new Error(model.refusal.message);
+			const checkpoint = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
+			const reason = 'The original data is retained separately.';
+			const source = serializeScribe({
+				title: 'Protected recovery',
+				lyrics: text,
+				language: 'en',
+				performers: [],
+				lineAnchors: [],
+				sectionLinks: [],
+				ignoredDiagnostics: [],
+				...(kind === 'conversionRecovery'
+					? {
+							conversion: checkpoint,
+							conversionRecovery: { text, checkpoint, reason, sourceDraftId: 'foreign-original' }
+						}
+					: { originalRecovery: { sourceDraftId: 'foreign-original', reason } })
+			});
+			const { controller } = createTestWorkbench();
+			expect(await controller.importScribe(new File([source], 'recovery.lls'))).toBe(true);
+			const native = await import('#lib/rules/engine.js');
+			const loadNativeRules = vi.fn(async () => native);
+			await render(Workspace, {
+				controller,
+				editorComponent: EditorPane,
+				harperProvider: { lint: async () => [], dispose: async () => {} },
+				loadNativeRules
+			});
+			await waitFor(() =>
+				expect(controller.editor.dispatchConversionAction).toBeTypeOf('function')
+			);
+			await nextTask();
+			expect(controller.snapshot.text).toBe(text);
+			expect(controller.snapshot[kind]?.reason).toBe(reason);
+			expect(controller.snapshot.diagnostics).toEqual([]);
+			expect(loadNativeRules).not.toHaveBeenCalled();
+		}
+	);
+
+	it('settles a confirmed quantity without changing its text and restores review on undo', async () => {
+		const native = await import('#lib/rules/engine.js');
+		const { controller } = createTestWorkbench({
+			conversion: conversionFixture('12 stars and 12 moons.')
+		});
+		controller.setGrammarCheckEnabled(false);
+		await render(Workspace, {
+			controller,
+			editorComponent: EditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} },
+			loadNativeRules: async () => native
+		});
+		await waitFor(() => expect(controller.editor.dispatchConversionAction).toBeTypeOf('function'));
+		const quantities = () =>
+			controller.snapshot.diagnostics.filter((finding) => finding.ruleId === 'mxm.numbers.context');
+		await waitFor(() => expect(quantities()).toHaveLength(2));
+		expect(
+			controller.applyConversionAction({
+				kind: 'confirmQuantity',
+				range: { from: 0, to: 2 },
+				facts: {
+					profile: 'musixmatch',
+					language: 'en',
+					value: '12',
+					usage: 'ordinary-cardinal',
+					pronunciation: 'whole-quantity'
+				}
+			})
+		).toBe(true);
+		await waitFor(() => expect(quantities().map((finding) => finding.from)).toEqual([13]));
+		expect(controller.snapshot.text).toBe('12 stars and 12 moons.');
+		expect(
+			controller.snapshot.diagnostics.some(
+				(finding) => finding.ruleId === 'mxm.punctuation.line-ending'
+			)
+		).toBe(true);
+		controller.editor.undo();
+		await waitFor(() => expect(quantities()).toHaveLength(2));
+		expect(controller.snapshot.text).toBe('12 stars and 12 moons.');
+	});
+
+	it('publishes real checking snapshots while preserving hidden language ownership', async () => {
+		const native = await import('#lib/rules/engine.js');
+		const { controller } = createTestWorkbench({
+			conversion: conversionFixture('[Verse]\nMoon Star Sun', 'genius', [
+				{
+					profile: 'musixmatch',
+					action: { kind: 'setPassageLanguage', range: { from: 0, to: 13 }, language: 'de' }
+				},
+				{
+					profile: 'musixmatch',
+					action: { kind: 'setForm', range: { from: 5, to: 9 }, profile: 'genius', text: '' }
+				}
+			])
+		});
+		controller.setGrammarCheckEnabled(false);
+		await render(Workspace, {
+			controller,
+			editorComponent: EditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} },
+			loadNativeRules: async () => native
+		});
+		await waitFor(() => expect(controller.editor.dispatchConversionAction).toBeTypeOf('function'));
+		await waitFor(() => expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun'));
+		const before = controller.snapshot.revision;
+		expect(
+			controller.applyConversionAction({
+				kind: 'setPassageLanguage',
+				range: { from: 0, to: controller.snapshot.text.length },
+				language: 'fr'
+			})
+		).toBe(true);
+		await waitFor(() => expect(controller.snapshot.revision).toBeGreaterThan(before));
+		expect(
+			controller.snapshot.conversion?.model.languageRanges.find((range) => range.language === 'de')
+		).toMatchObject({ from: 5, to: 9 });
+		expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun');
+		expect(controller.getExport()).toBe('Moon Star Sun');
+		expect(
+			controller.snapshot.conversion?.model.languageRanges.find((range) => range.language === 'de')
+		).toMatchObject({ from: 5, to: 9 });
+		await waitFor(() => expect(controller.snapshot.text).toBe('[Verse]\nMoon  Sun'));
+	});
+
+	it('reruns real native and Harper checks for metadata-only passage language and scope undo/redo', async () => {
+		const native = await import('#lib/rules/engine.js');
+		const { createHarperDiagnosticProvider } = await import('#lib/rules/harper.js');
+		const [{ LocalLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
+		const text = '[Verse]\nBonjour\nCuz you stay\nI has counted every streetlight';
+		const { controller } = createTestWorkbench({ text });
+		controller.setGrammarCheckEnabled(true);
+		try {
+			await render(Workspace, {
+				controller,
+				editorComponent: EditorPane,
+				harperProvider: provider,
+				loadNativeRules: async () => native
+			});
+			await waitFor(() =>
+				expect(controller.editor.dispatchConversionAction).toBeTypeOf('function')
+			);
+			const bonjour = () =>
+				controller.snapshot.diagnostics.filter((d) => text.slice(d.from, d.to) === 'Bonjour');
+			await waitFor(() => expect(bonjour().length).toBeGreaterThan(0));
+			for (const language of ['zz-Latn-custom', 'fr']) {
+				expect(
+					controller.applyConversionAction({
+						kind: 'setPassageLanguage',
+						range: { from: 8, to: 15 },
+						language
+					})
+				).toBe(true);
+				await waitFor(() => expect(bonjour()).toEqual([]));
+				await waitFor(() =>
+					expect(
+						controller.snapshot.diagnostics.some((d) => text.slice(d.from, d.to) === 'has')
+					).toBe(true)
+				);
+				expect(
+					controller.snapshot.diagnostics.some((d) => d.ruleId === 'spelling.standardized')
+				).toBe(true);
+				expect(controller.snapshot.text).toBe(text);
+				controller.editor.undo();
+				await waitFor(() => expect(bonjour().length).toBeGreaterThan(0));
+				controller.editor.redo();
+				await waitFor(() => expect(bonjour()).toEqual([]));
+				expect(controller.snapshot.text).toBe(text);
+				controller.editor.undo();
+				await waitFor(() => expect(bonjour().length).toBeGreaterThan(0));
+			}
+		} finally {
+			await cleanup();
+			await provider.dispose();
+		}
 	});
 
 	it('never publishes an unlinked-repeat finding while the real editor restores saved links', async () => {

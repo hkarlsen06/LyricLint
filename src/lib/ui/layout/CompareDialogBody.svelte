@@ -1,20 +1,24 @@
 <script lang="ts">
 	import InlineDiffText from '../primitives/InlineDiffText.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import { retainedFindings } from '#lib/conversion/review.js';
+	import { renderProfile, mapSelection } from '#lib/conversion/index.js';
 	import { diffDocuments, type DiffRow } from '#lib/core/document-diff.js';
 	import { formatDraftDate } from '../drafts/draft-date.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
 	let { controller, close }: { controller: WorkbenchController; close: () => void } = $props();
 	let pasteArea = $state<HTMLTextAreaElement>();
+	let baselineButton = $state<HTMLButtonElement>();
 	let pasted = $state('');
 	/** The paste step is showing over a baseline that already exists. */
 	let replacing = $state(false);
 
+	const retainedReview = $derived(retainedFindings(controller.snapshot, 'genius'));
 	const baseline = $derived(controller.compareBaseline);
 	const asking = $derived(baseline === undefined || replacing);
 	const diff = $derived(
-		baseline !== undefined ? diffDocuments(baseline.text, controller.snapshot.text) : undefined
+		baseline !== undefined ? diffDocuments(baseline.text, controller.geniusText) : undefined
 	);
 
 	/**
@@ -56,37 +60,33 @@
 	function adoptBaseline(): void {
 		const normalized = pasted.replace(/\r\n?/g, '\n').replace(/\n$/, '');
 		controller.setCompareBaseline(normalized);
-		pasted = '';
-		replacing = false;
+		void showComparison();
 	}
 
-	function cancelReplacing(): void {
-		pasted = '';
-		replacing = false;
+	async function changeBaseline(): Promise<void> {
+		replacing = true;
+		await tick();
+		pasteArea?.focus();
 	}
 
-	/**
-	 * The press that makes the modal a review rather than a report: every row,
-	 * context and header included, closes the surface and parks the caret at
-	 * that line in the editor. Unlike a diagnostic card's press, the editor
-	 * takes focus: the diagnostic idiom protects a caret the user never placed,
-	 * and this caret is exactly where they aimed, on a line they pressed in
-	 * order to go and edit.
-	 */
+	async function showComparison(): Promise<void> {
+		pasted = '';
+		replacing = false;
+		await tick();
+		baselineButton?.focus();
+	}
+
+	/** Map the Genius difference to the active format; the shell reveals and focuses its passage. */
 	function revealRow(at: number): void {
+		const conversion = controller.snapshot.conversion;
+		if (conversion?.profile === 'musixmatch') {
+			const genius = renderProfile(conversion.model, 'genius');
+			const active = renderProfile(conversion.model, 'musixmatch');
+			if (!genius.ok || !active.ok) return;
+			at = mapSelection(genius.value, active.value, { anchor: at, head: at }).anchor;
+		}
 		close();
-		// A closing modal restores focus to its trigger, synchronously on some
-		// engines and a task later on WebKit, so editor focus taken in the same
-		// tick is either trampled or lands while the page is still leaving the
-		// dialog's inert state. Either way CodeMirror's cursor layer goes on
-		// drawing an unfocused view: a caret that types but cannot be seen. One
-		// frame later the restoration has already happened, and the editor's
-		// focus is the final word.
-		requestAnimationFrame(() => {
-			controller.editor.setSelection({ anchor: at, head: at });
-			controller.editor.revealRange({ from: at, to: at });
-			controller.editor.focus();
-		});
+		controller.showConversionPassage({ from: at, to: at });
 	}
 
 	/** The character position under a point, on whichever API this engine has. */
@@ -148,6 +148,10 @@
 	}
 </script>
 
+{#if retainedReview.length}<p class="compare-dialog__scope">
+		The Genius view has retained details to review in Song. This comparison does not confirm that
+		the transcription is ready to submit.
+	</p>{/if}
 {#if asking}
 	<!-- The ask is what makes the comparison unambiguous: a paste into the
 				     editor is working text, a paste here is the page's version, and no
@@ -175,7 +179,7 @@
 				Show changes
 			</button>
 			{#if replacing}
-				<button type="button" class="button" onclick={cancelReplacing}>Cancel</button>
+				<button type="button" class="button" onclick={showComparison}>Cancel</button>
 			{/if}
 		</div>
 	</div>
@@ -191,7 +195,7 @@
 				{/if}
 			</p>
 			<div class="compare-dialog__ask-actions">
-				<button type="button" class="button" onclick={() => (replacing = true)}>
+				<button bind:this={baselineButton} type="button" class="button" onclick={changeBaseline}>
 					Change baseline
 				</button>
 			</div>
@@ -213,7 +217,7 @@
 					{/if}
 				</p>
 			</div>
-			<button type="button" class="button" onclick={() => (replacing = true)}>
+			<button bind:this={baselineButton} type="button" class="button" onclick={changeBaseline}>
 				Change baseline
 			</button>
 		</div>
@@ -289,6 +293,10 @@
 {/if}
 
 <style>
+	.compare-dialog__scope {
+		padding-inline: var(--space-5);
+		color: var(--color-text-muted);
+	}
 	/* The ask is prose and a paste area directly on the dialog, and the dialog is
 	   already the surface, so nothing in it is boxed. */
 	.compare-dialog__ask {
@@ -379,7 +387,7 @@
 	.compare-diff__gap {
 		display: flex;
 		width: 100%;
-		padding: 0 var(--space-1);
+		padding: var(--space-0-5) var(--space-1);
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: transparent;
@@ -387,10 +395,20 @@
 		/* Lyric text, so the lyric face, matching the editor the lines came from. */
 		font-family: var(--font-lyrics);
 		font-size-adjust: var(--font-lyrics-size-adjust);
-		font-size: var(--font-size-sm);
+		font-size: var(--font-size-md);
 		line-height: var(--line-height-editor);
 		gap: var(--space-2);
 		text-align: start;
+	}
+
+	.compare-diff__row {
+		min-height: var(--control-height-sm);
+	}
+
+	@media (pointer: coarse) {
+		.compare-diff__row {
+			min-height: var(--control-height-touch);
+		}
 	}
 
 	.compare-diff__row:hover,

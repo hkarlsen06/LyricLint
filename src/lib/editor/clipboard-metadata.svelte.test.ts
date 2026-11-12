@@ -10,6 +10,10 @@ import type {
 import { clipboardHtml, metadataFromClipboardHtml } from './clipboard-metadata.js';
 import type { ClipboardMetadata } from './clipboard-metadata.js';
 import EditorPane from './EditorPane.svelte';
+import { importDocument } from '#lib/conversion/import.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
+import { renderProfile, resolveDecision } from '#lib/conversion/index.js';
 
 function context(): EditorDisplayContext {
 	return {
@@ -22,6 +26,8 @@ function context(): EditorDisplayContext {
 
 async function mount(options: {
 	text: string;
+	language?: string;
+	conversion?: ReturnType<typeof createConversionEnvelope>;
 	selection?: { anchor: number; head: number };
 	/** What the shell's media store would answer for this draft's remote source. */
 	mediaSource?: () => ClipboardMediaSource | undefined;
@@ -46,8 +52,9 @@ async function mount(options: {
 	await render(EditorPane, {
 		props: {
 			initialText: options.text,
+			initialConversion: options.conversion,
 			initialSelection: options.selection,
-			context: context(),
+			context: { ...context(), language: options.language ?? 'en' },
 			callbacks,
 			onready: (ready: EditorHandle) => {
 				handle = ready;
@@ -263,6 +270,384 @@ describe('copy', () => {
 });
 
 describe('paste', () => {
+	it.each([
+		['fr', 'Pourquoi ?'],
+		['ja', '月?']
+	] as const)(
+		'attaches native Musixmatch %s spelling and language through history',
+		async (language, source) => {
+			const imported = importDocument({ text: source, profile: 'musixmatch', language });
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const conversion = createConversionEnvelope(
+				imported.value,
+				'musixmatch',
+				profilePolicyVersions
+			);
+			const target = importDocument({ text: 'Left Right', profile: 'genius', language: 'en' });
+			if (!target.ok) throw new Error(target.refusal.message);
+			const { handle, text } = await mount({
+				text: 'Left Right',
+				conversion: createConversionEnvelope(target.value, 'musixmatch', profilePolicyVersions)
+			});
+			handle.setSelection({ anchor: 5, head: 5 });
+			const transfer = new DataTransfer();
+			transfer.setData('text/plain', source);
+			transfer.setData(
+				'text/html',
+				clipboardHtml(source, {
+					lines: 1,
+					anchors: [],
+					links: [],
+					conversion,
+					performers: []
+				})
+			);
+			clipboard('paste', transfer);
+			expect(text()).toBe(`Left ${source}Right`);
+			const attached = handle.getSnapshot().conversion?.model;
+			expect(attached?.languageRanges).toEqual([
+				expect.objectContaining({ from: 5, to: 5 + source.length, language })
+			]);
+			expect(handle.getSnapshot().conversionRecovery).toBeUndefined();
+			handle.undo();
+			expect(text()).toBe('Left Right');
+			expect(handle.getSnapshot().conversion?.model.languageRanges).toEqual([]);
+			handle.redo();
+			expect(text()).toBe(`Left ${source}Right`);
+			expect(handle.getSnapshot().conversion?.model).toEqual(attached);
+			expect(handle.switchProfile?.('genius')).toEqual({ ok: true });
+			expect(text()).toBe(`Left ${source}Right`);
+			expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+			expect(text()).toBe(`Left ${source}Right`);
+		}
+	);
+
+	it.each([
+		['fr', 'Pourquoi ? Hello', 'genius'],
+		['fr', 'Pourquoi ? Hello', 'musixmatch'],
+		['ja', '月? Hello', 'genius'],
+		['ja', '月? Hello', 'musixmatch']
+	] as const)(
+		'carries derived %s spelling from %s into a nonempty %s line',
+		async (language, source, authored) => {
+			const imported = importDocument({ text: source, profile: 'genius', language });
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const projection = renderProfile(imported.value, 'musixmatch');
+			if (!projection.ok) throw new Error(projection.refusal.message);
+			const from = projection.value.text.indexOf('Hello');
+			const tagged = resolveDecision(imported.value, projection.value, {
+				kind: 'setPassageLanguage',
+				range: { from, to: from + 5 },
+				language: 'en'
+			});
+			if (!tagged.ok) throw new Error(tagged.refusal.message);
+			const conversion = createConversionEnvelope(
+				tagged.value.document,
+				'musixmatch',
+				profilePolicyVersions
+			);
+			const target = importDocument({ text: 'Left Right', profile: authored, language: 'en' });
+			if (!target.ok) throw new Error(target.refusal.message);
+			const { handle, text } = await mount({
+				text: 'Left Right',
+				conversion: createConversionEnvelope(target.value, 'musixmatch', profilePolicyVersions)
+			});
+			expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+			handle.setSelection({ anchor: 5, head: 5 });
+			const transfer = new DataTransfer();
+			transfer.setData('text/plain', conversion.projectionText);
+			transfer.setData(
+				'text/html',
+				clipboardHtml(conversion.projectionText, {
+					lines: 1,
+					anchors: [],
+					links: [],
+					conversion,
+					performers: []
+				})
+			);
+			clipboard('paste', transfer);
+			expect(text()).toBe(`Left ${conversion.projectionText}Right`);
+			expect(
+				handle
+					.getSnapshot()
+					.conversion?.model.languageRanges.some((range) => range.language === language)
+			).toBe(true);
+			expect(handle.getSnapshot().conversionRecovery).toBeUndefined();
+			expect(handle.switchProfile?.('genius')).toEqual({ ok: true });
+			expect(text()).toBe(`Left ${source}Right`);
+		}
+	);
+
+	it.each([false, true])(
+		'carries mixed passage languages inside receiving override=%s',
+		async (insideOverride) => {
+			const source = insideOverride ? 'Bonjour' : '[Verse]\nHello bonjour';
+			const imported = importDocument({ text: source, profile: 'genius', language: 'en' });
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const projection = renderProfile(imported.value, 'musixmatch');
+			if (!projection.ok) throw new Error(projection.refusal.message);
+			const tagged = resolveDecision(imported.value, projection.value, {
+				kind: 'setPassageLanguage',
+				range: { from: insideOverride ? 0 : 6, to: insideOverride ? 7 : 13 },
+				language: 'fr'
+			});
+			if (!tagged.ok) throw new Error(tagged.refusal.message);
+			const conversion = createConversionEnvelope(
+				tagged.value.document,
+				'musixmatch',
+				profilePolicyVersions
+			);
+			const { handle, text } = await mount({
+				text: insideOverride ? 'A B' : '',
+				language: insideOverride ? 'en' : 'ja'
+			});
+			expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+			if (insideOverride) {
+				expect(
+					handle.dispatchConversionAction?.(
+						{ kind: 'setPassageLanguage', range: { from: 0, to: 3 }, language: 'de' },
+						handle.getSnapshot().revision
+					)
+				).toEqual({ ok: true });
+				handle.setSelection({ anchor: 2, head: 2 });
+			}
+			const transfer = new DataTransfer();
+			transfer.setData('text/plain', conversion.projectionText);
+			transfer.setData(
+				'text/html',
+				clipboardHtml(conversion.projectionText, {
+					lines: 1,
+					anchors: [],
+					links: [],
+					conversion,
+					performers: []
+				})
+			);
+			clipboard('paste', transfer);
+			expect(text()).toBe(insideOverride ? 'A BonjourB' : 'Hello bonjour');
+			expect(
+				handle.getSnapshot().conversion?.model.languageRanges.map(({ from, to, language }) => ({
+					from,
+					to,
+					language
+				}))
+			).toEqual(
+				insideOverride
+					? [
+							{ from: 0, to: 2, language: 'de' },
+							{ from: 2, to: 9, language: 'fr' },
+							{ from: 9, to: 10, language: 'de' }
+						]
+					: [
+							{ from: 0, to: 6, language: 'en' },
+							{ from: 6, to: 13, language: 'fr' }
+						]
+			);
+		}
+	);
+
+	it('previews an explicitly named source format without guessing ordinary pasted syntax', async () => {
+		const { handle, text } = await mount({ text: '' });
+		expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+		const source = '[Verse]\nA [moon](123)';
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 0, insert: source }]
+		});
+		expect(text()).toBe(source);
+		expect(handle.getSnapshot().conversion?.model.sections).toHaveLength(0);
+		expect(handle.prepareInterpretation?.('genius', { from: 0, to: source.length })).toEqual({
+			ok: true
+		});
+		expect(text()).toBe(source);
+		expect(handle.getSnapshot().clipboardReview?.previewText).toBe('A moon');
+		expect(handle.applyClipboardReview?.()).toEqual({ ok: true });
+		expect(text()).toBe('A moon');
+		expect(handle.switchProfile?.('genius')).toEqual({ ok: true });
+		expect(text()).toBe(source);
+		handle.undo();
+		expect(text()).toBe('A moon');
+		handle.undo();
+		expect(text()).toBe(source);
+	});
+
+	it('pastes same-profile hidden details and restores them exactly when switching back', async () => {
+		const source = '[Verse]\nA [moon](123)';
+		const imported = importDocument({ text: source, profile: 'genius', language: 'en' });
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const conversion = createConversionEnvelope(
+			imported.value,
+			'musixmatch',
+			profilePolicyVersions
+		);
+		const { handle, text } = await mount({ text: '' });
+		expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', conversion.projectionText);
+		transfer.setData(
+			'text/html',
+			clipboardHtml(conversion.projectionText, {
+				lines: 1,
+				anchors: [],
+				links: [],
+				conversion,
+				performers: []
+			})
+		);
+		clipboard('paste', transfer);
+		expect(text()).toBe('A moon');
+		expect(handle.getSnapshot().conversion?.model.sections).toHaveLength(1);
+		expect(handle.switchProfile?.('genius')).toEqual({ ok: true });
+		expect(text()).toBe(source);
+		handle.undo();
+		expect(text()).toBe('A moon');
+		handle.undo();
+		expect(text()).toBe('');
+	});
+
+	it('keeps foreign-profile pasted text exact without adopting its hidden headers', async () => {
+		const imported = importDocument({
+			text: '[Verse]\nA [moon](123)',
+			profile: 'genius',
+			language: 'en'
+		});
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const conversion = createConversionEnvelope(
+			imported.value,
+			'musixmatch',
+			profilePolicyVersions
+		);
+		const { handle, text } = await mount({ text: '' });
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', conversion.projectionText);
+		transfer.setData(
+			'text/html',
+			clipboardHtml(conversion.projectionText, {
+				lines: 1,
+				anchors: [],
+				links: [],
+				conversion,
+				performers: []
+			})
+		);
+		clipboard('paste', transfer);
+		expect(text()).toBe('A moon');
+		expect(handle.getSnapshot().conversion).toBeUndefined();
+		expect(handle.getSnapshot().clipboardReview).toEqual({
+			sourceProfile: 'musixmatch',
+			from: 0,
+			to: 6,
+			previewText: '[Verse]\nA [moon](123)'
+		});
+		expect(handle.applyClipboardReview?.()).toEqual({ ok: true });
+		expect(text()).toBe('[Verse]\nA [moon](123)');
+		expect(handle.getSnapshot().clipboardReview).toBeUndefined();
+		handle.undo();
+		expect(text()).toBe('A moon');
+		expect(handle.getSnapshot().clipboardReview?.sourceProfile).toBe('musixmatch');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 2, to: 6, insert: 'sun' }]
+		});
+		expect(text()).toBe('A sun');
+		expect(handle.getSnapshot().clipboardReview).toBeUndefined();
+		expect(handle.applyClipboardReview?.()).toMatchObject({ ok: false });
+		handle.undo();
+		expect(text()).toBe('A moon');
+		expect(handle.getSnapshot().clipboardReview?.sourceProfile).toBe('musixmatch');
+		handle.redo();
+		expect(text()).toBe('A sun');
+		expect(handle.getSnapshot().clipboardReview).toBeUndefined();
+		handle.undo();
+		expect(handle.applyClipboardReview?.()).toEqual({ ok: true });
+		expect(text()).toBe('[Verse]\nA [moon](123)');
+	});
+
+	it.each([
+		[14, 14, '\nNew line', 'Before\n\n[Verse]\nA [moon](123)\nNew line'],
+		[8, 8, 'Earlier\n', 'Before\n\nEarlier\n[Verse]\nA [moon](123)'],
+		[0, 8, '', '[Verse]\nA [moon](123)']
+	] as const)(
+		'keeps copied details through adjacent edit %i..%i',
+		async (from, to, insert, expected) => {
+			const imported = importDocument({
+				text: '[Verse]\nA [moon](123)',
+				profile: 'genius',
+				language: 'en'
+			});
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const conversion = createConversionEnvelope(
+				imported.value,
+				'musixmatch',
+				profilePolicyVersions
+			);
+			const { handle, text } = await mount({
+				text: 'Before\n\n',
+				selection: { anchor: 8, head: 8 }
+			});
+			const transfer = new DataTransfer();
+			transfer.setData('text/plain', conversion.projectionText);
+			transfer.setData(
+				'text/html',
+				clipboardHtml(conversion.projectionText, {
+					lines: 1,
+					anchors: [],
+					links: [],
+					conversion,
+					performers: []
+				})
+			);
+			clipboard('paste', transfer);
+			handle.dispatchAtomic({
+				baseRevision: handle.getSnapshot().revision,
+				edits: [{ from, to, insert }]
+			});
+			expect(handle.getSnapshot().clipboardReview?.previewText).toBe('[Verse]\nA [moon](123)');
+			expect(handle.applyClipboardReview?.()).toEqual({ ok: true });
+			expect(text()).toBe(expected);
+		}
+	);
+
+	it('maps copied detail review through outside edits and clears it on a profile change', async () => {
+		const imported = importDocument({
+			text: '[Verse]\nA [moon](123)',
+			profile: 'genius',
+			language: 'en'
+		});
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const conversion = createConversionEnvelope(
+			imported.value,
+			'musixmatch',
+			profilePolicyVersions
+		);
+		const { handle, text } = await mount({ text: 'Before\n\n', selection: { anchor: 8, head: 8 } });
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', conversion.projectionText);
+		transfer.setData(
+			'text/html',
+			clipboardHtml(conversion.projectionText, {
+				lines: 1,
+				anchors: [],
+				links: [],
+				conversion,
+				performers: []
+			})
+		);
+		clipboard('paste', transfer);
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 6, insert: 'Earlier' }]
+		});
+		expect(handle.getSnapshot().clipboardReview).toMatchObject({ from: 9, to: 15 });
+		expect(handle.applyClipboardReview?.()).toEqual({ ok: true });
+		expect(text()).toBe('Earlier\n\n[Verse]\nA [moon](123)');
+		handle.undo();
+		expect(handle.getSnapshot().clipboardReview).toBeDefined();
+		expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+		expect(handle.getSnapshot().clipboardReview).toBeUndefined();
+	});
+
 	it('restores stored word connections after paste and mirrors an edit across different lines', async () => {
 		const prefix = '[Verse]\nLocal\n\n';
 		const fragment = '[Intro]\nVin i et badekar, ri-ri\n\n[Chorus]\nVin i et badekar';

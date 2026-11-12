@@ -13,6 +13,7 @@
 	import { resolve } from '$app/paths';
 	import type { AssistantState } from '#lib/assistant/assistant.svelte.js';
 	import { MAX_QUESTION_CHARS } from '#lib/assistant/types.js';
+	import { profileLabels } from '#lib/profiles/types.js';
 	import {
 		loadRulePreviews,
 		type RulePreview,
@@ -45,11 +46,19 @@
 	let revoking = $state(false);
 	const transcript = stickToBottom();
 
-	const suggestions = [
-		'How should I format a chorus?',
-		'Can you help me proofread a lyric?',
-		'How do I mark an unknown lyric?'
-	];
+	const suggestions = $derived(
+		assistant.profile === 'musixmatch'
+			? [
+					'How should I separate verses and choruses?',
+					'Can you help me proofread a lyric?',
+					'How should I transcribe a repeated chorus?'
+				]
+			: [
+					'How should I format a chorus?',
+					'Can you help me proofread a lyric?',
+					'How do I mark an unknown lyric?'
+				]
+	);
 	const quotaLow = $derived(assistant.quota !== undefined && assistant.quota.browserRemaining <= 3);
 	// The whole of what `send()` refuses on, read in one place. Both submit paths
 	// clear the composer before asking, so a state the store silently declines is
@@ -305,8 +314,8 @@
 			<div class="assistant-empty">
 				<h3>What would you like to check?</h3>
 				<p>
-					Ask about Genius transcription, proofreading, grammar, or wording. Answers cite a relevant
-					reviewed rule when one applies.
+					Ask about {profileLabels[assistant.profile]} transcription, proofreading, grammar, or wording.
+					Answers cite a relevant reviewed rule when one applies.
 				</p>
 				<div class="assistant-suggestions" role="group" aria-label="Suggested questions">
 					{#each suggestions as suggestion (suggestion)}
@@ -349,6 +358,11 @@
 				{/if}
 				<div class="assistant-turn" data-role={message.role}>
 					<span class="sr-only">{message.role === 'user' ? 'You:' : 'Assistant:'}</span>
+					{#if message.role === 'assistant' && (message.profile === 'musixmatch' || (message.profile ?? 'genius') !== assistant.profile)}
+						<p class="assistant-divider">
+							Guidelines: {message.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'}
+						</p>
+					{/if}
 					{#if message.role === 'user'}
 						<p class="assistant-turn__text">{message.content}</p>
 					{:else}

@@ -28,12 +28,16 @@
 
 	let {
 		corpus,
+		profile = 'genius',
+		showProfileNavigation = false,
 		selectedSlug,
 		selectedTopic,
 		spellings,
 		assistant: assistantProp
 	}: {
 		corpus: readonly ReferenceDocument[];
+		profile?: 'genius' | 'musixmatch';
+		showProfileNavigation?: boolean;
 		selectedSlug?: string;
 		selectedTopic?: string;
 		spellings?: RuleLookupTable;
@@ -92,6 +96,20 @@
 {#snippet marked(text: string)}<SearchHighlight {text} {tokens} />{/snippet}
 
 <div class="reference-index" tabindex="-1">
+	{#if showProfileNavigation}
+		<nav aria-label="Guideline profile" class="guide-profiles">
+			<a
+				class="button button--quiet"
+				href={resolve('/(site)/guidelines')}
+				aria-current={profile === 'genius' ? 'true' : undefined}>Genius</a
+			>
+			<a
+				class="button button--quiet"
+				href={resolve('/(site)/guidelines/musixmatch')}
+				aria-current={profile === 'musixmatch' ? 'true' : undefined}>Musixmatch</a
+			>
+		</nav>
+	{/if}
 	<search aria-label="Find transcription answers">
 		<label for="reference-search">What are you working on?</label>
 		<input
@@ -128,7 +146,7 @@
 					type="button"
 					class="button button--quiet reference-ask"
 					disabled={!ready}
-					onclick={() => void assistant.open()}
+					onclick={() => void assistant.open(profile)}
 					><MagicWandIcon size={18} aria-hidden="true" />Ask a question</button
 				>
 			{/if}
@@ -267,16 +285,18 @@
 
 	<nav aria-label="Browse reference topics" class="reference-directory">
 		<!-- eslint-disable svelte/no-navigation-without-resolve -- All reference links preserve search on resolved local routes. -->
-		<div class="reference-start">
-			<a
-				href={referenceHref(resolve('/(site)/guidelines/essentials'))}
-				aria-label="Start with the essentials"
-				aria-current={path.includes('/guidelines/essentials') ? 'page' : undefined}
-				><span>Start with the essentials</span>
-				<CaretRightIcon size={16} aria-hidden="true" /></a
-			>
-		</div>
-		{#if !showResults && !selectedTopic && !selectedSlug && !path.includes('/guidelines/all') && !path.includes('/guidelines/essentials')}
+		{#if profile === 'genius'}
+			<div class="reference-start">
+				<a
+					href={referenceHref(resolve('/(site)/guidelines/essentials'))}
+					aria-label="Start with the essentials"
+					aria-current={path.includes('/guidelines/essentials') ? 'page' : undefined}
+					><span>Start with the essentials</span>
+					<CaretRightIcon size={16} aria-hidden="true" /></a
+				>
+			</div>
+		{/if}
+		{#if profile === 'genius' && !showResults && !selectedTopic && !selectedSlug && !path.includes('/guidelines/all') && !path.includes('/guidelines/essentials')}
 			<div class="reference-questions">
 				{#if spellings}<StandardizedSpellings {spellings} />{/if}
 				<GuideQuestions />
@@ -295,27 +315,39 @@
 						></span>{/each}
 					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Keep a reader's query available when returning from a topic. -->
 					<a
-						href={referenceHref(`${resolve('/(site)/guidelines/[topic]', { topic: topic.id })}/`)}
+						href={referenceHref(
+							profile === 'musixmatch'
+								? `${resolve('/(site)/guidelines/musixmatch/[topic]', { topic: topic.id })}/`
+								: `${resolve('/(site)/guidelines/[topic]', { topic: topic.id })}/`
+						)}
 						aria-current={selectedTopic === topic.id ? 'page' : undefined}
 						aria-label={topic.title}
 						aria-describedby="{uid}-preview-{topic.id}"
 					>
 						<span class="reference-topic-title">{topic.title}</span>
-						<span class="reference-topic-preview" id="{uid}-preview-{topic.id}"
-							><span class="sr-only">{topic.preview.length > 1 ? 'Examples:' : 'Example:'}</span
-							>{#each topic.preview as example, index (example.text)}{#if index}<span
-										class="sr-only">,</span
-									><span aria-hidden="true">·</span>{/if}<code>{example.text}</code>{/each}</span
-						>
+						{#if profile === 'musixmatch'}
+							<span class="reference-topic-question" id="{uid}-preview-{topic.id}"
+								>{topic.question}</span
+							>
+						{:else}
+							<span class="reference-topic-preview" id="{uid}-preview-{topic.id}"
+								><span class="sr-only">{topic.preview.length > 1 ? 'Examples:' : 'Example:'}</span
+								>{#each topic.preview as example, index (example.text)}{#if index}<span
+											class="sr-only">,</span
+										><span aria-hidden="true">·</span>{/if}<code>{example.text}</code>{/each}</span
+							>
+						{/if}
 					</a>
 				</li>
 			{/each}
 		</ul>
-		<a
-			class="reference-read-all"
-			href={referenceHref(resolve('/(site)/guidelines/all'))}
-			aria-current={path.includes('/guidelines/all') ? 'page' : undefined}>Read the whole guide</a
-		>
+		{#if profile === 'genius'}
+			<a
+				class="reference-read-all"
+				href={referenceHref(resolve('/(site)/guidelines/all'))}
+				aria-current={path.includes('/guidelines/all') ? 'page' : undefined}>Read the whole guide</a
+			>
+		{/if}
 		<!-- eslint-enable svelte/no-navigation-without-resolve -->
 	</nav>
 </div>
@@ -323,6 +355,18 @@
 <style>
 	.reference-index {
 		min-width: 0;
+	}
+	.guide-profiles {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		margin-block-end: var(--space-4);
+	}
+	.guide-profiles a[aria-current='true'] {
+		background: var(--color-fill);
+		font-weight: var(--font-weight-semibold);
+		text-decoration: underline;
+		text-underline-offset: var(--space-1);
 	}
 	label,
 	legend {
@@ -498,6 +542,12 @@
 		line-height: var(--line-height-body);
 		overflow-wrap: anywhere;
 	}
+	.reference-topic-question {
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-regular);
+		line-height: var(--line-height-body);
+	}
 	.reference-topic-preview code {
 		font: inherit;
 		white-space: pre-line;
@@ -517,7 +567,8 @@
 		.reference-topic-title {
 			font-size: var(--font-size-md);
 		}
-		.reference-topic-preview {
+		.reference-topic-preview,
+		.reference-topic-question {
 			font-size: var(--font-size-sm);
 		}
 	}

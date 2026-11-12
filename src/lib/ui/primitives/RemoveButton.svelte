@@ -1,5 +1,6 @@
 <script lang="ts">
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import { tick } from 'svelte';
 	/**
 	 * Taking a row out of a list, in one place, in two presses.
 	 *
@@ -14,23 +15,40 @@
 	 *
 	 * One implementation for every list that offers a way out of one of its
 	 * rows: the drafts menu, the linter panel's recent drafts, the performer
-	 * roster. `label` is the only thing that differs between them, because a
-	 * draft is deleted and a performer is removed from a roster.
+	 * roster. The verb differs because a draft is deleted and a performer is
+	 * removed. Labelled action lists can show that verb before confirmation too.
 	 */
 	interface Props {
-		/** What this row is, for the accessible name; never rendered as text. */
+		/** What this row is, for the accessible name and the labelled confirmation. */
 		subject: string;
 		/** The verb, and the whole of the confirm's visible label. */
 		label?: string;
+		/** Use a visible verb where the surrounding actions also have text labels. */
+		showLabel?: boolean;
 		pending: boolean;
 		onRequest: () => void;
 		onCancel: () => void;
 		onConfirm: (trigger: HTMLButtonElement) => void;
 	}
 
-	let { subject, label = 'Delete', pending, onRequest, onCancel, onConfirm }: Props = $props();
+	let {
+		subject,
+		label = 'Delete',
+		showLabel = false,
+		pending,
+		onRequest,
+		onCancel,
+		onConfirm
+	}: Props = $props();
 
 	let confirmButton = $state<HTMLButtonElement | undefined>();
+	let triggerButton = $state<HTMLButtonElement | undefined>();
+
+	async function cancel(): Promise<void> {
+		onCancel();
+		await tick();
+		triggerButton?.focus();
+	}
 
 	// The confirm replaces the trigger, so the press that armed it has to carry
 	// focus across the swap, or a keyboard user is dropped on the body
@@ -47,11 +65,10 @@
 </span>
 
 {#if pending}
-	<button
-		type="button"
-		class="button button--quiet remove-button__cancel"
-		onclick={() => onCancel()}
-	>
+	{#if showLabel}
+		<span class="remove-button__question" aria-hidden="true">{label} {subject}?</span>
+	{/if}
+	<button type="button" class="button button--quiet remove-button__cancel" onclick={cancel}>
 		Cancel
 	</button>
 	<!-- The visible label is the verb alone, because the row it sits in is the
@@ -62,6 +79,7 @@
 	<button
 		type="button"
 		class="button button--danger remove-button__confirm"
+		class:remove-button--label={showLabel}
 		aria-label="{label} {subject}"
 		bind:this={confirmButton}
 		onclick={(event) => onConfirm(event.currentTarget)}
@@ -71,12 +89,15 @@
 {:else}
 	<button
 		type="button"
-		class="button--quiet icon-button remove-button"
+		class={showLabel
+			? 'button button--quiet remove-button remove-button--label'
+			: 'button--quiet icon-button remove-button'}
 		aria-label="{label} {subject}"
-		title={label}
+		title={showLabel ? undefined : label}
+		bind:this={triggerButton}
 		onclick={() => onRequest()}
 	>
-		<TrashIcon aria-hidden="true" size={14} weight="bold" />
+		{#if showLabel}{label}{:else}<TrashIcon aria-hidden="true" size={14} weight="bold" />{/if}
 	</button>
 {/if}
 
@@ -106,6 +127,18 @@
 	button:where(.remove-button) {
 		width: 1.75rem;
 		color: var(--color-text-muted);
+	}
+	button:where(.remove-button--label) {
+		width: auto;
+		padding-inline: var(--space-3);
+	}
+	.remove-button__question {
+		min-width: 0;
+		margin-inline-end: auto;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: var(--font-size-sm);
 	}
 
 	/* Written to outrank the row's own quieting of the glyphs beside it. */

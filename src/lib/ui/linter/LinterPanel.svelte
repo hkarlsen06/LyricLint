@@ -5,14 +5,21 @@
 	import RemoveButton from '#lib/ui/primitives/RemoveButton.svelte';
 	import { formatDraftDate, fullDraftDate } from '#lib/ui/drafts/draft-date.js';
 	import DiagnosticList from './DiagnosticList.svelte';
+	import MagicWandIcon from 'phosphor-svelte/lib/MagicWandIcon';
 	import SeverityIcon from '#lib/diagnostics/SeverityIcon.svelte';
 	import { severityPluralLabels } from '#lib/diagnostics/severity-labels.js';
 	import { countDecisions } from '#lib/diagnostics/decisions.js';
+	import { retainedFindings } from '#lib/conversion/review.js';
+	import RetainedReview from '../tools/RetainedReview.svelte';
 	import { tick, untrack } from 'svelte';
+	import ConversionReview from '../tools/ConversionReview.svelte';
+	import { profileLanguage } from '#lib/profiles/languages.js';
+	import { languageName } from '#lib/languages/options.js';
 
 	let {
 		controller,
 		nativeRulesStatus = 'ready',
+		grammarPending = false,
 		onRetryNativeRules,
 		active = true,
 		mobile = false,
@@ -22,6 +29,7 @@
 	}: {
 		controller: WorkbenchController;
 		nativeRulesStatus?: 'pending' | 'failed' | 'ready';
+		grammarPending?: boolean;
 		onRetryNativeRules?: () => void;
 		active?: boolean;
 		mobile?: boolean;
@@ -107,13 +115,29 @@
 
 	// Only blame the filters when they are actually what is hiding something;
 	// an otherwise clean draft should read as clean.
+	const detailFindings = $derived(retainedFindings(controller.snapshot));
+	const languages = $derived([
+		...new Set([
+			controller.language,
+			...(controller.snapshot.conversion?.model.languageRanges.map((range) => range.language) ?? [])
+		])
+	]);
+	const unreviewedLanguages = $derived(languages.filter((tag) => profileLanguage(tag) === 'und'));
+	const reviewedLanguages = $derived(languages.filter((tag) => profileLanguage(tag) !== 'und'));
 	const emptyState = $derived.by(() => {
-		// An untouched draft is not "clean": it has nothing to lint yet. The
-		// editor now carries the instructions (a ghost transcription where the
-		// caret is, and Paste lyrics in the toolbar), so this line says what the
-		// panel will do rather than repeating how to feed it, and the space under
-		// it holds the two things worth pressing from here.
-		if (controller.snapshot.text.length > 0 && nativeRulesStatus !== 'ready') {
+		if (controller.snapshot.conversionRecovery || controller.snapshot.originalRecovery) {
+			return {
+				title: 'Retained details need recovery',
+				detail:
+					'Your latest lyrics are preserved. Open Song to export the text and retained data before repairing their associations.'
+			};
+		}
+		// An untouched draft is not "clean", it has nothing to lint yet. The
+		// document sheet carries the instructions and every way to begin (a ghost
+		// transcription where the caret is, and the start tray under it), so
+		// this line says what the panel will do rather than repeating how to
+		// feed it.
+		if (controller.snapshot.text.length > 0 && (nativeRulesStatus !== 'ready' || grammarPending)) {
 			return {
 				status: true,
 				title: nativeRulesStatus === 'failed' ? 'Checking unavailable' : 'Checking lyrics…',
@@ -123,6 +147,11 @@
 						: 'You can keep writing while the checker loads.'
 			};
 		}
+		if (controller.isEmpty && controller.snapshot.conversion?.model.sections.length)
+			return {
+				title: 'No lyrics in this format',
+				detail: 'Retained section details are available in Song.'
+			};
 		if (controller.isEmpty) {
 			return {
 				title: 'Ready for your lyrics',
@@ -146,7 +175,7 @@
 		}
 		return {
 			title: 'No issues found',
-			detail: 'Your lyrics pass every enabled rule.\nChecking continues as you write.',
+			detail: `No issues found by the enabled ${controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} checks.\nChecking continues as you write.`,
 			clean: true
 		};
 	});
@@ -194,16 +223,24 @@
 	const lineFor = $derived(lineNumberLookup(controller.snapshot.text));
 </script>
 
-<div class="panel-content linter-panel" class:linter-panel--focused={mobile && reviewFocused}>
-	{#if mobile && reviewFocused}
-		<button type="button" class="button button--quiet mobile-review-back" onclick={onReviewList}
-			>All findings</button
-		>
-	{/if}
-	{#if controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0}
-		<h2 class="linter-panel__heading">Review lyrics</h2>
-	{/if}
-	<!-- The chips are on screen whenever there is something to filter. They used
+{#if controller.requestedConversionReview}
+	{#key controller.requestedConversionReview.sequence}<ConversionReview
+			{controller}
+			request={controller.requestedConversionReview}
+		/>{/key}
+{:else}
+	<div class="panel-content linter-panel" class:linter-panel--focused={mobile && reviewFocused}>
+		{#if mobile && reviewFocused}
+			<button type="button" class="button button--quiet mobile-review-back" onclick={onReviewList}
+				>All findings</button
+			>
+		{/if}
+		{#if controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0}
+			<h2 class="linter-panel__heading">
+				Review {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics
+			</h2>
+		{/if}
+		<!-- The chips are on screen whenever there is something to filter. They used
 	     to be revealed by pressing the Linter tab a second time from inside the
 	     linter, which is a gesture nobody performs and nothing advertises. It is the
 	     same failure the timestamp gutter had when its control only appeared
@@ -216,27 +253,27 @@
 	     dropped the severity *word* in favour of a glyph, so this row is now the
 	     one surface in the workbench that pairs the four marks with their names,
 	     and it hangs directly above the column it is the legend for. -->
-	{#if chips.length > 0}
-		<div class="linter-panel__filters" role="group" aria-label="Filter diagnostics by severity">
-			{#each chips as filter (filter.value)}
-				<button
-					type="button"
-					class="filter-chip filter-chip--{filter.value}"
-					aria-pressed={controller.severityFilter.includes(filter.value)}
-					onclick={() => controller.toggleSeverity(filter.value)}
-				>
-					<!-- The chip wears the mark its rows wear. The row's word is gone, so
+		{#if chips.length > 0}
+			<div class="linter-panel__filters" role="group" aria-label="Filter diagnostics by severity">
+				{#each chips as filter (filter.value)}
+					<button
+						type="button"
+						class="filter-chip filter-chip--{filter.value}"
+						aria-pressed={controller.severityFilter.includes(filter.value)}
+						onclick={() => controller.toggleSeverity(filter.value)}
+					>
+						<!-- The chip wears the mark its rows wear. The row's word is gone, so
 					     without this the only thing tying "Suggestions" to the eight rows
 					     it hides would be their shared color. -->
-					<SeverityIcon severity={filter.value} />
-					{filter.label}
-					<span class="filter-chip__count">{counts[filter.value]}</span>
-				</button>
-			{/each}
-		</div>
-	{/if}
+						<SeverityIcon severity={filter.value} />
+						<span class="filter-chip__label">{filter.label}</span>
+						<span class="filter-chip__count">{counts[filter.value]}</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
 
-	<!-- The whole-document command is a strip of chrome under the tab strip, the
+		<!-- The whole-document command is a strip of chrome under the tab strip, the
 	     same material as the severity chips that hang above it. The material is
 	     the point, and it took three tries to see why: the panel already spends
 	     `--color-canvas` on the *selected* diagnostic, so a row of bare canvas
@@ -249,155 +286,200 @@
 	     what keeps the row from reading as a lone button in half a row of dead
 	     gutter, which is how the first version of this failed. It is absent, not
 	     disabled, when there is nothing it could do. -->
-	{#if bulk.automatic > 0}
-		<div class="linter-panel__bulk">
-			<button
-				type="button"
-				class="button linter-panel__bulk-action"
-				onclick={(event) => void applyBulkFix(event.currentTarget)}
-			>
-				Fix {bulk.automatic}
-				{bulk.automatic === 1 ? 'issue' : 'issues'} automatically
-			</button>
-			<!-- The rows still standing after the press, so they read as the ones
+		{#if bulk.automatic > 0}
+			<div class="linter-panel__bulk">
+				<button
+					type="button"
+					class="button linter-panel__bulk-action"
+					onclick={(event) => void applyBulkFix(event.currentTarget)}
+				>
+					<MagicWandIcon aria-hidden="true" size={14} weight="bold" />
+					Fix {bulk.automatic}
+					{bulk.automatic === 1 ? 'issue' : 'issues'} automatically
+				</button>
+				<!-- The rows still standing after the press, so they read as the ones
 			     that were always going to need the user, not as a fix that half
 			     worked. The button counts places and the tab counts rows, so this
 			     names the rows the press leaves. -->
-			{#if decisionsLeft > 0}
-				<span class="linter-panel__bulk-note"
-					>{decisionsLeft} {decisionsLeft === 1 ? 'decision' : 'decisions'} left</span
-				>
-			{/if}
-		</div>
-	{/if}
-
-	<!-- Only the untouched-document state gets a control, and only the sample:
-	     it is the one thing that answers "nothing to lint yet" in place, so it
-	     stays with the sentence it answers. "Hidden by filters" and "All issues
-	     ignored" already name the chip or the footer that undid them, and "No
-	     issues found" is not a problem to solve. The drafts are not an answer to
-	     this state at all, they are somewhere else to be, so they wait at the
-	     far end of the column instead of between the message and its offer. -->
-	{#snippet emptyActions()}
-		{#if controller.snapshot.text.length > 0 && nativeRulesStatus === 'failed'}
-			<button
-				type="button"
-				class="button"
-				onclick={(event) => void retryChecking(event.currentTarget)}>Retry checking</button
-			>
-		{/if}
-		{#if controller.isEmpty && controller.canLoadSample}
-			<div class="linter-panel__empty-action">
-				<button type="button" class="button" onclick={() => controller.loadSample()}>
-					Load a sample 'scribe
-				</button>
+				{#if decisionsLeft > 0}
+					<span class="linter-panel__bulk-note"
+						>{decisionsLeft} {decisionsLeft === 1 ? 'decision' : 'decisions'} left</span
+					>
+				{/if}
 			</div>
 		{/if}
-	{/snippet}
 
-	<!-- A row's collapse and its chosen place are about one
-	     draft's lyrics. Another draft can raise the same question, so switching
-	     drafts starts the list over rather than carrying them across. -->
-	{#key controller.draftId}
-		<DiagnosticList
-			overview={mobile && !reviewFocused}
-			focusedOnly={mobile && reviewFocused}
-			active={listShown}
-			diagnostics={controller.visibleDiagnostics}
-			decisions={controller.reviewDecisions}
-			rowKey={controller.diagnosticRowKey}
-			sources={controller.sources}
-			activeDiagnosticKey={controller.activeDiagnosticKey}
-			activeDiagnosticRange={controller.activeDiagnosticRange}
-			{emptyState}
-			{emptyActions}
-			{lineFor}
-			onNavigate={(diagnostic) => {
-				if (mobile) onOpenFinding?.(diagnostic);
-				else controller.navigateToDiagnostic(diagnostic, { focus: false });
-			}}
-			onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
-			canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
-			onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
-			onLinkSections={(diagnostic) => controller.linkDiagnosticSections(diagnostic)}
-			onSetLanguage={(language) => controller.setLanguage(language)}
-			onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
-			onCancelPreview={() => controller.clearFixPreview()}
-			onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
-			fixBatchSize={(diagnostic, fix) => controller.fixBatchSize(diagnostic, fix)}
-			onApplyFixBatch={(diagnostic, fix) => controller.applyFixBatch(diagnostic, fix)}
-			onIgnore={(diagnostic) => controller.ignoreDiagnostic(diagnostic)}
-			onAnnounce={(message) => controller.feedback.announce(message)}
-		/>
-	{/key}
-	{#if controller.visibleDiagnostics.length > 0}
-		<p class="linter-panel__afterword">{afterword}</p>
-	{/if}
+		<!-- An empty state gets a control only where pressing it answers the
+	     sentence above it: a failed check can be retried, and retained details
+	     can be opened. "Hidden by filters" and "All issues ignored" already name
+	     the chip or the footer that undid them, "No issues found" is not a
+	     problem to solve, and the ways to begin an empty document live in the
+	     sheet's start tray. The drafts are not an answer to this state at all,
+	     they are somewhere else to be, so they wait at the far end of the
+	     column. -->
+		{#snippet emptyActions()}
+			{#if controller.snapshot.text.length > 0 && nativeRulesStatus === 'failed'}
+				<button
+					type="button"
+					class="button"
+					onclick={(event) => void retryChecking(event.currentTarget)}>Retry checking</button
+				>
+			{/if}
+			{#if controller.isEmpty && controller.snapshot.conversion?.model.sections.length}<button
+					type="button"
+					class="button"
+					onclick={() => {
+						const section = controller.snapshot.conversion?.model.sections[0];
+						if (section) controller.openSectionDetails(section.id, 'review');
+					}}>View retained details</button
+				>{/if}
+		{/snippet}
 
-	<!-- The drafts the user already has sit at the foot of the column, under
+		{#if !detailFindings.length || controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0 || nativeRulesStatus !== 'ready'}
+			<!-- A row's collapse and its chosen place are about one
+			     draft's lyrics. Another draft can raise the same question, so switching
+			     drafts starts the list over rather than carrying them across. -->
+			{#key controller.draftId}
+				<DiagnosticList
+					overview={mobile && !reviewFocused}
+					focusedOnly={mobile && reviewFocused}
+					active={listShown}
+					diagnostics={controller.visibleDiagnostics}
+					decisions={controller.reviewDecisions}
+					rowKey={controller.diagnosticRowKey}
+					sources={controller.sources}
+					activeDiagnosticKey={controller.activeDiagnosticKey}
+					activeDiagnosticRange={controller.activeDiagnosticRange}
+					{emptyState}
+					{emptyActions}
+					{lineFor}
+					onNavigate={(diagnostic) => {
+						if (mobile) onOpenFinding?.(diagnostic);
+						else controller.navigateToDiagnostic(diagnostic, { focus: false });
+					}}
+					onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
+					canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
+					onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
+					onLinkSections={(diagnostic) => controller.linkDiagnosticSections(diagnostic)}
+					onReviewConversion={(diagnostic) => controller.openConversionReview(diagnostic)}
+					onSetLanguage={(language) => controller.setLanguage(language)}
+					onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
+					onCancelPreview={() => controller.clearFixPreview()}
+					onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
+					fixBatchSize={(diagnostic, fix) => controller.fixBatchSize(diagnostic, fix)}
+					onApplyFixBatch={(diagnostic, fix) => controller.applyFixBatch(diagnostic, fix)}
+					onIgnore={(diagnostic) => controller.ignoreDiagnostic(diagnostic)}
+					onAnnounce={(message) => controller.feedback.announce(message)}
+				/>
+			{/key}
+		{/if}
+		{#if controller.visibleDiagnostics.length > 0 && (!detailFindings.length || hiddenByFilters > 0)}
+			<p class="linter-panel__afterword">{afterword}</p>
+		{/if}
+		<RetainedReview {controller} findings={detailFindings} />
+		{#if !controller.isEmpty}
+			<div class="linter-panel__coverage">
+				{#each unreviewedLanguages as tag (tag)}
+					<p>{languageName(tag)}: language-independent checks and conversion only.</p>
+				{/each}
+				<details class="disclosure">
+					<summary>Checking coverage</summary>
+					{#if reviewedLanguages.length}
+						<p>
+							Reviewed language-specific rules: {reviewedLanguages.map(languageName).join(', ')}.
+						</p>
+					{/if}
+					<p>Optional English grammar checking is available in both lyric formats.</p>
+				</details>
+			</div>
+		{/if}
+
+		<!-- The drafts the user already has sit at the foot of the column, under
 	     whatever the panel is currently saying about this document. They are a
 	     way out of it rather than a thing to do about it, and reading order is
 	     the difference: the message, the sample that resolves it, then, after
 	     the panel has finished with this draft, the others. Prose on the canvas,
 	     no border: the gap above it is already the separation. -->
-	{#if controller.isEmpty && recentDrafts.length > 0}
-		<div class="linter-panel__drafts">
-			<p class="linter-panel__empty-label" id="linter-panel-recent-label">Recent 'scribes</p>
-			<ul class="linter-panel__recent" aria-labelledby="linter-panel-recent-label">
-				{#each recentDrafts as draft (draft.id)}
-					<li>
-						<!-- Somewhere to go back to is also somewhere to be done with, and
+		{#if controller.isEmpty && recentDrafts.length > 0}
+			<div class="linter-panel__drafts">
+				<p class="linter-panel__empty-label" id="linter-panel-recent-label">Recent 'scribes</p>
+				<ul class="linter-panel__recent" aria-labelledby="linter-panel-recent-label">
+					{#each recentDrafts as draft (draft.id)}
+						<li>
+							<!-- Somewhere to go back to is also somewhere to be done with, and
 						     the drafts a returning user wants rid of are exactly the ones
 						     listed here. Same two-press control as the drafts menu, in the
 						     row it acts on. -->
-						{#if pendingDeleteId === draft.id}
-							<span class="linter-panel__recent-draft linter-panel__recent-draft--static">
-								<span class="linter-panel__recent-title">{draft.title}</span>
-								<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
-									{formatDraftDate(draft.updatedAt)}
-								</time>
-							</span>
-						{:else}
-							<button
-								type="button"
-								class="linter-panel__recent-draft"
-								onclick={() => controller.openDraft(draft.id)}
-							>
-								<span class="linter-panel__recent-title">{draft.title}</span>
-								<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
-									{formatDraftDate(draft.updatedAt)}
-								</time>
-							</button>
-						{/if}
-						<RemoveButton
-							subject={draft.title}
-							pending={pendingDeleteId === draft.id}
-							onRequest={() => (pendingDeleteId = draft.id)}
-							onCancel={() => (pendingDeleteId = undefined)}
-							onConfirm={(trigger) => deleteRecentDraft(draft.id, trigger)}
-						/>
-					</li>
-				{/each}
-			</ul>
-		</div>
-	{/if}
-</div>
+							{#if pendingDeleteId === draft.id}
+								<span class="linter-panel__recent-draft linter-panel__recent-draft--static">
+									<span class="linter-panel__recent-title">{draft.title}</span>
+									<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
+										{formatDraftDate(draft.updatedAt)}
+									</time>
+								</span>
+							{:else}
+								<button
+									type="button"
+									class="linter-panel__recent-draft"
+									onclick={() => controller.openDraft(draft.id)}
+								>
+									<span class="linter-panel__recent-title">{draft.title}</span>
+									<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
+										{formatDraftDate(draft.updatedAt)}
+									</time>
+								</button>
+							{/if}
+							<RemoveButton
+								subject={draft.title}
+								pending={pendingDeleteId === draft.id}
+								onRequest={() => (pendingDeleteId = draft.id)}
+								onCancel={() => (pendingDeleteId = undefined)}
+								onConfirm={(trigger) => deleteRecentDraft(draft.id, trigger)}
+							/>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+	</div>
+{/if}
 
 <style>
+	.linter-panel__coverage {
+		padding: var(--space-3) var(--panel-inset) var(--space-4);
+		font-size: var(--font-size-sm);
+		color: var(--color-text-muted);
+	}
 	/* A full-height column keeps recent drafts at the foot. Findings are inset
 	   rounded rows, separated by space rather than a ruled grid. */
 	.panel-content.linter-panel {
+		/* The finding pager's geometry, read by the heading that keeps clear of it. */
+		--pager-step: var(--control-height-xs);
+		--pager-position: 3rem;
+		position: relative;
 		display: flex;
 		padding: 0;
 		flex: 1;
 		flex-direction: column;
 	}
 
+	/* The heading shares the chips', the bulk command's and every finding's
+	   inset, so the column's leading edge is one line from the title down. The
+	   finding pager rides the heading's row at its far end (`DiagnosticList`),
+	   so the heading keeps clear of it. */
 	.linter-panel .linter-panel__heading {
 		margin: 0;
-		padding: var(--space-5) var(--space-4) var(--space-3);
-		font-size: var(--font-size-xl);
-		font-weight: var(--font-weight-medium);
+		padding: var(--space-5) var(--panel-inset) var(--space-3);
+		font-size: var(--font-size-lg);
+		font-weight: var(--font-weight-semibold);
+		letter-spacing: var(--tracking-heading);
+		line-height: var(--line-height-tight);
+	}
+	.linter-panel:not(.linter-panel--focused):has(> :global(.diagnostic-list__pager))
+		> .linter-panel__heading {
+		padding-inline-end: calc(
+			var(--panel-inset) + 2 * var(--pager-step) + var(--pager-position) + var(--space-2)
+		);
 	}
 
 	/* The drafts sit at the foot of the column, pushed there by the auto margin
@@ -407,7 +489,7 @@
 	   not a region anyone acts on independently of its neighbours, so there is no
 	   border to draw around it, and the empty canvas above is the separation. */
 	.linter-panel__drafts {
-		padding: var(--space-4) var(--space-3);
+		padding: var(--space-4) var(--panel-inset);
 		margin-top: auto;
 	}
 
@@ -492,17 +574,10 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	/* The grid stretches its items, and a button that spans the prose measure reads
-	   as a banner rather than an offer. */
-	.linter-panel__empty-action {
-		justify-self: center;
-		padding-top: var(--space-3);
-	}
-
 	/* The list ends deliberately: a muted line after the last card says whether
 	   anything else is hidden, so the canvas below never reads as an accident. */
 	.linter-panel__afterword {
-		padding: var(--space-3) var(--space-3) var(--space-4);
+		padding: var(--space-3) var(--panel-inset) var(--space-4);
 		margin: 0;
 		color: var(--color-text-muted);
 		font-size: var(--font-size-xs);
@@ -517,7 +592,7 @@
 	.linter-panel__bulk {
 		display: flex;
 		flex-wrap: wrap;
-		padding: var(--space-2) var(--space-3);
+		padding: var(--space-1) var(--panel-inset) var(--space-2);
 		border-bottom: 0;
 		margin: 0;
 		gap: var(--space-2);
@@ -532,8 +607,13 @@
 	   one of those per surface. */
 	.linter-panel__bulk-action {
 		min-height: var(--control-height-sm);
-		padding: var(--space-1) var(--space-2-5);
+		padding: var(--space-1) var(--space-2-5) var(--space-1) var(--space-2);
+		gap: var(--space-1-5);
 		font-size: var(--font-size-xs);
+	}
+	.linter-panel__bulk-action :global(svg) {
+		flex: none;
+		color: var(--color-accent);
 	}
 
 	/* The shared size floors for a phone's `.button` (responsive-shared.css) used to
@@ -549,6 +629,9 @@
 		:global(:root) .linter-panel__bulk-action {
 			min-height: var(--control-height-touch);
 		}
+		.panel-content.linter-panel {
+			--pager-step: var(--control-height-touch);
+		}
 	}
 
 	/* Rides the far end of the row, which is the same thing as saying the command
@@ -559,37 +642,22 @@
 		font-size: var(--font-size-xs);
 	}
 
-	/* The chips hang from the tab strip: no gap above them, and a rule below
-	   separating them from the run of diagnostic cards. They are drawn whenever the
-	   document has a finding of any kind: one chip per kind that is actually
-	   there, so the row costs the panel nothing on a clean draft and never offers
-	   to filter out a severity with nothing in it. */
+	/* The kinds hang from the heading as one row of tiles, drawn whenever the
+	   document has a finding of any kind: one per kind that is actually there,
+	   so the row costs the panel nothing on a clean draft and never offers to
+	   filter out a severity with nothing in it. */
 	.linter-panel__filters {
 		display: flex;
-		padding: var(--space-2) var(--space-3);
+		padding: 0 var(--panel-inset) var(--space-2);
 		border-bottom: 0;
-		flex-wrap: wrap;
-		gap: var(--space-1);
+		gap: var(--space-1-5);
 		/* Chrome, like the tab strip it drops out of: the row is an extension of
 		   the tabs, not the first item in the list of diagnostics. */
 		background: var(--color-chrome);
 	}
 
-	/* The chip itself is `.filter-chip` in `controls.css`, the same control
-	   filtering the same kinds out of a list wherever one is drawn, so it is one
-	   implementation and not two. Nothing about it needs overriding here; this
-	   row only decides where the chips sit. */
-
-	/* The count is what pressing the chip puts back. A kind with nothing in it
-	   draws no chip rather than printing a zero. It used to also drop to
-	   `opacity: 0.45` (2.2:1), which made the number the hardest thing on the
-	   chip to read. */
-	.filter-chip__count {
-		min-width: 1.1em;
-		color: inherit;
-		font-variant-numeric: tabular-nums;
-		text-align: end;
-	}
+	/* The tile itself is `.filter-chip` in `controls.css`. Nothing about it
+	   needs overriding here; this row only decides where the tiles sit. */
 
 	/* Keep this query aligned with PHONE_WORKSPACE_QUERY. An opened finding is
 	   the whole task view, so the list's chrome steps aside for it. */
@@ -597,12 +665,15 @@
 		.linter-panel--focused > .linter-panel__heading,
 		.linter-panel--focused > .linter-panel__filters,
 		.linter-panel--focused > .linter-panel__bulk,
+		.linter-panel--focused > .linter-panel__coverage,
 		.linter-panel--focused > .linter-panel__afterword {
 			display: none;
 		}
 
 		.mobile-review-back {
 			align-self: flex-start;
+			margin: var(--space-2) var(--panel-inset) 0;
+			margin-inline-start: calc(var(--panel-inset) - var(--control-padding-inline));
 		}
 	}
 </style>

@@ -1,3 +1,4 @@
+import { scanAnnotations } from './annotations.js';
 import type { LineAnchor } from './types.js';
 
 /**
@@ -13,9 +14,8 @@ export const timedLyricsExtensions = {
 } satisfies Record<TimedLyricsFormat, string>;
 
 /**
- * How long the last cue runs for. Every other cue ends where the next one
- * starts; the last one has nothing after it to end against, and a subtitle with
- * no duration is one some players never draw.
+ * Duration when no later displayed timestamp exists. Simultaneous cues share
+ * the next distinct timestamp, so every exported subtitle has a positive duration.
  */
 const trailingCueSeconds = 3;
 
@@ -54,11 +54,29 @@ function plainLine(text: string): string {
 export function formatTimedLyrics(
 	text: string,
 	anchors: readonly LineAnchor[],
-	format: TimedLyricsFormat
+	format: TimedLyricsFormat,
+	profile: 'genius' | 'musixmatch' = 'genius'
 ): string {
-	const lines = text.split('\n');
+	const annotations = profile === 'genius' ? scanAnnotations(text) : [];
+	const pieces: string[] = [];
+	let cursor = 0;
+	for (const annotation of annotations) {
+		pieces.push(
+			text.slice(cursor, annotation.from),
+			text.slice(annotation.fragmentRange.from, annotation.fragmentRange.to)
+		);
+		cursor = annotation.to;
+	}
+	pieces.push(text.slice(cursor));
+	const lines = pieces.join('').split('\n');
 	const cues = anchors
-		.map((anchor) => ({ time: anchor.time, text: plainLine(lines[anchor.line - 1] ?? '') }))
+		.map((anchor) => ({
+			time: anchor.time,
+			text:
+				profile === 'musixmatch'
+					? (lines[anchor.line - 1] ?? '').trim()
+					: plainLine(lines[anchor.line - 1] ?? '')
+		}))
 		.filter((cue) => cue.text.length > 0)
 		.sort((a, b) => a.time - b.time);
 
@@ -68,8 +86,16 @@ export function formatTimedLyrics(
 		return `${cues.map((cue) => `[${lrcTimestamp(cue.time)}]${cue.text}`).join('\n')}\n`;
 	}
 
+	let nextEnd: number | undefined;
+	const ends = cues.map(() => 0);
+	for (let index = cues.length - 1; index >= 0; index--) {
+		const cue = cues[index];
+		const next = cues[index + 1];
+		if (next && Math.round(next.time * 1000) > Math.round(cue.time * 1000)) nextEnd = next.time;
+		ends[index] = nextEnd ?? cue.time + trailingCueSeconds;
+	}
 	const blocks = cues.map((cue, index) => {
-		const end = cues[index + 1]?.time ?? cue.time + trailingCueSeconds;
+		const end = ends[index];
 		const span = `${cueTimestamp(cue.time, format)} --> ${cueTimestamp(end, format)}`;
 		return `${index + 1}\n${span}\n${cue.text}\n`;
 	});

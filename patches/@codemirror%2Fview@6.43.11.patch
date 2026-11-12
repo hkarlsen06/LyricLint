@@ -1,0 +1,22 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -6463,8 +6463,6 @@
+     // Checks if a given viewport covers the visible part of the
+     // document and not too much beyond that.
+     viewportIsAppropriate({ from, to }, bias = 0) {
+-        if (!this.inView)
+-            return true;
+         let { top } = this.heightMap.lineAt(from, QueryType.ByPos, this.heightOracle, 0, 0);
+         let { bottom } = this.heightMap.lineAt(to, QueryType.ByPos, this.heightOracle, 0, 0);
+         let { visibleTop, visibleBottom } = this;
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -6468,8 +6468,6 @@
+     // Checks if a given viewport covers the visible part of the
+     // document and not too much beyond that.
+     viewportIsAppropriate({ from, to }, bias = 0) {
+-        if (!this.inView)
+-            return true;
+         let { top } = this.heightMap.lineAt(from, QueryType.ByPos, this.heightOracle, 0, 0);
+         let { bottom } = this.heightMap.lineAt(to, QueryType.ByPos, this.heightOracle, 0, 0);
+         let { visibleTop, visibleBottom } = this;

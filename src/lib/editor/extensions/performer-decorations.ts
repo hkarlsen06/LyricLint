@@ -1,3 +1,4 @@
+import { performerRangeAtCaret } from '#lib/performers/voice-context.js';
 import { RangeSet, StateEffect, StateField } from '@codemirror/state';
 import type { ChangeDesc, EditorState, Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, GutterMarker, ViewPlugin, gutter } from '@codemirror/view';
@@ -451,17 +452,6 @@ export function performerGutter(): Extension {
 	});
 }
 
-function performerRangeAtCaret(state: EditorState): VoiceGroupRange | undefined {
-	const selection = state.selection.main;
-	if (!selection.empty) {
-		return undefined;
-	}
-	const position = selection.head;
-	return state
-		.field(performerGroupsField)
-		.groups.find((group) => group.from <= position && position < group.to);
-}
-
 function performerRangeKey(range: VoiceGroupRange | undefined): string | undefined {
 	return range ? `${range.from}:${range.to}:${range.group.id}` : undefined;
 }
@@ -470,14 +460,22 @@ class PerformerCaretAnnouncer {
 	private activeRangeKey: string | undefined;
 
 	constructor(readonly view: EditorView) {
-		this.activeRangeKey = performerRangeKey(performerRangeAtCaret(view.state));
+		this.activeRangeKey = performerRangeKey(
+			performerRangeAtCaret(
+				view.state.field(performerGroupsField).groups,
+				view.state.selection.main
+			)
+		);
 	}
 
 	update(update: ViewUpdate): void {
 		if (!update.selectionSet) {
 			return;
 		}
-		const range = performerRangeAtCaret(update.state);
+		const range = performerRangeAtCaret(
+			update.state.field(performerGroupsField).groups,
+			update.state.selection.main
+		);
 		const nextRangeKey = performerRangeKey(range);
 		if (nextRangeKey === this.activeRangeKey) {
 			return;

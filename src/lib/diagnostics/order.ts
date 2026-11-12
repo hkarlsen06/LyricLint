@@ -1,5 +1,6 @@
 import { severityRank, type Diagnostic } from '#lib/core/types.js';
 import { isHarperRuleId } from '#lib/rules/harper-ids.js';
+import { compareCodeUnits } from '#lib/core/compare.js';
 
 /**
  * The identity a diagnostic is tracked by between re-lints. Rule and range
@@ -82,6 +83,6 @@ export function compareDiagnostics(left: Diagnostic, right: Diagnostic): number 
 		providerOrder(left) - providerOrder(right) ||
 		severityRank[left.severity] - severityRank[right.severity] ||
 		left.from - right.from ||
-		left.ruleId.localeCompare(right.ruleId)
+		compareCodeUnits(left.ruleId, right.ruleId)
 	);
 }

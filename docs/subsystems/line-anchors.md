@@ -9,6 +9,8 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
 
 ## The rules
 
+- Timed exports preserve line ownership while removing recognized Genius annotation wrappers and style tags; Musixmatch text remains literal. SRT and VTT cues end at the next distinct displayed timestamp, or three seconds later when none exists, so simultaneous lines remain visible. LRC keeps each anchor time.
+
 - The audio never moves the document (sync mode is the one exception); the document never
   moves the audio unless the gesture meant only that (timestamp press, anchored line-number
   press, `Ctrl-Alt-Enter`, and nothing else); typing writes no anchor at all. There is no
@@ -24,16 +26,19 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
   optionally called (`?.` once dropped a whole synced song into the headless placeholder
   handle), and `bindings.lineAnchors` falls back to the pending list, never `[]`.
   `workbench.test.ts` pins both halves.
-- The timestamp column: the time is the play control; edit and delete glyphs beside timed
+- The timestamp column occupies no space until audio is attached. Detaching audio collapses
+  it while retaining saved line times. With audio attached, the time is the play control, with edit and delete glyphs beside timed
   lines (stamp on untimed, ± pair while editing, step 0.25s, precise `m:ss.cc` only while open); `.ll-time-gutter` is
   `overflow: visible`; the reserve is the widest state written out padding included; the
   inline end is the overlay scrollbar's lane, measured against the scrollport in
   `line-anchoring.svelte.test.ts`. Everything in the gutter is `aria-hidden` all the way
   down. Do not give a gutter control an accessible name and call it done.
-- Song offers the caret's lyric line as an accessible timing surface: exact seconds,
+- Song offers the caret's lyric line inside its deliberately opened Advanced tools as an accessible timing surface: exact seconds,
   quarter-second corrections, playback-time stamping, and clear-one. It uses the same
   stampable-line predicate and anchor effects as the gutter, saving through the existing hook
-  (`line-anchoring.svelte.test.ts`, `SongPanel.svelte.test.ts`). Completed sync says Retime lyrics,
+  (`line-anchoring.svelte.test.ts`, `SongPanel.svelte.test.ts`). Unsaved exact-time input survives
+  same-line selection and checking updates. Changing the draft, lyric line, line text, or saved
+  time resets it to that line's saved value. Completed sync says Retime lyrics,
   naming the action instead of presenting an actionable status (`MediaStrip.svelte.test.ts`).
 - The marked cell is the last anchor at or before the playhead, keyed on `currentFrom`; a
   cell is one line tall regardless of wrap; every row reserves the same width.
@@ -45,7 +50,12 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
 - Sync mode: the editor owns the mode, the shell reacts (`onLyricSyncChange`); typing ends
   the run (read off the document changing, via a `transactionExtender`); pausing holds the
   run and a tap against a paused tape is refused out loud; no `preventDefault: true` on any
-  sync binding (it swallows keys when the command returns false, and that cost a green suite once).
+  sync binding (it swallows keys when the command returns false, cost a green suite once).
+- Switching lyric profiles ends a sync run in the profile transaction, including when both
+  profiles show identical text. The callback carries the explicit `profile` exit reason so the
+  shell preserves playback and playhead; the format announcement says that sync ended. Metadata
+  changes that leave text and profile unchanged keep the run active. Other exits retain their
+  existing pause behavior and callback shape. `workspace-conversion.svelte.test.ts` pins both.
 - Taps stamp `liveTime()` minus `tapOffsetSeconds` (50ms wall-clock, multiplied by rate), and
   publish the reading they took in the same transaction; the caret lands on the line just
   timed, advance deferred to the next tap; `Backspace`/`ArrowUp` clear and seek back through
@@ -308,6 +318,8 @@ The browser tests advance only `setTimeout` and `clearTimeout` for the pause cou
 after the editor's initial layout. They assert the wash is still active just before the
 deadline and rests when it arrives. Animation frames and CSS remain real; the separate
 negative-scroll tests still allow the full eased scroll to run before asserting no movement.
+They await an animation frame after the easing window, so a delayed frame cannot overwrite
+the test reader's own scroll after the wall-clock wait has ended.
 
 The transcription loop is listen, pause, type, so the band across the marked line used to be
 at its brightest exactly when the user had stopped listening and started editing: a

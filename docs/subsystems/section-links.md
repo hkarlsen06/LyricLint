@@ -10,6 +10,35 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
 
 ## The rules
 
+- Musixmatch's Linking panel addresses retained sections by stable identity; hidden Genius
+  headings are never parsed out of Musixmatch lyric text. `conversion/links.ts` adapts those
+  identities to the existing passage aligner only after an explicit linking action. Adding a
+  member includes its entire existing group, and `extendPassages` preserves prior connections,
+  local exclusions and independent wording. Unlinking removes that member without changing any
+  lyrics or the remaining peers. Rendering the panel or switching profiles discovers nothing.
+  `RichLinking.svelte.test.ts` and `conversion/links.test.ts` cover projected navigation,
+  explicit membership, mirroring, retained variations, exact projections and undo.
+  Manage opens one retained group in the shared `LinkingDetail` comparison while the writer
+  stays in Musixmatch. Membership stays fixed during wording review; the overview owns linking
+  and each section's Unlink action. Genius overview Manage exposes a named Unlink control
+  for every existing member, independent of the pending link selection. Unlinking that member
+  preserves the other members' connections and every lyric word. `conversionLinkDifferences` supplies projected bounds from
+  retained IDs to the existing alignment and comparison formatter. An explicit wording choice
+  uses one atomic `reconcileEdit` action with preplanned edits, preserving unchosen variations, exclusions
+  and retained markup. Equal corrected words do not acquire an implicit connection. The task
+  captures draft, revision, profile and model; Apply and both section and lyric navigation refuse
+  changes to that basis, including after an asynchronous editor handoff. The refusal asks the
+  writer to open Manage again. Corrections narrow unchanged prefixes and suffixes through
+  `narrowEdit`, retaining complete transformed wording units. Explicit empty fills carry section
+  IDs into reconciliation, which owns separators and collocated boundaries. When a choice
+  corrects existing words and fills empty copies together, pure correction reconciliation
+  precedes pure filling, and the returned editor changes address the original projection.
+  Metadata follows each phase's actual words rather than a merged replacement span.
+  Stored empty occurrences map by their exact identity and section-owned boundary before
+  equality grouping or coalescing. A preceding section's end stays at that end; a section
+  start follows its own insertion slot. No section-only lookup repairs passages afterward. Comparison gutters
+  retain separate controls for collocated empty sections rather than keying them by offset. Each filled copy
+  receives fresh untimed lyric records; source annotations and voices stay on the source. Genius keeps its existing comparison and edit path.
 - A section group records which performances belong together. Each stored **passage** names
   the actual subset sharing exact text; a chorus-only passage remains connected when an intro
   joins the group. Occurrences have non-overlapping absolute ranges and at most one occurrence

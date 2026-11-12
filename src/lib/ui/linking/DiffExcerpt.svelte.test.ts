@@ -52,3 +52,22 @@ describe('diff lyric locations', () => {
 		expect(container.querySelectorAll('.excerpt__numbers')[1]?.textContent?.trim()).toBe('+');
 	});
 });
+
+it('keeps both navigation controls for distinct empty sections at one lyric offset', async () => {
+	const onNavigate = vi.fn();
+	const { container } = await render(DiffExcerpt, {
+		before: '',
+		text: '',
+		after: '',
+		hidden: false,
+		documentText: 'We stay here',
+		sources: [
+			{ from: 0, name: 'Chorus 1' },
+			{ from: 0, name: 'Chorus 2' }
+		],
+		onNavigate
+	});
+	expect(container.querySelectorAll('button')).toHaveLength(2);
+	await page.getByRole('button', { name: 'Go to Chorus 2, line 1' }).click();
+	expect(onNavigate).toHaveBeenCalledWith(0);
+});

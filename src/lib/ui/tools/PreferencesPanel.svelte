@@ -97,65 +97,57 @@
 
 	{#if controller.backup}
 		<section aria-labelledby="backup-heading">
-			<details class="preferences-panel__disclosure">
-				<summary>
-					<div>
-						<h2 id="backup-heading">Workspace backup</h2>
-						<span>Save or import your workspace</span>
-					</div>
-					<CaretRightIcon class="preferences-panel__chevron" aria-hidden="true" weight="bold" />
-				</summary>
-				<div class="preferences-panel__detail">
-					<p>Save every 'scribe and its settings to a file. Assistant chats are excluded.</p>
-					<div class="preferences-panel__backup">
-						{#if backupState?.linkedFileName}
-							<p class="backup-status">
-								{#if backupState.permission === 'granted'}
-									Backup file: {backupState.linkedFileName}
-								{:else}
-									Access to {backupState.linkedFileName} is needed. In Chrome, choose “Allow on every
-									visit” to keep backups running after you reopen LyricLint.
-								{/if}
-							</p>
-						{:else if backupState?.supported}
-							<p class="backup-status">Choose a file to back up changes automatically.</p>
-						{/if}
-						<div class="tool-actions">
-							<button
-								type="button"
-								class="button"
-								disabled={importingBackup}
-								onclick={runBackupAction}
-							>
-								{backupActionLabel}
-							</button>
-							<button
-								type="button"
-								class="button button--quiet"
-								disabled={importingBackup}
-								aria-describedby="backup-import-description"
-								onclick={() => backupInput?.click()}
-							>
-								{importingBackup ? 'Importing…' : 'Import backup…'}
-							</button>
-							<input
-								bind:this={backupInput}
-								hidden
-								type="file"
-								accept="application/json,.json"
-								onchange={(event) => {
-									const input = event.currentTarget;
-									void importBackup(input.files?.[0]);
-									input.value = '';
-								}}
-							/>
-						</div>
-						<p id="backup-import-description">
-							Imports add to your workspace. Reconnect local audio afterward.
+			<h2 id="backup-heading">Workspace backup</h2>
+			<div class="preferences-panel__detail">
+				<p>Back up all 'scribes and settings. Chats are excluded.</p>
+				<div class="preferences-panel__backup">
+					{#if backupState?.linkedFileName}
+						<p class="backup-status">
+							{#if backupState.permission === 'granted'}
+								Backup file: {backupState.linkedFileName}
+							{:else}
+								Access to {backupState.linkedFileName} is needed. In Chrome, choose “Allow on every visit”
+								to keep backups running after you reopen LyricLint.
+							{/if}
 						</p>
+					{:else if backupState?.supported}
+						<p class="backup-status">Choose a file to back up changes automatically.</p>
+					{/if}
+					<div class="tool-actions">
+						<button
+							type="button"
+							class="button"
+							disabled={importingBackup}
+							onclick={runBackupAction}
+						>
+							{backupActionLabel}
+						</button>
+						<button
+							type="button"
+							class="button button--quiet"
+							disabled={importingBackup}
+							aria-describedby="backup-import-description"
+							onclick={() => backupInput?.click()}
+						>
+							{importingBackup ? 'Importing…' : 'Import backup…'}
+						</button>
+						<input
+							bind:this={backupInput}
+							hidden
+							type="file"
+							accept="application/json,.json"
+							onchange={(event) => {
+								const input = event.currentTarget;
+								void importBackup(input.files?.[0]);
+								input.value = '';
+							}}
+						/>
 					</div>
+					<p id="backup-import-description">
+						Imports add to your workspace. Reconnect local audio afterward.
+					</p>
 				</div>
-			</details>
+			</div>
 			<p class:sr-only={backupState?.status !== 'failed'} class="backup-status" aria-live="polite">
 				{#if backupState?.status === 'failed'}The last automatic backup failed.{/if}
 			</p>
@@ -202,6 +194,10 @@
 					{/if}
 				</div>
 				<div class="preferences-panel__reset">
+					<p id="reset-description">
+						Every local 'scribe and chat will be deleted and all settings reset. Backup files stay
+						on disk. This cannot be undone.
+					</p>
 					<div class="tool-actions tool-actions--flush">
 						<button
 							bind:this={resetButton}
@@ -215,7 +211,11 @@
 								}
 								await controller.deleteAllDrafts();
 								confirmDeleteAll = false;
-							}}>{confirmDeleteAll ? 'Reset LyricLint' : 'Reset LyricLint…'}</button
+							}}
+							><span
+								>Reset LyricLint<span class:preferences-panel__inactive={confirmDeleteAll}>…</span
+								></span
+							></button
 						>
 						{#if confirmDeleteAll}
 							<button
@@ -228,12 +228,6 @@
 							>
 						{/if}
 					</div>
-					<p id="reset-description" class:sr-only={!confirmDeleteAll}>
-						{#if confirmDeleteAll}
-							Reset LyricLint to a fresh install? Every local 'scribe and chat will be deleted and
-							all settings reset. This cannot be undone. Backup files stay on disk.
-						{/if}
-					</p>
 					<p class="sr-only" aria-live="polite">
 						{confirmDeleteAll ? 'Confirm reset or cancel. This cannot be undone.' : ''}
 					</p>
@@ -291,6 +285,22 @@
 </div>
 
 <style>
+	.preferences-panel {
+		display: grid;
+		min-width: 0;
+		grid-template-columns: minmax(0, 1fr);
+		align-content: start;
+		gap: var(--space-4);
+	}
+	.preferences-panel > section {
+		margin: 0;
+		min-width: 0;
+	}
+	.preferences-panel > section:has(#backup-heading) h2 {
+		margin-bottom: var(--space-3);
+		font-weight: var(--font-weight-semibold);
+	}
+
 	.source-list {
 		margin-top: var(--space-3);
 	}
@@ -346,7 +356,7 @@
 	}
 
 	.preferences-panel section + section {
-		margin-top: var(--space-1);
+		margin-top: 0;
 	}
 
 	.preferences-panel h2 {
@@ -367,10 +377,6 @@
 		color: var(--color-text-muted);
 	}
 
-	.preferences-panel > section:first-child:has(.toggle-field) {
-		padding-block: var(--space-4);
-	}
-
 	.preferences-panel .preferences-panel__heading {
 		min-height: var(--control-height-md);
 		margin-bottom: var(--space-1);
@@ -378,13 +384,6 @@
 
 	.preferences-panel__heading label {
 		cursor: pointer;
-	}
-
-	/* The switch is Bits UI's own element, so it is reached globally. */
-	.preferences-panel :global(.switch::after) {
-		position: absolute;
-		inset: calc(-1 * var(--space-2)) 0;
-		content: '';
 	}
 
 	.preferences-panel__disclosure > summary {

@@ -1,5 +1,11 @@
-// Decision record: docs/subsystems/rules-catalog.md. Read it before changing this file, and update it with any behavior change.
+// Decision record: docs/subsystems/rules-catalog.md, read it before changing this file, and update it with any behavior change.
+import { unaccountedStyledSlots } from '#lib/performers/legend-cleanup.js';
 import { sourceRegistry } from '#lib/rules/data/sources.js';
+import { languageOwnership } from '#lib/rules/language-ownership.js';
+import { profileSourceRegistry } from '#lib/profiles/sources.js';
+import { projectConfirmedFacts } from '#lib/profiles/confirmed-facts.js';
+import { projectedVoiceGroups } from '#lib/conversion/voices.js';
+import { projectOffset, renderProfile } from '#lib/conversion/index.js';
 import { findExactPerformer } from '#lib/performers/index.js';
 import { decodeLegendText } from '#lib/performers/import.js';
 import type { VoiceGroupRange } from '#lib/editor/index.js';
@@ -22,6 +28,86 @@ const voiceGroupRangeCache = new WeakMap<
 	WeakMap<readonly PerformerRecord[], VoiceGroupRange[]>
 >();
 
+export function resolveProfileVoiceGroupRanges(
+	snapshot: EditorSnapshot,
+	performers: readonly PerformerRecord[]
+): VoiceGroupRange[] {
+	const conversion = snapshot.conversion;
+	if (!conversion || conversion.profile === 'genius')
+		return resolveVoiceGroupRanges(snapshot.parsed, performers);
+	if (snapshot.conversionRecovery) return [];
+	const projection = renderProfile(conversion.model, conversion.profile);
+	if (!projection.ok) return [];
+	return projectedVoiceGroups(conversion.model, projection.value);
+}
+
+/** One validated projection supplies language scopes and current semantic facts to every checker. */
+export function projectionPolicyContext(
+	snapshot: EditorSnapshot
+): Pick<RuleContext, 'languageRanges' | 'confirmedFacts'> {
+	const conversion = snapshot.conversion;
+	if (
+		!conversion ||
+		snapshot.conversionRecovery ||
+		(!conversion.model.languageRanges.length && !conversion.model.decisions.length)
+	)
+		return {};
+	const rendered = renderProfile(conversion.model, conversion.profile);
+	if (!rendered.ok || rendered.value.text !== snapshot.text) return {};
+	const context: Pick<RuleContext, 'languageRanges' | 'confirmedFacts'> = {};
+	if (conversion.model.languageRanges.length) {
+		const ownership = languageOwnership(conversion.model.content, {
+			language: conversion.model.defaultLanguage,
+			languageRanges: conversion.model.languageRanges
+		});
+		const ranges: NonNullable<RuleContext['languageRanges']>[number][] = [];
+		function append(from: number, to: number, language: string) {
+			const previous = ranges.at(-1);
+			if (previous?.to === from && previous.language === language) previous.to = to;
+			else ranges.push({ from, to, language });
+		}
+		let first = 0;
+		for (const segment of rendered.value.segments) {
+			if (segment.kind === 'generated') continue;
+			if (segment.kind === 'transformed') {
+				const sourceLanguage = ownership.languageAt(segment.contentFrom);
+				const language = ownership.withinLanguage(
+					segment.contentFrom,
+					segment.contentTo,
+					sourceLanguage
+				)
+					? sourceLanguage
+					: 'und';
+				if (language !== conversion.model.defaultLanguage)
+					append(segment.from, segment.to, language);
+				continue;
+			}
+			while (first < ownership.ranges.length && ownership.ranges[first]!.to <= segment.contentFrom)
+				first++;
+			for (
+				let index = first;
+				index < ownership.ranges.length && ownership.ranges[index]!.from < segment.contentTo;
+				index++
+			) {
+				const range = ownership.ranges[index]!;
+				append(
+					projectOffset(rendered.value, Math.max(range.from, segment.contentFrom), 1),
+					projectOffset(rendered.value, Math.min(range.to, segment.contentTo), -1),
+					range.language
+				);
+			}
+		}
+		context.languageRanges = ranges;
+	}
+	const facts = projectConfirmedFacts(conversion.model, rendered.value);
+	if (facts.length) context.confirmedFacts = facts;
+	return context;
+}
+
+export function projectionLanguageRanges(snapshot: EditorSnapshot): RuleContext['languageRanges'] {
+	return projectionPolicyContext(snapshot).languageRanges;
+}
+
 /**
  * Whether a sync run has anything left to time.
  *
@@ -29,12 +115,16 @@ const voiceGroupRangeCache = new WeakMap<
  * and sync mode use, matched here against the anchors' own line numbers, both of
  * which the shell already holds. A song with nothing to tap is not a finished one.
  */
-export function everyLyricLineTimed(text: string, anchors: readonly LineAnchor[]): boolean {
+export function everyLyricLineTimed(
+	text: string,
+	anchors: readonly LineAnchor[],
+	profile: 'genius' | 'musixmatch' = 'genius'
+): boolean {
 	const timed = new Set(anchors.map((anchor) => anchor.line));
 	const annotations = scanAnnotations(text);
 	let stampable = 0;
 	for (const [index, line] of scanPhysicalLines(text).entries()) {
-		if (!isLyricLine(line.text, { annotations, lineFrom: line.from })) continue;
+		if (!isLyricLine(line.text, { annotations, lineFrom: line.from, profile })) continue;
 		stampable += 1;
 		if (!timed.has(index + 1)) return false;
 	}
@@ -71,7 +161,8 @@ export function everyLyricLineTimed(text: string, anchors: readonly LineAnchor[]
  */
 export function selectionCoversLyricLine(
 	text: string,
-	selection: { anchor: number; head: number }
+	selection: { anchor: number; head: number },
+	profile: 'genius' | 'musixmatch' = 'genius'
 ): boolean {
 	const from = Math.min(selection.anchor, selection.head);
 	const to = Math.max(selection.anchor, selection.head);
@@ -80,7 +171,7 @@ export function selectionCoversLyricLine(
 	for (const line of scanPhysicalLines(text)) {
 		if (line.from > to || (line.from === to && line.from > from)) break;
 		if (line.to < from) continue;
-		if (isLyricLine(line.text, { annotations, lineFrom: line.from })) return true;
+		if (isLyricLine(line.text, { annotations, lineFrom: line.from, profile })) return true;
 	}
 	return false;
 }
@@ -88,7 +179,8 @@ export function selectionCoversLyricLine(
 export function timedLinesSkippable(
 	text: string,
 	anchors: readonly LineAnchor[],
-	caretOffset: number
+	caretOffset: number,
+	profile: 'genius' | 'musixmatch' = 'genius'
 ): boolean {
 	const caretLine = lineNumberAt(text, caretOffset);
 	const timed = new Set(anchors.map((anchor) => anchor.line));
@@ -96,7 +188,10 @@ export function timedLinesSkippable(
 	let landing: number | undefined;
 	for (const [index, line] of scanPhysicalLines(text).entries()) {
 		const number = index + 1;
-		if (number < caretLine || !isLyricLine(line.text, { annotations, lineFrom: line.from }))
+		if (
+			number < caretLine ||
+			!isLyricLine(line.text, { annotations, lineFrom: line.from, profile })
+		)
 			continue;
 		if (!timed.has(number)) return landing !== undefined && landing > caretLine;
 		landing = number;
@@ -112,15 +207,24 @@ export function buildRuleContext(
 	language: string,
 	performers: readonly PerformerRecord[],
 	ruleSetVersion: string,
-	revision: number
+	revision: number,
+	profile: 'genius' | 'musixmatch' = 'genius',
+	contentKind: 'original' | 'translation' | 'romanization' | 'unknown' = 'unknown',
+	languageRanges?: RuleContext['languageRanges'],
+	confirmedFacts?: RuleContext['confirmedFacts']
 ): RuleContext {
-	return {
+	const context: RuleContext = {
 		language,
+		profile,
+		contentKind,
 		performers,
-		sources: sourceRegistry,
+		sources: profile === 'musixmatch' ? profileSourceRegistry : sourceRegistry,
 		ruleSetVersion,
 		revision
 	};
+	if (languageRanges?.length) context.languageRanges = languageRanges;
+	if (confirmedFacts?.length) context.confirmedFacts = confirmedFacts;
+	return context;
 }
 
 /**
@@ -366,7 +470,6 @@ export function resolveVoiceGroupRanges(
 	const ranges: VoiceGroupRange[] = [];
 
 	for (const section of parsed.sections) {
-		if (section.voiceGroups.length === 0) continue;
 		const resolvedGroups = new Map<number, VoiceGroup>();
 		for (const group of section.voiceGroups) {
 			resolvedGroups.set(group.styleSlot, {
@@ -374,6 +477,14 @@ export function resolveVoiceGroupRanges(
 				performerIds: group.rawNameText
 					? resolvePerformerIds(group.rawNameText, performers)
 					: group.performerIds
+			});
+		}
+		// Unknown styled passages retain a range without acquiring a roster identity.
+		for (const { slot } of unaccountedStyledSlots(section)) {
+			resolvedGroups.set(slot, {
+				id: `unknown:${section.from}:${slot}`,
+				performerIds: [],
+				styleSlot: slot
 			});
 		}
 		// Malformed or unsupported markup (e.g. an <i> left open across lines)

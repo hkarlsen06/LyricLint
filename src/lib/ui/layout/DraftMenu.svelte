@@ -4,6 +4,7 @@
 	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
 	import LazyContent from '#lib/interaction/LazyContent.svelte';
 	import { untrack } from 'svelte';
+	import type { ProfileId } from '#lib/profiles/types.js';
 
 	let { controller, open = $bindable(false) }: { controller: WorkbenchController; open?: boolean } =
 		$props();
@@ -12,20 +13,31 @@
 		if (open) initialized = true;
 	});
 	let menuTrigger = $state<HTMLElement>();
+	let menu = $state<HTMLDetailsElement>();
 	let importInput = $state<HTMLInputElement>();
 	let importing = $state(false);
+	let pendingLyrics = $state<File>();
+	let sourceProfile = $state<ProfileId>('genius');
 
 	function dismiss(): void {
+		// Native details opens before its queued toggle event updates bind:open.
+		if (menu) menu.open = false;
 		open = false;
+		pendingLyrics = undefined;
 	}
 	function handleKeydown(event: KeyboardEvent): void {
-		if (event.key !== 'Escape' || !open) return;
+		if (event.key !== 'Escape' || !menu?.open) return;
 		event.preventDefault();
 		dismiss();
 		menuTrigger?.focus();
 	}
-	async function importScribe(file: File | undefined): Promise<void> {
+	async function chooseImport(file: File | undefined): Promise<void> {
 		if (!file || importing) return;
+		if (file.name.toLocaleLowerCase().endsWith('.txt')) {
+			pendingLyrics = file;
+			sourceProfile = controller.profile;
+			return;
+		}
 		importing = true;
 		try {
 			if (await controller.importScribe(file)) open = false;
@@ -33,6 +45,18 @@
 			importing = false;
 		}
 	}
+	async function importLyrics(): Promise<void> {
+		if (!pendingLyrics || importing) return;
+		importing = true;
+		try {
+			if (await controller.importLyrics(pendingLyrics, sourceProfile)) dismiss();
+		} finally {
+			importing = false;
+		}
+	}
+	$effect(() => {
+		if (!open) pendingLyrics = undefined;
+	});
 </script>
 
 <!-- The keydown is on the `<details>` rather than on the popover inside it,
@@ -41,29 +65,32 @@
      interactive: it hosts one handler for the surface it *is*, exactly as it
      hosts the outside-press attachment beside it. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<details class="draft-menu" bind:open onkeydown={handleKeydown} {@attach dismissOnOutside(dismiss)}>
+<details
+	class="draft-menu"
+	bind:this={menu}
+	bind:open
+	onkeydown={handleKeydown}
+	{@attach dismissOnOutside(dismiss)}
+>
 	<!-- The .button flex styling strips the summary's implicit disclosure role in
 	     Chromium, so restate the button semantics and expansion state explicitly.
 	     Svelte considers the role redundant, but real browsers expose the styled
 	     summary as generic without it. -->
 	<!-- svelte-ignore a11y_no_redundant_roles -->
-	<!-- A chevron, not a hamburger, and it hangs off the draft's own name rather
-	     than off the far end of the command strip: the field says which draft this
-	     is, and the disclosure beside it says which others there are. Icon only:
-	     the name lives in the accessible name and the native tooltip. -->
+	<!-- Keep the list beside the title, with a visible action instead of an unnamed arrow. -->
 	<summary
-		class="button--quiet icon-button draft-menu__trigger"
+		class="button button--quiet draft-menu__trigger"
 		role="button"
-		aria-label="'Scribes"
-		title="'Scribes"
+		aria-label="Open saved 'scribes"
 		aria-expanded={open}
 		onclick={() => (initialized = true)}
 		bind:this={menuTrigger}
 	>
+		Open
 		<CaretDownIcon class="draft-menu__chevron" aria-hidden="true" size={13} weight="bold" />
 	</summary>
 	{#if initialized}
-		<div class="draft-menu__popover">
+		<div class="draft-menu__popover surface-lift">
 			<div class="draft-menu__titlebar">
 				<h2 class="draft-menu__heading">Saved 'scribes</h2>
 				<button
@@ -72,20 +99,50 @@
 					disabled={importing}
 					onclick={() => importInput?.click()}
 				>
-					{importing ? 'Importing…' : 'Import Scribe…'}
+					{importing ? 'Importing…' : 'Import…'}
 				</button>
 			</div>
 			<input
 				bind:this={importInput}
 				hidden
 				type="file"
-				accept="application/vnd.lyriclint.scribe+json,.lls"
+				accept="application/vnd.lyriclint.scribe+json,.lls,text/plain,.txt"
 				onchange={(event) => {
 					const input = event.currentTarget;
-					void importScribe(input.files?.[0]);
+					void chooseImport(input.files?.[0]);
 					input.value = '';
 				}}
 			/>
+			{#if pendingLyrics}
+				<form
+					class="draft-menu__lyrics-import"
+					onsubmit={(event) => {
+						event.preventDefault();
+						void importLyrics();
+					}}
+				>
+					<p>Open {pendingLyrics.name}</p>
+					<label
+						>Source format
+						<select bind:value={sourceProfile} disabled={importing}>
+							<option value="genius">Genius</option>
+							<option value="musixmatch">Musixmatch</option>
+						</select>
+					</label>
+					<p>The lyrics open exactly as written. Switch format afterward to convert them.</p>
+					<div class="tool-actions">
+						<button class="button button--contrast" type="submit" disabled={importing}
+							>Open lyrics</button
+						>
+						<button
+							class="button button--quiet"
+							type="button"
+							disabled={importing}
+							onclick={() => (pendingLyrics = undefined)}>Cancel</button
+						>
+					</div>
+				</form>
+			{/if}
 
 			<LazyContent
 				name="saved 'scribes"
@@ -164,8 +221,11 @@
 	}
 
 	summary:where(.draft-menu__trigger) {
-		width: 1.5rem;
+		width: auto;
 		min-height: var(--control-height-sm);
+		gap: var(--space-1);
+		padding-inline: var(--space-2);
+		font-size: var(--font-size-sm);
 		margin-inline-end: var(--space-1);
 		color: var(--color-text-muted);
 	}
@@ -190,5 +250,23 @@
 		.draft-menu :global(.draft-menu__chevron) {
 			transition: none;
 		}
+	}
+	.draft-menu__lyrics-import {
+		display: grid;
+		gap: var(--space-3);
+		margin-block: var(--space-4);
+		overflow-wrap: anywhere;
+	}
+	.draft-menu__lyrics-import label {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3);
+	}
+	.draft-menu__lyrics-import select {
+		font-size: var(--font-size-editor);
+	}
+	.draft-menu__lyrics-import p {
+		margin: 0;
 	}
 </style>

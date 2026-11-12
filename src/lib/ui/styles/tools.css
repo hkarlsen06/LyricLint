@@ -56,6 +56,16 @@
 	cursor: pointer;
 }
 
+.switch::after {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: max(100%, var(--control-height-touch));
+	height: max(100%, var(--control-height-touch));
+	transform: translate(-50%, -50%);
+	content: '';
+}
+
 .switch[data-state='unchecked']:hover {
 	background: var(--color-control-hover);
 }

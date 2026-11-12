@@ -7,10 +7,15 @@
 	import SectionSplit from '#lib/ui/site/SectionSplit.svelte';
 	import type { LayoutProps } from './$types.js';
 	let { children, data }: LayoutProps = $props();
+	const musixmatch = $derived(
+		page.url.pathname.includes('/guidelines/musixmatch/') ||
+			page.params.rule?.startsWith('mxm-') === true
+	);
+	const corpus = $derived(musixmatch ? data.musixmatchCorpus : data.referenceCorpus);
 	const selectedTopic = $derived(
 		page.params.topic ??
 			(page.params.rule
-				? data.referenceCorpus.find(
+				? corpus.find(
 						(doc) => doc.kind === 'rule' && doc.href.endsWith(`/checks/${page.params.rule}/`)
 					)?.topic
 				: undefined)
@@ -28,13 +33,23 @@
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- Server-derived local entry URL with the configured base.
 		void goto(destination, { replace: true });
 	});
+	$effect(() => {
+		if (page.url.searchParams.get('profile') === 'musixmatch' && !musixmatch && !page.params.rule) {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- Preserve query state on the resolved Musixmatch route.
+			void goto(`${resolve('/(site)/guidelines/musixmatch')}/${page.url.search}`, {
+				replaceState: true
+			});
+		}
+	});
 	const detailOpen = $derived(!/\/guidelines\/?$/u.test(page.url.pathname));
 </script>
 
 <SectionSplit {detailOpen}>
 	{#snippet list()}
 		<ReferenceIndex
-			corpus={data.referenceCorpus}
+			{corpus}
+			profile={musixmatch ? 'musixmatch' : 'genius'}
+			showProfileNavigation
 			spellings={data.spellings}
 			selectedSlug={page.params.rule}
 			{selectedTopic}

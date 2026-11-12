@@ -10,6 +10,26 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
 
 ## The rules
 
+- `MediaStore.recordingId` identifies the recording behind audio-dependent decisions. Remote
+  identity is the provider plus its actual video/track/song ID. Local attachments receive a
+  fresh UUID outside the conversion engine; reconnecting the same remembered file handle keeps
+  it, while selecting a replacement creates a new identity even for the same filename and size.
+  The media record, conflict copies and workspace backups preserve this field. Backups cannot
+  preserve a local handle, so reconnecting one through a picker counts as a new recording.
+  The workspace synchronizes this identity only after the current draft's real editor and media
+  restoration are ready. Active IME composition defers the update until the committed snapshot;
+  a refused unchanged basis is not retried on every caret move. Updating the recording identity
+  changes no editor history and leaves sync mode active when text and lyric profile stay the same.
+
+- `storageSnapshot()` captures the local attachment, including its file handle and current
+  position, alongside a draft save. It returns `undefined` while restoration is unresolved and
+  `null` for an explicit detach. After an atomic conflict copy, `adoptDraftId()` moves the
+  existing player's write ownership to the saved copy without detaching or restarting playback.
+  In a generation-aware workbench, all media writes (attachment, detach, name, and playhead)
+  schedule the guarded draft save instead of writing first under a potentially stale draft ID.
+  Flush media checkpoints before flushing autosave. Standalone legacy media-store consumers
+  retain their direct repository behavior.
+
 - One transport, four sources behind `MediaSource`; a source reports, it never decides. Every
   rule (resume rewind, clamps, `liveTime()`, run-in cancellation) is written once against the
   interface. `media-test-audio.ts` is the stub both test files drive.
@@ -24,8 +44,12 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
   catalogue attribution keeps the full badge.
 - Keys: `F7/F8/F9` and platform-modifier `J/K/L` (`Ctrl-` on macOS, `Alt-` elsewhere,
   `Ctrl-Alt-` universal); the reach-for keys are the `Escape` family (bare toggles,
-  `Shift+Esc` back, `Alt+Esc` forward): bubble phase, standing down on `defaultPrevented`
-  and on presses targeted inside an open dialog. `Edit this section only` stays active while
+  `Shift+Esc` back, `Alt+Esc` forward): bubble phase, standing down on `defaultPrevented`,
+  while a native modal is active, or on presses targeted inside other dialogs.
+  Diagnostic popovers dismiss at document bubble, before this window fallback, so attachment
+  timing cannot change which action owns Escape.
+  The toolbar and transport share `modalOwnsEscape`, including after modal content loses focus.
+  `Edit this section only` stays active while
   attached audio takes Escape; without audio, that mode can claim Escape to exit.
   A control tooltip hides without consuming Escape, including when its owner has focus.
   Pointer interaction with YouTube returns focus to its video group; Tab entry and fullscreen
@@ -337,8 +361,9 @@ draft's name), and each claims the event by preventing its default or stopping i
 the transport's `Escape` listener is the one place the triad's rule reverses: it is in the **bubble
 phase**, not capture, so every surface-level handler in the window has already run, and it stands
 down on a press already `defaultPrevented`. A native `<dialog>` closes on `Escape` without reliably
-marking the keydown, so deferral to an open modal is read off the press's **target** (trapped inside
-the dialog) rather than off the flag. What reaches the transport is an `Escape` nobody else wanted
+marking the keydown. The shared modal predicate therefore checks actual native modal state as well
+as dialog target ancestry: removing focused content can leave focus on the body while the modal
+remains active. What reaches the transport is an `Escape` nobody else wanted
 (the caret sitting in the document), which is exactly the press that means "stop the tape". A held
 `Escape` does not repeat the pause, exactly as the triad's toggle does not; a held `Shift+Escape` or
 `Alt+Escape` is a scrub and does. `Ctrl-L` is deliberately not a forward alias on Linux for the
@@ -662,9 +687,10 @@ local file has neither and the heading itself goes. No press contacts anyone: th
 arrived with the song, the link is arithmetic on an id, and the facts came in on the read that was
 already paying for the name.
 
-**And it leads the panel**, because it is the only section there that is about the song in front of
-the user rather than about the application. Everything under it is a setting, a backup, or a way
-out. A section that comes and goes has to lead or it lands somewhere different on every draft.
+Document output and optional Timed lyrics output lead normal Song, ahead of metadata and
+advanced section editing. Clipboard review and recovery surfaces still come first when present.
+This keeps ordinary file exports reachable in the first phone viewport even with long song facts.
+Clearing remains a separate disclosure within Document; routine Copy stays in the toolbar.
 
 **Those facts are a `<dl>` and not a copied block**, because they go into separate fields on
 whatever page they are being typed into. One string holding all of them would only have to be

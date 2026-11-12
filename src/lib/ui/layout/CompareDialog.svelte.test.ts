@@ -1,8 +1,23 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test } from 'vitest';
+import { cdp, page } from 'vitest/browser';
 import { createTestWorkbench } from '../test-utils.js';
 import CompareDialog from './CompareDialog.svelte';
+import { importDocument, renderProfile } from '#lib/conversion/index.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
+
+function musixmatchWorkbench() {
+	const imported = importDocument({ profile: 'genius', text: '[Verse]\nLine', language: 'en' });
+	if (!imported.ok) throw new Error(imported.refusal.message);
+	const projected = renderProfile(imported.value, 'musixmatch');
+	if (!projected.ok) throw new Error(projected.refusal.message);
+	const workbench = createTestWorkbench({
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
+	return workbench;
+}
 
 function openDialog(): HTMLDialogElement {
 	const dialog = document.querySelector<HTMLDialogElement>('dialog.compare-dialog');
@@ -18,6 +33,67 @@ async function pasteBaseline(text: string): Promise<void> {
 
 describe('CompareDialog', () => {
 	afterEach(cleanup);
+
+	test.each([1280, 360, 390])(
+		'keeps comparison lines readable and pressable at %ipx',
+		async (width) => {
+			await cdp().send('Emulation.setTouchEmulationEnabled', {
+				enabled: width < 500,
+				maxTouchPoints: 1
+			});
+			await page.viewport(width, 844);
+			try {
+				const line = 'Hold the light through the longest night '.repeat(6).trim();
+				const { controller } = createTestWorkbench({ text: `[Verse]\n${line}\nStay` });
+				await render(CompareDialog, { controller });
+				await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+				await pasteBaseline(`[Verse]\n${line.replace('light', 'flame')}\nStay`);
+				await document.fonts.ready;
+				const dialog = openDialog();
+				const rows = dialog.querySelectorAll<HTMLButtonElement>('.compare-diff__row');
+				expect(rows.length).toBeGreaterThan(1);
+				for (const row of rows) {
+					const bounds = row.getBoundingClientRect();
+					expect(bounds.height).toBeGreaterThanOrEqual(width < 500 ? 44 : 24);
+					expect(bounds.left).toBeGreaterThanOrEqual(0);
+					expect(bounds.right).toBeLessThanOrEqual(width);
+					expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth);
+					expect(parseFloat(getComputedStyle(row).fontSize)).toBeGreaterThanOrEqual(15);
+				}
+			} finally {
+				await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+				await page.viewport(800, 600);
+			}
+		}
+	);
+
+	test('compares the Genius representation while Musixmatch is active without changing the model', async () => {
+		const { controller } = musixmatchWorkbench();
+		const original = JSON.stringify(controller.snapshot.conversion?.model);
+		controller.setCompareBaseline('[Verse]\nLine');
+		await render(CompareDialog, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		expect(screen.getByText('Compare with Genius')).toBeTruthy();
+		expect(await screen.findByText(/matches the page exactly/)).toBeTruthy();
+		expect(screen.queryByText(/Genius view has retained details to review/)).toBeNull();
+		expect(controller.snapshot.text).toBe('Line');
+		expect(JSON.stringify(controller.snapshot.conversion?.model)).toBe(original);
+	});
+
+	test('maps a Genius comparison row to its Musixmatch lyric position', async () => {
+		const { controller, calls } = musixmatchWorkbench();
+		controller.setCompareBaseline('[Verse]\nLyne');
+		await render(CompareDialog, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		await waitFor(() => expect(openDialog().querySelector('ins')?.textContent).toBe('i'));
+		const added = openDialog().querySelector('ins')!;
+		const rect = added.getBoundingClientRect();
+		await fireEvent.click(added.closest('button')!, {
+			clientX: rect.left + 1,
+			clientY: rect.top + rect.height / 2
+		});
+		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 1, head: 1 }));
+	});
 
 	test('the trigger does not draw over an empty document', async () => {
 		const { controller } = createTestWorkbench({ text: '' });
@@ -82,7 +158,7 @@ describe('CompareDialog', () => {
 		expect(screen.queryByText('Line 2')).toBeNull();
 	});
 
-	test('pressing a changed line closes the dialog and parks the caret on it, focused', async () => {
+	test('pressing a changed line closes the dialog and requests its editor passage', async () => {
 		const { controller, calls } = createTestWorkbench();
 		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
@@ -90,15 +166,14 @@ describe('CompareDialog', () => {
 
 		await fireEvent.click(openDialog().querySelector('del')!.closest('button')!);
 		expect(openDialog().open).toBe(false);
-		// The hand-off is a frame behind the close, so the browser's own focus
-		// restoration cannot trample it, hence the wait.
 		// '[Verse]\nLine': line 2 starts at offset 8, and the caret is collapsed
 		// there rather than selecting: the press aimed at a line to edit.
 		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 }));
 		expect(calls.revealed.at(-1)).toEqual({ from: 8, to: 8 });
-		// Unlike a diagnostic press, this caret is exactly where the user put it,
-		// so the editor takes focus with it.
-		expect(calls.focusCount).toBe(1);
+		expect(controller.conversionPassageRequest).toEqual({
+			range: { from: 8, to: 8 },
+			intent: 'view'
+		});
 	});
 
 	test('a tap resolves to the character under it, not the start of the line', async () => {
@@ -200,6 +275,24 @@ describe('CompareDialog', () => {
 		expect(openDialog().querySelector('del')).toBeNull();
 	});
 
+	test.each([1280, 360, 390])(
+		'shows a current trailing line break instead of an empty result at %ipx',
+		async (width) => {
+			await page.viewport(width, 844);
+			const { controller, calls } = createTestWorkbench({ text: '[Verse]\nLine\n' });
+			await render(CompareDialog, { controller });
+			await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+			await pasteBaseline('[Verse]\nLine');
+			expect(screen.getByText(/1 line changed/)).toBeTruthy();
+			expect(screen.getByText('Line break added')).toBeTruthy();
+			expect(screen.queryByText(/matches the page exactly/)).toBeNull();
+			const row = screen.getByRole('button', { name: '2 Line' });
+			await fireEvent.click(row);
+			await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 }));
+			expect(controller.snapshot.text).toBe('[Verse]\nLine\n');
+		}
+	);
+
 	test('Change baseline swaps to the ask in place, and Cancel returns to the diff', async () => {
 		const { controller } = createTestWorkbench();
 		await render(CompareDialog, { controller });
@@ -207,10 +300,19 @@ describe('CompareDialog', () => {
 		await pasteBaseline('[Verse]\nLyne');
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Change baseline' }));
-		expect(screen.getByRole('textbox', { name: 'The lyrics as the page has them' })).toBeTruthy();
-		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				screen.getByRole('textbox', { name: 'The lyrics as the page has them' })
+			)
+		);
+		const cancel = screen.getByRole('button', { name: 'Cancel' });
+		cancel.focus();
+		await fireEvent.click(cancel);
 		expect(screen.queryByRole('textbox', { name: 'The lyrics as the page has them' })).toBeNull();
 		expect(openDialog().querySelector('del')?.textContent).toBe('y');
+		await waitFor(() =>
+			expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Change baseline' }))
+		);
 	});
 
 	test('an invisible-only change is carried by a sentence, not by the rows alone', async () => {

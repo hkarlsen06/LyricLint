@@ -31,7 +31,7 @@ export const textInvisibleCharactersRule: RuleDefinition = {
 					this,
 					range,
 					'This line ends with invisible whitespace.',
-					'Trailing spaces survive a copy into Genius without ever being visible in the editor. Removing them changes nothing a reader can see, and the parser already treats a whitespace-only line as a blank one, so no section boundary moves.',
+					'Trailing spaces survive copying without ever being visible in the editor. Removing them changes nothing a reader can see, and the parser already treats a whitespace-only line as a blank one, so no section boundary moves.',
 					[replacementFix(context, 'safe', 'Remove trailing whitespace', range, '')]
 				),
 				// Every space between two words is trailing whitespace for as long as

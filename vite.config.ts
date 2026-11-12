@@ -62,11 +62,15 @@ const phoneTestFiles = [
 	'src/lib/ui/layout/MobileWorkspace.svelte.test.ts'
 ];
 const mixedInputTestFiles = [
+	'src/lib/editor/conversion-sections.svelte.test.ts',
 	'src/lib/editor/EditorPane.svelte.test.ts',
 	'src/lib/editor/caret-layer.svelte.test.ts',
 	'src/lib/editor/keyboard-commands.svelte.test.ts',
 	'src/lib/ui/assistant/AssistantPanel.svelte.test.ts',
 	'src/lib/ui/layout/DesktopMedia.svelte.test.ts',
+	'src/lib/ui/layout/CompareDialog.svelte.test.ts',
+	'src/lib/ui/layout/LanguagePicker.svelte.test.ts',
+	'src/lib/ui/layout/ProfilePicker.svelte.test.ts',
 	'src/lib/ui/media/MediaStrip.svelte.test.ts',
 	'src/lib/ui/state/media-video-focus.svelte.test.ts'
 ];

@@ -690,6 +690,30 @@ describe('the timestamp column', () => {
 			if (document.querySelector('.ll-time-cell')) throw new Error('the column is still drawn');
 		});
 	});
+	it.each([1280, 360, 390])(
+		'reserves timing space only while audio is attached at %ipx',
+		async (width) => {
+			await page.viewport(width, 844);
+			try {
+				const { handle } = await mount({ text: lyric, mediaTime: () => 0 });
+				const gutter = document.querySelector<HTMLElement>('.ll-time-gutter')!;
+				const content = document.querySelector<HTMLElement>('.cm-content')!;
+				expect(gutter.getBoundingClientRect().width).toBe(0);
+				const fullWidth = content.getBoundingClientRect().width;
+				handle.setLineAnchors?.([{ line: 2, time: 12 }]);
+				await withColumn(handle);
+				expect(gutter.getBoundingClientRect().width).toBeGreaterThan(0);
+				expect(content.getBoundingClientRect().width).toBeLessThan(fullWidth);
+				handle.setMediaPlayhead?.(undefined);
+				await vi.waitFor(() => expect(gutter.getBoundingClientRect().width).toBe(0));
+				expect(content.getBoundingClientRect().width).toBe(fullWidth);
+				expect(handle.getSnapshot().text).toBe(lyric);
+				expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 12 }]);
+			} finally {
+				await page.viewport(800, 600);
+			}
+		}
+	);
 
 	it('anchors an untimed line to the playhead from a press on its own cell', async () => {
 		const { handle } = await mount({ text: lyric, mediaTime: () => 75 });
@@ -1059,6 +1083,12 @@ describe('line anchors in linked sections', () => {
 const song = ['[Verse 1]', 'first line', '', '[Chorus]', 'second line'].join('\n');
 
 describe('following the playhead', () => {
+	async function settleReadingScroll(): Promise<void> {
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		// A delayed frame must finish the easing before the reader takes the viewport back.
+		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+	}
+
 	// Sync mode is not the only time the document follows: playing a timed song
 	// pulls the marked line to the same reading line, so reading along does not
 	// mean scrolling by hand.
@@ -1125,18 +1155,18 @@ describe('following the playhead', () => {
 		const from = long.indexOf('line 7');
 		handle.setSelection({ anchor: from, head: long.indexOf('line 8') + 'line 8'.length });
 		handle.setLyricSync?.(true);
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		await settleReadingScroll();
 		expect(scroller.scrollTop).toBe(0);
 
 		// The playhead crossing a marked line is the follow's own trigger, and the
 		// marked lines sit forty rows down: suppressed, nothing moves.
 		handle.setMediaPlayhead?.(1.5);
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		await settleReadingScroll();
 		expect(scroller.scrollTop).toBe(0);
 
 		// A tap lands on a visible line, so the nearest-edge nudge moves nothing.
 		handle.tapLyricSync?.();
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		await settleReadingScroll();
 		expect(scroller.scrollTop).toBe(0);
 	});
 
@@ -1162,7 +1192,7 @@ describe('following the playhead', () => {
 		});
 		// Let the eased scroll finish, or its remaining frames overwrite the
 		// reader's own position below.
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		await settleReadingScroll();
 
 		// The reader scrolls back up to fix an earlier line and types into it.
 		scroller.scrollTop = 0;
@@ -1170,7 +1200,7 @@ describe('following the playhead', () => {
 		scroller.scrollTop = 0;
 		await userEvent.keyboard('!');
 
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		await settleReadingScroll();
 		expect(scroller.scrollTop).toBe(0);
 	});
 
@@ -1201,7 +1231,7 @@ describe('following the playhead', () => {
 		await vi.waitFor(() => {
 			if (scroller.scrollTop === 0) throw new Error('the follow has not scrolled yet');
 		});
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		await settleReadingScroll();
 
 		// The reader scrolls back up and types into the first chorus.
 		handle.focus();
@@ -1210,7 +1240,7 @@ describe('following the playhead', () => {
 		scroller.scrollTop = 0;
 		await userEvent.keyboard('!');
 
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		await settleReadingScroll();
 		expect(scroller.scrollTop).toBe(0);
 		// And the second chorus kept every timing it had.
 		expect(handle.getLineAnchors?.()).toHaveLength(48);
@@ -1231,7 +1261,7 @@ describe('following the playhead', () => {
 		handle.setFollowPlayhead?.(false);
 		handle.setMediaPlayhead?.(30);
 
-		await new Promise((resolve) => setTimeout(resolve, 500));
+		await settleReadingScroll();
 		expect(scroller.scrollTop).toBe(0);
 	});
 });

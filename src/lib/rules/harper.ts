@@ -1,3 +1,4 @@
+import { languageOwnership } from './language-ownership.js';
 // Decision record: docs/subsystems/rules-catalog.md. Read it before changing this file, and update it with any behavior change.
 import type {
 	Diagnostic,
@@ -5,11 +6,14 @@ import type {
 	ParsedDocument,
 	PerformerRecord,
 	TextEdit,
-	TextRange
+	TextRange,
+	RuleContext
 } from '#lib/core/types.js';
+import { HarperInitializationCanceled } from './harper-cancellation.js';
 import { resolveLanguageTag } from '#lib/languages/registry.js';
 import { decadeApostropheTokenPattern } from './catalog/numbers-decade-apostrophe.js';
 import { standardizedSpellings } from './data/spelling.js';
+import { musixmatchStandardizedForms } from './musixmatch.js';
 import { sortDiagnostics } from './results.js';
 export { mergeHarperDiagnostics } from './results.js';
 
@@ -63,7 +67,9 @@ interface HarperEngine {
 interface HarperDiagnosticRequest {
 	text: string;
 	document: ParsedDocument;
+	profile?: RuleContext['profile'];
 	language: string;
+	languageRanges?: RuleContext['languageRanges'];
 	performers: readonly PerformerRecord[];
 	revision: number;
 }
@@ -73,7 +79,7 @@ export interface HarperDiagnosticProvider {
 	dispose(): Promise<void>;
 }
 
-type HarperEngineFactory = () => Promise<HarperEngine>;
+type HarperEngineFactory = (signal: AbortSignal) => Promise<HarperEngine | undefined>;
 
 /**
  * Harper lints switched off because what they advise is what the reviewed
@@ -157,31 +163,35 @@ const harperLintConfig: Record<string, boolean> = Object.fromEntries(
 
 interface HarperProjection {
 	text: string;
-	/** Original UTF-16 offset at each projected Unicode-scalar boundary. */
+	/** Original UTF-16 offset at each projected UTF-16 boundary. */
 	originalOffsets: number[];
-	/** Whether each projected scalar stands in for masked document structure. */
-	maskedScalars: boolean[];
+	/** Whether each projected UTF-16 unit stands in for masked document structure. */
+	maskedUnits: boolean[];
 }
 
-function markRange(mask: Uint8Array, range: TextRange): void {
+const foreignLanguageMask = 2;
+
+function markRange(mask: Uint8Array, range: TextRange, value = 1): void {
 	const from = Math.max(0, Math.min(mask.length, range.from));
 	const to = Math.max(from, Math.min(mask.length, range.to));
-	mask.fill(1, from, to);
+	mask.fill(value, from, to);
 }
 
 /**
- * Give Harper the complete lyric flow while hiding Genius structure.
+ * Give Harper the complete lyric flow, masking structure only in Genius.
  *
- * Harper reports indices in Unicode scalar values; LyricLint and CodeMirror use
- * UTF-16 offsets. Replacing every masked scalar with exactly one space retains
- * scalar count, while `originalOffsets` maps every result back without changing
- * or normalizing the canonical document.
+ * Harper reports UTF-16 indices, as do LyricLint and CodeMirror. Each masked
+ * scalar becomes a space or paragraph boundary; `originalOffsets` maps results
+ * back to the unchanged canonical document.
  */
-export function projectLyricsForHarper(document: ParsedDocument): HarperProjection {
+export function projectLyricsForHarper(
+	document: ParsedDocument,
+	context?: Pick<RuleContext, 'profile' | 'language' | 'languageRanges'>
+): HarperProjection {
 	const mask = new Uint8Array(document.text.length);
 
 	for (const section of document.sections) {
-		if (section.header) {
+		if (context?.profile !== 'musixmatch' && section.header) {
 			markRange(mask, {
 				from: section.from,
 				to: section.lines[0]?.from ?? section.to
@@ -189,7 +199,7 @@ export function projectLyricsForHarper(document: ParsedDocument): HarperProjecti
 		}
 
 		for (const line of section.lines) {
-			for (const span of line.styleSpans) {
+			for (const span of context?.profile === 'musixmatch' ? [] : line.styleSpans) {
 				if ('unsupported' in span) {
 					markRange(mask, span);
 					continue;
@@ -204,38 +214,60 @@ export function projectLyricsForHarper(document: ParsedDocument): HarperProjecti
 			// token with an apostrophe, right or wrong, belongs to the catalog:
 			// `numbers.decade-apostrophe` reports the wrong forms and nothing
 			// needs to report the right ones.
-			decadeApostropheTokenPattern.lastIndex = 0;
-			for (const match of line.text.matchAll(decadeApostropheTokenPattern)) {
-				markRange(mask, {
-					from: line.from + match.index,
-					to: line.from + match.index + match[0].length
-				});
+			if (context?.profile !== 'musixmatch') {
+				decadeApostropheTokenPattern.lastIndex = 0;
+				for (const match of line.text.matchAll(decadeApostropheTokenPattern)) {
+					markRange(mask, {
+						from: line.from + match.index,
+						to: line.from + match.index + match[0].length
+					});
+				}
 			}
+		}
+	}
+
+	// Language boundaries take precedence over overlapping structural masks.
+	if (context) {
+		const { ranges, languageAt, withinLanguage } = languageOwnership(document.text, context);
+		for (const range of ranges) {
+			if (resolveLanguageTag(range.language) !== 'en') markRange(mask, range, foreignLanguageMask);
+		}
+		// A masked half-word must not become a new English spelling candidate.
+		for (const token of document.text.matchAll(/[\p{L}\p{M}\p{N}'’]+/gu)) {
+			const range = { from: token.index, to: token.index + token[0].length };
+			if (!withinLanguage(range.from, range.to, languageAt(range.from)))
+				markRange(mask, range, foreignLanguageMask);
 		}
 	}
 
 	let projected = '';
 	const originalOffsets = [0];
-	const maskedScalars: boolean[] = [];
+	const maskedUnits: boolean[] = [];
 
 	for (let offset = 0; offset < document.text.length;) {
 		const codePoint = document.text.codePointAt(offset);
 		const width = codePoint !== undefined && codePoint > 0xffff ? 2 : 1;
 		const scalar = document.text.slice(offset, offset + width);
 		let masked = false;
+		let foreignLanguage = false;
 		for (let unit = offset; unit < offset + width; unit += 1) {
-			masked ||= mask[unit] === 1;
+			masked ||= mask[unit] !== 0;
+			foreignLanguage ||= mask[unit] === foreignLanguageMask;
 		}
 
 		// Physical line endings still delimit Harper's sentences and paragraphs.
-		const replacement = masked && scalar !== '\r' && scalar !== '\n' ? ' ' : scalar;
+		// An excluded phrase must not join its English neighbors into a new clause.
+		const replacement =
+			masked && scalar !== '\r' && scalar !== '\n' ? (foreignLanguage ? '\u2029' : ' ') : scalar;
 		projected += replacement;
-		maskedScalars.push(masked && replacement === ' ');
+		for (let unit = 1; unit <= replacement.length; unit += 1) {
+			maskedUnits.push(masked && (replacement === ' ' || replacement === '\u2029'));
+			originalOffsets.push(offset + (unit === replacement.length ? width : unit));
+		}
 		offset += width;
-		originalOffsets.push(offset);
 	}
 
-	return { text: projected, originalOffsets, maskedScalars };
+	return { text: projected, originalOffsets, maskedUnits };
 }
 
 function originalRange(projection: HarperProjection, span: HarperSpan): TextRange | undefined {
@@ -250,7 +282,7 @@ function originalRange(projection: HarperProjection, span: HarperSpan): TextRang
 	}
 
 	for (let index = span.start; index < span.end; index += 1) {
-		if (projection.maskedScalars[index]) return undefined;
+		if (projection.maskedUnits[index]) return undefined;
 	}
 
 	const from = projection.originalOffsets[span.start];
@@ -294,6 +326,15 @@ function appliesToLyrics(lint: HarperLint): boolean {
 
 function rangesOverlap(left: TextRange, right: TextRange): boolean {
 	return left.from < right.to && right.from < left.to;
+}
+
+/** A spelling guess at the letter suffix of an alphanumeric token cannot replace its word. */
+function isDigitAttachedSpellingFragment(text: string, range: TextRange): boolean {
+	return (
+		/^[\p{L}\p{M}]+$/u.test(text.slice(range.from, range.to)) &&
+		(/\p{Nd}$/u.test(text.slice(Math.max(0, range.from - 2), range.from)) ||
+			/^\p{Nd}/u.test(text.slice(range.to, range.to + 2)))
+	);
 }
 
 const edgeApostrophes = new Set(["'", '’']);
@@ -498,8 +539,13 @@ function convertLint(
 
 const reviewedSpellingWords = standardizedSpellings.flatMap((spelling) => spelling.preferred);
 
-function dictionaryWords(performers: readonly PerformerRecord[]): string[] {
-	const words = new Set(reviewedSpellingWords);
+function dictionaryWords(
+	performers: readonly PerformerRecord[],
+	profile: RuleContext['profile']
+): string[] {
+	const words = new Set(
+		profile === 'musixmatch' ? musixmatchStandardizedForms.values() : reviewedSpellingWords
+	);
 	for (const name of performers.flatMap((performer) => [
 		performer.displayName,
 		...performer.aliases
@@ -511,12 +557,41 @@ function dictionaryWords(performers: readonly PerformerRecord[]): string[] {
 	return [...words].sort((left, right) => left.localeCompare(right));
 }
 
-async function createWorkerEngine(): Promise<HarperEngine> {
-	const [{ WorkerLinter }, { binary }] = await Promise.all([
-		import('harper.js'),
-		import('harper.js/binary')
-	]);
-	return new WorkerLinter({ binary });
+export async function createWorkerEngine(
+	signal: AbortSignal,
+	loadWorker: (canceled: () => boolean) => Promise<(() => HarperEngine) | undefined> = async (
+		canceled
+	) => {
+		const [{ WorkerLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		if (canceled()) return undefined;
+		// Serializer starts setup without awaiting it. Own that initialization so
+		// navigation cancellation cannot escape as an unhandled rejection.
+		await binary.setup();
+		return () => new WorkerLinter({ binary });
+	}
+): Promise<HarperEngine | undefined> {
+	// A reload can finish these imports after WebKit has stopped allowing the
+	// departing document to start workers or fetch WASM, even before pagehide.
+	let leaving = false;
+	const onBeforeUnload = (): void => {
+		leaving = true;
+	};
+	const canceled = (): boolean => signal.aborted || leaving;
+	window.addEventListener('beforeunload', onBeforeUnload);
+	try {
+		if (canceled()) return undefined;
+		const construct = await loadWorker(canceled);
+		if (!construct || canceled()) return undefined;
+		return construct();
+	} catch (error: unknown) {
+		if (canceled()) return undefined;
+		throw error;
+	} finally {
+		window.removeEventListener('beforeunload', onBeforeUnload);
+	}
 }
 
 /**
@@ -527,17 +602,26 @@ async function createWorkerEngine(): Promise<HarperEngine> {
  * the existing lightweight local rule path.
  */
 export function createHarperDiagnosticProvider(
-	createEngine: HarperEngineFactory = createWorkerEngine
+	createEngine: HarperEngineFactory = createWorkerEngine,
+	ownerSignal?: () => AbortSignal
 ): HarperDiagnosticProvider {
-	let enginePromise: Promise<HarperEngine> | undefined;
+	const lifetime = new AbortController();
+	let enginePromise: Promise<HarperEngine | undefined> | undefined;
 	let importedWordKey: string | undefined;
+	let lintTail = Promise.resolve();
 
-	function engine(): Promise<HarperEngine> {
+	function engine(): Promise<HarperEngine | undefined> {
 		// The audited refusals are applied before the first lint ever runs: the
 		// config is a property of the engine, not of any one document, and a
 		// finding produced under the default config would censor or formalize a
 		// lyric on the engine's very first answer.
-		enginePromise ??= createEngine().then(async (harper) => {
+		enginePromise ??= createEngine(
+			ownerSignal ? AbortSignal.any([lifetime.signal, ownerSignal()]) : lifetime.signal
+		).then(async (harper) => {
+			if (!harper) {
+				enginePromise = undefined;
+				return undefined;
+			}
 			await harper.setLintConfig(harperLintConfig);
 			return harper;
 		});
@@ -545,59 +629,84 @@ export function createHarperDiagnosticProvider(
 	}
 
 	return {
-		async lint(request) {
-			if (resolveLanguageTag(request.language) !== 'en' || request.text.trim().length === 0) {
-				return [];
-			}
-
-			const harper = await engine();
-			// LyricLint's reviewed Genius policy is authoritative. Teaching
-			// Harper the preferred forms prevents its general-purpose dictionary
-			// from contradicting spellings such as "ayy"; native rules still
-			// diagnose the reviewed non-preferred forms.
-			const words = dictionaryWords(request.performers);
-			const wordKey = words.join('\u0000');
-			if (wordKey !== importedWordKey) {
-				await harper.clearWords();
-				if (words.length > 0) await harper.importWords(words);
-				importedWordKey = wordKey;
-			}
-
-			const projection = projectLyricsForHarper(request.document);
-			const lints = await harper.lint(projection.text, {
-				language: 'plaintext',
-				// Harper's overlap removal has to run after LyricLint drops prose-only
-				// findings, or one document-wide Readability lint hides everything in it.
-				dedup: false
-			});
-
-			const dictionary = new Set(words.map(foldApostrophes));
-			const diagnostics: Diagnostic[] = [];
-			for (const lint of lints) {
-				try {
-					if (!appliesToLyrics(lint)) continue;
-					const diagnostic = convertLint(lint, projection, request.text, request.revision);
-					if (!diagnostic) continue;
-					if (
-						diagnostic.ruleId === 'spelling.harper' &&
-						(isApostropheEdgedDictionaryWord(request.text, diagnostic, dictionary) ||
-							isMarkedGDrop(request.text, diagnostic))
-					) {
-						continue;
-					}
-					diagnostics.push(diagnostic);
-				} finally {
-					lint.free?.();
+		lint(request) {
+			const result = lintTail.then(async () => {
+				if (
+					lifetime.signal.aborted ||
+					resolveLanguageTag(request.language) !== 'en' ||
+					request.text.trim().length === 0
+				) {
+					return [];
 				}
-			}
-			return sortDiagnostics(deduplicateApplicableDiagnostics(diagnostics));
+
+				const ownership = languageOwnership(request.text, request);
+				const harper = await engine();
+				if (!harper || lifetime.signal.aborted) throw new HarperInitializationCanceled();
+				// The active profile's reviewed spelling policy is authoritative. Teaching
+				// Harper the preferred forms prevents its general-purpose dictionary
+				// from contradicting spellings such as "ayy"; native rules still
+				// diagnose the reviewed non-preferred forms.
+				const words = dictionaryWords(request.performers, request.profile);
+				const wordKey = words.join('\u0000');
+				if (wordKey !== importedWordKey) {
+					await harper.clearWords();
+					if (words.length > 0) await harper.importWords(words);
+					importedWordKey = wordKey;
+				}
+
+				const projection = projectLyricsForHarper(request.document, request);
+				const lints = await harper.lint(projection.text, {
+					language: 'plaintext',
+					// Harper's overlap removal has to run after LyricLint drops prose-only
+					// findings, or one document-wide Readability lint hides everything in it.
+					dedup: false
+				});
+
+				const dictionary = new Set(words.map(foldApostrophes));
+				const diagnostics: Diagnostic[] = [];
+				for (const lint of lints) {
+					try {
+						if (!appliesToLyrics(lint)) continue;
+						const diagnostic = convertLint(lint, projection, request.text, request.revision);
+						if (!diagnostic) continue;
+						const owner = ownership.languageAt(diagnostic.from);
+						if (
+							resolveLanguageTag(owner) !== 'en' ||
+							!ownership.withinLanguage(diagnostic.from, diagnostic.to, owner) ||
+							diagnostic.fixes?.some((fix) =>
+								fix.edit.edits.some((edit) => !ownership.withinLanguage(edit.from, edit.to, owner))
+							)
+						)
+							continue;
+						if (
+							diagnostic.ruleId === 'spelling.harper' &&
+							(isDigitAttachedSpellingFragment(request.text, diagnostic) ||
+								isApostropheEdgedDictionaryWord(request.text, diagnostic, dictionary) ||
+								isMarkedGDrop(request.text, diagnostic))
+						) {
+							continue;
+						}
+						diagnostics.push(diagnostic);
+					} finally {
+						lint.free?.();
+					}
+				}
+				return sortDiagnostics(deduplicateApplicableDiagnostics(diagnostics));
+			});
+			// One engine owns a mutable dictionary. Keep its replacement and lint in one turn.
+			lintTail = result.then(
+				() => undefined,
+				() => undefined
+			);
+			return result;
 		},
 		async dispose() {
+			lifetime.abort();
 			const pending = enginePromise;
 			enginePromise = undefined;
 			if (!pending) return;
 			const harper = await pending;
-			await harper.dispose();
+			await harper?.dispose();
 		}
 	};
 }

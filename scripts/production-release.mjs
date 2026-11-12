@@ -29,6 +29,34 @@ export function parseSiteRelease(value) {
 	) {
 		throw new Error('The website has invalid assistant release metadata; refusing to deploy.');
 	}
+	if (value.profileCorpora !== undefined) {
+		if (
+			!Array.isArray(value.profileCorpora) ||
+			value.profileCorpora.length < 1 ||
+			value.profileCorpora.length > 2 ||
+			new Set(value.profileCorpora.map((entry) => entry?.profile)).size !==
+				value.profileCorpora.length ||
+			value.profileCorpora.some(
+				(entry) =>
+					!entry ||
+					!['genius', 'musixmatch'].includes(entry.profile) ||
+					typeof entry.ruleSetVersion !== 'string' ||
+					!entry.ruleSetVersion.length ||
+					entry.ruleSetVersion.length > 64 ||
+					typeof entry.corpusHash !== 'string' ||
+					!/^[a-f0-9]{64}$/.test(entry.corpusHash)
+			) ||
+			!value.profileCorpora.some(
+				(entry) =>
+					entry.profile === 'genius' &&
+					entry.ruleSetVersion === value.ruleSetVersion &&
+					entry.corpusHash === value.corpusHash
+			)
+		)
+			throw new Error(
+				'The website has invalid assistant release profile metadata; refusing to deploy.'
+			);
+	}
 	return value;
 }
 // oxlint-enable anti-slop/no-runtime-typeof
@@ -102,6 +130,7 @@ export function assertReleaseCorpus(release, corpus) {
 	delete content.contentHash;
 	const actualHash = createHash('sha256').update(JSON.stringify(content)).digest('hex');
 	if (
+		(corpus.profile ?? 'genius') !== (release.profile ?? 'genius') ||
 		corpus.ruleSetVersion !== release.ruleSetVersion ||
 		corpus.contentHash !== release.corpusHash ||
 		actualHash !== release.corpusHash
@@ -110,12 +139,52 @@ export function assertReleaseCorpus(release, corpus) {
 	}
 }
 
+/** Older website manifests describe Genius only. Every newer profile is explicitly allowlisted. */
+export function siteReleaseCorpora(release) {
+	return (
+		release.profileCorpora ?? [
+			{ profile: 'genius', ruleSetVersion: release.ruleSetVersion, corpusHash: release.corpusHash }
+		]
+	).map((entry) => ({
+		profile: entry.profile,
+		ruleSetVersion: entry.ruleSetVersion,
+		corpusHash: entry.corpusHash,
+		revision: release.revision,
+		clientCorpusHash: release.clientCorpusHash
+	}));
+}
+
+export function corpusArtifactPath(profile) {
+	if (profile === 'genius') return 'services/rules-assistant/generated/rules-context.json';
+	if (profile === 'musixmatch') return 'services/rules-assistant/generated/musixmatch-context.json';
+	throw new Error('The requested assistant profile has no reviewed corpus artifact.');
+}
+
 export function releaseCorporaModule(currentCorpus, liveCorpus, liveRelease) {
-	assertReleaseCorpus(liveRelease, liveCorpus);
-	const compatible = currentCorpus.contentHash === liveCorpus.contentHash ? [] : [liveCorpus];
+	const current = Array.isArray(currentCorpus) ? currentCorpus : [currentCorpus];
+	const live = Array.isArray(liveCorpus) ? liveCorpus : [liveCorpus];
+	const approved = siteReleaseCorpora(liveRelease).map((release) => {
+		const corpus = live.find((entry) => (entry.profile ?? 'genius') === release.profile);
+		if (!corpus)
+			throw new Error(
+				`The published ${release.profile} corpus is missing; refusing to remove compatibility.`
+			);
+		assertReleaseCorpus(release, corpus);
+		return corpus;
+	});
+	const compatible = approved.filter(
+		(corpus) =>
+			!current.some(
+				(entry) =>
+					(entry.profile ?? 'genius') === (corpus.profile ?? 'genius') &&
+					entry.contentHash === corpus.contentHash
+			)
+	);
 	const legacyHash = liveRelease.clientCorpusHash
 		? 'undefined'
-		: JSON.stringify(liveCorpus.contentHash);
+		: JSON.stringify(
+				approved.find((corpus) => (corpus.profile ?? 'genius') === 'genius').contentHash
+			);
 	return (
 		'// Prepared by the coordinated CI release from the currently published website.\n' +
 		"import type { AssistantCorpus } from './rules-context';\n\n" +
@@ -130,7 +199,13 @@ export function sameRelease(actual, expected) {
 		actual.ruleSetVersion === expected.ruleSetVersion &&
 		actual.corpusHash === expected.corpusHash &&
 		actual.clientCorpusHash === expected.clientCorpusHash &&
-		actual.answersUrl === expected.answersUrl
+		actual.answersUrl === expected.answersUrl &&
+		JSON.stringify(
+			siteReleaseCorpora(actual).sort((a, b) => a.profile.localeCompare(b.profile))
+		) ===
+			JSON.stringify(
+				siteReleaseCorpora(expected).sort((a, b) => a.profile.localeCompare(b.profile))
+			)
 	);
 }
 

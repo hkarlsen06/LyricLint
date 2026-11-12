@@ -1,11 +1,15 @@
-import { copyCompareBaseline, copySectionLinks } from './copy.js';
+import { randomId } from '../core/random-id.js';
+import { copyCompareBaseline, copySectionLinks, copyConversionFields } from './copy.js';
 import type {
 	AutosaveController,
 	AutosaveOptions,
 	AutosaveSnapshot,
 	AutosaveStatus,
 	DraftRecord,
-	DraftRepository
+	DraftRepository,
+	DraftSaveResult,
+	DraftSaveSideRecords,
+	DepartureSnapshot
 } from './types.js';
 
 const DEFAULT_DEBOUNCE_MS = 250;
@@ -16,6 +20,7 @@ interface PendingSave {
 	draft: DraftRecord;
 	generation: number;
 	retainedFailure: boolean;
+	sideRecords?: DraftSaveSideRecords;
 }
 
 function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
@@ -67,6 +72,9 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
 	if (draft.compareBaseline !== undefined) {
 		copy.compareBaseline = copyCompareBaseline(draft.compareBaseline);
 	}
+	copy.storageGeneration = draft.storageGeneration;
+	copy.storageWriteId = draft.storageWriteId;
+	copyConversionFields(draft, copy);
 
 	return copy;
 }
@@ -81,17 +89,60 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
 export function createAutosaveController(
 	// Saving is the whole of what this asks of a repository, and saying so is what
 	// lets a test drive the real controller against a repository double.
-	repository: Pick<DraftRepository, 'save'>,
+	repository: Pick<DraftRepository, 'save' | 'compareAndSave'>,
 	options: AutosaveOptions = {}
 ): AutosaveController {
 	const debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
 	let nextOrder = 0;
 	const pending = new Map<string, PendingSave>();
+	const suspensions = new Set<Map<string, { save: PendingSave; resumeGeneration: number }>>();
+	const suspensionScopes = new Map<
+		Map<string, { save: PendingSave; resumeGeneration: number }>,
+		string | undefined
+	>();
 	const timers = new Map<string, ReturnType<typeof setTimeout>>();
 	const latestRevision = new Map<string, number>();
 	const generations = new Map<string, number>();
+	const committedGenerations = new Map<string, number>();
+	const savedListeners = new Set<(result: DraftSaveResult) => void>();
 	let drainQueue = Promise.resolve();
 	let isSaving = false;
+	let inFlight: PendingSave | undefined;
+	let checkpointWritten = false;
+	const checkpoint = (): boolean => {
+		if (!options.checkpoint) return pending.size === 0 && !inFlight;
+		try {
+			const latest = new Map<string, DepartureSnapshot>();
+			const saves = [...(inFlight ? [inFlight] : []), ...pending.values()]
+				.filter((save) => generationFor(save.draft.id) === save.generation)
+				.sort((a, b) => a.order - b.order);
+			for (const save of saves) {
+				const previous = latest.get(save.draft.id);
+				const draft = {
+					...save.draft,
+					storageGeneration: Math.max(
+						committedGenerations.get(save.draft.id) ?? 0,
+						save.draft.storageGeneration ?? 0
+					)
+				};
+				const snapshot: DepartureSnapshot = { draft, sideRecords: save.sideRecords };
+				if (previous?.draft.storageWriteId)
+					snapshot.precedingWrite = {
+						id: previous.draft.storageWriteId,
+						generation: previous.draft.storageGeneration ?? 0
+					};
+				latest.set(draft.id, snapshot);
+			}
+			const snapshots = [...latest.values()];
+			if (snapshots.length === 0 && !checkpointWritten) return true;
+			options.checkpoint.write(snapshots);
+			checkpointWritten = snapshots.length > 0;
+			return true;
+		} catch {
+			options.onCheckpointFailure?.();
+			return false;
+		}
+	};
 	let lastSettledStatus: Extract<AutosaveStatus, 'idle' | 'saved'> = 'idle';
 	let currentStatus: AutosaveStatus = 'idle';
 
@@ -168,10 +219,53 @@ export function createAutosaveController(
 			}
 
 			isSaving = true;
+			inFlight = save;
+			save.draft.storageGeneration = Math.max(
+				committedGenerations.get(saveDraftId) ?? 0,
+				save.draft.storageGeneration ?? 0
+			);
 			refreshStatus();
 
 			try {
-				await repository.save(save.draft);
+				if (repository.compareAndSave) {
+					const result = await repository.compareAndSave(
+						save.draft,
+						Math.max(committedGenerations.get(saveDraftId) ?? 0, save.draft.storageGeneration ?? 0),
+						save.sideRecords
+					);
+					committedGenerations.set(result.draft.id, result.draft.storageGeneration ?? 0);
+					if (result.conflicted) {
+						const redirect = (next: PendingSave) => {
+							next.draft.id = result.draft.id;
+							if (next.sideRecords?.media) next.sideRecords.media.draftId = result.draft.id;
+							next.draft.title = result.draft.title;
+							next.draft.createdAt = result.draft.createdAt;
+							next.draft.storageGeneration = result.draft.storageGeneration;
+							next.generation = generationFor(result.draft.id);
+						};
+						const next = pending.get(saveDraftId);
+						if (next) {
+							pending.delete(saveDraftId);
+							clearDraftTimer(saveDraftId);
+							redirect(next);
+							latestRevision.set(result.draft.id, next.revision);
+							pending.set(result.draft.id, next);
+							void enqueueDrain(result.draft.id);
+						}
+						for (const suspended of suspensions) {
+							const recovery = suspended.get(saveDraftId);
+							// A later cancellation owns the decision to discard this work.
+							if (!recovery || generationFor(saveDraftId) !== recovery.resumeGeneration) continue;
+							suspended.delete(saveDraftId);
+							redirect(recovery.save);
+							recovery.resumeGeneration = generationFor(result.draft.id);
+							suspended.set(result.draft.id, recovery);
+						}
+					}
+					for (const listener of savedListeners) listener(result);
+				} else {
+					await repository.save(save.draft);
+				}
 				if (generationFor(saveDraftId) === save.generation) {
 					lastSettledStatus = 'saved';
 				}
@@ -189,6 +283,8 @@ export function createAutosaveController(
 				}
 			} finally {
 				isSaving = false;
+				inFlight = undefined;
+				if (checkpointWritten) checkpoint();
 				refreshStatus();
 			}
 		}
@@ -200,7 +296,81 @@ export function createAutosaveController(
 		return drain;
 	};
 
-	return {
+	function cancellationRecovery(draftId?: string, tracked = false) {
+		const canceled = new Map<string, { save: PendingSave; resumeGeneration: number }>();
+		for (const save of [inFlight, ...pending.values()]) {
+			if (!save || (draftId !== undefined && save.draft.id !== draftId)) continue;
+			if (generationFor(save.draft.id) !== save.generation) continue;
+			canceled.set(save.draft.id, {
+				resumeGeneration: save.generation + 1,
+				save: {
+					...save,
+					draft: copySnapshot(save),
+					sideRecords: save.sideRecords
+						? {
+								...save.sideRecords,
+								ignoredDiagnostics: save.sideRecords.ignoredDiagnostics
+									? [...save.sideRecords.ignoredDiagnostics]
+									: undefined,
+								media: save.sideRecords.media
+									? { ...save.sideRecords.media }
+									: save.sideRecords.media
+							}
+						: undefined
+				}
+			});
+		}
+		if (tracked) {
+			suspensions.add(canceled);
+			suspensionScopes.set(canceled, draftId);
+		}
+		const discard = () => {
+			suspensions.delete(canceled);
+			suspensionScopes.delete(canceled);
+			canceled.clear();
+		};
+		const resume = (onlySurvivors: boolean) => {
+			const saves = [...canceled.entries()];
+			discard();
+			for (const [id, { save, resumeGeneration }] of saves) {
+				if (onlySurvivors && (draftId === undefined || id === draftId)) continue;
+				if (
+					generationFor(id) !== resumeGeneration ||
+					(!tracked && latestRevision.has(id)) ||
+					pending.has(id)
+				)
+					continue;
+				controller.schedule(save);
+			}
+		};
+		return {
+			ready: drainQueue,
+			discard: () => {
+				resume(true);
+				if (checkpointWritten) checkpoint();
+			},
+			restore: () => resume(false)
+		};
+	}
+
+	const controller: AutosaveController = {
+		checkpoint() {
+			if (suspensionScopes.size > 0) {
+				options.onCheckpointFailure?.();
+				return false;
+			}
+			return checkpoint();
+		},
+		suspend(draftId) {
+			const recovery = cancellationRecovery(draftId, true);
+			if (draftId === undefined) controller.cancel();
+			else controller.cancelDraft?.(draftId);
+			return recovery;
+		},
+		subscribeSaved(listener) {
+			savedListeners.add(listener);
+			return () => savedListeners.delete(listener);
+		},
 		schedule(snapshot) {
 			const draftId = snapshot.draft.id;
 			const existing = pending.get(draftId);
@@ -221,13 +391,38 @@ export function createAutosaveController(
 
 			const order = ++nextOrder;
 			latestRevision.set(draftId, snapshot.revision);
-			pending.set(draftId, {
+			const next: PendingSave = {
 				order,
 				revision: snapshot.revision,
 				draft: copySnapshot(snapshot),
 				generation: generationFor(draftId),
 				retainedFailure: false
-			});
+			};
+			if (snapshot.sideRecords !== undefined) {
+				const sideRecords: DraftSaveSideRecords = {};
+				if (snapshot.sideRecords.ignoredDiagnostics !== undefined)
+					sideRecords.ignoredDiagnostics = [...snapshot.sideRecords.ignoredDiagnostics];
+				if (snapshot.sideRecords.media !== undefined)
+					sideRecords.media =
+						snapshot.sideRecords.media === null ? null : { ...snapshot.sideRecords.media };
+				next.sideRecords = sideRecords;
+			}
+			next.draft.storageWriteId = randomId();
+			const suspension = [...suspensionScopes].find(
+				([, scope]) => scope === undefined || scope === draftId
+			)?.[0];
+			// An accepted edit of a surviving fork owns its state even if a new
+			// editor session restarted its revision counter, or the save already landed.
+			for (const held of suspensions) {
+				if (held !== suspension) held.delete(draftId);
+			}
+			if (suspension) {
+				suspension.set(draftId, { save: next, resumeGeneration: next.generation });
+				clearDraftTimer(draftId);
+				return;
+			}
+			pending.set(draftId, next);
+			if (checkpointWritten) checkpoint();
 			refreshStatus();
 
 			clearDraftTimer(draftId);
@@ -246,30 +441,39 @@ export function createAutosaveController(
 		},
 
 		cancel() {
+			const restore = cancellationRecovery();
 			clearAllTimers();
 			const knownDraftIds = new Set([
 				...pending.keys(),
 				...latestRevision.keys(),
-				...generations.keys()
+				...generations.keys(),
+				...[...suspensions].flatMap((suspended) => [...suspended.keys()])
 			]);
 			pending.clear();
 			latestRevision.clear();
+			committedGenerations.clear();
 			for (const draftId of knownDraftIds) {
 				generations.set(draftId, generationFor(draftId) + 1);
 			}
+			if (checkpointWritten) checkpoint();
 			lastSettledStatus = 'idle';
 			refreshStatus();
+			return restore.restore;
 		},
 
 		cancelDraft(draftId) {
+			const restore = cancellationRecovery(draftId);
 			clearDraftTimer(draftId);
 			pending.delete(draftId);
 			latestRevision.delete(draftId);
+			committedGenerations.delete(draftId);
 			generations.set(draftId, generationFor(draftId) + 1);
+			if (checkpointWritten) checkpoint();
 			if (pending.size === 0) {
 				lastSettledStatus = 'idle';
 			}
 			refreshStatus();
+			return restore.restore;
 		},
 
 		/**
@@ -290,10 +494,12 @@ export function createAutosaveController(
 		 */
 		noteDraftLoaded(draftId) {
 			latestRevision.delete(draftId);
+			committedGenerations.delete(draftId);
 		},
 
 		status() {
 			return currentStatus;
 		}
 	};
+	return controller;
 }

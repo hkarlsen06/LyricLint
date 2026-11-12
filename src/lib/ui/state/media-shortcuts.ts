@@ -1,4 +1,5 @@
 import { browser } from '$app/env';
+import { modalOwnsEscape } from '#lib/interaction/dismiss.js';
 import type { TransportAction } from './media-player.svelte.js';
 
 /**
@@ -114,7 +115,7 @@ export function matchTransportAction(
  * a find, end a sync run, reset the draft's name. Each of those claims the
  * event by preventing its default or stopping its propagation. So the binding
  * reads `defaultPrevented` and stands down, and it stands down for an open modal
- * by the press's target rather than by the flag, because a native `<dialog>`
+ * by modal state rather than by the flag, because a native `<dialog>`
  * closes on Escape without reliably marking the keydown. What is left, an
  * Escape with nothing above it to close, is the case this exists for: the caret
  * is just sitting in the document, and the tape needs to stop.
@@ -126,16 +127,6 @@ export function matchEscapeAction(event: TransportKeyEvent): TransportAction | u
 	if (event.altKey) return 'forward';
 	if (event.shiftKey) return 'back';
 	return 'toggle';
-}
-
-/**
- * Whether the press landed inside a modal that owns Escape for its own close.
- * A native `<dialog>` and a Bits UI dialog (`role="dialog"`) both close on
- * Escape, and the first does it without setting `defaultPrevented`, so this is
- * read off the target, which is trapped inside the open dialog either way.
- */
-function targetInDialog(target: EventTarget | null): boolean {
-	return target instanceof Element && target.closest('dialog, [role="dialog"]') !== null;
 }
 
 /**
@@ -294,9 +285,9 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 	}
 
 	// Escape and Shift+Escape are the reach-for keys, and unlike the triad they
-	// defer to everything: this listener is in the bubble phase, so every
-	// surface-level Escape handler in the window has already run and either
-	// prevented the default or stopped the event before it arrives here. What
+	// defer to surfaces: this window-bubble fallback runs after target and
+	// document handlers have prevented the default or stopped the event.
+	// Transient surfaces use that earlier phase rather than window binding order. What
 	// reaches this is an Escape nobody else wanted, the caret sitting in the
 	// document, which is precisely the press that means "stop the tape".
 	function handleEscape(event: Event): void {
@@ -308,8 +299,8 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 		const action = matchEscapeAction(keystroke);
 		if (action === undefined) return;
 		// A modal owns Escape for its own close, and a native dialog does it
-		// without marking the event; read that off the target, not the flag.
-		if (targetInDialog(keystroke.target)) return;
+		// without marking the event, including after its focused control is removed.
+		if (modalOwnsEscape(keystroke.target)) return;
 		// Held down, a back is a scrub worth having; held down, the pause would
 		// start and stop the track dozens of times a second, exactly as the
 		// triad's toggle would.

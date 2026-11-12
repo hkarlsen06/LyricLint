@@ -62,6 +62,8 @@ import {
 	unknownUnresolvedRule
 } from './catalog/unknown-marker.js';
 import { sourceRegistry } from './data/sources.js';
+import { profileSourceRegistry } from '#lib/profiles/sources.js';
+import { musixmatchRules } from './musixmatch.js';
 
 export const enabledRules: readonly RuleDefinition[] = [
 	syntaxUnbalancedBracketsRule,
@@ -126,6 +128,17 @@ export const enabledRules: readonly RuleDefinition[] = [
 	numbersDecadeApostropheRule
 ];
 
+/** General transcription checks retain their existing IDs, sources and fix ownership. */
+export const sharedTranscriptionRules: readonly RuleDefinition[] = [
+	syntaxUnbalancedParenthesesRule,
+	textInvisibleCharactersRule,
+	textMultipleSpacesRule,
+	punctuationParenthesisSpacingRule,
+	contractionApostropheRule,
+	grammarEnglishPronounIRule,
+	spellingEnglishCommonRule
+];
+
 /** Validate uniqueness and reviewed provenance for every enabled rule. */
 export function validateRuleRegistry(
 	rules: readonly RuleDefinition[] = enabledRules,
@@ -155,9 +168,44 @@ export function validateRuleRegistry(
 }
 
 validateRuleRegistry();
+validateRuleRegistry(musixmatchRules, profileSourceRegistry);
 
-const ruleById = new Map(enabledRules.map((rule) => [rule.id, rule]));
+const ruleById = new Map([...enabledRules, ...musixmatchRules].map((rule) => [rule.id, rule]));
 
 export function getRule(id: string): RuleDefinition | undefined {
 	return ruleById.get(id);
 }
+
+/** Rules whose claims or candidate selection depend on the selected language. */
+export const languageDependentGeniusRules = new Set([
+	'language.selection-mismatch',
+	'section.header-prose',
+	'section.deprecated-hook',
+	'section.header-unrecognized',
+	'section.header-missing',
+	'section.header-empty',
+	'section.header-language',
+	'section.localized-header-preference',
+	'section.unlinked-repeat',
+	'section.verse-numbering',
+	'spelling.standardized',
+	'spelling.language-variant',
+	'spelling.texting-shorthand',
+	'contraction.apostrophe',
+	'grammar.english-pronoun-i',
+	'spelling.english-common',
+	'spelling.norwegian-common',
+	'spelling.german-common',
+	'grammar.spanish-contractions',
+	'spelling.spanish-common',
+	'spelling.french-common',
+	'spelling.arabic-common',
+	'spelling.japanese-common',
+	'spelling.korean-common',
+	'symbols.special-characters',
+	'quotes.typewriter',
+	'capitalization.line-start',
+	'numbers.spell-out',
+	'numbers.decade-apostrophe',
+	'performer.collective-identifier'
+]);

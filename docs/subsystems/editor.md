@@ -4,9 +4,118 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 `src/lib/editor/extensions/clipboard-metadata.ts`, `src/lib/editor/create-editor.ts`
 (`audioFileDrop`, `createCallbackProxy`), `src/lib/editor/extensions/update-bridge.ts`,
 `src/lib/editor/extensions/editor-state.ts`, context-derived decoration fields,
-`src/lib/editor/contracts.ts`
+`src/lib/editor/contracts.ts`, `src/lib/conversion/`,
+`src/lib/editor/extensions/conversion-state.ts`, `src/lib/editor/extensions/conversion-sections.ts`
 
 ## The rules
+
+- Each draft owns one main writing format, fixed after original content or semantic formatting
+  begins, including after clearing the lyrics. Only an untouched new draft offers inline
+  creation choices. The last deliberate choice is the `newDraftProfile` preference; opening
+  or importing a saved draft never changes it. Legacy records use their saved conversion
+  profile, or Genius when absent, regardless of retained model ancestry.
+- The populated toolbar names the main format, copies its exact text, and offers Export to
+  the other format. The native export dialog edits independent plain output, never editor
+  history, source metadata or selection. Copy and Download use the exact edited output.
+  Edited output persists per draft until a real original text, formatting, language, roster,
+  anchor or link change. Selection, title, ignored findings and playhead do not expire it.
+  Invalidation happens before constructing the complete saved snapshot; Undo cannot restore
+  an expired copy. Target generation uses pure `planProfileSwitch` without upgrading primary
+  storage. Historical live switching decisions below are superseded for the application UI;
+  the pure conversion engine and editor history APIs remain internal.
+- A plain draft's explicit main profile remains authoritative when rich initialization is
+  refused by a conversion limit. Musixmatch bracket and tag text stays literal in the editable
+  fallback; parsing, clipboard attachment and later retained-detail imports use that same
+  source profile. Opening reports the refusal without replacing the original text or claiming
+  a Genius envelope. Shortening the source can make its retained operations available again.
+
+- A rich draft's section boundary (`conversion-sections.ts`) is drawn as structure: its name
+  in the small semibold UI face on the lyric column, then a hairline rule in `--color-border`
+  running to the editor measure. The name's own `--color-surface` hides the stretch of rule
+  it stands on, and it keeps its quiet-button hit area and hover fill. The rule is a
+  pseudo-element of the widget row, so nothing reaches the document or the clipboard.
+- The caret's line number takes the accent and the semibold weight: the editor's one
+  current-state mark, in the color the open tool and the open finding use.
+
+- Native non-pointer focus synchronizes the DOM selection through `EditorView.focus()`
+  before the next key can edit. Pointer entry retains native placement and an active
+  composition retains its own selection. The focus extension keeps this handoff local
+  to the editor; profile changes never focus the editor or change lyrics for it.
+  `native-focus.svelte.test.ts` pins synchronous entry and the pointer/composition boundaries.
+
+- Complete Genius header discovery precedes source reconciliation in the committed editor
+  transaction. Invertible performer effects update the editor context as well as the shell
+  roster before a snapshot publishes, so consecutive native edits and history do not depend
+  on a later shell refresh. Composition waits for its existing committed boundary.
+  `named-performer-discovery.svelte.test.ts` pins controller, renderer and history together.
+
+- Rich main drafts keep one `ConversionDocument`. `renderProfile` derives Genius or Musixmatch text
+  without allocating IDs, changing authored forms, applying lint fixes or mutating metadata.
+  Repeated internal profile switches preserve each projection byte for byte; main edits reconcile through the
+  projection's exact ranges. Malformed or ambiguous syntax stays literal. A failed reconciliation
+  preserves the latest typed text and the last valid checkpoint separately for recovery.
+- `conversion-state.ts` commits text, model, selection, timing and links atomically. Internal switching is
+  isolated in undo history, including text-identical views; choosing the current view is a no-op.
+  IME changes finish before a queued switch. Undo retains the allocator high-water mark, including
+  after save/reload, so a new edit never reuses a retired occurrence's ID. Selection and viewport
+  follow occurrence mappings rather than searching for identical words.
+- Roster-only inverses in rich drafts use that same commit boundary and isolated editor
+  history, with an invertible performer delta. They revalidate affected records and refuse
+  changes to retained voice or legend identities. A roster Undo cannot leave older lyric
+  Undo/Redo able to restore an association without its performer record.
+- Displaced section boundaries stay retained metadata with a range-free placement finding. Genius
+  withholds their generated headings and Musixmatch withholds their widgets until explicit placement
+  at an eligible lyric line start. Literal partial headers remain exact shared text.
+- Musixmatch section boundaries are editor widgets backed by stable retained IDs. Their controls
+  open Song details; they never become copied text. Voice decorations update in the same editor
+  transaction as the projection so a native caret cannot jump during asynchronous shell updates.
+  Retained Genius headings and their Musixmatch controls reserve matching section rows, including separate
+  rows for coincident empty sections. Heading syntax uses the mono face and character wrapping;
+  a hidden sizing layer preserves its wrapping height in Musixmatch without adding lyrics.
+  Literal bracket lines, including nameless headers and headers authored as Musixmatch lyrics,
+  keep ordinary lyric-row geometry; their brackets inherit the lyric face.
+  Coarse-pointer rows retain the control touch floor. The workbench's persistent Section action
+  replaces in-document headerless helper rows, which would otherwise appear only in Genius.
+  `conversion.svelte.test.ts`, `conversion-identities.svelte.test.ts`,
+  `conversion-history.svelte.test.ts` cover internal switching, undo, native typing, selection
+  and scrolled passage continuity. `e2e/profile-workbench.spec.ts` covers fixed primaries,
+  independent export, source history, reload and native typing through the application UI.
+- Censored-word tasks accept the complete starred token in Musixmatch after explicit audible-prefix
+  and audio-cutoff confirmation. The original starred spelling stays retained for Genius. The
+  decision's profile names its source representation, so removing a mask decision restores that mask.
+- Explicit semantic decisions use `resolveDecision` for both preview and commit. Range decisions
+  cannot cut through a retained wording's transformed unit. Ambiguous selections refuse before
+  changing any form, preserving surrounding lyrics for direct editing. Quantities require a complete
+  selection, role and pronunciation; intervals require adjacent confirmed
+  section types and recording-bound listening facts. The engine's same-line repeat operation requires independently
+  selected lyric and notation ranges, count and separator. Additional occurrences receive fresh
+  untimed identities without copied annotations or voices. None of these decisions is inferred
+  merely by changing format. Diagnostic decisions open focused tasks in Review and invalidate stale previews.
+  Standalone repeat placeholders use an explicitly chosen earlier section and fresh-copy count.
+  The separate same-line operation has no workbench entry point; transcribe these repetitions directly.
+	When a Musixmatch replacement clips an annotation edge, its delimiters follow the surviving
+	words and leave separator whitespace outside. Nested syntax stays within that attachment;
+	empty children keep their identities at its nearest surviving boundary. The lyric text stays
+	exact, and enclosed or unrelated edits preserve authored annotation spacing.
+
+- Rich selection copies use clipboard metadata version 2 with a validated conversion fragment
+  and only its referenced performer identities. The exact `text/plain` flavor must match the
+  fragment's active projection. A copied fragment contains wholly selected wrappers and sections,
+  selected language ranges, and owned timing/link records; neighboring hidden lyrics and names
+  never travel. A partial generated delimiter falls back to the exact selected text.
+- Same-profile carrying pastes attach the validated fragment and allocate fresh record identities
+  in one editor transaction. Performer ID collisions are remapped deterministically and the shell
+  receives additions before the snapshot. The fragment keeps its default and explicit passage
+  languages; receiving language ranges remain unchanged outside the pasted passage.
+  Foreign-profile payloads preserve the exact pasted text
+  and hold incompatible metadata for explicit review in Song. The passage preview names its source
+  format and shows the exact receiving-format text; Apply commits text and details together, while
+  Keep current text discards the pending metadata. A deliberate Interpret as Genius/Musixmatch
+  action uses this same preview and commit path for selected ordinary text. Pending reviews map
+  through outside edits, including insertions and deletions adjacent to its boundaries, and
+  invalidate when the passage is touched or the profile changes; undo
+  restores the previous reviewed basis. Rich attachment that cannot preserve
+  the exact projection uses the ordinary text paste and reports that its details were withheld.
 
 - Section-header choices follow a fixed typical song progression, with more common section
   types first at the same stage. Search only filters that sequence. Draft contents and the
@@ -42,6 +151,13 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   Review navigation and focus. Nonempty selections
   and composition retain their editing behavior. `e2e/mobile-workbench.spec.ts` pins the
   mobile route; `EditorPane.svelte.test.ts` retains the desktop hover coverage.
+
+- The empty-document ghost uses a natural-width inline-block one line high, with visible
+  overflow for its localized rows. Keep it in flow: Chromium bulk multiline input beside
+  an absolute or zero-width widget can leave a nonterminal BR that becomes an extra
+  document newline. Native and drawn carets remain one row tall; placeholder rows never
+  become lyric or clipboard text. `e2e/placeholder-input.spec.ts` pins exact insertion,
+  including intentional terminal breaks.
 
 - Devices whose primary pointer is coarse keep a visible native caret and selection handles;
   the custom desktop caret layer is hidden with `(pointer: coarse)`. A fine-primary-pointer
@@ -101,7 +217,59 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `contentDOM`. The affordance is an inset outline on the editor's own edge, never a box.
   `audio-drop.svelte.test.ts` asserts both halves.
 
+- Profile passage restoration rounds scroll movement symmetrically at the browser's native scroll
+  precision in CodeMirror's public measurement phase. It keeps no reading anchor between changes:
+  each switch captures the current passage, including after user scrolling or layout changes.
+  The expected post-conversion state and editor input revision are captured when scheduling.
+  Intervening wheel, touch, pointer or keyboard input cancels restoration; CodeMirror's own
+  layout clamping does not. Later movement during measurement still cancels the pending write.
+  Known fractional widget heights can otherwise accumulate native scrollTop rounding bias;
+  `conversion-scroll.svelte.test.ts` covers that independently of widget estimation.
+- Viewport continuity captures geometry only while the editor is in view and visible.
+  Phone Tools keeps the editor mounted but hidden; internal profile transactions preserve the
+  document and history without capturing stale layout as a new scroll target. Clearing
+  retains the explicit profile and removes lyrics and retained details in one history event.
+  `conversion.svelte.test.ts` and `e2e/mobile-workbench.spec.ts` cover clear and history.
+
+- English Genius-owned backing-vocal openings such as `(Yeah)`, `(Oh yes I am)` and `(Whatever)` lowercase
+  in Musixmatch through the same conservative primitive as the native finding. Genius source
+  bytes, explicit target spellings, names, pronouns and sentence starts remain retained.
+  Saved model converter versions 1 and 2 keep their rendering on load. Creating a Musixmatch
+  export uses the current version without modifying the main model. At the internal editor
+  boundary, a profile switch adopts version 3 in one history event and Undo restores the prior
+  version and text.
+  `backing-vocal-case.test.ts` and `conversion.svelte.test.ts` cover old envelopes and Scribe reload.
+
+- Hidden editor document changes retain CodeMirror's bounded viewport validation. A large
+  insertion must not map the previous whole-document viewport into thousands of mounted
+  offscreen lyric lines. The local `@codemirror/view` patch removes its hidden-view bypass;
+  normal height-map, selection and scroll-target handling remain in that owner.
+  Revealing the editor still reaches the exact final line. Pin: `conversion.svelte.test.ts`.
+
 ## Decision record
+
+### Profile history retains explicit selections and maps the visible passage
+
+CodeMirror history normally derives Redo's selection by mapping the pre-change selection
+through the edit. A whole-document projection replacement collapses a selected range to a
+caret. `conversion-state.ts` inverts the complete selection only for profile transitions,
+including their history replays. History bypasses transaction filters, so
+`dispatchConversionTransactions` applies that selection without adding a history event,
+in the same view update as the restored text and model. The shell receives one settled snapshot.
+Ordinary typing retains CodeMirror's own selection history. A composition's final model update
+uses `input.type.compose` to join its native text edits instead of adding a metadata-only undo.
+
+The same dispatch path maps a visible text position through the two projections for direct
+switches, Undo and Redo, retaining its measured text inset even when the caret is elsewhere.
+A logical line block can include a section widget or several screens of wrapped lyrics; its
+inset cannot be passed as a caret margin, which CodeMirror clamps to the viewport height.
+At the visible document start a native scroll snapshot preserves the first block and its widgets.
+Hidden phone Tools has no reading position to preserve. Its stale line geometry can yield
+a snapshot beyond a shorter projection, so hidden switches skip viewport capture entirely.
+The former switch-only measurement could also read stale geometry after replacement and reset
+a long document to the top. `conversion-history.svelte.test.ts` covers both profile directions,
+repeated history, native typing and IME, multiple selections, text-identical switches, deep
+wrapped lines and distant repeated passages beside section widgets.
 
 ### Section-header choices keep a fixed song progression
 
@@ -443,3 +611,38 @@ local exclusions even where their text still matches. Re-running discovery on a 
 silently reconnect those words. If rejecting an out-of-fragment hole leaves unequal legacy hole
 counts, migration suspends the group's propagation instead of guessing a missing counterpart;
 `clipboard-metadata.svelte.test.ts` exercises both matching local words and an overshooting column.
+
+### Retained section placement after hidden-boundary edits
+
+A Musixmatch edit can leave a section anchor inside a newly authored line or at EOF after
+its last word. The previous renderer emitted the hidden heading there, splitting words or
+gluing a header onto them. That behavior violated the unresolved-boundary contract.
+`section-placement.ts` now owns placement capability. Reconciliation retains the section ID,
+label and associated records with unresolved placement. Genius withholds generated headings
+until explicit placement, and both profiles expose one metadata finding without a lyric range.
+Partial literal headers remain shared content and are never withheld by this rule.
+Song's existing Move to cursor action repairs placement at an eligible line start; its options
+open for unresolved sections. Moving does not author lyric newlines. Undo restores the task.
+Later Genius edits allocate unique ordering keys for withheld headings alongside parsed syntax.
+Retained voices match their own wrapper occurrence. A hidden next boundary preserves the preceding
+default voice's mapped range and ID while an explicitly edited legend still updates its performer.
+Explicit heading placement orders the heading outside wrappers at the same boundary, preserving
+the order of empty wrapper delimiters.
+A shared line start occupied by closing Genius markup cannot host a heading without changing
+the authored text. Placement refuses that boundary. Styled passages owned by a withheld section
+retain that section's performer; reparsing the preceding visible legend does not reassign them.
+A styled wrapper can carry several performer groups. Reconciliation retains that complete
+assignment group once per wrapper, independently of the preceding visible legend's group count.
+An unassigned retained style in a withheld section stays unassigned. A previous section's
+legend cannot supply missing attribution during a later Genius edit.
+An empty style at a shared section boundary belongs to the heading before its syntax,
+determined by delimiter order. Import and later edits use the same ownership check, so a
+following section's explicit legend edit still applies to its own empty styles.
+
+The storage envelope pins renderer 2, independently of model schema/converter 1. Renderer-1
+rich envelopes upgrade only when their exact saved projection matches the corrected renderer.
+Compatible prior drafts retain all rich metadata. A prior Genius save containing a heading
+inside a word cannot meet both exact saved-text validation and corrected rendering. It remains
+unreadable as a live rich draft, with its original preserved through the existing recovery path;
+no validator bypass, plain-text downgrade or guessed migration is performed. Old Musixmatch
+projections remain compatible. Scribe uses the same envelope validation.

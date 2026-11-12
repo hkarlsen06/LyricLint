@@ -275,6 +275,36 @@ describe('LinkingDetail', () => {
 		await expect.element(page.getByRole('checkbox', { name: /^Chorus 3/ })).not.toBeChecked();
 		expect(view.container.textContent).not.toContain('This section');
 	});
+	it('unlinks a named member directly from overview Manage without changing selected wording', async () => {
+		const { onApply } = await setup(
+			{ fromOverview: true, initialSelected: [20, 40] },
+			false,
+			false
+		);
+		await page.getByRole('checkbox', { name: /^Chorus 2/ }).click();
+		await page.getByRole('checkbox', { name: /^Chorus 3/ }).click();
+		await page.getByRole('button', { name: 'Unlink Chorus 2', exact: true }).click();
+		expect(onApply).toHaveBeenCalledWith({
+			headers: [20],
+			keepDifferent: [],
+			replaceFromByDifference: []
+		});
+	});
+	it('keeps ordinary member names on one line beside named unlink actions on a phone', async () => {
+		await page.viewport(360, 900);
+		try {
+			const { view } = await setup({ fromOverview: true, initialSelected: [20, 40] }, false, false);
+			view.container.style.width = '296px';
+			await document.fonts.ready;
+			for (const name of view.container.querySelectorAll('.member__name')) {
+				const range = document.createRange();
+				range.selectNodeContents(name);
+				expect(range.getClientRects().length).toBe(1);
+			}
+		} finally {
+			await page.viewport(800, 600);
+		}
+	});
 
 	it('uses comparedHeaders as preview selection independently of existing membership', async () => {
 		const { onApply } = await setup({

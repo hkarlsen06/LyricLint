@@ -4,8 +4,8 @@ import type { AssistantCorpus } from './rules-context';
 export const corpus = {
 	formatVersion: 6,
 	ruleSetVersion: '2026.11.11.0',
-	generatedAt: '2026-11-11T02:25:17.984Z',
-	contentHash: '1430007695150da29d8d2d984b5135c82f725be292cf86d57b7802a0cd043eb1',
+	generatedAt: '2026-11-12T19:20:01.948Z',
+	contentHash: '5564a4c8f84c94560abca1014c0b2d1a7c583154f0e06b53a1709298775e443f',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -34,7 +34,7 @@ export const corpus = {
 			severity: 'warning',
 			message: 'This parenthesis is never closed.',
 			explanation:
-				'Parentheses wrap a vocal sitting behind the lead, so every opening mark needs its closing half on the same line. Detecting the imbalance is a product-safety check derived from that convention, not an explicit Genius catalog of every malformed case. Where the mark should close is a judgment about the vocal, so no automatic repair is offered.',
+				'Parentheses wrap a vocal sitting behind the lead, so every opening mark needs its closing half on the same line. Detecting the imbalance is a product-safety check derived from that convention, not an explicit platform catalog of every malformed case. Where the mark should close is a judgment about the vocal, so no automatic repair is offered.',
 			fix: 'none',
 			language: 'en',
 			flaggedExample: '[Verse]\nHold me close (Yeah',
@@ -756,7 +756,7 @@ export const corpus = {
 			severity: 'warning',
 			message: 'This line ends with invisible whitespace.',
 			explanation:
-				'Trailing spaces survive a copy into Genius without ever being visible in the editor. Removing them changes nothing a reader can see, and the parser already treats a whitespace-only line as a blank one, so no section boundary moves.',
+				'Trailing spaces survive copying without ever being visible in the editor. Removing them changes nothing a reader can see, and the parser already treats a whitespace-only line as a blank one, so no section boundary moves.',
 			fix: 'safe',
 			fixLabel: 'Remove trailing whitespace',
 			language: 'en',
@@ -774,7 +774,7 @@ export const corpus = {
 			severity: 'suggestion',
 			message: 'Use one space between these words.',
 			explanation:
-				'Consecutive ordinary spaces between words are mechanically detectable formatting residue. Genius does not state an exact one-space rule, so LyricLint treats this as a text-hygiene suggestion.',
+				'Consecutive ordinary spaces between words are mechanically detectable formatting residue. LyricLint offers this as a text-hygiene suggestion, not a platform rule about every intentional space.',
 			fix: 'safe',
 			fixLabel: 'Use one space',
 			language: 'en',
@@ -967,9 +967,9 @@ export const corpus = {
 			group: 'punctuation',
 			groupTitle: 'Punctuation',
 			severity: 'warning',
-			message: 'Lyric lines should not end with a period.',
+			message: 'Consider removing the final period.',
 			explanation:
-				'Apple Music lyric guidance explicitly excludes commas and periods at line endings. The current Genius guide separately requires question marks for questions and uses exclamation marks for excitement, but does not state the same blanket ban. Removal is preview-only so quotations, abbreviations, and intentional delivery remain reviewable.',
+				'Apple Music excludes final commas and periods; Genius does not state a blanket ban. Keep punctuation needed for quotations, abbreviations or intentional delivery.',
 			fix: 'preview',
 			fixLabel: 'Remove the period',
 			language: 'en',
@@ -1023,7 +1023,7 @@ export const corpus = {
 			severity: 'warning',
 			message: 'Add a space before this parenthesis.',
 			explanation:
-				'A parenthesized vocal is a word of its own, so the parenthesis does not sit flush against the letter beside it. Inserting the space is mechanically safe. This spacing check is derived from how the reviewed ad-lib examples are set, not an explicit Genius rule.',
+				'A parenthesized vocal is a word of its own, so the parenthesis does not sit flush against the letter beside it. Inserting the space is mechanically safe. This spacing check is derived from how the reviewed ad-lib examples are set, not an explicit platform rule.',
 			fix: 'safe',
 			fixLabel: 'Add a space',
 			language: 'en',
@@ -2980,16 +2980,16 @@ export const corpus = {
 	harper: {
 		ruleIds: ['spelling.harper', 'style.harper', 'grammar.harper'],
 		behavior:
-			'Alongside the reviewed Genius rules, LyricLint runs Harper, a local English proofreader, in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper, always suggestions, always citing Harper itself (T-HARPER) rather than a Genius guideline, and a native reviewed rule always wins where the two overlap.',
+			'Alongside the active lyric-format rules, LyricLint runs Harper, a local English proofreader, in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper, always suggestions, always citing Harper itself (T-HARPER) rather than a platform guideline, and a native reviewed rule always wins where the two overlap.',
 		limitations: [
 			'English only; it does not run for the other reviewed languages.',
-			'Its suggestions are general proofreading, not reviewed Genius policy, and have no reference pages.',
+			'Its suggestions are general proofreading, not reviewed platform policy, and have no reference pages.',
 			'Prose-assuming readability measures are filtered out, because lyrics use deliberate fragments, dialect, repetition, and nonstandard spelling.',
-			"It is seeded with the reviewed preferred spellings and the 'scribe’s performer names so it does not fight the Genius-specific rules."
+			"It is seeded with the active profile’s reviewed preferred spellings and the 'scribe’s performer names; Genius-specific spellings are not imported for Musixmatch."
 		]
 	},
 	policyNotes: [
-		"Policy\nLyricLint does not claim that a rule is authoritative merely because it appears on a Genius page.\n\nA production lint rule requires:\n\n- An exact policy-source URL. Any behavior described as a Genius rule requires an exact Genius\n  URL or annotation ID.\n- A locally stored source title and rule paraphrase.\n- A last-verified date.\n- Human review of the interpretation.\n- Tests covering valid, invalid, and ambiguous examples.\n\nCommunity annotations can change. Rule data is versioned, reviewed, and bundled with the application. Live scraping is not part of the editing path.\n\nThe content-language mismatch check is a product-safety diagnostic rather than\na Genius policy claim. It uses a bundled statistical detector, runs locally,\nand links to the detector implementation as tooling provenance.\n\nThe line-ending comma/period check is cross-platform guidance, not a direct Genius policy\nclaim. Apple Music for Artists explicitly disallows both marks at the end of a lyric line.\nGenius's current verified guide does not state that blanket ban; its punctuation annotation\ninstead requires question marks for questions and reserves exclamation marks for excitement.\nLyricLint records both sources and keeps removal preview-only.\n\nThe blank-line-before-header check is a LyricLint readability suggestion, not a direct Genius\npolicy claim. The reviewed Genius source establishes that headers sit above distinct song parts\nbut does not explicitly require an empty line before each header. The check on a run of more than\none blank line between parts is the same suggestion read from the other side, and is a preference\nfor the same reason: the reviewed source is silent on how many empty lines a separator holds.\n\nThe texting-shorthand check is a LyricLint reading of two reviewed Genius sources rather than a\ndistinct annotation of its own. No verified Genius page names `idk` or `ur`. What the sources do\nestablish is that lyrics use standardized spellings and reflect what is actually sung, and\nwritten-only shorthand is neither: the letters are a way of writing words the vocal performs in\nfull. The rule therefore stays a suggestion with preview-only fixes, and it is deliberately silent\non initialisms that are themselves said aloud, where expanding one would assert something about\nthe delivery that no source supports.",
+		"Policy\nLyricLint does not claim that a rule is authoritative merely because it appears on a Genius page.\n\nA production lint rule requires:\n\n- An exact policy-source URL. Any behavior described as a Genius rule requires an exact Genius\n  URL or annotation ID.\n- A locally stored source title and rule paraphrase.\n- A last-verified date.\n- Human review of the interpretation.\n- Tests covering valid, invalid, and ambiguous examples.\n\nCommunity annotations can change. Rule data is versioned, reviewed, and bundled with the application. Live scraping is not part of the editing path.\n\nThe content-language mismatch check is a product-safety diagnostic rather than\na Genius policy claim. It uses a bundled statistical detector, runs locally,\nand links to the detector implementation as tooling provenance.\n\nThe line-ending comma/period check is cross-platform guidance, not a direct Genius policy\nclaim. Apple Music for Artists explicitly disallows both marks at the end of a lyric line.\nGenius's current verified guide does not state that blanket ban; its punctuation annotation\ninstead requires question marks for questions and reserves exclamation marks for excitement.\nLyricLint records both sources, presents removal as a consideration, and keeps it preview-only.\n\nThe blank-line-before-header check is a LyricLint readability suggestion, not a direct Genius\npolicy claim. The reviewed Genius source establishes that headers sit above distinct song parts\nbut does not explicitly require an empty line before each header. The check on a run of more than\none blank line between parts is the same suggestion read from the other side, and is a preference\nfor the same reason: the reviewed source is silent on how many empty lines a separator holds.\n\nThe texting-shorthand check is a LyricLint reading of two reviewed Genius sources rather than a\ndistinct annotation of its own. No verified Genius page names `idk` or `ur`. What the sources do\nestablish is that lyrics use standardized spellings and reflect what is actually sung, and\nwritten-only shorthand is neither: the letters are a way of writing words the vocal performs in\nfull. The rule therefore stays a suggestion with preview-only fixes, and it is deliberately silent\non initialisms that are themselves said aloud, where expanding one would assert something about\nthe delivery that no source supports.",
 		'Reviewed guidance without a text-only diagnostic\n- Quotation marks depend on whether a phrase names a song, quotes speech, or refers to a word.\n- Pronunciation depends on the recording; the linter can only keep affected spelling fixes out of bulk fixing.\n- `[Instrumental]` is already a recognized section name, but only song-page metadata can establish that the whole track is instrumental.\n- Translation and romanization separation is page-level metadata, not a property of the canonical lyric string.'
 	]
 } satisfies AssistantCorpus;

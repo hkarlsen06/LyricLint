@@ -102,6 +102,7 @@
 .button--contrast {
 	border-color: var(--color-text);
 	background: var(--color-text);
+	box-shadow: var(--shadow-contrast);
 	color: var(--color-canvas);
 }
 
@@ -137,6 +138,77 @@
 	margin-inline: calc(-1 * var(--control-padding-inline));
 }
 
+/*
+ * A segmented control: mutually exclusive choices on one shallow track, the
+ * chosen one raised out of it, as Geist's Switch and the iOS segmented control
+ * draw it. The segments are ordinary buttons, so the tiers still decide the
+ * look: the chosen segment wears the default tier (filled, ringed), the rest
+ * the quiet tier. The raise is the shape cue and `aria-pressed` the accessible
+ * one; color carries neither. The track keeps the control's own corner plus
+ * its inset, so the nested corners stay concentric.
+ */
+.segmented {
+	display: inline-flex;
+	flex: none;
+	padding: var(--space-0-5);
+	border-radius: calc(var(--radius-control) + var(--space-0-5));
+	gap: var(--space-0-5);
+	align-items: stretch;
+	background: var(--color-track);
+	box-shadow: var(--shadow-track);
+}
+.segmented > .button {
+	min-height: var(--control-height-sm);
+	white-space: nowrap;
+}
+.segmented > .button--quiet:not(:disabled) {
+	color: var(--color-text-muted);
+}
+.segmented > .button--quiet:hover:not(:disabled) {
+	background: var(--color-fill);
+	color: var(--color-text);
+}
+/*
+ * A disclosure row. The browser's triangle is a glyph from a different type
+ * system than every icon around it, so the row draws its own chevron from two
+ * borders in the text color: it points at the content while closed and turns
+ * down when the content is below it.
+ */
+.disclosure > summary {
+	display: flex;
+	min-height: var(--control-height-md);
+	gap: var(--space-2);
+	align-items: center;
+	list-style: none;
+}
+.disclosure > summary::-webkit-details-marker {
+	display: none;
+}
+.disclosure > summary::before {
+	flex: none;
+	width: 0.42em;
+	height: 0.42em;
+	margin-inline: 0.2em 0.12em;
+	border-right: calc(1.5 * var(--border-width)) solid currentColor;
+	border-bottom: calc(1.5 * var(--border-width)) solid currentColor;
+	content: '';
+	rotate: -45deg;
+	translate: 0 -0.04em;
+}
+.disclosure[open] > summary::before {
+	rotate: 45deg;
+	translate: 0 -0.16em;
+}
+.disclosure > summary:hover {
+	color: var(--color-text);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.disclosure > summary::before {
+		transition:
+			rotate var(--duration-fast) var(--ease-out-quart),
+			translate var(--duration-fast) var(--ease-out-quart);
+	}
+}
 /* Form fields follow the button tier: the ring in `--shadow-control` is the
    resting boundary, and the focus ring is the strong one: a field is where
    the focus outline is guaranteed to arrive the moment it matters. */
@@ -179,17 +251,28 @@ textarea:disabled {
  * and `.icon-button` because the touch floors in `responsive-shared.css` and
  * `responsive.css` size all three together. Scoped into the panel, the chip would
  * tie those floors on specificity and its size would hang on stylesheet order.
- * A pill radius is right here and only here: this is a categorical chip, never
- * an action button.
+ *
+ * It is a two-line tile: the kind's mark and its count on the first line, its
+ * name under both. Four names on one line need about 430px and the panel gives
+ * 330, so a row of one-line pills wrapped and left the last kind alone on a
+ * second line. Stacked, all four kinds fit one row at every panel width, and
+ * the count is the thing read first. The name never wraps or truncates: this
+ * row is the one place that pairs the four marks with their names.
  */
 .filter-chip {
-	display: inline-flex;
+	display: inline-grid;
 	min-height: var(--control-height-sm);
-	padding: var(--space-0-5) var(--space-2-5);
+	padding: var(--space-1-5) var(--space-2-5) var(--space-1-5) var(--space-2);
 	border: var(--border-width) solid transparent;
-	border-radius: var(--radius-pill);
-	gap: var(--control-gap);
+	border-radius: var(--radius-control);
+	grid-template-columns: auto 1fr;
+	grid-template-areas:
+		'mark count'
+		'name name';
+	gap: var(--space-0-5) var(--space-1-5);
+	align-content: center;
 	align-items: center;
+	justify-items: start;
 	background: transparent;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
@@ -199,6 +282,27 @@ textarea:disabled {
 		background-color var(--duration-fast) var(--ease-out-quart),
 		color var(--duration-fast) var(--ease-out-quart),
 		border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.filter-chip > .severity-icon {
+	grid-area: mark;
+}
+
+.filter-chip__label {
+	font-size: var(--font-size-2xs);
+	white-space: nowrap;
+	grid-area: name;
+}
+
+/* The count is what pressing the tile puts back, so it is the largest thing on
+   it. A kind with nothing in it draws no tile rather than printing a zero. */
+.filter-chip__count {
+	min-width: 1ch;
+	font-size: var(--font-size-md);
+	font-weight: var(--font-weight-semibold);
+	font-variant-numeric: tabular-nums;
+	line-height: var(--line-height-tight);
+	grid-area: count;
 }
 
 .filter-chip:hover {
@@ -235,24 +339,35 @@ textarea:disabled {
 	color: var(--color-text);
 }
 
+/* A pressed chip is a tint of its kind with the label in the text color and
+   the kind's color on its mark alone: a whole row of colored words read as
+   four alarms rather than a legend. Fill against dashed outline is the state. */
 .filter-chip--error[aria-pressed='true'] {
 	background: var(--color-danger-soft);
-	color: var(--color-danger);
 }
-
 .filter-chip--warning[aria-pressed='true'] {
 	background: var(--color-warning-soft);
-	color: var(--color-warning);
 }
-
 .filter-chip--suggestion[aria-pressed='true'] {
 	background: var(--color-suggestion-soft);
-	color: var(--color-suggestion);
 }
-
 .filter-chip--manual-review[aria-pressed='true'] {
 	background: var(--color-manual-soft);
+}
+.filter-chip--error .severity-icon {
+	color: var(--color-danger);
+}
+.filter-chip--warning .severity-icon {
+	color: var(--color-warning);
+}
+.filter-chip--suggestion .severity-icon {
+	color: var(--color-suggestion);
+}
+.filter-chip--manual-review .severity-icon {
 	color: var(--color-manual);
+}
+.filter-chip[aria-pressed='false'] .severity-icon {
+	color: inherit;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
-	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
@@ -8,14 +7,17 @@
 	import ArrowCounterClockwiseIcon from 'phosphor-svelte/lib/ArrowCounterClockwiseIcon';
 	import { resolve } from '$app/paths';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
-	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import { dismissOnOutside, modalOwnsEscape } from '#lib/interaction/dismiss.js';
 	import AppWordmark from './AppWordmark.svelte';
 	import CompareDialog from './CompareDialog.svelte';
 	import DraftMenu from './DraftMenu.svelte';
 	import LanguagePicker from './LanguagePicker.svelte';
+	import PassageLanguage from '../tools/PassageLanguage.svelte';
+	import ProfilePicker from './ProfilePicker.svelte';
+	import ExportDialog from './ExportDialog.svelte';
 	import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 
 	let {
@@ -28,10 +30,32 @@
 	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
 	let commandsOpen = $state(false);
 	let commandsTrigger = $state<HTMLButtonElement>();
+	let undoButton = $state<HTMLButtonElement>();
+	let redoButton = $state<HTMLButtonElement>();
+
+	async function runHistory(
+		event: MouseEvent & { currentTarget: HTMLButtonElement },
+		redo: boolean
+	) {
+		const button = event.currentTarget;
+		const heldFocus = document.activeElement === button;
+		if (redo) controller.redo();
+		else controller.undo();
+		await tick();
+		if (
+			heldFocus &&
+			button.disabled &&
+			(document.activeElement === button || document.activeElement === document.body)
+		) {
+			const counterpart = redo ? undoButton : redoButton;
+			if (counterpart && !counterpart.disabled) counterpart.focus();
+			else commandsTrigger?.focus();
+		}
+	}
 
 	function closeCommands(event: KeyboardEvent) {
 		if (event.key !== 'Escape' || !commandsOpen || event.defaultPrevented) return;
-		if (event.target instanceof Element && event.target.closest('dialog[open]')) return;
+		if (modalOwnsEscape(event.target)) return;
 		event.preventDefault();
 		commandsOpen = false;
 		commandsTrigger?.focus();
@@ -101,7 +125,6 @@
 		controller.setTitle(input.value);
 	}
 
-	// Same slot, same tier, label following the state, as with `Paste lyrics`.
 	// The confirmation is the button itself, so nothing else has to appear to say
 	// the copy landed; it reverts on its own because there is no other way out.
 	let copied = $state(false);
@@ -140,6 +163,98 @@
 
 <svelte:window onkeydown={closeCommands} />
 
+{#snippet secondaryCommands()}
+	<div
+		class="document-toolbar__secondary"
+		class:document-toolbar__secondary--phone={phone.current}
+		{@attach dismissOnOutside(() => (commandsOpen = false))}
+	>
+		{#if phone.current}
+			<button
+				bind:this={commandsTrigger}
+				type="button"
+				class="button button--quiet"
+				aria-expanded={commandsOpen}
+				aria-controls="document-commands"
+				onclick={() => (commandsOpen = !commandsOpen)}>Document</button
+			>
+		{/if}
+		<div
+			id="document-commands"
+			class="document-toolbar__secondary-actions"
+			class:surface-lift={phone.current}
+			hidden={phone.current && !commandsOpen}
+		>
+			{#if phone.current}
+				<button
+					type="button"
+					class="button button--quiet new-draft-trigger"
+					aria-label="New 'scribe"
+					title="New 'scribe"
+					onclick={() => controller.createDraft()}
+				>
+					<PlusIcon aria-hidden="true" size={16} weight="bold" />
+					New 'scribe
+				</button>
+			{/if}
+			<!-- A hairline divider parts the strip into what the commands act on: the
+			     document's history and language, then its outputs. The format is the
+			     draft's identity, so on desktop it sits by the title instead. -->
+			<!-- The keystrokes already exist in the editor; these are the same two
+		     commands for the pointer, and they act on the document, so they belong
+		     in this strip rather than beside the draft's name. Quiet tier: they are
+		     corrections, not the thing the surface is for. -->
+			<button
+				bind:this={undoButton}
+				type="button"
+				class="{phone.current ? 'button' : 'icon-button'} button--quiet document-toolbar__history"
+				aria-label="Undo"
+				title="Undo"
+				disabled={!controller.snapshot.canUndo}
+				onclick={(event) => runHistory(event, false)}
+			>
+				<ArrowCounterClockwiseIcon aria-hidden="true" size={16} weight="bold" />
+				{#if phone.current}Undo{/if}
+			</button>
+			<button
+				bind:this={redoButton}
+				type="button"
+				class="{phone.current ? 'button' : 'icon-button'} button--quiet document-toolbar__history"
+				aria-label="Redo"
+				title="Redo"
+				disabled={!controller.snapshot.canRedo}
+				onclick={(event) => runHistory(event, true)}
+			>
+				<ArrowClockwiseIcon aria-hidden="true" size={16} weight="bold" />
+				{#if phone.current}Redo{/if}
+			</button>
+			<LanguagePicker
+				language={controller.language}
+				recentLanguages={controller.recentLanguages}
+				onchoose={(tag) => controller.setLanguage(tag)}
+				label="Document language"
+				triggerLabel={phone.current ? 'Document language' : `Document: ${controller.language}`}
+				custom
+				disabled={!!controller.snapshot.conversionRecovery ||
+					!!controller.snapshot.originalRecovery}
+			/>
+			{#if phone.current}<PassageLanguage {controller} controlsOnly />{/if}
+			<!-- Reviewing what the copy will change on the page is the step before
+		     copying it, so it sits beside the action it precedes. The component
+		     gates itself on the document being empty. -->
+			{#if !phone.current && !controller.isEmpty}<span
+					class="document-toolbar__divider"
+					aria-hidden="true"
+				></span>{/if}
+			<CompareDialog
+				{controller}
+				onDismiss={() => (commandsOpen = false)}
+				returnFocus={phone.current ? commandsTrigger : undefined}
+			/>
+		</div>
+	</div>
+{/snippet}
+
 <header
 	class:document-toolbar--phone={phone.current}
 	class="document-toolbar"
@@ -152,11 +267,8 @@
 		<a class="document-toolbar__home" href={resolve('/(site)')} aria-label="LyricLint home">
 			<AppWordmark entrance="handoff" visible={brandRevealed} />
 		</a>
-		<!-- The name of the draft and the list of the other drafts are one control:
-		     typing in it renames this document, and the chevron at its end opens the
-		     ones it could be swapped for. The hamburger this replaced sat at the far
-		     end of the command strip, named nothing, and was nowhere near the draft
-		     it switched. -->
+		<!-- The title and its Open disclosure share a group. Typing renames this
+		     draft; Open chooses another without competing with document commands. -->
 		<div class="draft-switcher">
 			<!-- The `<label for>` is the whole of the name. It carried an identical
 			     `aria-label` beside it, which outranks the element and made the label
@@ -190,6 +302,10 @@
 				<PlusIcon aria-hidden="true" size={16} weight="bold" />
 			</button>
 		{/if}
+		<!-- The fixed format is what this 'scribe is, so on desktop it reads with
+		     its name. Phones keep it on the command row beside the copy it names. -->
+		{#if !phone.current}<ProfilePicker {controller} />{/if}
+		{#if phone.current}{@render secondaryCommands()}{/if}
 		<!-- Nothing is drawn while saving is going well: a disk glyph that is always
 		     there reports a state that never changes, and the slot went to the plus.
 		     The readout stays in the accessible tree throughout, and a failed save
@@ -217,101 +333,45 @@
 	     What remains here is the one action that bounds the session's work, last
 	     in reading order and last in the tab order.
 
-	     Which end of the work it bounds depends on whether there is any. On an
-	     empty document `Copy lyrics` is the loudest thing on the screen pointing
-	     at the exit, so the slot holds `Paste lyrics` until the document has
-	     something in it. Same slot, same tier, label following the state, so the
-	     surface never carries two contrast actions, and the user is never offered
-	     the end of a job they have not started. -->
+	     An empty document has no work to take out, so the slot is empty with it:
+	     the way in (`Paste lyrics`) is in the document sheet's start tray
+	     (`DraftStart.svelte`), which holds the contrast tier until there is
+	     something to copy. The window never carries two contrast actions, and
+	     the user is never offered the end of a job they have not started. -->
 	<div class="document-toolbar__commands">
-		<div
-			class="document-toolbar__secondary"
-			class:document-toolbar__secondary--phone={phone.current}
-			{@attach dismissOnOutside(() => (commandsOpen = false))}
-		>
-			{#if phone.current}
-				<button
-					bind:this={commandsTrigger}
-					type="button"
-					class="button button--quiet"
-					aria-expanded={commandsOpen}
-					aria-controls="document-commands"
-					onclick={() => (commandsOpen = !commandsOpen)}>Document</button
-				>
-			{/if}
-			<div
-				id="document-commands"
-				class="document-toolbar__secondary-actions"
-				hidden={phone.current && !commandsOpen}
-			>
-				{#if phone.current}
-					<button
-						type="button"
-						class="button button--quiet new-draft-trigger"
-						aria-label="New 'scribe"
-						title="New 'scribe"
-						onclick={() => controller.createDraft()}
-					>
-						<PlusIcon aria-hidden="true" size={16} weight="bold" />
-						New 'scribe
-					</button>
-				{/if}
-				<!-- The keystrokes already exist in the editor; these are the same two
-		     commands for the pointer, and they act on the document, so they belong
-		     in this strip rather than beside the draft's name. Quiet tier: they are
-		     corrections, not the thing the surface is for. -->
-				<button
-					type="button"
-					class="{phone.current ? 'button' : 'icon-button'} button--quiet document-toolbar__history"
-					aria-label="Undo"
-					title="Undo"
-					disabled={!controller.snapshot.canUndo}
-					onclick={() => controller.undo()}
-				>
-					<ArrowCounterClockwiseIcon aria-hidden="true" size={16} weight="bold" />
-					{#if phone.current}Undo{/if}
-				</button>
-				<button
-					type="button"
-					class="{phone.current ? 'button' : 'icon-button'} button--quiet document-toolbar__history"
-					aria-label="Redo"
-					title="Redo"
-					disabled={!controller.snapshot.canRedo}
-					onclick={() => controller.redo()}
-				>
-					<ArrowClockwiseIcon aria-hidden="true" size={16} weight="bold" />
-					{#if phone.current}Redo{/if}
-				</button>
-				<LanguagePicker {controller} expandedLabel={phone.current} />
-				<!-- Reviewing what the copy will change on the page is the step before
-		     copying it, so it sits beside the action it precedes. The component
-		     gates itself on the document being empty. -->
-				<CompareDialog {controller} />
-			</div>
-		</div>
-		{#if controller.isEmpty}
-			<button
-				type="button"
-				class="button button--contrast"
-				onclick={() => controller.pasteLyrics()}
-			>
-				<ClipboardTextIcon aria-hidden="true" size={16} weight="bold" />
-				Paste lyrics
-			</button>
-		{:else}
+		{#if phone.current}<ProfilePicker {controller} />{/if}
+		{#if !phone.current}{@render secondaryCommands()}{/if}
+		{#if !controller.isEmpty}
+			{#if !controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery}<ExportDialog
+					{controller}
+				/>{/if}
 			<button type="button" class="button button--contrast" onclick={copyLyrics}>
 				{#if copied}
 					<CheckIcon aria-hidden="true" size={16} weight="bold" />
 				{:else}
 					<CopyIcon aria-hidden="true" size={16} weight="bold" />
 				{/if}
-				{copied ? 'Lyrics copied' : 'Copy lyrics'}
+				<span class="copy-label">
+					<span class:copy-label__hidden={copied} aria-hidden={copied}
+						>Copy {controller.profile === 'genius' ? 'Genius' : 'Musixmatch'}</span
+					>
+					<span class:copy-label__hidden={!copied} aria-hidden={!copied}>Lyrics copied</span>
+				</span>
 			</button>
 		{/if}
 	</div>
 </header>
 
 <style>
+	.copy-label {
+		display: inline-grid;
+	}
+	.copy-label > span {
+		grid-area: 1 / 1;
+	}
+	.copy-label__hidden {
+		visibility: hidden;
+	}
 	/* The full width of the window, above both columns. */
 	.document-toolbar {
 		z-index: var(--layer-toolbar);
@@ -341,6 +401,9 @@
 	.document-toolbar__identity {
 		flex: 1 1 auto;
 		gap: var(--space-1);
+	}
+	.document-toolbar__identity > :global(.profile-picker) {
+		margin-inline-start: var(--space-1);
 	}
 
 	.document-toolbar__commands {
@@ -382,6 +445,7 @@
 	.draft-switcher {
 		position: relative;
 		display: flex;
+		min-width: 0;
 		border: var(--border-width) solid transparent;
 		border-radius: var(--radius-control);
 		align-items: center;
@@ -508,7 +572,7 @@
 
 		/* The words already name these actions. Keep the history glyphs, which
 		   have no visible text, and spend the remaining width on full labels. */
-		.document-toolbar__commands > .button > :global(svg) {
+		.document-toolbar__commands > :global(.button > svg) {
 			display: none;
 		}
 
@@ -521,6 +585,10 @@
 		}
 	}
 
+	.document-toolbar {
+		position: relative;
+		z-index: var(--layer-menu);
+	}
 	.document-toolbar__secondary-actions {
 		display: flex;
 		align-items: center;
@@ -529,6 +597,21 @@
 	.document-toolbar__secondary-actions :global(.button--quiet:not(:disabled)) {
 		color: var(--color-text-muted);
 	}
+	/* History and language are settings and corrections, so they rest muted;
+	   Compare opens the first of the document's outputs and reads at full tone
+	   beside Export, which shares its group. */
+	.document-toolbar__secondary:not(.document-toolbar__secondary--phone)
+		.document-toolbar__secondary-actions
+		:global(.compare-trigger:not(:disabled)) {
+		color: var(--color-text);
+	}
+	.document-toolbar__divider {
+		flex: none;
+		width: var(--border-width);
+		height: var(--space-5);
+		margin-inline: var(--space-1);
+		background: var(--color-border-strong);
+	}
 	.document-toolbar__secondary-actions :global(.button--quiet:hover:not(:disabled)),
 	.document-toolbar__secondary-actions :global(.button--quiet:focus-visible) {
 		color: var(--color-text);
@@ -536,20 +619,39 @@
 	.document-toolbar__secondary-actions :global(.button) {
 		white-space: nowrap;
 	}
+	@media (pointer: fine) and (max-width: 46rem) {
+		.document-toolbar__secondary {
+			min-width: 0;
+			flex: 1 1 100%;
+		}
+		.document-toolbar__secondary-actions {
+			flex-wrap: wrap;
+			justify-content: flex-end;
+		}
+	}
+	.document-toolbar__secondary-actions > :global(.language-trigger) {
+		max-width: 12rem;
+	}
 	.document-toolbar__secondary-actions[hidden] {
 		display: none;
 	}
 	.document-toolbar__secondary--phone {
-		position: static;
+		flex: none;
+		position: relative;
+	}
+	/* The way into the document's other commands rests muted beside Open, the
+	   other way into something; the title is the one strong word in the row. */
+	.document-toolbar__secondary--phone > .button[aria-expanded='false'] {
+		color: var(--color-text-muted);
 	}
 	.document-toolbar__secondary--phone .document-toolbar__secondary-actions {
 		position: absolute;
 		inset-block-start: 100%;
-		inset-inline-end: var(--space-2);
+		inset-inline-end: 0;
 		z-index: var(--layer-popover);
 		width: max-content;
 		min-width: calc(4 * var(--control-height-touch));
-		max-width: calc(100% - 2 * var(--space-2));
+		max-width: calc(100vw - 2 * var(--space-2));
 		gap: 0;
 		padding: var(--space-2);
 		background: var(--color-overlay);
@@ -558,7 +660,16 @@
 		flex-direction: column;
 		align-items: stretch;
 	}
+	.document-toolbar__secondary--phone
+		.document-toolbar__secondary-actions:has(:global(dialog:modal)) {
+		visibility: hidden;
+	}
+	.document-toolbar__secondary--phone .document-toolbar__secondary-actions :global(dialog:modal) {
+		visibility: visible;
+	}
 	.document-toolbar--phone {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		position: relative;
 		z-index: var(--layer-menu);
 		overflow: visible;
@@ -574,8 +685,17 @@
 		display: none;
 	}
 	.document-toolbar--phone .document-toolbar__commands {
+		justify-content: flex-end;
+		width: 100%;
 		flex: none;
 		gap: var(--space-1);
+	}
+	/* The format and its export read as one group at the row's start, and the
+	   copy holds the far end on its own. That also keeps Export clear of the
+	   Document menu, which hangs from the identity row over this one's end and
+	   stays open after a history command. */
+	.document-toolbar--phone .document-toolbar__commands > .button--contrast {
+		margin-inline-start: auto;
 	}
 	.document-toolbar--phone .draft-switcher {
 		flex: 1;
@@ -597,8 +717,27 @@
 		padding-inline: var(--space-2);
 		white-space: nowrap;
 	}
-	.document-toolbar--phone .document-toolbar__commands > .button :global(svg) {
+	/* On a phone the export is the row's second output, beside the contrast copy,
+	   so it takes the default tier's face: a bare word between a tag and a key
+	   read as a caption rather than a command. */
+	.document-toolbar--phone
+		.document-toolbar__commands
+		> :global(.button--quiet[aria-haspopup='dialog']) {
+		background: var(--color-control);
+		box-shadow: var(--shadow-control);
+	}
+	.document-toolbar--phone .document-toolbar__commands > :global(.button > svg) {
 		display: none;
+	}
+	/* On the narrowest phones the format tag and both outputs share one row at
+	   the compact label size, so neither output loses its inset to the other. */
+	@media (max-width: 26rem) {
+		.document-toolbar--phone .document-toolbar__commands {
+			font-size: var(--font-size-sm);
+		}
+		.document-toolbar--phone .document-toolbar__commands :global(.profile-picker--fixed) {
+			padding-inline: var(--space-2);
+		}
 	}
 	.document-toolbar__secondary--phone .document-toolbar__secondary-actions > :global(button) {
 		width: 100%;

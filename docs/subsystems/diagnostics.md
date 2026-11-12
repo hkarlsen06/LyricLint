@@ -7,6 +7,66 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
 
 ## The rules
 
+- Review keeps its existing checking state while eligible grammar coverage is pending,
+  including a suspended navigation attempt. A canceled initialization never claims a
+  clean document. Native findings remain available while grammar resumes.
+
+- Ignore, accept and restore show brief, rule-named feedback with Undo. Announcements retain
+  full draft context. Action grouping uses draft, rule and decision rather than caption text;
+  unrelated findings never gain a shared Undo merely because their copy matches. Undo refuses
+  visibly on another draft, preserving its choices and asking the reader to open the original.
+  `rules/names.ts` owns readable labels shared by feedback and the ignored list. A label change
+  never changes stored rule IDs or per-occurrence choices.
+
+- Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
+
+- Repeat review keeps source, blank copy count and Preview above variable source context.
+	With no earlier source, the task offers direct lyric editing without source, count or preview controls.
+  A native dialog offers readable source rows with the first two lyric lines, including
+  distinguishing second lines. Long rows explicitly name their excerpt and offer exact full
+  source text before choosing. A visible Selected cue and pressed state identify the choice.
+  Opening, inspecting and cancelling never changes the chosen source, count or prepared preview.
+  Changed preview facts retire the prepared result, including facts later restored to their
+  earlier values. The same source choice and cancellation preserve it. Source selection never
+  changes the target.
+  The trigger keeps constant wording for a chosen version; complete selected identity follows
+  Preview. Short source and result lyrics remain fully readable in the task. Long text has
+  named excerpts and native full-text viewers with one scrollport each. The result viewer names
+  source, captured target and copy count; closing restores the trigger without editor focus.
+	Full replacement lyrics shares the Apply row, preceding Apply in reading order.
+	Full source access sits beside the selected section identity, before the proposal.
+	The result reader also offers Apply in a fixed footer, using the task's same captured
+	target and validated proposal. Reading does not require closing the reader before applying.
+	The full result remains one exact text node. Go to copy jumps to a prepared copy boundary,
+	and Last line reaches the end without changing the lyrics. Go to copy names the last requested
+	destination rather than tracking manual scrolling. Boundaries use the prepared replacement,
+	not source markup that fresh copies omit.
+  Apply follows the proposal. Source annotations, voices and timing are never copied.
+
+- Text findings precede retained-detail Review, so a section-tag decision never obstructs a lyric finding. Retained-detail Review presents one finding with Previous detail and Next detail when several remain; a lone detail has no redundant navigation. Listening requests open only the relevant quantity or instrumental form. Song keeps saved decisions in a separate disclosure.
+	Section-type findings offer a named selector and explicit Save in Review without opening Song.
+	An unsaved type belongs to its draft, profile, finding and document revision. Document changes
+	clear the shown choice, disable Save and explain that a new choice is needed; selection-only
+	changes keep it. Other retained section requests reopen and focus their section even when requested repeatedly;
+	missing boundaries open Add a section. Back to Review restores focus to the next retained
+	decision, or the Review tab when none remain. `e2e/profile-workbench.spec.ts` pins desktop
+	and phone navigation.
+
+- Genius and Musixmatch diagnostics use separate registries, sources and ignore namespaces.
+  A profile change recomputes findings against that projection without applying fixes. Native
+  checks in both profiles honor explicit language spans; Harper is withheld in Musixmatch until its
+  behavior is reviewed for that profile. Metadata-only findings appear in retained-detail review
+  with a focused section-type form or a Song destination for other metadata, never at a fabricated text offset.
+- Quantity, instrumental, censored-word and repeat findings offer a shared Review action in
+  both the card and popover. It selects the actual finding, opens only its focused task within Review
+  and focuses its heading without opening the typing keyboard. Edit in lyrics then selects the captured passage and focuses the editor for immediate typing. Song retains metadata separately. The preview uses the commit
+  validator and expires when its facts, captured request or document revision change.
+  Moving the live editor selection preserves a focused task's original target and preview;
+  it never retargets Apply. Song's selection-based decision previews expire when that
+  selection changes. Ignoring a
+  finding never confirms a semantic fact. `diagnostic-parity.svelte.test.ts` pins the shared
+  controls; `e2e/profile-workbench.spec.ts` exercises the quantity workflow.
+
 - The shell's entrance may reveal the initial viewport's diagnostic rows once per ’scribe opening using
   temporary opacity only, in their
   existing reading order. New findings, fixes, filter changes, and later Harper results do not
@@ -85,6 +145,9 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
 - Occurrence suppression and the ignored-list location use the same derived match result.
   Repeated line-number queries share `core/line-numbers.ts` and its indexed lookup.
 
+- A line's cluster count is a small tinted tag in its severity's color: a tint and a hairline
+  of the same hue, a semibold tabular count in the hue itself, `--radius-xs` corners. It is
+  not a filled disc; the count sits with the type rather than over it.
 - In phone task views, tapping an editor underline or count badge opens that finding in
   Review, with the real lyric context and shared actions, inside the decision row that holds
   the tapped place and on that place. A count badge starts with its first finding. Previous
@@ -127,6 +190,9 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
 - One document, one diff: the preview slot belongs to whichever surface mounted last, and a
   surface leaving hands it back (`shownPreviews` in `DiagnosticActions.svelte`).
   `selectDiagnostic` does not clear the preview.
+- A hovered diagnostic also dismisses on Escape while focus remains elsewhere. It preserves
+  that focus and leaves an already handled Escape or a native modal's Escape with its owner.
+  Document-bubble dismissal precedes the window transport fallback regardless of binding order.
 - The fix-preview insert widget must override `ignoreEvent` (mousemove only) and resolve
   through `posAtDOM`, or the inserted half of the diff is a dead zone.
 - A live IME/dead-key preedit maps the settled diagnostic underline and diff preview through its
@@ -178,6 +244,11 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
 - A diagnostic's facts are one line (severity glyph, line number, citation) with the
   citation's section and verified date in its tooltip (`aria-describedby` there, because the
   visible tooltip is the only copy). Two or more citations fold behind `Sources ⌄`.
+  The line number is a small tabular tag on a fill step. The citation is present but quiet:
+  the meta line's muted tone, medium weight, no underline and a greyscale favicon at rest;
+  under the pointer or focus it takes the text color, its underline and the favicon's color.
+  The external-link mark stays at rest, so leaving the page is never carried by color.
+  A decision row that opens on a quiet control draws it flush with the text above.
 - Expanded native findings offer `Read the guide` in the shared actions row, linking to
   their published `/guidelines/checks/[rule]/` page. The lightweight shipped manifest and
   existing slug helper own the mapping; Harper and unknown IDs get no fabricated page.

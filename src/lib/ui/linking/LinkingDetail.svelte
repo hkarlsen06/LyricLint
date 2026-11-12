@@ -12,6 +12,7 @@
 	import { describeControl } from '#lib/ui/state/control-tooltip.svelte.js';
 
 	interface Props {
+		membershipLocked?: boolean;
 		occurrences: readonly LinkOccurrence[];
 		currentHeaderFrom: number;
 		sectionNames?: ReadonlyMap<number, string>;
@@ -30,6 +31,7 @@
 		onTypeOnlyHere?: () => void;
 	}
 	let {
+		membershipLocked = false,
 		occurrences,
 		currentHeaderFrom,
 		sectionNames,
@@ -331,10 +333,12 @@
 			: `${wasLinked ? 'Manage' : 'Link'} ${current ? sectionName(current) : 'sections'}`}
 	</h2>
 	<fieldset class="members">
-		<legend>Sections to link</legend>
+		<legend>{membershipLocked ? 'Linked sections' : 'Sections to link'}</legend>
 		{#each occurrences as item (item.headerFrom)}
 			{@const isSource = !fromOverview && item.headerFrom === currentHeaderFrom}
-			<div class="member">
+			{@const canUnlink =
+				fromOverview && wasLinked && !membershipLocked && initialHeaders.includes(item.headerFrom)}
+			<div class="member" class:member--unlink={canUnlink}>
 				<label class="member__choice">
 					<input
 						type="checkbox"
@@ -343,7 +347,7 @@
 							? `${id}-comparison-${item.headerFrom}`
 							: undefined}
 						checked={selected.includes(item.headerFrom)}
-						disabled={isSource}
+						disabled={isSource || membershipLocked}
 						onchange={() => toggle(item.headerFrom)}
 					/>
 					<span id={`${id}-member-${item.headerFrom}`} class="member__identity"
@@ -364,15 +368,30 @@
 						{item.comparison === 'same' ? '✓ Same lyrics' : '≠ Differs'}
 					</span>
 				{/if}
-				{#if onNavigate}<button
-						id={`${id}-line-${item.headerFrom}`}
-						type="button"
-						class="button button--quiet member__line"
-						onclick={() => onNavigate?.(item.headerFrom)}>Line {item.line}</button
-					>
-				{:else}<span id={`${id}-line-${item.headerFrom}`} class="member__line"
-						>Line {item.line}</span
-					>{/if}
+				<div class="member__actions">
+					{#if onNavigate}<button
+							id={`${id}-line-${item.headerFrom}`}
+							type="button"
+							class="button button--quiet member__line"
+							onclick={() => onNavigate?.(item.headerFrom)}>Line {item.line}</button
+						>
+					{:else}<span id={`${id}-line-${item.headerFrom}`} class="member__line"
+							>Line {item.line}</span
+						>{/if}
+					{#if canUnlink}
+						<button
+							type="button"
+							class="button button--quiet"
+							aria-label={`Unlink ${sectionName(item)}`}
+							onclick={() =>
+								onApply({
+									headers: [item.headerFrom],
+									keepDifferent: [],
+									replaceFromByDifference: []
+								})}>Unlink</button
+						>
+					{/if}
+				</div>
 			</div>
 		{/each}
 	</fieldset>
@@ -709,6 +728,32 @@
 		flex: 1;
 		min-width: 0;
 	}
+	.member__actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: flex-end;
+		gap: var(--space-2);
+		max-width: 50%;
+	}
+	.member--unlink {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		row-gap: var(--space-1);
+	}
+	.member--unlink .member__choice {
+		grid-column: 1;
+		grid-row: 1;
+	}
+	.member--unlink .member__comparison {
+		grid-column: 1;
+		grid-row: 2;
+	}
+	.member--unlink .member__actions {
+		grid-column: 2;
+		grid-row: 1 / span 2;
+		max-width: none;
+	}
 	button.member__line {
 		text-decoration: underline;
 		text-underline-offset: var(--space-0-5);
@@ -788,6 +833,11 @@
 	}
 	@media (pointer: coarse) {
 		.version__choice {
+			min-height: var(--control-height-touch);
+		}
+		.version__choice label {
+			display: flex;
+			align-items: center;
 			min-height: var(--control-height-touch);
 		}
 	}

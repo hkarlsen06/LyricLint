@@ -4,7 +4,15 @@
 	import LazyContent from '#lib/interaction/LazyContent.svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let {
+		controller,
+		onDismiss,
+		returnFocus
+	}: {
+		controller: WorkbenchController;
+		onDismiss?: () => void;
+		returnFocus?: HTMLElement;
+	} = $props();
 	let dialog: HTMLDialogElement;
 	let trigger = $state<HTMLButtonElement>();
 	let isOpen = $state(false);
@@ -15,9 +23,11 @@
 	}
 
 	function close(): void {
+		if (!isOpen) return;
 		isOpen = false;
-		dialog.close();
-		trigger?.focus();
+		if (dialog.open) dialog.close();
+		onDismiss?.();
+		(returnFocus ?? trigger)?.focus();
 	}
 </script>
 
@@ -43,12 +53,14 @@
 	}}
 	onclose={() => {
 		// A queued close event may arrive after a new press has reopened the dialog.
-		if (dialog && !dialog.open) isOpen = false;
+		if (dialog && !dialog.open) close();
 	}}
 >
 	<div class="compare-dialog__surface">
 		<div class="compare-dialog__header">
-			<strong id="compare-dialog-title">Compare with the page</strong>
+			<strong id="compare-dialog-title"
+				>Compare with {controller.profile === 'musixmatch' ? 'Genius' : 'the page'}</strong
+			>
 			<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
 				<XIcon aria-hidden="true" size={16} weight="bold" />
 			</button>

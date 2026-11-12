@@ -148,6 +148,42 @@ describe('feedback toast lifecycle', () => {
 		expect(feedback.toasts).toHaveLength(0);
 	});
 
+	it('keeps equal captions separate when their Undo groups differ', () => {
+		const feedback = createFeedbackState();
+		const first = vi.fn();
+		const second = vi.fn();
+		const third = vi.fn();
+		const id = feedback.addToast({
+			message: 'Finding ignored.',
+			groupKey: 'first-rule',
+			actionLabel: 'Undo',
+			action: first
+		});
+		const other = feedback.addToast({
+			message: 'Finding ignored.',
+			groupKey: 'second-rule',
+			actionLabel: 'Undo',
+			action: second
+		});
+		expect(other).not.toBe(id);
+		expect(feedback.toasts).toHaveLength(2);
+		feedback.runToastAction(id);
+		expect(first).toHaveBeenCalledOnce();
+		expect(second).not.toHaveBeenCalled();
+		expect(
+			feedback.addToast({
+				message: 'Finding ignored.',
+				groupKey: 'second-rule',
+				actionLabel: 'Undo',
+				action: third
+			})
+		).toBe(other);
+		expect(feedback.toasts[0]?.count).toBe(2);
+		feedback.runToastAction(other);
+		expect(second).toHaveBeenCalledOnce();
+		expect(third).toHaveBeenCalledOnce();
+	});
+
 	it('running the action dismisses the toast and cancels its timer', () => {
 		const feedback = createFeedbackState();
 		const action = vi.fn();

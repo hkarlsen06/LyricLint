@@ -10,6 +10,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { corpus as generatedCorpus } from '../../../services/rules-assistant/generated/rules-context-data.js';
 import { corpusMetadata } from '../../../services/rules-assistant/generated/rules-context-meta.js';
+import { corpus as musixmatchCorpus } from '../../../services/rules-assistant/generated/musixmatch-context-data.js';
+import { musixmatchCorpusMetadata } from '../../../services/rules-assistant/generated/musixmatch-context-meta.js';
+import { profileGuidelines } from '#lib/profiles/coverage.js';
+import { profileSourceRegistry } from '#lib/profiles/sources.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { guidanceEntries } from '#lib/guidance/entries.js';
 import { reviewedLanguagePacks } from '#lib/languages/registry.js';
 import { buildAssistantCorpusContent, corpusContentHash } from './assistant-corpus.js';
@@ -20,11 +25,53 @@ import { sourceRegistry } from './data/sources.js';
 import { standardizedSpellings } from './data/spelling.js';
 import { harperRuleIds } from './harper.js';
 import { ruleLookupTables } from './lookup-tables.js';
-import { enabledRules } from './registry.js';
+import { enabledRules, sharedTranscriptionRules } from './registry.js';
 
 const root = join(__dirname, '../../..');
 const rulesMd = readFileSync(join(root, 'docs/rules.md'), 'utf8');
 const committed: AssistantCorpus = generatedCorpus;
+
+describe('Musixmatch assistant corpus parity', () => {
+	it('pins all reviewed claims, their language limits and sources to its own artifact', async () => {
+		const content = buildAssistantCorpusContent(rulesMd, 'musixmatch');
+		expect(await corpusContentHash(content)).toBe(musixmatchCorpus.contentHash);
+		expect(musixmatchCorpus.profile).toBe('musixmatch');
+		expect(musixmatchCorpusMetadata).toEqual({
+			ruleSetVersion: profilePolicyVersions.musixmatch,
+			corpusHash: musixmatchCorpus.contentHash
+		});
+		expect(musixmatchCorpus.guidance.map((entry) => entry.id)).toEqual(
+			profileGuidelines.map((entry) => entry.id)
+		);
+		const sharedIds = sharedTranscriptionRules.map((rule) => rule.id);
+		expect(
+			musixmatchCorpus.rules.filter((rule) => !rule.id.startsWith('mxm.')).map((rule) => rule.id)
+		).toEqual(committed.rules.filter((rule) => sharedIds.includes(rule.id)).map((rule) => rule.id));
+		for (const id of sharedIds) {
+			expect(musixmatchCorpus.rules.find((rule) => rule.id === id)).toEqual(
+				committed.rules.find((rule) => rule.id === id)
+			);
+		}
+		expect(musixmatchCorpus.harper.ruleIds).toEqual([...harperRuleIds]);
+		expect(musixmatchCorpus.sources.some((source) => source.id === 'T-HARPER')).toBe(true);
+		expect(musixmatchCorpus.harper.behavior).not.toContain('not enabled');
+		expect(musixmatchCorpus.languages).toHaveLength(8);
+		for (const entry of musixmatchCorpus.guidance) {
+			const claim = profileGuidelines.find((candidate) => candidate.id === entry.id)!;
+			expect(entry.languages).toEqual(claim.languages);
+			expect(entry.handling).toBe(claim.handling);
+			for (const source of entry.sourceIds) expect(profileSourceRegistry.has(source)).toBe(true);
+		}
+		expect(
+			JSON.parse(
+				readFileSync(
+					join(root, 'services/rules-assistant/generated/musixmatch-context.json'),
+					'utf8'
+				)
+			)
+		).toEqual(musixmatchCorpus);
+	});
+});
 
 describe('assistant corpus parity', () => {
 	it('identifies the same exact corpus in browser requests and website release metadata', () => {

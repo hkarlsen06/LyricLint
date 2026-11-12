@@ -92,7 +92,7 @@ export const textMultipleSpacesRule: RuleDefinition = {
 							this,
 							range,
 							'Use one space between these words.',
-							'Consecutive ordinary spaces between words are mechanically detectable formatting residue. Genius does not state an exact one-space rule, so LyricLint treats this as a text-hygiene suggestion.',
+							'Consecutive ordinary spaces between words are mechanically detectable formatting residue. LyricLint offers this as a text-hygiene suggestion, not a platform rule about every intentional space.',
 							[replacementFix(context, 'safe', 'Use one space', range, ' ')]
 						)
 					);

@@ -1,3 +1,5 @@
+import type { ConversionEnvelope } from '#lib/persistence/conversion.js';
+import { legacyWriting, newWriting } from '#lib/persistence/writing.js';
 import { parseDocument } from '#lib/core/parser.js';
 import type {
 	AtomicDocumentEdit,
@@ -90,6 +92,7 @@ function readsClipboard(
 }
 
 export function createTestWorkbench(options?: {
+	conversion?: ConversionEnvelope;
 	text?: string;
 	diagnostics?: Diagnostic[];
 	performers?: PerformerRecord[];
@@ -112,19 +115,23 @@ export function createTestWorkbench(options?: {
 	media?: { repository: MediaRepository; player: MediaPlayer };
 	backup?: WorkspaceBackupController;
 }) {
-	const text = options?.text ?? '[Verse]\nLine';
+	const text = options?.conversion?.projectionText ?? options?.text ?? '[Verse]\nLine';
 	const selection = options?.selection ?? { anchor: 0, head: 4 };
 	const initialDraft: DraftRecord = {
 		id: 'draft-1',
 		title: 'Test draft',
 		text,
-		language: 'en',
+		language: options?.conversion?.model.defaultLanguage ?? 'en',
 		performers: options?.performers ?? [],
 		createdAt: '2026-07-20T10:00:00.000Z',
 		updatedAt: '2026-07-20T10:00:00.000Z',
 		ruleSetVersion: '2026.7',
 		editorSelection: selection
 	};
+	if (options?.conversion) {
+		initialDraft.conversion = options.conversion;
+		initialDraft.writing = legacyWriting(options.conversion.profile);
+	} else if (text.length === 0) initialDraft.writing = newWriting('genius');
 	// Absent rather than empty where a test asked for none: a reload re-seats
 	// only the links the record actually carries.
 	if (options?.sectionLinks) initialDraft.sectionLinks = options.sectionLinks;
@@ -138,6 +145,7 @@ export function createTestWorkbench(options?: {
 		canUndo: true,
 		canRedo: false
 	};
+	if (options?.conversion) snapshot.conversion = options.conversion;
 	const calls: EditorCallLog = {
 		focusCount: 0,
 		revealed: [],
@@ -235,6 +243,9 @@ export function createTestWorkbench(options?: {
 				canUndo: false,
 				canRedo: false
 			};
+			if (draft.conversion) snapshot.conversion = draft.conversion;
+			if (draft.conversionRecovery) snapshot.conversionRecovery = draft.conversionRecovery;
+			if (draft.originalRecovery) snapshot.originalRecovery = draft.originalRecovery;
 			return snapshot;
 		}
 	};

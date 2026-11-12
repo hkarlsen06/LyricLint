@@ -1,5 +1,13 @@
 import type { Attachment } from 'svelte/attachments';
 
+/** A native modal still owns Escape after its focused control is removed. */
+export function modalOwnsEscape(target: EventTarget | null): boolean {
+	return (
+		document.querySelector('dialog:modal') !== null ||
+		(target instanceof Element && target.closest('dialog, [role="dialog"]') !== null)
+	);
+}
+
 /**
  * Close a transient surface when a pointer press lands outside it.
  *

@@ -10,6 +10,19 @@
 	// The region stands above the footer, so a toast rises into place from it.
 	const motion = { y: 6, duration: reducedMotion ? 0 : 150 };
 
+	// Reserve the notification's actual wrapping height outside phone task scrollports.
+	function publishNotificationHeight(node: HTMLElement) {
+		const root = document.documentElement;
+		const observer = new ResizeObserver(() => {
+			root.style.setProperty('--notification-height', `${node.getBoundingClientRect().height}px`);
+		});
+		observer.observe(node);
+		return () => {
+			observer.disconnect();
+			root.style.removeProperty('--notification-height');
+		};
+	}
+
 	function stillEngaged(toast: HTMLElement, next: EventTarget | null): boolean {
 		if (next instanceof Node && toast.contains(next)) return true;
 		return toast.matches(':hover') || toast.contains(document.activeElement);
@@ -20,7 +33,7 @@
 	}
 </script>
 
-<section class="toast-region" aria-label="Notifications">
+<section class="toast-region" aria-label="Notifications" {@attach publishNotificationHeight}>
 	{#each feedback.toasts as toast (toast.id)}
 		<div
 			class="toast"
@@ -77,7 +90,9 @@
 		position: fixed;
 		z-index: var(--layer-toast);
 		right: var(--space-3);
-		bottom: calc(var(--media-strip-height, 0px) + var(--space-2));
+		bottom: calc(
+			var(--mobile-navigation-height, 0px) + var(--media-strip-height, 0px) + var(--space-2)
+		);
 		left: var(--space-3);
 		display: grid;
 		width: min(25rem, calc(100vw - 2rem));

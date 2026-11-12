@@ -29,8 +29,8 @@ export const punctuationLineEndingRule: RuleDefinition = {
 						return diagnostic(
 							this,
 							match,
-							`Lyric lines should not end with a ${name}.`,
-							'Apple Music lyric guidance explicitly excludes commas and periods at line endings. The current Genius guide separately requires question marks for questions and uses exclamation marks for excitement, but does not state the same blanket ban. Removal is preview-only so quotations, abbreviations, and intentional delivery remain reviewable.',
+							`Consider removing the final ${name}.`,
+							'Apple Music excludes final commas and periods; Genius does not state a blanket ban. Keep punctuation needed for quotations, abbreviations or intentional delivery.',
 							[replacementFix(context, 'preview', `Remove the ${name}`, match, '')]
 						);
 					});

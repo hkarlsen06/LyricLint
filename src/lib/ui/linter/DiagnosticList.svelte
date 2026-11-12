@@ -3,8 +3,10 @@
 	import { tick, type Snippet } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import BookOpenIcon from 'phosphor-svelte/lib/BookOpenIcon';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeftIcon';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
+	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
 	import ChecksIcon from 'phosphor-svelte/lib/ChecksIcon';
 	import { groupDecisions, type Decision } from '#lib/diagnostics/decisions.js';
 	import { diagnosticKey, orderDiagnostics } from '#lib/diagnostics/order.js';
@@ -30,6 +32,7 @@
 		canAssignPerformers = () => true,
 		onAssignPerformers = () => {},
 		onLinkSections,
+		onReviewConversion,
 		onSetLanguage,
 		onPreviewFix,
 		onCancelPreview,
@@ -82,6 +85,7 @@
 		/** Open the link picker on a repeated section. The rule found the group;
 		 *  the picker is what names it before anything is overwritten. */
 		onLinkSections?: (diagnostic: Diagnostic) => void;
+		onReviewConversion?: (diagnostic: Diagnostic) => void;
 		onSetLanguage: (language: string) => void;
 		onPreviewFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
 		onCancelPreview: () => void;
@@ -443,7 +447,11 @@
 	</div>
 {:else}
 	{#if !overview && rows.length > 1}
-		<div class="diagnostic-actions" role="group" aria-label="Navigate decisions">
+		<div
+			class="diagnostic-actions diagnostic-list__pager"
+			role="group"
+			aria-label="Navigate decisions"
+		>
 			<button
 				type="button"
 				class="button button--quiet"
@@ -451,9 +459,11 @@
 				aria-label="Previous decision"
 				aria-keyshortcuts="Alt+Shift+ArrowUp"
 				{@attach describeControl(() => ({ label: 'Previous decision', shortcut: 'Alt+Shift+↑' }))}
-				onclick={() => step(-1)}>Previous</button
+				onclick={() => step(-1)}><CaretUpIcon aria-hidden="true" size={14} weight="bold" /></button
 			>
-			<span aria-live="polite">{currentIndex + 1} of {rows.length}</span>
+			<span class="diagnostic-list__position" aria-live="polite"
+				>{currentIndex + 1} of {rows.length}</span
+			>
 			<button
 				type="button"
 				class="button button--quiet"
@@ -461,7 +471,7 @@
 				aria-label="Next decision"
 				aria-keyshortcuts="Alt+Shift+ArrowDown"
 				{@attach describeControl(() => ({ label: 'Next decision', shortcut: 'Alt+Shift+↓' }))}
-				onclick={() => step(1)}>Next</button
+				onclick={() => step(1)}><CaretDownIcon aria-hidden="true" size={14} weight="bold" /></button
 			>
 		</div>
 	{/if}
@@ -551,6 +561,9 @@
 									? () => onAssignPerformers(diagnostic)
 									: undefined}
 								onLinkSections={onLinkSections ? () => onLinkSections(diagnostic) : undefined}
+								onReviewConversion={onReviewConversion
+									? () => onReviewConversion(diagnostic)
+									: undefined}
 								onSetLanguage={setLanguageAndMoveFocus}
 								onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
 								{onCancelPreview}
@@ -584,13 +597,11 @@
 {/if}
 
 <style>
-	/* Cards are edge to edge, but prose is not: inset the empty state to line up
-	   with the filter row above it. */
+	/* Rows run to the column's edge, prose sits on the panel's text column. */
 	:global(.linter-panel) > .empty-state {
-		padding: var(--space-2) var(--space-3) var(--space-4);
+		padding: var(--space-2) var(--panel-inset) var(--space-4);
 		margin: 0;
 	}
-
 	/* One short title naming the state, one muted line saying why and what to do.
 	   Prose only: the bare panel canvas is the surface, not a box. */
 	.diagnostic-list__empty {
@@ -637,19 +648,61 @@
 	.diagnostic-list__empty .diagnostic-list__empty-title {
 		color: var(--color-text);
 		font-size: var(--font-size-xl);
-		font-weight: var(--font-weight-medium);
+		font-weight: var(--font-weight-semibold);
+		letter-spacing: var(--tracking-heading);
 		line-height: var(--line-height-tight);
 	}
 
-	/* Inset findings separate by space; only the open finding takes depth. */
+	/* The pager steps through the list from the heading's row, at its far end,
+	   the way an issue tracker counts `3 / 84` beside the title it pages: two
+	   arrows around a tabular position that holds its width as the count
+	   changes. The words stay in the accessible name and the tooltip names the
+	   keystroke. Inside an opened phone finding there is no heading, so it rides
+	   the row of the way back to the list instead. */
+	.diagnostic-list__pager {
+		gap: var(--space-0-5);
+	}
+	:global(.linter-panel:not(.linter-panel--focused)) > .diagnostic-list__pager {
+		position: absolute;
+		top: calc(
+			var(--space-5) + (var(--font-size-lg) * var(--line-height-tight) - var(--pager-step)) / 2
+		);
+		right: var(--panel-inset);
+		z-index: 1;
+	}
+	:global(.linter-panel--focused) > .diagnostic-list__pager {
+		position: absolute;
+		top: var(--space-2);
+		right: var(--panel-inset);
+		z-index: 1;
+	}
+	.diagnostic-list__pager > :global(.button) {
+		width: var(--pager-step);
+		min-height: var(--pager-step);
+		padding: 0;
+	}
+	.diagnostic-list__pager :global(svg) {
+		flex: none;
+	}
+	.diagnostic-list__position {
+		min-width: var(--pager-position);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-medium);
+		font-variant-numeric: tabular-nums;
+		text-align: center;
+	}
+	/* Findings sit a hair inside the column's edge and separate by a breath of
+	   space; only the open finding takes depth. A row's padding makes up the rest
+	   of the panel inset, so its words start on the panel's text column. */
 	.diagnostic-list {
+		--row-inset: calc(var(--panel-inset) - var(--space-1));
 		display: grid;
 		margin: 0;
-		padding: var(--space-2) var(--space-3);
-		gap: var(--space-2);
+		padding: var(--space-1) var(--space-1) var(--space-3);
+		gap: var(--space-0-5);
 		list-style: none;
 	}
-
 	/* Resting findings read as a list. The open finding is the one surface with
 	   an independent decision, so only it takes a fill and elevation. */
 	.diagnostic-list > li {
@@ -662,15 +715,37 @@
 	.diagnostic-list > li.diagnostic-card--expanded,
 	.diagnostic-list > li.diagnostic-card--active {
 		z-index: 1;
+		margin-block: var(--space-1-5);
 		background: var(--color-surface);
 		box-shadow: var(--shadow-raised);
+	}
+	/* The open finding is the window's current decision, so it carries the
+	   accent: a rail down its leading edge, the shape cue that survives without
+	   the color, beside the raise that already marks it. */
+	.diagnostic-list > li.diagnostic-card--expanded::before {
+		content: '';
+		position: absolute;
+		inset-block: var(--space-3);
+		inset-inline-start: 0;
+		width: calc(3 * var(--border-width));
+		border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+		background: var(--color-accent);
+		pointer-events: none;
 	}
 
 	/* The depth answers a press, so it arrives at the control tier's rate rather
 	   than snapping. Only the tone, the shadow and the seams ease. The card's own
 	   expansion stays instant, because a height between two documents' worth of
 	   content has no honest intermediate frame. */
+	@keyframes rail-grow {
+		from {
+			scale: 1 0;
+		}
+	}
 	@media (prefers-reduced-motion: no-preference) {
+		.diagnostic-list > li.diagnostic-card--expanded::before {
+			animation: rail-grow var(--duration-medium) var(--ease-out-quart);
+		}
 		.diagnostic-list > li {
 			transition:
 				background-color var(--duration-fast) var(--ease-out-quart),
@@ -686,7 +761,7 @@
 	.diagnostic-list__head {
 		border-radius: inherit;
 		display: grid;
-		padding: var(--space-3) var(--space-4);
+		padding: var(--space-2-5) var(--row-inset);
 		gap: var(--space-1);
 		justify-items: start;
 	}
@@ -694,6 +769,7 @@
 	/* Expanded, the head hands off to the details below it, so its bottom padding
 	   becomes the seam between the two rather than a second full inset. */
 	.diagnostic-card--expanded > .diagnostic-list__head {
+		padding-top: var(--space-3);
 		padding-bottom: var(--space-2);
 	}
 
@@ -762,6 +838,10 @@
 
 	.diagnostic-list__title {
 		font-weight: var(--font-weight-medium);
+		line-height: var(--line-height-ui);
+	}
+	.diagnostic-card--expanded .diagnostic-list__title {
+		font-weight: var(--font-weight-semibold);
 	}
 
 	.diagnostic-list__places {

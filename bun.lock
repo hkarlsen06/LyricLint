@@ -46,6 +46,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@codemirror/view@6.43.11": "patches/@codemirror%2Fview@6.43.11.patch",
+  },
   "overrides": {
     "@codemirror/state": "6.7.4",
     "@codemirror/view": "6.43.11",

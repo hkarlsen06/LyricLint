@@ -10,7 +10,8 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
 
 - Phones open in Write, with the lyrics taking the available height. The labelled
   Write, Review (with the count of visible Review rows, one per decision: `Review (3)`), and
-  Tools controls switch task views.
+  Tools controls switch task views. They are one segmented control across the bar; the current
+  view is raised out of the track and pressed, so the state never rests on color.
   The editor remains mounted; selection, undo history, and scroll position survive.
   Linking is a tool within Tools: deliberate editor or Review requests open its detail and
   focus its heading without opening the keyboard. Its comparison uses the panel scroll port.
@@ -32,31 +33,60 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
   returns to the list. Typing that removes the open finding never moves the editor's
   selection or focus (see the diagnostics rules). `e2e/mobile-workbench.spec.ts` pins the
   fix flow.
+- A focused conversion task uses the panel's full phone height. Its exact lyric-line excerpt
+  marks the target in bold, and Edit in lyrics returns to Write with that range selected.
+  Back to Review and Edit in lyrics share one wrapping navigation row above the task heading.
+  The real editor stays mounted and hidden during the task, retaining history and playback;
+  Back to Review restores the ordinary finding and its editor context. A retained repeat header opens its exact Genius range in Write. Passage handoffs restore their captured selection after Write becomes visible. Explicit Edit in lyrics and Edit header actions focus the editor for immediate typing; Show passage and comparison navigation focus the Write control without opening the keyboard. Quantity tasks use
+  an exact selected canonical ASCII integer without a duplicate value field or assumptions about
+  meaning or pronunciation. Other source forms retain the exact-value field. Custom exact
+  output stays in a named disclosure; required sung words are visible and labelled required. When sung words are already required, the disclosure names its remaining custom digit form. Exact sung wording wraps in a four-row, vertically resizable field; its value still must describe one lyric line. The policy owner proves source digit identity against the supplied exact value without a duplicate digit field. Apply quantity names the deliberate lyric change.
+  Instrumental start and end fields share one aligned row, with full labels and touch sizes,
+  leaving room for the confirmed preview and Save action.
+  Conversion task disclosures keep a full touch-height row as their contents expand below.
+  `MobileWorkspace.svelte.test.ts` pins the single scroll region and edit handoff.
 - Revealing a saved ignored or accepted finding opens its passage in Write without restoring
   the finding or opening the typing keyboard. `MobileWorkspace.svelte.test.ts` pins the reveal,
   selection, retained choice, and focus on the Write control.
 - Portrait and landscape both work. There is no orientation gate or desktop recommendation
   toast. `e2e/lyriclint.spec.ts` pins both orientations and the absence of the recommendation.
-- Mobile document commands live behind the named Document disclosure; identity and Copy or
-  Paste remain visible. Touch editing actions are named, and assignment uses the shared
+- Document and Selection language remain separate commands within Write, inside the phone Document disclosure. Closing the language modal returns to its trigger; Escape then closes Document and returns to Document without opening the keyboard.
+- Mobile document commands live behind the named Document disclosure; identity, the fixed
+  format tag, and Copy or Paste remain visible. A new draft's two format cards sit side by
+  side at the foot of the Write view's sheet, without their samples. The toolbar reserves an identity row and a command
+  row, with Document resting muted beside Open and the truncated title; switching formats in
+  one click never moves the Copy target. The command row starts with the format tag and Export (default tier) as one group and ends
+  with the contrast Copy, both outputs without glyphs. Export stays clear of the Document
+  menu, which hangs over the row's far end and stays open after a history command. The editing commands (Section, Find, audio) are the sheet's header strip rather than
+  a loose row between the toolbar and the sheet. Retained section
+  widgets open Song, and Show passage returns to Write without opening the keyboard.
+  `e2e/profile-workbench.spec.ts` covers these bounds and handoffs. Touch editing actions are named, and assignment uses the shared
   voice-group predicate. `MobileCommands.svelte.test.ts` pins bounds, dismissal, and selection.
-- Frequent buttons, icon controls, and severity filters use `--control-height-touch` (44px)
+- Frequent buttons, icon controls, severity filters and text fields use `--control-height-touch` (44px)
   on touch screens at every width. Shared size floors outrank compact route styles even
-  when those sheets load later. Nothing a finger types into is smaller than 16px. Preserve pinch zoom:
+  when those sheets load later. Switches keep their compact tracks with a shared hit area of at least
+  44px in both dimensions; hit testing covers the target beyond its painted bounds.
+  Nothing a finger types into is smaller than 16px. Preserve pinch zoom:
   `src/app.html` stays `width=device-width, initial-scale=1`. The reference search field
   has an explicit override because its class otherwise outranks the input selector. Workbench
-  fields have a stronger workspace-scoped floor to beat component font shorthands, including
+  fields share a height floor on every surface, including panels outside the workspace. They
+  have a stronger workspace-scoped font floor to beat component font shorthands, including
   the Assistant composer. Language search repeats the font floor in its component, where
   Svelte's scoped descendant selector otherwise outranks the shared rule.
+  Language-choice rows repeat the touch-height floor in their scoped component styles.
 - The media strip and visible YouTube frame have stable workspace lifetimes outside the
   editor and tool regions. Switching views never remounts playback. At narrow touch widths,
   Audio discloses artwork and secondary timing controls in its own surface; wider touch layouts
   show those controls directly. Active sync keeps its controls visible.
   `MediaStrip.svelte.test.ts` pins disclosure, target bounds, and playback focus behavior.
+- Song keeps its file exports, including available timed lyrics, before the growing passage
+  language controls so ordinary exports remain in the first usable phone viewport.
 - The mobile workspace always fits the visual viewport's height and offset, including
   rotation with an already-open keyboard. Pinch zoom keeps the pre-zoom layout. Transport remains in flow. Write/Review/Tools hides while the keyboard is open and
   returns after dismissal; it never rides above the keys. This gives the editor or Assistant
   composer the remaining height. `MobileWorkspace.svelte.test.ts` pins hide and restore. Desktop keeps its existing floating transport behavior.
+  Notifications clear the measured navigation and media-strip heights. A measured notification row outside phone task scrollports reserves their full wrapping height, so feedback cannot cover task actions. The row shrinks below the reading position when feedback leaves. Hidden navigation
+  contributes no offset; unmounting the workspace removes its published height.
   `keyboard-inset.svelte.test.ts` pins measurement and cleanup; native keyboard behavior
   also needs simulator/device validation.
 
@@ -147,6 +177,14 @@ only acted on rows nobody chose. Typing away an open Harper finding let it selec
 row's word, so the next keystroke replaced that word. After All findings, the effect chased
 the stale active finding while the tapped row navigated to itself, and the two re-entered
 each other through `tick()` until the page hung. The effect was removed in November 2026.
+
+The phone navigation owner commits the requested diagnostic identity before exposing focused
+Review, then selects and reveals its exact occurrence after the editor receives its context
+height. Deferring both identity and reveal let the list queue the previously active card during
+that layout handoff. Its reveal and the deliberate press then selected each other indefinitely,
+starving the renderer after task application and Undo. The identity handoff preserves the
+ordinary reveal, selection, history and keyboard behavior without suppressing list updates.
+`MobileWorkspace.svelte.test.ts` pins switching from an earlier finding to another one.
 
 Saved choices have no active decision card. Their location controls therefore reveal the
 passage in Write, after the editor becomes visible, and return focus to the Write control.

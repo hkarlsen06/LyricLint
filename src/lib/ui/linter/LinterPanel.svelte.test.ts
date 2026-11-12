@@ -1,3 +1,6 @@
+import { importDocument, renderProfile, resolveDecision } from '#lib/conversion/index.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -9,6 +12,7 @@ import { runRules } from '#lib/rules/engine.js';
 import { ruleContext } from '#lib/rules/rule-test-utils.js';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
 import LinterPanel from './LinterPanel.svelte';
+import SongPanel from '../tools/SongPanel.svelte';
 
 /** The revision `createTestWorkbench` mounts with; a fix off it would be stale. */
 const revision = 4;
@@ -1106,5 +1110,135 @@ describe('one row per decision', () => {
 		await render(LinterPanel, { controller });
 		expect(screen.queryByRole('button', { name: 'Next place' })).toBeNull();
 		expect(document.querySelector('.diagnostic-meta__line')?.textContent).toBe('Line 1');
+	});
+});
+
+describe('retained-only review', () => {
+	afterEach(cleanup);
+	test.each([false, true])(
+		'keeps unreviewed passage scope visible with findings=%s',
+		async (findings) => {
+			const imported = importDocument({
+				text: 'Bonjour\nOther words',
+				profile: 'genius',
+				language: 'fr'
+			});
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const projection = renderProfile(imported.value, 'genius');
+			if (!projection.ok) throw new Error(projection.refusal.message);
+			const assigned = resolveDecision(imported.value, projection.value, {
+				kind: 'setPassageLanguage',
+				range: { from: 8, to: 19 },
+				language: 'zz-Latn-custom'
+			});
+			if (!assigned.ok) throw new Error(assigned.refusal.message);
+			const { controller } = createTestWorkbench({
+				text: projection.value.text,
+				diagnostics: findings ? [prose(0, 7)] : []
+			});
+			controller.onSnapshot({
+				...controller.snapshot,
+				conversion: createConversionEnvelope(
+					assigned.value.document,
+					'genius',
+					profilePolicyVersions
+				)
+			});
+			const original = JSON.stringify(controller.snapshot.conversion);
+			await render(LinterPanel, { controller });
+			expect(
+				screen.getByText('zz-Latn-custom: language-independent checks and conversion only.')
+			).toBeVisible();
+			await fireEvent.click(screen.getByText('Checking coverage'));
+			expect(screen.getByText('Reviewed language-specific rules: French.')).toBeVisible();
+			expect(
+				screen.getByText('Optional English grammar checking is available in both lyric formats.')
+			).toBeVisible();
+			expect(JSON.stringify(controller.snapshot.conversion)).toBe(original);
+		}
+	);
+	test('opens the actual retained section from an empty transcription', async () => {
+		const imported = importDocument({ text: '[Verse]', profile: 'genius', language: 'en' });
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const projected = renderProfile(imported.value, 'musixmatch');
+		if (!projected.ok) throw new Error(projected.refusal.message);
+		const { controller } = createTestWorkbench({
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions),
+			text: projected.value.text,
+			diagnostics: []
+		});
+		await render(LinterPanel, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'View retained details' }));
+		expect(controller.requestedSection).toEqual({
+			id: imported.value.sections[0]!.id,
+			origin: 'review'
+		});
+		await render(SongPanel, { controller });
+		await waitFor(() =>
+			expect(screen.getByRole('heading', { name: 'Section 1 · Verse' })).toHaveFocus()
+		);
+		expect(screen.queryByRole('heading', { name: 'Add a section' })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Back to Review' })).toBeVisible();
+		expect(controller.snapshot.conversion?.model).toEqual(imported.value);
+	});
+
+	test('puts lyric findings before retained decisions without a one-item pager', async () => {
+		const imported = importDocument({
+			text: '[Custom verse: Mira]\nI counted 2 stars',
+			profile: 'genius',
+			language: 'en'
+		});
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const rendered = renderProfile(imported.value, 'musixmatch');
+		if (!rendered.ok) throw new Error(rendered.refusal.message);
+		const { controller } = createTestWorkbench({
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions),
+			text: rendered.value.text,
+			diagnostics: [
+				diagnostic({
+					ruleId: 'mxm.numbers.context',
+					message: 'Confirm this number’s meaning before converting it.',
+					severity: 'manual-review',
+					from: 10,
+					to: 11
+				})
+			]
+		});
+		const view = await render(LinterPanel, { controller });
+		const finding = screen.getByRole('button', { name: 'Review quantity' });
+		const retained = screen.getByRole('region', { name: 'Retained details needing review' });
+		expect(finding.getBoundingClientRect().bottom).toBeLessThan(
+			retained.getBoundingClientRect().top
+		);
+		expect(view.container.querySelector('.diagnostic-list')).toBeTruthy();
+		expect(screen.getByRole('combobox', { name: 'Musixmatch section type' })).toBeVisible();
+		expect(screen.queryByRole('button', { name: 'Previous detail' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Next detail' })).toBeNull();
+		expect(screen.queryByText('No further issues detected.')).toBeNull();
+	});
+
+	test('shows the actionable detail without a duplicate empty state and preserves checker errors', async () => {
+		const imported = importDocument({
+			text: '[Custom opening]\nOne',
+			profile: 'genius',
+			language: 'en'
+		});
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		const rendered = renderProfile(imported.value, 'musixmatch');
+		if (!rendered.ok) throw new Error(rendered.refusal.message);
+		const { controller } = createTestWorkbench({
+			conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions),
+			text: rendered.value.text,
+			diagnostics: []
+		});
+		const view = await render(LinterPanel, { controller });
+		expect(screen.getByRole('region', { name: 'Retained details needing review' })).toBeVisible();
+		expect(screen.getByRole('combobox', { name: 'Musixmatch section type' })).toBeVisible();
+		expect(view.container.querySelector('.diagnostic-list__empty')).toBeNull();
+		await view.rerender({ controller, nativeRulesStatus: 'failed' });
+		expect(screen.getByText('Checking unavailable')).toBeVisible();
+		expect(screen.getByRole('button', { name: 'Retry checking' })).toBeVisible();
+		await view.rerender({ controller, nativeRulesStatus: 'ready' });
+		expect(view.container.querySelector('.diagnostic-list__empty')).toBeNull();
 	});
 });

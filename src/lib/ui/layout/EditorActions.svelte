@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PassageLanguage from '../tools/PassageLanguage.svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import { canAssignVoiceGroup } from '#lib/performers/transform.js';
@@ -47,38 +48,43 @@
 	// Up to four editing/source commands, followed by the workspace toggle.
 	// The toggle belongs at the editor edge it expands and remains reachable
 	// when the tools are hidden.
-	const actions = $derived([
-		{
-			id: 'section',
-			mark: '[+]',
-			label: 'Section header',
-			caption: mac ? '⇧⌘H' : 'Ctrl+Shift+H',
-			keyshortcuts: mac ? 'Meta+Shift+H' : 'Control+Shift+H',
-			run: () => controller.insertSection()
-		},
-		{
-			// The accessible name keeps the mark, because `[?]` is the thing this
-			// writes and a reader who knows the convention should be able to find the
-			// control by it.
-			id: 'unknown',
-			mark: '[?]',
-			label: 'Unknown lyric [?]',
-			caption: mac ? '⌃⌥U' : 'Ctrl+Alt+U',
-			keyshortcuts: 'Control+Alt+U',
-			run: () => controller.insertUnknownMarker()
-		},
-		{
-			// The one command here that writes nothing, which is why it is the one
-			// drawn as a pictogram rather than as a mark: the other two show what
-			// they put in the document, and this one has nothing to show.
-			id: 'find',
-			mark: undefined,
-			label: 'Find and replace',
-			caption: mac ? '⌘F' : 'Ctrl+F',
-			keyshortcuts: mac ? 'Meta+F' : 'Control+F',
-			run: () => controller.toggleSearch()
-		}
-	]);
+	const actions = $derived(
+		[
+			{
+				// The accessible name keeps the mark, because `[?]` is the thing this
+				// writes and a reader who knows the convention should be able to find the
+				// control by it.
+				id: 'unknown',
+				mark: '[?]',
+				label: 'Unknown lyric [?]',
+				caption: mac ? '⌃⌥U' : 'Ctrl+Alt+U',
+				keyshortcuts: 'Control+Alt+U',
+				run: () => controller.insertUnknownMarker()
+			},
+			{
+				id: 'section',
+				mark: '[+]',
+				label: controller.profile === 'musixmatch' ? 'Section boundary' : 'Section header',
+				caption: mac ? '⇧⌘H' : 'Ctrl+Shift+H',
+				keyshortcuts: mac ? 'Meta+Shift+H' : 'Control+Shift+H',
+				run: () => controller.insertSection()
+			},
+			{
+				// The one command here that writes nothing, which is why it is the one
+				// drawn as a pictogram rather than as a mark: the other two show what
+				// they put in the document, and this one has nothing to show.
+				id: 'find',
+				mark: undefined,
+				label: 'Find and replace',
+				caption: mac ? '⌘F' : 'Ctrl+F',
+				keyshortcuts: mac ? 'Meta+F' : 'Control+F',
+				run: () => controller.toggleSearch()
+			}
+		].filter((action) => action.id !== 'unknown' || controller.profile === 'genius')
+	);
+	// The audio attach draws only while there is nothing for the strip to show:
+	// no attachment and no remembered source. Past that the strip itself carries
+	// the way back in, so the tray never offers what the row below already does.
 	const audioAvailable = $derived(
 		openMediaPicker !== undefined && controller.media !== undefined && !controller.media.restoring
 	);
@@ -97,6 +103,15 @@
 	role="group"
 	aria-label="Document actions"
 >
+	{#if !phone.current}<PassageLanguage {controller} controlsOnly contextual />{/if}
+	{#if phone.current && canAssign}
+		<button
+			type="button"
+			class="button--quiet editor-actions__button"
+			onmousedown={(event) => event.preventDefault()}
+			onclick={() => controller.editor.requestPerformerAssignment?.()}>Assign voices</button
+		>
+	{/if}
 	{#each actions as action (action.id)}
 		<button
 			type="button"
@@ -105,7 +120,12 @@
 			aria-keyshortcuts={action.keyshortcuts}
 			aria-pressed={action.id === 'find' ? controller.searchOpen : undefined}
 			onmousedown={(event) => event.preventDefault()}
-			onclick={action.run}
+			onclick={(event) => {
+				action.run();
+				// The last replacement can remove the focused search control.
+				// Keep the visible exit focused even when the panel no longer owns focus.
+				if (action.id === 'find' && !controller.searchOpen) event.currentTarget.focus();
+			}}
 			{@attach describeControl(() => ({ label: action.label, shortcut: action.caption }))}
 		>
 			{#if phone.current}
@@ -153,14 +173,6 @@
 			{/if}
 		</button>
 	{/if}
-	{#if phone.current && canAssign}
-		<button
-			type="button"
-			class="button--quiet editor-actions__button"
-			onmousedown={(event) => event.preventDefault()}
-			onclick={() => controller.editor.requestPerformerAssignment?.()}>Assign voices</button
-		>
-	{/if}
 	{#if onToggleEditor && !phone.current}
 		<button
 			type="button"
@@ -200,12 +212,10 @@
 	 * went and the tray is `position: absolute` over the space that was already
 	 * empty.
 	 *
-	 * `--panel-tabs-height` is kept, so its foot still lands level with the panel's
-	 * tab strip: the chrome under the toolbar ends at one height across the window
-	 * even though the two surfaces do not touch.
-	 *
-	 * A rounded inner corner and a tonal change separate the tray; no hairline
-	 * connects it to the rest of the window.
+	 * It floats as a small toolbar, inset from the sheet's corner and drawn with
+	 * the control ring, the way Notion and Figma float formatting tools over a
+	 * canvas: a tab-shaped notch cut into the corner read as part of the sheet
+	 * missing rather than as a tool resting on it.
 	 *
 	 * `--color-chrome`, like the toolbar above it. The bulk-fix strip learned the
 	 * alternative the long way: drawn as bare canvas it took the tone of whatever it
@@ -215,17 +225,18 @@
 	 */
 	.editor-actions {
 		position: absolute;
-		top: 0;
-		right: 0;
+		top: var(--editor-actions-inset);
+		right: var(--editor-actions-inset);
 		z-index: var(--layer-toolbar);
 		display: flex;
-		min-height: var(--panel-tabs-height);
-		padding: 0 var(--space-3);
+		min-height: calc(var(--control-height-md) + 2 * var(--space-1));
+		padding: var(--space-1);
 		border: 0;
-		border-bottom-left-radius: var(--radius-panel);
-		gap: var(--space-1);
+		border-radius: calc(var(--radius-control) + var(--space-1));
+		gap: var(--space-0-5);
 		align-items: center;
 		background: var(--color-chrome);
+		box-shadow: var(--shadow-control);
 	}
 
 	.editor-actions__button {
@@ -262,7 +273,10 @@
 	 * hovered. `aria-pressed` is what carries it to anything that cannot see a
 	 * color, which is why the state is a toggle button rather than a class.
 	 */
+	/* Pressed is a fill as well as the accent, so the state survives without
+	   its color. */
 	.editor-actions__button[aria-pressed='true'] {
+		background: var(--color-fill-strong);
 		color: var(--color-accent);
 	}
 
@@ -276,8 +290,11 @@
 	@media (pointer: coarse) and (max-width: 68rem) {
 		:global(.workspace) .editor-actions {
 			position: static;
-			align-self: flex-end;
+			align-self: stretch;
 			flex: none;
+			justify-content: flex-end;
+			border-bottom: var(--border-width) solid var(--color-border);
+			border-radius: 0;
 		}
 
 		:global(.workspace[data-mobile-view='review'][data-review-focused='true']) .editor-actions {
@@ -286,9 +303,16 @@
 	}
 
 	.editor-actions--phone {
+		min-height: var(--panel-tabs-height);
+		padding-block: 0;
+		background: transparent;
+		box-shadow: none;
 		max-width: 100%;
 		padding-inline: var(--space-1);
 		gap: 0;
+	}
+	.editor-actions--phone .editor-actions__button:not([aria-pressed='true'], :hover) {
+		color: var(--color-text-muted);
 	}
 	.editor-actions--phone .editor-actions__button {
 		min-height: var(--control-height-touch);

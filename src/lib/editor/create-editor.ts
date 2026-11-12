@@ -1,3 +1,4 @@
+import { nativeEditorFocus } from './extensions/native-focus.js';
 // Decision record: docs/subsystems/editor.md. Read it before changing this file, and update it with any behavior change.
 import { redo as redoCommand, history, undo as undoCommand } from '@codemirror/commands';
 import {
@@ -122,7 +123,12 @@ import {
 	typeOnlyHereNotifier
 } from './extensions/section-links.js';
 import { caretLayer } from './extensions/caret-layer.js';
-import { clipboardMetadata } from './extensions/clipboard-metadata.js';
+import {
+	clipboardMetadata,
+	applyClipboardReview,
+	dismissClipboardReview,
+	prepareInterpretation
+} from './extensions/clipboard-metadata.js';
 import { selectionAnchorPlugin } from './extensions/selection-anchor.js';
 import { searchReplace } from './extensions/search-replace.js';
 import { createUpdateListener, snapshotFromState } from './extensions/update-bridge.js';
@@ -135,8 +141,26 @@ import {
 	requestSectionLink
 } from './keymap.js';
 import { dispatchAtomicEdit } from './transaction-adapter.js';
+import { lyricSyncActive } from './extensions/lyric-sync.js';
+import {
+	conversionScopeField,
+	conversionSectionLocal,
+	toggleConversionSectionLocal
+} from './extensions/conversion-scope.js';
+import { conversionSectionBoundaries } from './extensions/conversion-sections.js';
+import {
+	conversionState,
+	dispatchConversionTransactions,
+	conversionForState,
+	switchEditorProfile,
+	profileForState,
+	dispatchConversionAction,
+	dispatchPerformerRecords
+} from './extensions/conversion-state.js';
 
 export interface CreateLyricEditorOptions {
+	initialConversion?: import('#lib/persistence/conversion.js').ConversionEnvelope;
+	initialConversionRecovery?: import('#lib/persistence/conversion.js').ConversionRecovery;
 	initialText: string;
 	initialSelection?: SerializedSelection;
 	initialRevision?: number;
@@ -147,15 +171,9 @@ export interface CreateLyricEditorOptions {
 	selectionSettleDelay?: number;
 	/**
 	 * Whether a headerless section offers its `+ Add section header` row. On by
-	 * default, and the workbench never turns it off: there the ghost is how a
-	 * section that has no header gets one, and it costs a row of a document the
-	 * reader is free to scroll.
-	 *
-	 * It is off in the landing page's demo, where the editor is a fixed box a few
-	 * lines tall and the row is a quarter of it. Nothing is lost by dropping it
-	 * there: the sample's header problem is `section.header-prose`, whose fix
-	 * rewrites the line the reader is already looking at, so the repair is on the
-	 * line rather than in a control above it.
+	 * default for standalone editors. The workbench uses its persistent Section
+	 * action instead, so a helper row cannot move lyrics during a format switch.
+	 * The fixed-height landing demo also omits these rows.
 	 */
 	sectionGhosts?: boolean;
 	/**
@@ -343,9 +361,13 @@ const editorTheme = EditorView.theme({
 	'.cm-activeLine:has(.ll-placeholder)': {
 		boxShadow: 'none'
 	},
+	// The caret's line number is the editor's one current-state mark, so it
+	// takes the accent, as the open tool and the open finding do. Its weight
+	// carries it for anyone who cannot see the hue.
 	'.cm-activeLineGutter': {
 		backgroundColor: 'transparent',
-		color: 'var(--color-text)'
+		color: 'var(--color-accent)',
+		fontWeight: 'var(--font-weight-semibold)'
 	},
 	// The selection is the browser's own, not CodeMirror's drawn one (see
 	// `drawSelection` in the extension list): a native highlight is painted over
@@ -557,6 +579,9 @@ const lyricEditorCallbackKeySet = {
 	onSnapshot: true,
 	onAssignRequest: true,
 	onSectionHeaderRequest: true,
+	onSectionDetailRequest: true,
+	onPerformerRecordsChanged: true,
+	getNextPerformerOrder: true,
 	onDiagnosticActivate: true,
 	onAnnouncement: true,
 	createPerformerEdit: true,
@@ -568,6 +593,7 @@ const lyricEditorCallbackKeySet = {
 	onApplyDiagnosticFixBatch: true,
 	onIgnoreDiagnostic: true,
 	onSetLanguage: true,
+	onConversionReviewRequest: true,
 	onAddPerformer: true,
 	onPerformerRenamed: true,
 	onDiagnosticActivateIntent: true,
@@ -577,6 +603,7 @@ const lyricEditorCallbackKeySet = {
 	onRequestMediaPlayback: true,
 	onRequestMediaSource: true,
 	onMediaSourcePasted: true,
+	onPerformersPasted: true,
 	onSeekMedia: true,
 	onLineAnchorsChanged: true,
 	onLyricSyncChange: true,
@@ -600,6 +627,9 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		onSnapshot: (snapshot) => read().onSnapshot(snapshot),
 		onAssignRequest: (request) => read().onAssignRequest(request),
 		onSectionHeaderRequest: (request) => read().onSectionHeaderRequest(request),
+		onPerformerRecordsChanged: (delta) => read().onPerformerRecordsChanged?.(delta),
+		getNextPerformerOrder: () => read().getNextPerformerOrder?.() ?? 0,
+		onSectionDetailRequest: (sectionId) => read().onSectionDetailRequest?.(sectionId),
 		onDiagnosticActivate: (diagnostic, range) => read().onDiagnosticActivate(diagnostic, range),
 		onAnnouncement: (message) => read().onAnnouncement(message),
 		createPerformerEdit: (choice) => read().createPerformerEdit?.(choice),
@@ -613,6 +643,7 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 			read().onApplyDiagnosticFixBatch?.(diagnostic, fix),
 		onIgnoreDiagnostic: (diagnostic) => read().onIgnoreDiagnostic?.(diagnostic),
 		onSetLanguage: (language) => read().onSetLanguage?.(language),
+		onConversionReviewRequest: (diagnostic) => read().onConversionReviewRequest?.(diagnostic),
 		onAddPerformer: (displayName) => read().onAddPerformer?.(displayName),
 		onPerformerRenamed: (rename) => read().onPerformerRenamed?.(rename),
 		onDiagnosticReviewRequest: (diagnostic, range) =>
@@ -641,9 +672,12 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		// the floor, both without a visible failure anywhere.
 		onRequestMediaSource: () => read().onRequestMediaSource?.(),
 		onMediaSourcePasted: (source) => read().onMediaSourcePasted?.(source),
+		onPerformersPasted: (performers) => read().onPerformersPasted?.(performers),
 		onSeekMedia: (time) => read().onSeekMedia?.(time),
-		onLyricSyncChange: (active, startAt, scoped) =>
-			read().onLyricSyncChange?.(active, startAt, scoped),
+		onLyricSyncChange: (active, startAt, scoped, reason) =>
+			reason === undefined
+				? read().onLyricSyncChange?.(active, startAt, scoped)
+				: read().onLyricSyncChange?.(active, startAt, scoped, reason),
 		onLyricSyncNotice: (message) => read().onLyricSyncNotice?.(message),
 		onLineAnchorsChanged: () => read().onLineAnchorsChanged?.(),
 		onDiagnosticHighlight: (diagnostic) => read().onDiagnosticHighlight?.(diagnostic),
@@ -736,8 +770,10 @@ export function createLyricEditor(
 		// backing a run up and jumping to a line cannot come to mean different
 		// things about where the tape ends up.
 		onSeek: (time: number) => callbackProxy.onSeekMedia?.(time),
-		onChange: (active: boolean, startAt?: number, scoped?: boolean) =>
-			callbackProxy.onLyricSyncChange?.(active, startAt, scoped),
+		onChange: (active: boolean, startAt?: number, scoped?: boolean, reason?: 'profile') =>
+			reason === undefined
+				? callbackProxy.onLyricSyncChange?.(active, startAt, scoped)
+				: callbackProxy.onLyricSyncChange?.(active, startAt, scoped, reason),
 		announce: (message: string) => callbackProxy.onAnnouncement(message),
 		// The second audience. `announce` above reaches the `sr-only` region and
 		// nothing else, and a run filling a whole section from a linked peer is the
@@ -756,6 +792,7 @@ export function createLyricEditor(
 	});
 
 	const extensions: Extension[] = [
+		nativeEditorFocus(),
 		history(),
 		// The line number is a wider, always-drawn target than four characters of
 		// muted time, on the side of the document the eye already uses to find a
@@ -815,6 +852,9 @@ export function createLyricEditor(
 		editorCallbacksField,
 		editorRevisionField.init(() => initialRevision),
 		editorComposingField,
+		conversionState(options.initialConversion, options.initialConversionRecovery),
+		conversionSectionBoundaries,
+		conversionScopeField,
 		legendCleanupFilter(),
 		// Transaction filters run in reverse registration order, so listing the
 		// rename filter after legend cleanup makes it run first: it needs the
@@ -905,7 +945,15 @@ export function createLyricEditor(
 	// Populate the display fields before a view exists, so its first DOM already
 	// represents the recovered document instead of immediately rebuilding it.
 	const state = emptyContextState.update({
-		effects: contextEffects(emptyContextState, options.context),
+		effects: [
+			...contextEffects(emptyContextState, options.context),
+			...(options.initialConversion
+				? [
+						setLineAnchorsEffect.of(conversionForState(emptyContextState)!.projection.lineAnchors),
+						setSectionLinksEffect.of(conversionForState(emptyContextState)!.projection.sectionLinks)
+					]
+				: [])
+		],
 		annotations: Transaction.addToHistory.of(false)
 	}).state;
 	// Build disconnected so constructor style reads cannot repeatedly lay out the
@@ -918,7 +966,11 @@ export function createLyricEditor(
 			? hostRoot
 			: host.ownerDocument
 	) as Document | ShadowRoot;
-	const view = new EditorView({ state, root });
+	const view = new EditorView({
+		state,
+		root,
+		dispatchTransactions: dispatchConversionTransactions
+	});
 	// Read once, beside the extension list's own options: a listener bound at
 	// mount is not something a pane can take back without remounting.
 	const windowFind = options.windowFind ?? true;
@@ -1006,7 +1058,11 @@ export function createLyricEditor(
 	): StateEffect<unknown>[] {
 		const revision = state.field(editorRevisionField);
 		const text = state.doc.toString();
-		const parsed = context.parsed?.text === text ? context.parsed : parseDocument(text);
+		const profile = conversionForState(state)?.envelope.profile ?? context.profile ?? 'genius';
+		const parsed =
+			context.parsed?.text === text && (context.parsed.profile ?? 'genius') === profile
+				? context.parsed
+				: parseDocument(text, { profile, language: context.language });
 		const nextContext = { ...context, parsed };
 		// A changed document clears settled decorations before context returns.
 		// Compare the immutable document too: an edit followed by undo can bring
@@ -1071,16 +1127,45 @@ export function createLyricEditor(
 	}
 
 	const handle: EditorHandle = {
+		isLyricSyncActive() {
+			return lyricSyncActive(view.state);
+		},
+		isConversionSectionLocal(sectionId) {
+			return conversionSectionLocal(view.state) === sectionId;
+		},
+		toggleConversionSectionLocal(sectionId) {
+			return toggleConversionSectionLocal(view, sectionId);
+		},
+		dispatchConversionAction(action, baseRevision, rosterChanges) {
+			return dispatchConversionAction(view, action, baseRevision, rosterChanges);
+		},
+		dispatchPerformerRecords(rosterChanges, baseRevision) {
+			return dispatchPerformerRecords(view, rosterChanges, baseRevision);
+		},
+		switchProfile(profile) {
+			return switchEditorProfile(view, profile);
+		},
 		focus() {
 			view.focus();
 		},
 		getSnapshot(): EditorSnapshot {
 			return snapshotFromState(view.state);
 		},
-		dispatchAtomic(edit) {
+		applyClipboardReview() {
+			return applyClipboardReview(view);
+		},
+		prepareInterpretation(profile, range) {
+			return prepareInterpretation(view, profile, range);
+		},
+		dismissClipboardReview() {
+			dismissClipboardReview(view);
+		},
+		dispatchAtomic(edit, rosterChanges) {
+			if (conversionForState(view.state)?.recovery)
+				throw new Error('Recover the lyric associations before applying a structured edit.');
 			// Validation belongs before cleanup: a stale edit throws without changing
 			// either the document or the preview the reader is still considering.
-			dispatchAtomicEdit(view, edit);
+			dispatchAtomicEdit(view, edit, [], rosterChanges);
 			view.dispatch({
 				effects: setFixPreviewEffect.of(undefined),
 				annotations: Transaction.addToHistory.of(false)
@@ -1102,6 +1187,8 @@ export function createLyricEditor(
 			});
 		},
 		dispatchAtomicOnlyHere(edit, range) {
+			if (conversionForState(view.state)?.recovery)
+				throw new Error('Recover the lyric associations before applying a structured edit.');
 			// The scope annotation and the words land in one transaction: section
 			// links can neither copy the proposal first nor record its exception
 			// after a snapshot has already escaped.
@@ -1175,9 +1262,7 @@ export function createLyricEditor(
 		toggleSearch() {
 			if (searchPanelOpen(view.state)) {
 				closeSearchPanel(view);
-				// `closeSearchPanel` moves focus back to the document, which is right
-				// for `Escape` and for the panel's own way out. It is wrong for a press
-				// on the tray: the pointer is up here and the caret was never asked for.
+				// Escape returns to the document. The tray owns focus on its visible exit.
 				return;
 			}
 			openSearchPanel(view);
@@ -1218,7 +1303,7 @@ export function createLyricEditor(
 		},
 		getTimingLine(pos) {
 			const line = view.state.doc.lineAt(Math.max(0, Math.min(pos, view.state.doc.length)));
-			return isStampableLine(line, view.state.doc)
+			return isStampableLine(line, view.state.doc, profileForState(view.state))
 				? { line: line.number, text: line.text }
 				: undefined;
 		},
@@ -1227,7 +1312,7 @@ export function createLyricEditor(
 			if (!Number.isInteger(number) || number < 1 || number > view.state.doc.lines) return false;
 			if (time !== undefined && (!Number.isFinite(time) || time < 0)) return false;
 			const line = view.state.doc.line(number);
-			if (!isStampableLine(line, view.state.doc)) return false;
+			if (!isStampableLine(line, view.state.doc, profileForState(view.state))) return false;
 			view.dispatch({
 				effects:
 					time === undefined

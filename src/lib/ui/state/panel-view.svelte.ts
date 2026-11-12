@@ -31,7 +31,7 @@ import { resolveLegendAssignment } from '#lib/performers/legend-assignment.js';
 import { collectMatchingFixes, mergeFixes, planBulkFix } from '#lib/rules/bulk-fix.js';
 import type { BulkFixPlan } from '#lib/rules/bulk-fix.js';
 import { ruleName } from '#lib/rules/names.js';
-import type { FeedbackState } from './feedback.svelte.js';
+import { NOTICE_TOAST_DURATION, type FeedbackState } from './feedback.svelte.js';
 
 export type RightPanelTab =
 	'linter' | 'linking' | 'performers' | 'song' | 'preferences' | 'assistant';
@@ -183,7 +183,10 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	const ignoredDiagnosticKeys = $derived.by(() => {
 		void ignoreEpoch;
 		void deps.snapshot().revision;
-		return deps.ignoreStore.list(deps.draftId());
+		const musixmatch = deps.snapshot().conversion?.profile === 'musixmatch';
+		return deps.ignoreStore
+			.list(deps.draftId())
+			.filter((key) => ignoredDiagnosticRuleId(key).startsWith('mxm.') === musixmatch);
 	});
 	const ignoredDiagnosticMatches = $derived(
 		matchIgnoredDiagnostics(
@@ -195,12 +198,18 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 
 	const feedback = deps.feedback;
 
-	function setIgnored(diagnosticKey: string, ignored: boolean): void {
-		const draftId = deps.draftId();
+	function setIgnored(diagnosticKey: string, ignored: boolean, draftId = deps.draftId()): boolean {
+		if (draftId !== deps.draftId()) {
+			const message = "Open the original 'scribe to undo this finding change.";
+			feedback.announce(message);
+			feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+			return false;
+		}
 		if (ignored) deps.ignoreStore.ignore(draftId, diagnosticKey);
 		else deps.ignoreStore.restore(draftId, diagnosticKey);
 		ignoreEpoch += 1;
 		deps.onIgnoredDiagnosticsChange?.();
+		return true;
 	}
 
 	function setActiveTab(tab: RightPanelTab): void {
@@ -592,6 +601,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			);
 		},
 		ignoreDiagnostic(diagnostic) {
+			const draftId = deps.draftId();
 			deps.editor().clearPreview?.();
 			activeDiagnosticKey = undefined;
 			const key = diagnosticIgnoreKey(diagnostic, deps.snapshot().text);
@@ -604,15 +614,19 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			// The suppression is the same either way; what the reader answered is
 			// not, and a card that led with `It's correct` must not report back that
 			// the finding was ignored.
-			const message = acceptsDiagnosticAsCorrect(diagnostic)
+			const accepted = acceptsDiagnosticAsCorrect(diagnostic);
+			const message = accepted
 				? `Marked this “${ruleName(diagnostic.ruleId)}” diagnostic as correct for this 'scribe.`
 				: `Ignored this “${ruleName(diagnostic.ruleId)}” diagnostic for this 'scribe.`;
 			feedback.announce(message);
 			feedback.addToast({
-				message,
+				message: accepted
+					? `“${ruleName(diagnostic.ruleId)}” is correct.`
+					: `Ignored “${ruleName(diagnostic.ruleId)}”.`,
+				groupKey: JSON.stringify([draftId, diagnostic.ruleId, accepted ? 'accept' : 'ignore']),
 				actionLabel: 'Undo',
 				action: () => {
-					setIgnored(key, false);
+					if (!setIgnored(key, false, draftId)) return;
 					feedback.announce(`Restored “${ruleName(diagnostic.ruleId)}”.`);
 				}
 			});
@@ -639,14 +653,16 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		},
 		restoreDiagnostic(key) {
 			if (!ignoredDiagnosticKeys.includes(key)) return;
+			const draftId = deps.draftId();
 			setIgnored(key, false);
 			const message = `Restored “${ruleName(ignoredDiagnosticRuleId(key))}”.`;
 			feedback.announce(message);
 			feedback.addToast({
 				message,
+				groupKey: JSON.stringify([draftId, ignoredDiagnosticRuleId(key), 'restore']),
 				actionLabel: 'Undo',
 				action: () => {
-					setIgnored(key, true);
+					if (!setIgnored(key, true, draftId)) return;
 					// The key says which question was answered, so undoing a restore
 					// puts back the answer that was given rather than an ignore.
 					feedback.announce(

@@ -13,6 +13,7 @@
  * reader.
  */
 const groupTitles = new Map<string, string>([
+	['mxm', 'Musixmatch'],
 	['syntax', 'Syntax and markup'],
 	['language', 'Language selection'],
 	['section', 'Section headers'],
@@ -35,6 +36,11 @@ const groupTitles = new Map<string, string>([
 	['numbers', 'Numbers']
 ]);
 
+const readableNames = new Map<string, string>([
+	['grammar.english-pronoun-i', 'Capitalizing I'],
+	['punctuation.line-ending', 'Line-ending punctuation']
+]);
+
 export function groupTitle(prefix: string): string {
 	const title = groupTitles.get(prefix);
 	if (!title) {
@@ -49,14 +55,17 @@ export function groupTitle(prefix: string): string {
  * ignored-rules footer, the ignore and restore announcements) comes through
  * here.
  *
- * It is the index group's own title plus the rest of the ID in words, rather
+ * Prefer a readable name where the identifier reads as implementation detail.
+ * Otherwise use the index group's own title plus the rest of the ID in words, rather
  * than the rule's diagnostic message: a message is written about the occurrence
  * in front of the reader (“«definately» is a common English spelling error”),
- * and ignoring a rule silences all of them. Derived rather than hand-written so
- * a new rule cannot ship with no name, and unknown IDs fall back to themselves, because
+ * and ignoring an occurrence does not disable its rule. The derived fallback means
+ * a new rule cannot ship with no name. Unknown IDs fall back to themselves, because
  * a label is not worth breaking a restore over.
  */
 export function ruleName(id: string): string {
+	const readable = readableNames.get(id);
+	if (readable) return readable;
 	const [prefix, ...rest] = id.split('.');
 	const detail = rest.join(' ').replaceAll('-', ' ');
 	const title = groupTitles.get(prefix);

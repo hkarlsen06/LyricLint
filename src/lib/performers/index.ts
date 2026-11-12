@@ -1,4 +1,4 @@
-export { findExactPerformer, normalizePerformerKey } from './identity.js';
+export { findExactPerformer, normalizePerformerKey, renamedPerformer } from './identity.js';
 export { allocatePerformerColor, performerColorIds } from './color.js';
 export { extractPerformers, isRetiredUnresolvedVoiceName } from './import.js';
 export {

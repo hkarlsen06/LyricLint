@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
-import { cdp, page } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createTestWorkbench } from '../test-utils.js';
@@ -23,7 +23,7 @@ test('keeps phone identity and copy visible while document commands dismiss thre
 	const { controller } = createTestWorkbench({ text: '[Verse]\nThe words' });
 	await render(DocumentToolbar, { controller });
 	const trigger = await screen.findByRole('button', { name: 'Document' });
-	const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+	const copy = screen.getByRole('button', { name: 'Copy Genius' });
 	expect(screen.queryByRole('button', { name: 'Compare' })).toBeNull();
 	for (const control of [trigger, copy, screen.getByLabelText("'Scribe title")]) {
 		const rect = control.getBoundingClientRect();
@@ -44,6 +44,115 @@ test('keeps phone identity and copy visible while document commands dismiss thre
 	await fireEvent.pointerDown(copy);
 	expect(screen.queryByRole('button', { name: 'Compare' })).toBeNull();
 });
+
+test.each([360, 390])('keeps history focus on the usable command at %ipx', async (width) => {
+	await page.viewport(width, 844);
+	const { controller, calls } = createTestWorkbench({ text: '[Verse]\nThe words' });
+	controller.editor.undo = () =>
+		controller.onSnapshot({ ...controller.snapshot, canUndo: false, canRedo: true });
+	controller.editor.redo = () =>
+		controller.onSnapshot({ ...controller.snapshot, canUndo: true, canRedo: false });
+	await render(DocumentToolbar, { controller });
+	await userEvent.click(await screen.findByRole('button', { name: 'Document' }));
+	const undo = screen.getByRole('button', { name: 'Undo' });
+	const redo = screen.getByRole('button', { name: 'Redo' });
+	const copy = screen.getByRole('button', { name: 'Copy Genius' });
+	const before = copy.getBoundingClientRect();
+	await userEvent.click(undo);
+	await waitFor(() => expect(document.activeElement).toBe(redo));
+	await userEvent.keyboard('{Enter}');
+	await waitFor(() => expect(document.activeElement).toBe(undo));
+	expect(screen.getByRole('button', { name: 'Document' }).getAttribute('aria-expanded')).toBe(
+		'true'
+	);
+	expect(copy.getBoundingClientRect().toJSON()).toEqual(before.toJSON());
+	expect(calls.focusCount).toBe(0);
+	await userEvent.keyboard('{Escape}');
+	expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Document' }));
+});
+
+test('leaves Escape to the active modal even when its focused content has disappeared', async () => {
+	await page.viewport(360, 844);
+	const { controller } = createTestWorkbench({ text: '[Verse]\nThe words' });
+	controller.setCompareBaseline('[Verse]\nOther words');
+	await render(DocumentToolbar, { controller });
+	const documentControl = await screen.findByRole('button', { name: 'Document' });
+	await userEvent.click(documentControl);
+	await userEvent.click(screen.getByRole('button', { name: 'Compare' }));
+	const dialog = screen.getByRole('dialog', { name: /^Compare with/ }) as HTMLDialogElement;
+	const change = await screen.findByRole('button', { name: 'Change baseline' });
+	change.focus();
+	change.blur();
+	expect(document.activeElement).toBe(document.body);
+	const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+	document.body.dispatchEvent(escape);
+	expect(escape.defaultPrevented).toBe(false);
+	expect(documentControl.getAttribute('aria-expanded')).toBe('true');
+	expect(dialog.matches(':modal')).toBe(true);
+	dialog.close();
+	await waitFor(() => expect(documentControl.getAttribute('aria-expanded')).toBe('false'));
+	expect(document.activeElement).toBe(documentControl);
+	await userEvent.click(documentControl);
+	expect(documentControl.getAttribute('aria-expanded')).toBe('true');
+});
+
+test.each([
+	{ width: 360, command: 'Compare' },
+	{ width: 390, command: 'Document language: English' }
+])('keeps the Document menu out of an active $command dialog', async ({ width, command }) => {
+	await page.viewport(width, 844);
+	const { controller } = createTestWorkbench({ text: '[Verse]\nThe words' });
+	controller.setCompareBaseline('[Verse]\nOther words');
+	await render(DocumentToolbar, { controller });
+	const documentControl = await screen.findByRole('button', { name: 'Document' });
+	await userEvent.click(documentControl);
+	const menu = document.querySelector<HTMLElement>('#document-commands')!;
+	const copy = screen.getByRole('button', { name: 'Copy Genius' });
+	const copyBox = copy.getBoundingClientRect().toJSON();
+	await userEvent.click(screen.getByRole('button', { name: command }));
+	const dialog = screen.getByRole('dialog');
+	await waitFor(() => expect(getComputedStyle(menu).visibility).toBe('hidden'));
+	expect(getComputedStyle(dialog).visibility).toBe('visible');
+	expect(dialog.getBoundingClientRect().width).toBeGreaterThan(0);
+	expect(dialog.matches(':modal')).toBe(true);
+	expect(copy.getBoundingClientRect().toJSON()).toEqual(copyBox);
+	await userEvent.keyboard('{Escape}');
+	await waitFor(() => expect(document.querySelector('dialog:modal')).toBeNull());
+	if (command === 'Compare') {
+		expect(documentControl.getAttribute('aria-expanded')).toBe('false');
+		expect(document.activeElement).toBe(documentControl);
+	} else {
+		expect(getComputedStyle(menu).visibility).toBe('visible');
+		expect(document.activeElement).toBe(
+			screen.getByRole('button', { name: 'Document language: English' })
+		);
+	}
+});
+
+test.each(['Document language: English', 'Selection language: English'])(
+	'native option Escape restores the nested %s trigger before closing Document',
+	async (command) => {
+		await page.viewport(390, 844);
+		const { controller } = createTestWorkbench({
+			text: 'The words',
+			selection: { anchor: 0, head: 3 }
+		});
+		await render(DocumentToolbar, { controller });
+		const documentControl = await screen.findByRole('button', { name: 'Document' });
+		await userEvent.click(documentControl);
+		const trigger = screen.getByRole('button', { name: command });
+		await userEvent.click(trigger);
+		await userEvent.keyboard('{ArrowDown}');
+		expect(document.activeElement?.classList.contains('language-option')).toBe(true);
+		await userEvent.keyboard('{Escape}');
+		await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+		expect(document.activeElement).toBe(trigger);
+		expect(documentControl).toHaveAttribute('aria-expanded', 'true');
+		await userEvent.keyboard('{Escape}');
+		expect(documentControl).toHaveAttribute('aria-expanded', 'false');
+		expect(documentControl).toHaveFocus();
+	}
+);
 
 test('names touch editing actions and preserves the selection before opening assignment', async () => {
 	await page.viewport(390, 844);
@@ -79,6 +188,24 @@ test('names touch editing actions and preserves the selection before opening ass
 	await waitFor(() => expect(screen.queryByRole('button', { name: 'Assign voices' })).toBeNull());
 });
 
+test('keeps shared writing commands fixed when selection actions appear or disappear', async () => {
+	await page.viewport(360, 844);
+	const { controller } = createTestWorkbench({
+		text: '[Verse]\nThe words',
+		selection: { anchor: 8, head: 17 }
+	});
+	controller.editor.requestPerformerAssignment = vi.fn();
+	await render(EditorActions, { controller });
+	const controls = ['Section header', 'Find and replace', 'Unknown lyric [?]'].map((name) =>
+		screen.getByRole('button', { name })
+	);
+	const before = controls.map((control) => control.getBoundingClientRect().toJSON());
+	expect(screen.getByRole('button', { name: 'Assign voices' })).toBeTruthy();
+	controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 0, head: 0 } });
+	await waitFor(() => expect(screen.queryByRole('button', { name: 'Assign voices' })).toBeNull());
+	expect(controls.map((control) => control.getBoundingClientRect().toJSON())).toEqual(before);
+});
+
 test.each([320, 390])(
 	'keeps every named document-menu row above the workspace tray at %ipx',
 	async (width) => {
@@ -96,7 +223,14 @@ test.each([320, 390])(
 		const trayBox = tray.getBoundingClientRect();
 		expect(menuBox.top).toBeLessThan(trayBox.bottom);
 		expect(menuBox.bottom).toBeGreaterThan(trayBox.top);
-		const labels = ["New 'scribe", 'Undo', 'Redo', 'Language: English', 'Compare'];
+		const labels = [
+			"New 'scribe",
+			'Undo',
+			'Redo',
+			'Document language',
+			'Selection language',
+			'Compare'
+		];
 		const rows = [...menu.querySelectorAll<HTMLButtonElement>(':scope > button')];
 		expect(rows.map((row) => row.textContent?.trim())).toEqual(labels);
 		for (const row of rows) {
@@ -110,7 +244,7 @@ test.each([320, 390])(
 			).toBe(true);
 			expect(box.width).toBe(rows[0].getBoundingClientRect().width);
 		}
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
-		expect(screen.getByRole('dialog', { name: 'Lyric language' })).toBeTruthy();
+		await fireEvent.click(screen.getByRole('button', { name: 'Document language: English' }));
+		expect(screen.getByRole('dialog', { name: 'Document language' })).toBeTruthy();
 	}
 );

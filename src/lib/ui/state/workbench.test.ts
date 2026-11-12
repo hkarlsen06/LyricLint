@@ -1,5 +1,16 @@
+import 'fake-indexeddb/auto';
+import Dexie from 'dexie';
+import { indexedDB, IDBKeyRange } from 'fake-indexeddb';
+import { openDatabase, closeDatabase } from '#lib/persistence/database.js';
+import { createDraftRepository } from '#lib/persistence/draft-repository.js';
+import { serializeScribe } from '#lib/scribe/format.js';
+import { parseScribe } from '#lib/scribe/format.js';
+import { importDocument } from '#lib/conversion/index.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { runRules as computeDiagnostics } from '#lib/rules/engine.js';
 import { copySectionLinks } from '#lib/persistence/copy.js';
+import { legacyWriting, withExportCopy } from '#lib/persistence/writing.js';
 import { parseDocument } from '#lib/core/parser.js';
 import type {
 	AutosaveController,
@@ -14,6 +25,7 @@ import type {
 } from '#lib/core/types.js';
 import { describe, expect, test, vi } from 'vitest';
 import { createAutosaveController } from '#lib/persistence/autosave.js';
+import { createDepartureCheckpoint } from '#lib/persistence/departure-checkpoint.js';
 import {
 	createContractIgnoreStore,
 	createInMemoryDraftRepository,
@@ -46,7 +58,7 @@ function draft(id: string, text = '[Verse]\nLine'): DraftRecord {
 }
 
 function snapshot(record: DraftRecord, revision = 0, text = record.text): EditorSnapshot {
-	return {
+	const result: EditorSnapshot = {
 		revision,
 		text,
 		selection: record.editorSelection ?? { anchor: 0, head: 0 },
@@ -56,6 +68,8 @@ function snapshot(record: DraftRecord, revision = 0, text = record.text): Editor
 		canUndo: revision > 0,
 		canRedo: false
 	};
+	if (record.conversion) result.conversion = record.conversion;
+	return result;
 }
 
 function controllableAutosave(repository: DraftRepository, events: string[] = []) {
@@ -261,6 +275,46 @@ describe('workbench draft safety', () => {
 
 		expect(editor.getLineAnchors?.()).toEqual([{ line: 2, time: 61 }]);
 	});
+
+	test.each([false, true])(
+		'keeps incoming cached output across metadata handoff, timed incoming: %s',
+		async (timed) => {
+			const metadata = { lineAnchors: [{ line: 2, time: 61 }], sectionLinks: [{ lines: [2, 5] }] };
+			const text = '[Verse]\nOne\n\n[Verse]\nOne';
+			const first = draft('draft-a', text);
+			const second: DraftRecord = {
+				...draft('draft-b', text),
+				writing: withExportCopy(legacyWriting('genius'), 'Independently edited output')
+			};
+			Object.assign(timed ? second : first, metadata);
+			const repository = createInMemoryDraftRepository([first, second]);
+			const { controller, editor, autosave } = setup({ initial: first, repository });
+			editor.setLineAnchors?.(first.lineAnchors ?? []);
+			editor.setSectionLinks?.(first.sectionLinks ?? []);
+			await controller.openDraft(second.id);
+			// An incoming save can happen before the outgoing keyed editor is torn down.
+			controller.setTitle('Incoming title');
+			expect(controller.getExport()).toBe('Independently edited output');
+			const nextEditor: EditorHandle = {
+				...editor,
+				getLineAnchors: () => second.lineAnchors ?? [],
+				getSectionLinks: () => second.sectionLinks ?? []
+			};
+			controller.setEditorHandle(nextEditor);
+			controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 9, head: 9 } });
+			expect(controller.getExport()).toBe('Independently edited output');
+			await autosave.flush();
+			const saved = await repository.get(second.id);
+			expect(saved?.lineAnchors ?? []).toEqual(second.lineAnchors ?? []);
+			expect(saved?.sectionLinks ?? []).toEqual(second.sectionLinks ?? []);
+			expect(saved?.writing).toEqual(second.writing);
+			if (!saved) throw new Error('The incoming draft was not saved.');
+			const reloaded = setup({ initial: saved, repository, headless: true });
+			expect(reloaded.controller.getExport()).toBe('Independently edited output');
+			reloaded.controller.setEditorHandle(reloaded.editor);
+			expect(reloaded.controller.getExport()).toBe('Independently edited output');
+		}
+	);
 
 	/*
 	 * The bug this pins lost a whole synced song on every reload, and it lost it
@@ -665,7 +719,7 @@ describe('workbench draft safety', () => {
 		expect(await repository.get(created)).toBeDefined();
 	});
 
-	test('drops the record of a draft the user empties out', async () => {
+	test('saves a deliberate clear of an existing draft', async () => {
 		const first = draft('draft-a');
 		const repository = createInMemoryDraftRepository([first]);
 		const controlled = controllableAutosave(repository);
@@ -678,7 +732,7 @@ describe('workbench draft safety', () => {
 		controller.onSnapshot(snapshot(first, 1, ''));
 		await controlled.autosave.flush();
 
-		await vi.waitFor(async () => expect(await repository.get(first.id)).toBeUndefined());
+		expect((await repository.get(first.id))?.text).toBe('');
 	});
 
 	test('uses the last selected language for a new draft', async () => {
@@ -701,6 +755,37 @@ describe('workbench draft safety', () => {
 		expect(created).not.toBe(first.id);
 		expect((await repository.get(created))?.language).toBe('fr');
 	});
+
+	test.each(['fr CA', '', 'abc' + '-abcdefgh'.repeat(14)])(
+		'refuses invalid document language %j before changing a plain draft',
+		async (language) => {
+			const { controller, repository } = setup({});
+			const recent = [...controller.recentLanguages];
+			const text = controller.snapshot.text;
+			expect(controller.snapshot.conversion).toBeUndefined();
+			const accepted = controller.setLanguage(language);
+			expect(controller.language).toBe('en');
+			expect(accepted).toBe(false);
+			expect(controller.recentLanguages).toEqual(recent);
+			expect(controller.snapshot.text).toBe(text);
+			await controller.flushAutosave();
+			expect((await repository.get(controller.draftId))?.language).toBe('en');
+			expect(controller.feedback.announcement).toContain('valid language code');
+		}
+	);
+
+	test.each(['fr-CA', 'zz-Latn-custom'])(
+		'keeps valid custom document language %s exact on a plain draft',
+		async (language) => {
+			const { controller, repository } = setup({});
+			const text = controller.snapshot.text;
+			expect(controller.setLanguage(language)).toBe(true);
+			await controller.flushAutosave();
+			expect(controller.language).toBe(language);
+			expect(controller.snapshot.text).toBe(text);
+			expect((await repository.get(controller.draftId))?.language).toBe(language);
+		}
+	);
 
 	test('keeps recent languages in deduplicated most-recent-first order', () => {
 		const { controller } = setup({
@@ -764,6 +849,14 @@ describe('workbench draft safety', () => {
 		const duplicate = (await repository.list()).find((entry) => entry.id !== first.id);
 		expect(duplicate).toBeDefined();
 		expect((await repository.get(duplicate!.id))?.text).toBe('[Verse]\nLatest edit');
+		expect(controller.draftId).toBe(duplicate!.id);
+		expect(controller.snapshot.text).toBe('[Verse]\nLatest edit');
+		const copy = await repository.get(duplicate!.id);
+		if (!copy) throw new Error('The copied draft is missing.');
+		controller.onSnapshot(snapshot(copy, 1, '[Verse]\nChanged only in the copy'));
+		await controlled.autosave.flush();
+		expect((await repository.get(first.id))?.text).toBe('[Verse]\nLatest edit');
+		expect((await repository.get(copy.id))?.text).toBe('[Verse]\nChanged only in the copy');
 	});
 
 	test('cancels a draft-specific pending write before delete so flush cannot resurrect it', async () => {
@@ -793,6 +886,31 @@ describe('workbench draft safety', () => {
 			events.indexOf(`delete:${first.id}`)
 		);
 		expect(await repository.get(first.id)).toBeUndefined();
+		expect(controller.draftId).toBe(second.id);
+		expect(controller.snapshot.text).toBe(second.text);
+	});
+
+	test('deleting another draft preserves the active original and its edited export', async () => {
+		const first = draft('draft-a');
+		const second = draft('draft-b');
+		const repository = createInMemoryDraftRepository([first, second]);
+		const controlled = controllableAutosave(repository);
+		const { controller } = setup({ initial: first, repository, autosave: controlled.autosave });
+		const latest = '[Verse]\nPending work on the current song';
+		controller.onSnapshot(snapshot(first, 1, latest));
+		expect(controller.setExport('Separately formatted current song')).toBe(true);
+		const session = controller.draftSession;
+
+		await controller.deleteDraft(second.id);
+		await controlled.autosave.flush();
+
+		expect(await repository.get(second.id)).toBeUndefined();
+		expect(controller.draftId).toBe(first.id);
+		expect(controller.draftSession).toBe(session);
+		expect(controller.snapshot.text).toBe(latest);
+		expect(controller.getExport()).toBe('Separately formatted current song');
+		expect((await repository.get(first.id))?.text).toBe(latest);
+		expect((await repository.get(first.id))?.writing).toEqual(controller.writing);
 	});
 
 	test('a refused delete reports the failure instead of failing silently', async () => {
@@ -815,6 +933,145 @@ describe('workbench draft safety', () => {
 		);
 		expect(await baseRepository.get(second.id)).toBeDefined();
 	});
+
+	test.each([
+		['delete', false],
+		['delete', true],
+		['reset', false],
+		['reset', true]
+	] as const)(
+		'a refused %s preserves pending edits after save failure=%s',
+		async (operation, failed) => {
+			const first = draft('draft-a');
+			const second = draft('draft-b');
+			const baseRepository = createInMemoryDraftRepository([first, second]);
+			let refuseSave = failed;
+			const repository: DraftRepository = {
+				...baseRepository,
+				async save(record) {
+					if (refuseSave) throw new Error('storage unavailable');
+					await baseRepository.save(record);
+				},
+				async delete() {
+					throw new Error('deletion refused');
+				},
+				async deleteAll() {
+					throw new Error('reset refused');
+				}
+			};
+			const storage = createMemorySessionStorage();
+			const checkpoint = createDepartureCheckpoint(() => storage);
+			const autosave = createAutosaveController(repository, { debounceMs: 60_000, checkpoint });
+			const { controller } = setup({ initial: first, repository, autosave });
+			const latest = '[Verse]\nLatest unsaved lyric';
+			const otherLatest = '[Verse]\nOther pending lyric';
+			try {
+				autosave.schedule({ revision: 1, draft: { ...second, text: otherLatest } });
+				controller.onSnapshot(snapshot(first, 1, latest));
+				controller.setGrammarCheckEnabled(false);
+				if (failed) {
+					await controller.flushAutosave();
+					expect(autosave.status()).toBe('failed');
+				}
+				if (operation === 'delete') await controller.deleteDraft(first.id);
+				else await controller.deleteAllDrafts();
+
+				expect(controller.draftId).toBe(first.id);
+				expect(controller.snapshot.text).toBe(latest);
+				expect((await baseRepository.get(first.id))?.text).toBe(first.text);
+				expect(autosave.checkpoint?.()).toBe(true);
+				expect(
+					checkpoint
+						.read()
+						.map(({ draft }) => draft.text)
+						.sort()
+				).toEqual([latest, otherLatest].sort());
+				expect(controller.grammarCheckEnabled).toBe(false);
+				refuseSave = false;
+				await controller.flushAutosave();
+				expect((await baseRepository.get(first.id))?.text).toBe(latest);
+				expect((await baseRepository.get(second.id))?.text).toBe(otherLatest);
+			} finally {
+				autosave.cancel();
+			}
+		}
+	);
+
+	test.each(['delete', 'reset'] as const)(
+		'a refused %s retains an in-flight save that subsequently fails',
+		async (operation) => {
+			const first = draft('draft-a');
+			const baseRepository = createInMemoryDraftRepository([first]);
+			const started = Promise.withResolvers<void>();
+			const release = Promise.withResolvers<void>();
+			let firstAttempt = true;
+			const repository: DraftRepository = {
+				...baseRepository,
+				async save(record) {
+					if (firstAttempt) {
+						firstAttempt = false;
+						started.resolve();
+						await release.promise;
+						throw new Error('save refused');
+					}
+					await baseRepository.save(record);
+				},
+				async delete() {
+					throw new Error('deletion refused');
+				},
+				async deleteAll() {
+					throw new Error('reset refused');
+				}
+			};
+			const storage = createMemorySessionStorage();
+			const checkpoint = createDepartureCheckpoint(() => storage);
+			const autosave = createAutosaveController(repository, { debounceMs: 60_000, checkpoint });
+			const { controller } = setup({ initial: first, repository, autosave });
+			const latest = '[Verse]\nIn-flight unsaved lyric';
+			controller.onSnapshot(snapshot(first, 1, latest));
+			const flushing = controller.flushAutosave();
+			try {
+				await started.promise;
+				const deleting =
+					operation === 'delete' ? controller.deleteDraft(first.id) : controller.deleteAllDrafts();
+				await new Promise<void>((resolve) => setTimeout(resolve, 10));
+				release.resolve();
+				await flushing;
+				await deleting;
+				expect(autosave.checkpoint?.()).toBe(true);
+				expect(checkpoint.read().map(({ draft }) => draft.text)).toEqual([latest]);
+				await controller.flushAutosave();
+				expect((await baseRepository.get(first.id))?.text).toBe(latest);
+			} finally {
+				release.resolve();
+				await flushing;
+				autosave.cancel();
+			}
+		}
+	);
+
+	test.each(['delete', 'reset'] as const)(
+		'a successful %s cannot resurrect canceled edits',
+		async (operation) => {
+			const first = draft('draft-a');
+			const repository = createInMemoryDraftRepository([first]);
+			const storage = createMemorySessionStorage();
+			const checkpoint = createDepartureCheckpoint(() => storage);
+			const autosave = createAutosaveController(repository, { debounceMs: 60_000, checkpoint });
+			const { controller } = setup({ initial: first, repository, autosave });
+			try {
+				controller.onSnapshot(snapshot(first, 1, '[Verse]\nPending deletion'));
+				expect(autosave.checkpoint?.()).toBe(true);
+				if (operation === 'delete') await controller.deleteDraft(first.id);
+				else await controller.deleteAllDrafts();
+				await controller.flushAutosave();
+				expect(await repository.get(first.id)).toBeUndefined();
+				expect(checkpoint.read()).toEqual([]);
+			} finally {
+				autosave.cancel();
+			}
+		}
+	);
 
 	test('a refused duplicate reports the failure instead of failing silently', async () => {
 		const first = draft('draft-a');
@@ -1227,6 +1484,29 @@ describe('workbench diagnostic navigation', () => {
 		expect(controller.activeDiagnosticKey).toBeUndefined();
 	});
 
+	test.each(['ignore', 'restore'])(
+		'keeps a diagnostic %s Undo out of a different draft',
+		async (action) => {
+			const first = draft('draft-a', '[Verse]\nfirst line');
+			const second = draft('draft-b', first.text);
+			const { controller, ignoreStore } = setup({ initial: first, drafts: [first, second] });
+			const finding: Diagnostic = { ...diagnostic, from: 8, to: 13 };
+			controller.onSnapshot({ ...snapshot(first, 1), diagnostics: [finding] });
+			controller.ignoreDiagnostic(finding);
+			if (action === 'restore') controller.restoreDiagnostic(controller.ignoredDiagnosticKeys[0]!);
+			const undo = controller.feedback.toasts.at(-1)!.id;
+			await controller.openDraft(second.id);
+			controller.onSnapshot({ ...snapshot(second, 1), diagnostics: [finding] });
+			controller.ignoreDiagnostic(finding);
+			if (action === 'restore') controller.restoreDiagnostic(controller.ignoredDiagnosticKeys[0]!);
+			const before = [...controller.ignoredDiagnosticKeys];
+			controller.feedback.runToastAction(undo);
+			expect(controller.ignoredDiagnosticKeys).toEqual(before);
+			expect(ignoreStore.list(first.id)).toHaveLength(action === 'ignore' ? 1 : 0);
+			expect(controller.feedback.announcement).toContain('original');
+		}
+	);
+
 	test('keeps an ignored diagnostic hidden when edits remove and later recreate it', () => {
 		const text = '[Verse]\nfirst line';
 		const record = draft('draft-a', text);
@@ -1373,6 +1653,248 @@ describe('workbench diagnostic navigation', () => {
 });
 
 describe('workbench performer imports', () => {
+	test('an earlier roster Undo preserves performers added later', () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1);
+		controller.addPerformer('Noor');
+
+		controller.feedback.runToastAction(undo?.id ?? '');
+
+		expect(controller.performers.map((entry) => entry.displayName)).toEqual(['Noor']);
+	});
+
+	test('a roster Undo cannot replace another draft roster', async () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1);
+		await controller.createDraft();
+		controller.addPerformer('Noor');
+		const expected = controller.performers.map((entry) => ({ ...entry }));
+
+		controller.feedback.runToastAction(undo?.id ?? '');
+
+		expect(controller.performers).toEqual(expected);
+	});
+
+	test.each([false, true])(
+		'independent roster Undo works in either order (reverse %s)',
+		(reverse) => {
+			const { controller } = setup({ initial: draft('draft-a', '') });
+			controller.addPerformer('Mira');
+			const first = controller.feedback.toasts.at(-1)!.id;
+			controller.addPerformer('Noor');
+			const second = controller.feedback.toasts.at(-1)!.id;
+			for (const id of reverse ? [second, first] : [first, second])
+				controller.feedback.runToastAction(id);
+			expect(controller.performers).toEqual([]);
+		}
+	);
+
+	test('coalesced identical additions undo their identities without removing an edited neighbour', () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Noor');
+		const noor = controller.performers[0]!;
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		controller.addPerformer('Mira');
+		expect(controller.feedback.toasts.find((toast) => toast.id === undo)?.count).toBe(2);
+		controller.renamePerformer(noor.id, 'Nora');
+		const retained = controller.performers.find((entry) => entry.id === noor.id);
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual([retained]);
+	});
+
+	test('refuses changed affected records visibly and announces the refusal', () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		controller.renamePerformer(controller.performers[0]!.id, 'Luna');
+		const expected = controller.performers.map((entry) => ({ ...entry }));
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual(expected);
+		expect(controller.feedback.announcement).toContain('affected performer has changed');
+		expect(controller.feedback.toasts.at(-1)?.message).toBe(controller.feedback.announcement);
+	});
+
+	test('refuses old actions after switching away and back', async () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		await controller.createDraft();
+		await controller.openDraft('draft-a');
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers.map((entry) => entry.displayName)).toEqual(['Mira']);
+		expect(controller.feedback.announcement).toContain('switching drafts');
+	});
+
+	test('coalesced actions across duplicate drafts only undo the active draft addition', async () => {
+		const { controller, repository } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		const mira = controller.performers[0]!;
+		await controller.duplicateDraft('draft-a');
+		await controller.openDraft(
+			(await repository.list()).find((entry) => entry.id !== 'draft-a')!.id
+		);
+		expect(controller.performers[0]).toEqual(mira);
+		controller.addPerformer('Mira');
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual([mira]);
+	});
+
+	test('legacy header rename Undo cannot rename a duplicate with the same performer IDs', async () => {
+		const { controller, repository } = setup({ initial: draft('draft-a', '[Verse: Mira]\nMoon') });
+		controller.renamePerformer(controller.performers[0]!.id, 'Luna');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		await controller.duplicateDraft('draft-a');
+		await controller.openDraft(
+			(await repository.list()).find((entry) => entry.id !== 'draft-a')!.id
+		);
+		const expected = controller.performers.map((entry) => ({ ...entry }));
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual(expected);
+		expect(controller.feedback.announcement).toContain('switching drafts');
+	});
+
+	test.each(['add', 'import'])(
+		'pending %s Undo cannot orphan retained rich legend and voice identities',
+		async (kind) => {
+			let exported = '';
+			const initial = draft('draft-a', '');
+			const { controller } = setup({
+				initial,
+				exportText: (text) => {
+					exported = text;
+				}
+			});
+			if (kind === 'add') controller.addPerformer('Mira');
+			else
+				controller.onSnapshot(
+					snapshot(initial, 1, '[Verse: Mira]\nA long enough line to trigger imported performers')
+				);
+			const undo = controller.feedback.toasts.at(-1)!.id;
+			const text = '[Verse: Mira]\nMoon';
+			const model = importDocument({ text, profile: 'genius', performers: controller.performers });
+			expect(model.ok).toBe(true);
+			if (!model.ok) return;
+			expect(model.value.voices.flatMap((voice) => voice.performerIds)).toContain(
+				controller.performers[0]!.id
+			);
+			const conversion = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
+			controller.onSnapshot({ ...snapshot(initial, 2, conversion.projectionText), conversion });
+			const expected = controller.performers.map((entry) => ({ ...entry }));
+			controller.feedback.runToastAction(undo);
+			expect(controller.performers).toEqual(expected);
+			expect(controller.feedback.announcement).toContain('retained voices or legends');
+			expect(controller.feedback.toasts.at(-1)?.message).toBe(controller.feedback.announcement);
+			await controller.exportScribe();
+			expect(parseScribe(exported).performers).toEqual(expected);
+		}
+	);
+
+	test('an unreferenced addition still undoes after a rich document update', () => {
+		const initial = draft('draft-a', 'Moon');
+		const { controller, editor } = setup({ initial });
+		editor.dispatchPerformerRecords = (delta) => {
+			controller.adoptPerformerRecords(delta);
+			return { ok: true };
+		};
+		controller.addPerformer('Mira');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		const model = importDocument({
+			text: 'Moon',
+			profile: 'genius',
+			performers: controller.performers
+		});
+		if (!model.ok) throw new Error(model.refusal.message);
+		const conversion = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
+		controller.onSnapshot({ ...snapshot(initial, 1, conversion.projectionText), conversion });
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual([]);
+	});
+
+	test('roster-only rename Undo refuses after the renamed performer gains rich references', () => {
+		const initial = draft('draft-a', 'Moon');
+		const { controller } = setup({ initial });
+		controller.addPerformer('Mira');
+		controller.renamePerformer(controller.performers[0]!.id, 'Luna');
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		const model = importDocument({
+			text: '[Verse: Luna]\nMoon',
+			profile: 'genius',
+			performers: controller.performers
+		});
+		if (!model.ok) throw new Error(model.refusal.message);
+		const conversion = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
+		controller.onSnapshot({ ...snapshot(initial, 1, conversion.projectionText), conversion });
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers[0]?.displayName).toBe('Luna');
+		expect(controller.feedback.announcement).toContain('retained voices or legends');
+		expect(controller.snapshot.conversion?.model.sections[0]?.header).toBe('[Verse: Luna]\n');
+	});
+
+	test('legacy merge Undo cannot detach an alias used by a retained rich legend', () => {
+		const initial = draft('draft-a', 'Moon');
+		const { controller, editor } = setup({ initial });
+		editor.dispatchPerformerRecords = (delta) => {
+			controller.adoptPerformerRecords(delta);
+			return { ok: true };
+		};
+		controller.addPerformer('Mira');
+		controller.addPerformer('Noor');
+		controller.mergePerformers(controller.performers[0]!.id, controller.performers[1]!.id);
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		const model = importDocument({
+			text: '[Verse: Mira]\nMoon',
+			profile: 'genius',
+			performers: controller.performers
+		});
+		if (!model.ok) throw new Error(model.refusal.message);
+		const conversion = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
+		controller.onSnapshot({ ...snapshot(initial, 1, conversion.projectionText), conversion });
+		const expected = controller.performers.map((record) => ({ ...record }));
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual(expected);
+		expect(controller.feedback.announcement).toContain('retained voices or legends');
+	});
+
+	test.each(['add', 'import'])('restores the last removed performer before a later %s', (kind) => {
+		const initial = draft('draft-a', '');
+		const { controller } = setup({ initial });
+		controller.addPerformer('Mira');
+		controller.addPerformer('Noor');
+		const noor = controller.performers[1]!;
+		controller.removePerformer(noor.id);
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		if (kind === 'add') controller.addPerformer('Lena');
+		else
+			controller.onSnapshot(
+				snapshot(initial, 1, '[Verse: Lena]\nA sufficiently long lyric line for performer import')
+			);
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers.map((entry) => entry.displayName)).toEqual([
+			'Mira',
+			'Noor',
+			'Lena'
+		]);
+		expect(new Set(controller.performers.map((entry) => entry.order)).size).toBe(3);
+	});
+
+	test('removal Undo restores exact identity and position without replacing later edits', () => {
+		const { controller } = setup({ initial: draft('draft-a', '') });
+		controller.addPerformer('Mira');
+		controller.addPerformer('Noor');
+		const mira = { ...controller.performers[0]! };
+		const noor = controller.performers[1]!;
+		controller.removePerformer(mira.id);
+		const undo = controller.feedback.toasts.at(-1)!.id;
+		controller.renamePerformer(noor.id, 'Nora');
+		const nora = { ...controller.performers[0]! };
+		controller.feedback.runToastAction(undo);
+		expect(controller.performers).toEqual([mira, nora]);
+	});
+
 	test('adds exact pasted names through roster undo and exposes case suggestions', () => {
 		const initial = draft('draft-a', '');
 		const repository = createInMemoryDraftRepository([initial]);
@@ -1471,6 +1993,109 @@ describe('workbench performer imports', () => {
 		);
 	});
 
+	test.each(['<i>Noor', '<mark>Noor</mark>'])(
+		'keeps a genuine placeholder-shaped name beside malformed legend %s',
+		async (malformedName) => {
+			const first = draft('draft-a', '');
+			const second = {
+				...draft('draft-b', `[Verse: Unresolved voice 2, ${malformedName}]\nWords stay`),
+				performers: [
+					{
+						id: 'genuine-performer',
+						displayName: 'Unresolved voice 2',
+						normalizedKey: 'unresolved voice 2',
+						aliases: [],
+						colorId: 'plum',
+						order: 0
+					}
+				]
+			};
+			const repository = createInMemoryDraftRepository([first, second]);
+			const controlled = controllableAutosave(repository);
+			const { controller } = setup({ initial: first, repository, autosave: controlled.autosave });
+
+			await controller.openDraft(second.id);
+
+			expect(controller.performers).toEqual(second.performers);
+			expect(controller.snapshot.text).toBe(second.text);
+			await controlled.autosave.flush();
+			expect((await repository.get(second.id))?.performers).toEqual(second.performers);
+		}
+	);
+	test.each(['', ', <mark>Ed</mark>'])(
+		'keeps a genuine joint-voice member when its partner is discovered during open (%s)',
+		async (malformedNeighbor) => {
+			const first = draft('draft-a', '');
+			const genuine = {
+				id: 'genuine-joint-member',
+				displayName: 'Unresolved voice 2',
+				normalizedKey: 'unresolved voice 2',
+				aliases: ['Original artist spelling'],
+				colorId: 'plum',
+				order: 0
+			};
+			const second = {
+				...draft(
+					'draft-b',
+					`[Verse: Unresolved voice 2 & Noor${malformedNeighbor}]\nWords stay\n\n[Chorus: Noor]\nMore words`
+				),
+				performers: [genuine]
+			};
+			const repository = createInMemoryDraftRepository([first, second]);
+			const controlled = controllableAutosave(repository);
+			const { controller } = setup({ initial: first, repository, autosave: controlled.autosave });
+
+			await controller.openDraft(second.id);
+
+			expect(controller.performers[0]).toEqual(genuine);
+			expect(controller.performers.map((record) => record.displayName)).toEqual([
+				'Unresolved voice 2',
+				'Noor'
+			]);
+			expect(controller.snapshot.text).toBe(second.text);
+			await controlled.autosave.flush();
+			expect((await repository.get(second.id))?.performers).toEqual(controller.performers);
+		}
+	);
+
+	test.each(['genius', 'musixmatch'] as const)(
+		'keeps a placeholder-shaped identity referenced by retained %s voices',
+		async (profile) => {
+			const first = draft('draft-a', '');
+			const performers = [
+				{
+					id: 'genuine-performer',
+					displayName: 'Unresolved voice 2',
+					normalizedKey: 'unresolved voice 2',
+					aliases: [],
+					colorId: 'plum',
+					order: 0
+				}
+			];
+			const imported = importDocument({
+				text: '[Verse: Unresolved voice 2]\nWords stay',
+				profile: 'genius',
+				language: 'en',
+				performers
+			});
+			if (!imported.ok) throw new Error(imported.refusal.message);
+			const conversion = createConversionEnvelope(imported.value, profile, profilePolicyVersions);
+			const second = { ...draft('draft-b', conversion.projectionText), performers, conversion };
+			const repository = createInMemoryDraftRepository([first, second]);
+			const { controller } = setup({
+				initial: first,
+				repository,
+				onOpenDraft: (record) => ({ ...snapshot(record), conversion: record.conversion })
+			});
+
+			await controller.openDraft(second.id);
+
+			expect(controller.performers).toEqual(performers);
+			expect(controller.snapshot.conversion?.model.voices).toEqual(imported.value.voices);
+			expect(controller.snapshot.text).toBe(conversion.projectionText);
+		}
+	);
+
 	test('follows a header rename in the roster and keeps the old spelling resolvable', () => {
 		const initial = draft('draft-a', '[Verse 1: Avery]\nA line\n\n[Chorus: Avery]\nAnother line');
 		const { controller } = setup({ initial });
@@ -1523,7 +2148,8 @@ describe('workbench performer renames', () => {
 	): AppliedDocument {
 		let currentText = record.text;
 		let revision = 0;
-		editor.dispatchAtomic = (edit) => {
+		editor.dispatchAtomic = (edit, delta) => {
+			if (delta) controller.adoptPerformerRecords(delta);
 			// Back to front, so earlier offsets stay valid while later ones move.
 			for (const change of [...edit.edits].sort((left, right) => right.from - left.from)) {
 				currentText =
@@ -1547,7 +2173,8 @@ describe('workbench performer renames', () => {
 		const record = draft('draft-a', text);
 		const { controller, editor } = setup({ initial: record });
 		const dispatched: Parameters<EditorHandle['dispatchAtomic']>[0][] = [];
-		editor.dispatchAtomic = (edit) => {
+		editor.dispatchAtomic = (edit, delta) => {
+			if (delta) controller.adoptPerformerRecords(delta);
 			dispatched.push(edit);
 			controller.onSnapshot(snapshot(record, 1, text.replaceAll('Avery', 'Avery Stone')));
 		};
@@ -1901,4 +2528,190 @@ describe('workbench lyric hand-over', () => {
 		expect(controller.feedback.announcement).toBe(opened);
 		expect(controller.toasts.at(-1)?.message).toBe(opened);
 	});
+});
+
+test('a transferred recovery cannot export an unrelated local original through the controller', async () => {
+	Dexie.dependencies.indexedDB = indexedDB;
+	Dexie.dependencies.IDBKeyRange = IDBKeyRange;
+	const source = await openDatabase(`recovery-controller-source-${crypto.randomUUID()}`);
+	const destination = await openDatabase(`recovery-controller-destination-${crypto.randomUUID()}`);
+	const controllers: ReturnType<typeof setup>['controller'][] = [];
+	try {
+		const original = draft('foreign-original', '[Verse]\nExact original lyrics');
+		const model = importDocument({ text: original.text, profile: 'genius', language: 'en' });
+		if (!model.ok) throw new Error(model.refusal.message);
+		const conversion = createConversionEnvelope(model.value, 'genius', profilePolicyVersions);
+		await source.drafts.add({
+			...original,
+			conversion: { ...conversion, converterVersion: 'future' as '2' }
+		});
+		const sourceRepository = createDraftRepository(source);
+		const recovered = await sourceRepository.recoverUnreadable?.(original.id);
+		expect(recovered?.conversionRecovery?.sourceDraftId).toBe(original.id);
+		if (!recovered) throw new Error('Missing recovery');
+		const localExport = vi.fn();
+		const local = setup({
+			initial: original,
+			repository: sourceRepository,
+			exportText: localExport,
+			onOpenDraft: (record) => ({
+				...snapshot(record),
+				conversion: record.conversion,
+				conversionRecovery: record.conversionRecovery,
+				originalRecovery: record.originalRecovery
+			})
+		});
+		controllers.push(local.controller);
+		await local.controller.openDraft(recovered.id);
+		await local.controller.exportOriginalRecovery();
+		expect(JSON.parse(localExport.mock.calls[0][0])).toMatchObject({
+			id: original.id,
+			text: original.text,
+			conversion: { converterVersion: 'future' }
+		});
+		const file = serializeScribe({
+			title: recovered.title,
+			language: recovered.language,
+			lyrics: recovered.text,
+			conversion: recovered.conversion,
+			conversionRecovery: recovered.conversionRecovery,
+			performers: [],
+			sectionLinks: [],
+			lineAnchors: [],
+			ignoredDiagnostics: []
+		});
+		const repository = createDraftRepository(destination);
+		const unrelated = await repository.create({
+			...draft(original.id),
+			text: 'UNRELATED DESTINATION LYRICS'
+		});
+		const exported = vi.fn();
+		const { controller } = setup({
+			initial: unrelated,
+			repository,
+			exportText: exported,
+			onOpenDraft: (record) => ({
+				...snapshot(record),
+				conversion: record.conversion,
+				conversionRecovery: record.conversionRecovery,
+				originalRecovery: record.originalRecovery
+			})
+		});
+		controllers.push(controller);
+		expect(await controller.importScribe(new File([file], 'recovery.lls'))).toBe(true);
+		expect(controller.snapshot.text).toBe(recovered.text);
+		expect(controller.snapshot.conversionRecovery).toMatchObject({
+			reason: recovered.conversionRecovery?.reason,
+			text: recovered.text,
+			checkpoint: recovered.conversion
+		});
+		await controller.exportOriginalRecovery();
+		expect(exported).not.toHaveBeenCalled();
+		expect(controller.feedback.announcement).toBe(
+			'The original data could not be exported. It has not been changed.'
+		);
+		expect(await destination.drafts.get(original.id)).toEqual(unrelated);
+	} finally {
+		for (const controller of controllers) await controller.flushAutosave();
+		for (const db of [source, destination]) {
+			closeDatabase(db);
+			await Dexie.delete(db.name);
+		}
+	}
+});
+
+describe('one main draft and independent output', () => {
+	test('keeps annotated source and selection exact, remembers output, and expires it irreversibly on original edits', async () => {
+		const text =
+			'[Verse]\nWith 2 old tickets and a folded map (Whatever)\nA [silver compass](123456) (nearby)';
+		const initial = draft('draft-a', text);
+		const { controller, repository } = setup({ initial });
+		const before = controller.snapshot;
+		expect(controller.getExport()).toContain('silver compass');
+		expect(controller.setExport('Independent output\n')).toBe(true);
+		expect(controller.snapshot).toBe(before);
+		expect(controller.getExport()).toBe('Independent output\n');
+		expect(controller.setExport('Late output from another load', controller.draftSession + 1)).toBe(
+			false
+		);
+		expect(controller.getExport()).toBe('Independent output\n');
+		controller.switchProfile('musixmatch');
+		expect(controller.profile).toBe('genius');
+		controller.onSnapshot({ ...before, revision: 1, selection: { anchor: 2, head: 2 } });
+		await controller.setTitle('Renamed');
+		expect(controller.getExport()).toBe('Independent output\n');
+		await controller.flushAutosave();
+		const saved = await repository.get(initial.id);
+		expect(saved?.writing).toMatchObject({
+			phase: 'writing',
+			export: { text: 'Independent output\n' }
+		});
+		controller.onSnapshot({ ...controller.snapshot, revision: 2, text: `${text}\nChanged` });
+		expect(controller.getExport()).not.toBe('Independent output\n');
+		controller.onSnapshot({ ...controller.snapshot, revision: 3, text });
+		expect(controller.getExport()).not.toBe('Independent output\n');
+		controller.onSnapshot({ ...controller.snapshot, revision: 4, text: '' });
+		controller.switchProfile('musixmatch');
+		expect(controller.profile).toBe('genius');
+	});
+});
+
+test('creation preference changes deliberately and is independent of opening legacy drafts', async () => {
+	const initial = {
+		...draft('draft-a', ''),
+		writing: { schema: 1, phase: 'new', profile: 'genius' } as const
+	};
+	const legacy = draft('legacy');
+	const { controller, repository } = setup({ initial, drafts: [initial, legacy] });
+	controller.switchProfile('musixmatch');
+	expect(controller.profile).toBe('musixmatch');
+	expect(await repository.getPreference('newDraftProfile')).toBe('musixmatch');
+	await controller.openDraft(legacy.id);
+	expect(controller.profile).toBe('genius');
+	expect(await repository.getPreference('newDraftProfile')).toBe('musixmatch');
+	await controller.createDraft();
+	expect(controller.profile).toBe('musixmatch');
+	expect(controller.writing.phase).toBe('new');
+	await controller.deleteAllDrafts();
+	expect(await repository.getPreference('newDraftProfile')).toBeUndefined();
+	expect(controller.profile).toBe('genius');
+	await controller.createDraft();
+	expect(controller.profile).toBe('genius');
+});
+
+test('saved Musixmatch ownership and edited Genius output survive loading a Genius-ancestry model', async () => {
+	const model = importDocument({
+		text: '[Verse]\nA [silver compass](123456) (Whatever)',
+		profile: 'genius',
+		language: 'en'
+	});
+	if (!model.ok) throw new Error(model.refusal.message);
+	const conversion = createConversionEnvelope(model.value, 'musixmatch', profilePolicyVersions);
+	const initial = {
+		...draft('draft-a', conversion.projectionText),
+		conversion,
+		writing: {
+			schema: 1,
+			phase: 'writing',
+			profile: 'musixmatch',
+			export: { profile: 'genius', text: 'Edited independent Genius output' }
+		} as const
+	};
+	const { controller } = setup({ initial });
+	expect(controller.profile).toBe('musixmatch');
+	expect(controller.getExport()).toBe('Edited independent Genius output');
+	controller.onSnapshot({ ...controller.snapshot, revision: 1, selection: { anchor: 2, head: 2 } });
+	expect(controller.getExport()).toBe('Edited independent Genius output');
+	const changed = createConversionEnvelope(
+		{ ...model.value, defaultLanguage: 'fr' },
+		'musixmatch',
+		profilePolicyVersions
+	);
+	controller.onSnapshot({
+		...controller.snapshot,
+		revision: 2,
+		text: changed.projectionText,
+		conversion: changed
+	});
+	expect(controller.getExport()).not.toBe('Edited independent Genius output');
 });

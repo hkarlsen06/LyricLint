@@ -7,6 +7,7 @@
 		onChooseHeader,
 		onAssignPerformers,
 		onLinkSections,
+		onReviewConversion,
 		onSetLanguage,
 		onPreviewFix,
 		onCancelPreview,
@@ -19,6 +20,7 @@
 		onChooseHeader: () => void;
 		onAssignPerformers?: () => void;
 		onLinkSections?: () => void;
+		onReviewConversion?: () => void;
 		onSetLanguage?: (language: string, trigger: HTMLButtonElement) => void;
 		onPreviewFix: (fix: DiagnosticFix) => void;
 		onCancelPreview: () => void;
@@ -42,6 +44,7 @@
 		{onChooseHeader}
 		{onAssignPerformers}
 		{onLinkSections}
+		{onReviewConversion}
 		{onSetLanguage}
 		{onPreviewFix}
 		{onCancelPreview}
@@ -58,7 +61,7 @@
 	   line above it. What stays here is the body's own inset. */
 	.diagnostic-details {
 		display: grid;
-		padding: 0 var(--space-4) var(--space-3);
+		padding: 0 var(--row-inset) var(--space-4);
 		gap: var(--space-3);
 	}
 

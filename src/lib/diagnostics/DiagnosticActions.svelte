@@ -9,6 +9,7 @@
 	import type { Diagnostic, DiagnosticFix } from '#lib/core/types.js';
 	import { describeControl } from '#lib/ui/state/control-tooltip.svelte.js';
 	import { acceptsDiagnosticAsCorrect } from './ignore.js';
+	import { conversionReviewAction } from '#lib/conversion/review.js';
 	import { acquirePreview } from './preview-slot.js';
 	import { diagnosticGuideSlug } from './guide-link.js';
 
@@ -20,6 +21,7 @@
 		onAssignPerformers?: () => void;
 		/** Offered for repeated sections when the host can open the link picker. */
 		onLinkSections?: () => void;
+		onReviewConversion?: () => void;
 		/** Offered when the diagnostic carries a detected language the host can select. */
 		onSetLanguage?: (language: string, trigger: HTMLButtonElement) => void;
 		onPreviewFix: (fix: DiagnosticFix) => void;
@@ -44,6 +46,7 @@
 		onChooseHeader,
 		onAssignPerformers,
 		onLinkSections,
+		onReviewConversion,
 		onSetLanguage,
 		onPreviewFix,
 		onCancelPreview,
@@ -95,6 +98,9 @@
 	// group.
 	const offersSectionLink = $derived(
 		diagnostic.ruleId === 'section.unlinked-repeat' && onLinkSections !== undefined
+	);
+	const conversionAction = $derived(
+		onReviewConversion ? conversionReviewAction(diagnostic) : undefined
 	);
 	const detectedLanguage = $derived(diagnostic.detectedLanguage);
 	// Selecting the diagnostic is the preview: the editor shows the change as a
@@ -204,6 +210,12 @@
 			<CheckIcon aria-hidden="true" size={14} weight="bold" />
 		</button>
 	{/if}
+	{#if conversionAction}<button
+			type="button"
+			class="button"
+			class:button--contrast={!leadsWithAccept}
+			onclick={onReviewConversion}>{conversionAction.label}</button
+		>{/if}
 	{#if offersHeaderPicker}
 		<button
 			type="button"
@@ -266,7 +278,10 @@
 		<button
 			type="button"
 			class="button diagnostic-actions__fix"
-			class:button--contrast={index === 0 && !offersHeaderPicker && !leadsWithAccept}
+			class:button--contrast={index === 0 &&
+				!offersHeaderPicker &&
+				!leadsWithAccept &&
+				!conversionAction}
 			aria-keyshortcuts={index === 0 ? openFixKeys.keyshortcuts : undefined}
 			onpointerenter={() => showFix(fix)}
 			onfocus={() => showFix(fix)}

@@ -1,3 +1,4 @@
+import { getLanguagePack } from '#lib/languages/registry.js';
 import type { RuleDefinition } from '#lib/core/types.js';
 import { lookupSpellingCandidates } from '../data/spelling.js';
 import { diagnostic, hasUnsupportedMarkup, replacementFix } from './utils.js';
@@ -9,6 +10,8 @@ export const spellingStandardizedRule: RuleDefinition = {
 	fixability: 'preview',
 	sourceIds: ['G-SPELLING', 'G-AS-SPOKEN'],
 	check(document, context) {
+		// An unreviewed language supplies no evidence for lexical standardization.
+		if (!getLanguagePack(context.language).reviewed) return [];
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) => {
 				if (hasUnsupportedMarkup(line)) {

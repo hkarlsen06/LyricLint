@@ -63,8 +63,8 @@ Canonical implementation: `.error-page` in `src/lib/ui/styles/overlays.css`.
 `src/lib/ui/styles/tokens.css`, never literal colors, radii, spacing, or timings. All ordinary
 buttons share one silhouette; emphasis changes through color, not shape. There is no pill-shaped
 button variant; the legacy `.button--pill` hook has been removed, so do not reintroduce it. Pill
-radii belong to categorical chips and badges only (`.tab-count`,
-`.linter-panel__filter-chip`), never to an action button.
+radii belong to categorical badges only (`.tab-count`), never to an action button. The Review
+severity filters (`.filter-chip`) are two-line tiles on the control radius.
 
 The severity on a diagnostic is a **colored glyph** (`.severity`, no fill, no border, no radius),
 leading the card's meta line ahead of the line number: `⚠ Line 47 · Use song part headers`. No chip,

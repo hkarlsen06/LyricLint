@@ -13,9 +13,37 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
 `src/lib/ui/site/rule-search.svelte.ts`, `src/lib/ui/site/guidance-search.svelte.ts`,
 `src/lib/guidance/guidance-search.ts`,
 `src/routes/(site)/rules/`, `src/routes/(site)/guidelines/`, `static/_redirects`, `vite.config.ts`
+Musixmatch additions: `src/lib/profiles/reference.server.ts`, `src/lib/profiles/reader.server.ts`,
+`src/lib/profiles/policy-cases.ts`, `src/lib/ui/site/MusixmatchClause.svelte`,
+`src/lib/ui/site/MusixmatchCheck.svelte`, `src/lib/ui/site/MusixmatchSearchResults.svelte`.
 
 ## The rules
 
+- The profile navigation keeps Genius and Musixmatch guide corpora distinct while reusing the
+  same finder and reader-facing topics. Its Genius and Musixmatch links sit above search in the
+  sidebar. `/guidelines/musixmatch/` is the Musixmatch directory;
+  its topic routes publish all researched clauses with language scope, provenance, partial-check
+  limits and unresolved-source status. Each topic entry names its handling with a pill, states
+  language names, folds citations, flags source conflicts inline, and discloses each related
+  check with its flagged and accepted examples; the landing lists question entrances and topics
+  with clause counts. `/guidelines/?profile=musixmatch` enters that directory.
+  Musixmatch routes render in the same `SectionSplit` as article routes. Their return link leads
+  to the Musixmatch directory, which has none of its own. The Musixmatch sidebar draws no Genius
+  entrances (Essentials, common questions, standardized spellings, the complete guide), and its
+  topic rows describe themselves by their reader question rather than Genius examples.
+  Check pages keep the common `/guidelines/checks/` path and derive their text from actual rule
+  output and tested invented cases. `mxm.*` IDs make profile ownership explicit.
+  A Musixmatch statement identical to its heading (with an optional final period) appears only
+  as the heading; distinct explanations, source scope, examples and checking limits remain visible.
+  With a query, Musixmatch routes show ranked hits in the reader through the shared
+  server-derived clause and check renderers, preserving language scope, source conflicts and
+  checking limits; clearing restores the directory or selected topic of the current route.
+- A source-review finding is not an assertion that its example lyric is wrong. Check pages label
+  manual examples as requiring review and do not invent an accepted lyric for a missing-policy
+  finding. The assistant opens with the selected guide's independent, versioned corpus; stored
+  answers retain their original profile. `profiles/reference.test.ts`,
+  `ReferenceIndex.svelte.test.ts` and `e2e/profile-guide.spec.ts` pin reachability, profile
+  navigation, retained search selection, source conflicts and phone geometry.
 - `/guidelines/` is the directory and search entrance. Topic routes show one complete topic,
   independent of the query. `/guidelines/essentials/` presents a curated set of practical starting points;
   `/guidelines/all/` explicitly opens the whole reference. Check details live at

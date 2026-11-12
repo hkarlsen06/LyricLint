@@ -20,6 +20,7 @@
 	let {
 		controller,
 		nativeRulesStatus = 'ready',
+		grammarPending = false,
 		onRetryNativeRules,
 		assistant,
 		collapsed = false,
@@ -33,6 +34,7 @@
 	}: {
 		controller: WorkbenchController;
 		nativeRulesStatus?: 'pending' | 'failed' | 'ready';
+		grammarPending?: boolean;
 		onRetryNativeRules?: () => void;
 		assistant?: AssistantState;
 		collapsed?: boolean;
@@ -174,6 +176,7 @@
 					{#if activatedPanels.has('linter')}
 						<LinterPanel
 							{nativeRulesStatus}
+							{grammarPending}
 							{onRetryNativeRules}
 							{controller}
 							active={!collapsed}
@@ -395,16 +398,33 @@
 		font-size: var(--font-size-xs);
 		font-weight: var(--font-weight-medium);
 		white-space: nowrap;
-		transition: background var(--duration-fast) var(--ease-out-quart);
+		transition:
+			background-color var(--duration-fast) var(--ease-out-quart),
+			box-shadow var(--duration-fast) var(--ease-out-quart),
+			color var(--duration-fast) var(--ease-out-quart);
 	}
 
+	/* The open tool is a raised key in the rail: the surface and the control
+	   ring, the same lift the segmented control gives its chosen segment. */
 	.right-panel__header :global(.panel-tabs button[data-state='active']) {
 		background: var(--color-surface);
+		box-shadow: var(--shadow-control);
 		color: var(--color-text);
 		font-weight: var(--font-weight-semibold);
 	}
+	@media (prefers-reduced-motion: reduce) {
+		.right-panel__header :global(.panel-tabs button) {
+			transition: none;
+		}
+	}
+	/* The open tool's glyph takes the accent: what is current, in the color the
+	   window gives current state. The raise and the weight carry it without. */
+	.right-panel__header :global(.panel-tabs button[data-state='active'] > svg),
+	.right-panel__header :global(.panel-tabs button[data-state='active'] .panel-tabs__mark > svg) {
+		color: var(--color-accent);
+	}
 
-	.right-panel__header :global(.panel-tabs button:hover) {
+	.right-panel__header :global(.panel-tabs button:hover:not([data-state='active'])) {
 		background: var(--color-fill);
 		color: var(--color-text);
 	}

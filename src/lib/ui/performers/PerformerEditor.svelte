@@ -87,25 +87,20 @@
 			<!-- The color is a visual distinguisher only, so the dot is decorative. -->
 			<span class={`performer-color performer-color--${performer.colorId}`} aria-hidden="true"
 			></span>
-			<!-- The name is the rename. A pencil beside it was a second control for
-			     the thing the user is already pointing at, so pressing the name opens
-			     the field in its place, and while a removal is pending it is text
-			     again, because that question is the row's only one.
-
-			     A name, not an emphasis: six bold rows in a column were the same
-			     repetition the spelled-out commands were. -->
+			<!-- One name control carries its visible rename affordance. -->
 			{#if removing}
 				<span class="list-row__name performer-row__name">{performer.displayName}</span>
 			{:else}
 				<button
 					type="button"
-					class="list-row__name performer-row__name"
+					class="performer-row__name"
 					aria-label="Rename {performer.displayName}"
 					title="Rename"
 					bind:this={renameButton}
 					onclick={beginRename}
 				>
-					{performer.displayName}
+					<span class="list-row__name">{performer.displayName}</span>
+					<span class="performer-row__rename" aria-hidden="true">Rename</span>
 				</button>
 			{/if}
 		</span>
@@ -127,6 +122,7 @@
 	/* The row is `.list-row` (rows.css); this pulls its fill out to the panel's own
 	   inset so the names still line up with the prose above them. */
 	.performer-row {
+		min-width: 0;
 		margin-inline: calc(-1 * var(--space-2));
 	}
 
@@ -138,22 +134,35 @@
 		align-items: center;
 	}
 
-	/* The name is the row's rename control, and it draws nothing to say so: a
-	   bordered field on every row would be six boxes for a name that is usually
-	   only read. It takes the whole of the row's free width, so the target is the
-	   name and everything after it, and it underlines under the pointer, the same
-	   tell the linter panel's recent drafts use for a line you can press. */
 	.performer-row__name {
+		display: flex;
+		min-width: 0;
+		min-height: var(--control-height-sm);
 		padding: 0;
 		border: 0;
+		gap: var(--space-3);
 		flex: 1;
+		align-items: center;
+		justify-content: space-between;
 		background: transparent;
 		color: var(--color-text);
 		text-align: start;
 	}
 
-	button.performer-row__name:hover {
+	.performer-row__rename {
+		flex: none;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+
+	button.performer-row__name:hover .list-row__name {
 		text-decoration: underline;
+	}
+
+	@media (pointer: coarse) {
+		button.performer-row__name {
+			min-height: var(--control-height-touch);
+		}
 	}
 
 	.performer-color {

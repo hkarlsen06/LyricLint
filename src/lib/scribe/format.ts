@@ -1,7 +1,18 @@
+import { parseWriting, beginWriting, type DraftWriting } from '#lib/persistence/writing.js';
 import { ScribeFormatError } from './contracts.js';
 export { maxScribeBytes, ScribeFormatError } from './contracts.js';
 import { normalizeGeniusUrl } from '#lib/core/genius-url.js';
 import { copySectionLinks } from '#lib/persistence/copy.js';
+import {
+	hasConversionMetadata,
+	copyConversionEnvelope,
+	parseConversionEnvelope,
+	parseConversionRecovery,
+	parseOriginalRecovery,
+	type ConversionEnvelope,
+	type ConversionRecovery,
+	type OriginalRecovery
+} from '#lib/persistence/conversion.js';
 import { validateLinkPassages } from '#lib/core/link-record.js';
 import type {
 	CompareBaselineRecord,
@@ -14,11 +25,11 @@ import type { ClipboardMediaSource } from '#lib/editor/contracts.js';
 import { performerColorIds } from '#lib/performers/color.js';
 
 const scribeFormat = 'LYRICLINT_SCRIBE';
-const scribeVersion = 1;
+const scribeVersion = 3;
 
 interface ScribeProject {
 	format: typeof scribeFormat;
-	version: typeof scribeVersion;
+	version: 1 | 2 | typeof scribeVersion;
 	document: {
 		title: string;
 		language: string;
@@ -27,6 +38,10 @@ interface ScribeProject {
 		geniusUrl?: string;
 		selection?: SerializedSelection;
 		compareBaseline?: CompareBaselineRecord;
+		writing?: DraftWriting;
+		conversion?: ConversionEnvelope;
+		conversionRecovery?: ConversionRecovery;
+		originalRecovery?: OriginalRecovery;
 	};
 	performers: PerformerRecord[];
 	sectionLinks: SectionLink[];
@@ -36,6 +51,10 @@ interface ScribeProject {
 }
 
 export interface ScribeProjectInput {
+	writing?: DraftWriting;
+	conversion?: ConversionEnvelope;
+	conversionRecovery?: ConversionRecovery;
+	originalRecovery?: OriginalRecovery;
 	title: string;
 	language: string;
 	lyrics: string;
@@ -252,20 +271,63 @@ export function serializeScribe(input: ScribeProjectInput): string {
 	};
 	if (input.geniusUrl !== undefined) scribeDocument.geniusUrl = input.geniusUrl;
 	if (input.originalText !== undefined) scribeDocument.originalText = input.originalText;
+	if (input.writing !== undefined) {
+		const writing = parseWriting(input.writing, input.conversion?.profile);
+		scribeDocument.writing = input.lyrics.length > 0 ? beginWriting(writing) : writing;
+	}
 	if (input.selection !== undefined) scribeDocument.selection = { ...input.selection };
 	if (input.compareBaseline !== undefined) {
 		scribeDocument.compareBaseline = { ...input.compareBaseline };
 	}
+	if (input.conversionRecovery !== undefined) {
+		scribeDocument.conversionRecovery = parseConversionRecovery(
+			input.conversionRecovery,
+			input.lyrics,
+			false
+		);
+	}
+	if (input.originalRecovery !== undefined)
+		scribeDocument.originalRecovery = parseOriginalRecovery(input.originalRecovery, false);
+	if (input.conversion !== undefined) {
+		if (input.conversion.model.defaultLanguage !== input.language && !input.conversionRecovery) {
+			throw new ScribeFormatError('The document language and conversion document do not match.');
+		}
+		scribeDocument.conversion = copyConversionEnvelope(
+			input.conversion,
+			input.conversionRecovery ? undefined : input.lyrics
+		);
+	}
+	if (
+		scribeDocument.conversionRecovery &&
+		JSON.stringify(scribeDocument.conversion) !==
+			JSON.stringify(scribeDocument.conversionRecovery.checkpoint)
+	) {
+		throw new ScribeFormatError('The recovery checkpoint and conversion document do not match.');
+	}
+	if (
+		scribeDocument.writing?.phase === 'new' &&
+		(hasConversionMetadata(scribeDocument.conversion) ||
+			scribeDocument.conversionRecovery !== undefined ||
+			scribeDocument.originalRecovery !== undefined)
+	)
+		scribeDocument.writing = beginWriting(scribeDocument.writing);
 	const project: ScribeProject = {
 		format: scribeFormat,
-		version: scribeVersion,
+		version:
+			input.writing !== undefined
+				? 3
+				: input.conversion !== undefined ||
+					  input.conversionRecovery !== undefined ||
+					  input.originalRecovery !== undefined
+					? 2
+					: 1,
 		document: scribeDocument,
 		performers: input.performers.map((performer) => ({
 			...performer,
 			aliases: [...performer.aliases]
 		})),
-		sectionLinks: copySectionLinks(input.sectionLinks),
-		lineAnchors: input.lineAnchors.map((anchor) => ({ ...anchor })),
+		sectionLinks: input.conversion ? [] : copySectionLinks(input.sectionLinks),
+		lineAnchors: input.conversion ? [] : input.lineAnchors.map((anchor) => ({ ...anchor })),
 		ignoredDiagnostics: [...new Set(input.ignoredDiagnostics)].sort()
 	};
 	if (input.song !== undefined) project.song = { ...input.song };
@@ -284,7 +346,7 @@ export function parseScribe(source: string): ScribeProject {
 	if (value.format !== scribeFormat) {
 		throw new ScribeFormatError('This file is not a LyricLint Scribe.');
 	}
-	if (value.version !== scribeVersion) {
+	if (value.version !== 1 && value.version !== 2 && value.version !== scribeVersion) {
 		throw new ScribeFormatError(
 			number(value.version) && value.version > scribeVersion
 				? 'This Scribe was made by a newer version of LyricLint.'
@@ -323,6 +385,76 @@ export function parseScribe(source: string): ScribeProject {
 		language: string(value.document.language, 'document.language'),
 		lyrics
 	};
+	try {
+		if (value.document.writing !== undefined) {
+			if (value.version !== 3)
+				throw new ScribeFormatError('Writing state requires Scribe version 3.');
+			const writing = parseWriting(
+				value.document.writing,
+				record(value.document.conversion) && value.document.conversion.profile === 'musixmatch'
+					? 'musixmatch'
+					: value.document.conversion !== undefined
+						? 'genius'
+						: undefined
+			);
+			scribeDocument.writing = lyrics.length > 0 ? beginWriting(writing) : writing;
+		}
+		if (value.document.conversionRecovery !== undefined) {
+			scribeDocument.conversionRecovery = parseConversionRecovery(
+				value.document.conversionRecovery,
+				lyrics,
+				false
+			);
+		}
+		if (value.document.originalRecovery !== undefined)
+			scribeDocument.originalRecovery = parseOriginalRecovery(
+				value.document.originalRecovery,
+				false
+			);
+		if (value.document.conversion !== undefined) {
+			scribeDocument.conversion = parseConversionEnvelope(
+				value.document.conversion,
+				scribeDocument.conversionRecovery ? undefined : lyrics
+			);
+			if (
+				scribeDocument.conversion.model.defaultLanguage !== scribeDocument.language &&
+				!scribeDocument.conversionRecovery
+			) {
+				throw new ScribeFormatError('The document language and conversion document do not match.');
+			}
+		}
+		if (
+			scribeDocument.writing?.phase === 'new' &&
+			(hasConversionMetadata(scribeDocument.conversion) ||
+				scribeDocument.conversionRecovery !== undefined ||
+				scribeDocument.originalRecovery !== undefined)
+		)
+			scribeDocument.writing = beginWriting(scribeDocument.writing);
+		if (
+			scribeDocument.conversionRecovery &&
+			JSON.stringify(scribeDocument.conversion) !==
+				JSON.stringify(scribeDocument.conversionRecovery.checkpoint)
+		) {
+			throw new ScribeFormatError('The recovery checkpoint and conversion document do not match.');
+		}
+		if (
+			(scribeDocument.conversion ||
+				scribeDocument.conversionRecovery ||
+				scribeDocument.originalRecovery) &&
+			value.version === 1
+		) {
+			throw new ScribeFormatError('A conversion Scribe must use the current file version.');
+		}
+		if (scribeDocument.conversion && (sectionLinks.length > 0 || lineAnchors.length > 0)) {
+			throw new ScribeFormatError(
+				'A conversion Scribe cannot carry conflicting legacy timing or link records.'
+			);
+		}
+	} catch (error) {
+		throw new ScribeFormatError(
+			error instanceof Error ? error.message : 'The conversion document is invalid.'
+		);
+	}
 	if (value.document.geniusUrl !== undefined) {
 		const geniusUrl = normalizeGeniusUrl(value.document.geniusUrl);
 		if (geniusUrl === undefined)
@@ -334,7 +466,7 @@ export function parseScribe(source: string): ScribeProject {
 	if (compareBaseline !== undefined) scribeDocument.compareBaseline = compareBaseline;
 	const project: ScribeProject = {
 		format: scribeFormat,
-		version: scribeVersion,
+		version: value.version,
 		document: scribeDocument,
 		performers,
 		sectionLinks,

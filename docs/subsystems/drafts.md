@@ -7,24 +7,145 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 
 ## The rules
 
+- Each draft owns one main writing format, fixed after original content or semantic formatting
+  begins, including after clearing the lyrics. Only an untouched new draft offers inline
+  creation choices. The last deliberate choice is the `newDraftProfile` preference; opening
+  or importing a saved draft never changes it. Legacy records use their saved conversion
+  profile, or Genius when absent, regardless of retained model ancestry.
+  A successful workspace reset clears the creation preference and starts again in Genius.
+- The populated toolbar names the main format, copies its exact text, and offers Export to
+  the other format. The native export dialog edits independent plain output, never editor
+  history, source metadata or selection. Copy and Download use the exact edited output.
+  Edited output persists per draft until a real original text, formatting, language, roster,
+  anchor or link change. Selection, title, ignored findings and playhead do not expire it.
+  Invalidation happens before constructing the complete saved snapshot; Undo cannot restore
+  an expired copy. Target generation uses pure `planProfileSwitch` without upgrading primary
+  storage. Historical live switching decisions below are superseded for the application UI;
+  the pure conversion engine and editor history APIs remain internal.
+
+- Genius `.txt` import extracts the complete source-header roster before model construction
+  and persists both together. Opening the imported draft must not be the first discovery:
+  reconciliation preserves existing anonymous assignments. Scribe and saved rich drafts
+  keep their retained assignments without a retroactive identity migration.
+
+- A refused delete or reset restores every canceled pending save, including retained failures
+  and side records, so departure recovery and a later retry retain the latest work. Successful
+  deletion keeps those saves canceled. A refused reset keeps the running preferences unchanged.
+  The draft store serializes all destructive operations through one queue, including row delete
+  versus workspace reset. Each operation owns an autosave suspension and settles it exactly once:
+  restore on refusal, discard deleted saves after committed deletion and editor replacement.
+  The reservation exists even without entry saves and holds new complete snapshots without
+  timers or writes until the outcome. Physical deletion waits for already-issued and queued
+  autosave drains to settle. Draft opening and creation wait for the destructive queue before
+  replacing the editor. Departure refuses its checkpoint while a destructive outcome is pending,
+  so navigation warns instead of claiming held work is recoverable. Suspended snapshots follow in-flight
+  conflict copies with their media identity and storage generation. A later edit or cancellation
+  of the adopted copy prevents restoring its older suspended work. A successful row deletion
+  resumes held work that forked to a different draft; reset discards all held work. Ordinary cancellation keeps
+  its optional restore callback and registers no long-lived suspension.
+
+- A deliberate roster edit keeps a metadata-only draft through the normal guarded save path,
+  including its Undo. An empty lyric document does not discard named performers on switching
+  drafts or reload. Roster toast actions are scoped to their originating draft load session;
+  a stale action never writes to a different draft, including a duplicate with shared IDs.
+
+- In-app navigation checkpoints pending drafts before leaving the workbench. A failed
+  synchronous checkpoint cancels that navigation and keeps the editor available for saving
+  or export. Teardown also captures a checkpoint before its asynchronous flush. When a
+  guarded save creates a conflict copy, pending media references follow the new draft ID,
+  so a subsequent checkpoint validates and recovers the complete pending snapshot.
+
+- Rich drafts store the exact active text with a versioned `conversion` envelope. Its pinned
+  renderer, guideline versions, model, and recovery projection must validate together. Legacy
+  line-number anchors and links are omitted after migration; the model owns their stable records.
+  A metadata-only rich draft survives every blank-document sweep. Unreadable rich state is never
+  downgraded over its original row: startup creates a separately labeled text recovery and keeps
+  the original bytes available through `exportRawDraft`.
+- A rich model owns `defaultLanguage`; the top-level draft language is its compatibility copy
+  and mismatches are refused at reads/imports. This keeps language changes, rendered text,
+  persistence, and undo in the same document transaction.
+- Schema 7 uses physical `draftsV7`, `appMetadataV7`, `mediaHandlesV7`, and `draftIgnoresV7`
+  stores, atomically copied from V6. Deletion clears V6 and pre-V6 copies too. The public database properties retain their
+  existing names. A version number alone is insufficient: Dexie retries `VersionError` without
+  a requested version, allowing an older bundle to reopen. Its legacy stores cannot overwrite
+  current rich records or their attachments. Mutation readers use the actual table names.
+  Blocked upgrades report a close-other-tabs notice before opening finishes. A superseded
+  connection closes explicitly and stops Dexie's default version-change handler, which would
+  otherwise re-enable automatic reopening; the editor keeps its local state and offers Scribe
+  export while further storage operations refuse.
+- Autosave compares `storageGeneration` within the write transaction. A stale writer creates a
+  separate conflict copy with its local ignored choices and media reference in that same
+  transaction, then continues under the new ID without replacing the editor or restarting audio.
+  The editor and entrance follow the document load session, not the saved record ID: adopting
+  a conflict copy preserves native history, focus and selection; Open and New start a fresh editor.
+  Roster Undo actions use that same load session, so a save fork keeps them valid while a real
+  document switch still refuses stale actions.
+  A failed transaction retains the complete pending snapshot and reports failure. Editor undo
+  revisions and timestamps never arbitrate competing writers. Media attachment, detach, title,
+  playhead, and ignored-diagnostic changes remain local until that same guarded transaction.
+  Consumers without a draft generation context retain their legacy direct-storage behavior.
+- Immediate reload uses a versioned, tab-scoped session-storage departure checkpoint, written
+  synchronously on `beforeunload`, `pagehide`, or hidden visibility before async flushing. It keeps
+  the latest complete snapshot per draft plus any in-flight predecessor identity, at most 16
+  drafts and 2 Mi UTF-16 code units. Normal typing retains its debounce and does no checkpoint
+  serialization until departure. `storageWriteId` makes interrupted writes and conflict forks
+  idempotent. Recovery validates the existing workspace-file boundary and replays through CAS
+  atomically before startup selection or ignore-store hydration. It never trusts timestamps or
+  overwrites a competing generation. Malformed or failed recovery keeps its bytes and offers a
+  download with an alert; a refused departure checkpoint warns visibly and announces, and asks
+  the browser to confirm leaving. File capabilities never enter JSON or request permission:
+  recovery reuses only the same recording's committed handle; unsaved files need reconnecting.
+  Recovery consumes both current and legacy session keys when they coexist. Identical write
+  identities deduplicate; dependent writes replay after their predecessors, and independent
+  writes use the normal guarded save, including conflict copies. Unreadable or contradictory
+  files preserve both raw values for download. Acknowledgement removes only the exact files
+  read before replay; a file changed during recovery is retained and blocks startup.
+- Backups and Scribe files carrying grouped `writing` ownership and output use version 3.
+  Rich version 2 and ordinary legacy version 1 remain accepted. Import
+  refuses unknown or mismatched rich state before writing. Reconciliation recovery carries both
+  latest visible text and the last valid checkpoint; unreadable originals carry a source-draft
+  reference as portable provenance, and inputs beyond the engine limit retain exact text without inventing a checkpoint.
+
+- A recovery's `sourceDraftId` is portable provenance, never lookup authority. Its separate
+  `localSourceDraftId` names the original owned by this workspace; null means unavailable.
+  Scribe serialization and parsing clear that association, including hand-edited files. Backups
+  remap associations only to originals carried by the same archive; dangling references become
+  unavailable. Older local recoveries regain an association only through the repository's
+  remembered recovery ownership, never through a matching draft ID alone. Local duplication,
+  conflict copies, autosave and departure checkpoints preserve verified associations. Deliberate
+  original export refuses unavailable data visibly; Song offers it only with a local association.
+  Legacy archive ownership is checked against its original IDs and remembered owner before
+  remapping. Departure recovery resolves ownership before adopting a predecessor or conflict
+  identity. Replaying an already committed legacy fork records the verified association once,
+  advances its storage generation and leaves later replay idempotent.
+
 - At five saved drafts the menu offers case-insensitive title/full-lyric search. Filtering never
   changes the saved records; a no-match result retains the search field, and closing the
   menu clears search and pending row actions. `DraftMenu.svelte.test.ts` pins recovery.
+  Escape and outside presses close the native menu even before its queued toggle event updates
+  the bound state. Escape returns focus to Open; an outside press retains its own focus target.
 
-- A uniquely titled draft is one line: glyph commands on the name's own row, muted until hover/focus, each
-  keeping the draft in its accessible name. The confirm takes the trigger's own slot
+- A uniquely titled draft has one identity row with its title, date and Actions disclosure.
+  Only one row reveals its named Rename, Duplicate, Export Scribe and Delete controls below
+  that trigger. Search, another row, Escape and closing the menu abandon pending actions.
+  The confirm takes the trigger's own slot
   (`RemoveButton`, shared by every list that offers a way out of a row) and moves focus onto
   itself; the armed row is the list's state, one question open at a time.
-- A draft with nothing in it is never written: `createDraft` loads a transient record, the
-  first save with text creates the row, `discardEmptyDraft` gives it back, and
-  `recoverStartupDraft` sweeps blanks, but spares a wordless draft with attached audio
-  (`hasAttachment`, consulted on **every** save) or a saved Genius page link.
+  Cancel returns focus to the restored Delete control, keeping Escape within the menu.
+- An untouched new blank draft is transient. A deliberate clear of saved work is a guarded
+  save, including an empty conflict copy, and survives reload. `recoverStartupDraft` sweeps
+  historical blanks without a storage generation only after rechecking that generation in the
+  deletion transaction; a concurrent save wins. Audio, a Genius page link, and rich metadata
+  also keep wordless drafts recoverable. Explicit Delete remains the way to remove saved work.
 - A landed save re-reads the drafts list, bounded by `sawPendingSave`; `noteSaveStatus` in
   `draft-store.svelte.ts` is the one place `saveStatus` is assigned.
 - The list caches derived summaries in memory, never on disk. Committed Dexie mutation keys
   invalidate changed drafts; broad changes rebuild the list. Imports and other connections use
   that same invalidation path, and closing the database releases the cache and its subscription.
-- The way into the list is the draft's own name (`.draft-switcher`): field plus chevron, one
+- Duplicate flushes pending edits and opens the new copy through the existing guarded draft
+  loader. The original stays unchanged. A copy that cannot be opened remains saved and the
+  failure is visible and announced. `workbench.test.ts` pins the active copy and independent edits.
+- The way into the list is beside the draft's name (`.draft-switcher`): title field and named Open disclosure, one
   bordered group, popover anchored to the switcher's left edge. Dates are read, not parsed,
   and English like the rest of the chrome.
 - The menu deletes one 'scribe at a time, never all of them. Deleting everything is
@@ -33,6 +154,7 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
 - **A `DraftRecord` field is only as safe as the least careful place that rebuilds one.**
   The copiers are `copySnapshot` (`persistence/autosave.ts`), `copyDraft` and `createRecord`
   (`persistence/draft-repository.ts`), and `writeRecord` (`ui/state/draft-store.svelte.ts`);
+  `cloneDraft` (`ui/state/in-memory.ts`) also copies full records;
   shared shapes live in `persistence/copy.ts` (`copySectionLinks`). Adding a field means
   grepping for its siblings, not trusting a list. `persistence.test.ts` populates every
   optional field and asserts the record comes back whole; `workbench.test.ts` drives the real
@@ -52,6 +174,67 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   `docs/subsystems/media.md` for what counts as a name worth having.
 
 ## Decision record
+
+### Departure can interrupt an IndexedDB flush
+
+A native immediate reload after typing ` tonight` lost the new words in Chromium and WebKit,
+while the toolbar still read Save pending. WebKit could fire `pagehide` while visible before
+hidden visibility. Starting another async flush in that lifecycle is insufficient: the page can
+be destroyed before the transaction commits. Departure now checkpoints synchronously and fresh
+startup replays a validated full document, including format, model, selection and side records.
+The ordinary debounce and native navigation stay intact.
+
+The latest pending edit subsumes an in-flight edit for the same draft. Its predecessor identity
+allows recovery to distinguish a landed local transaction from a competing writer; neither
+undo revision nor wall-clock time grants overwrite authority. A deterministic conflict ID and
+write identity recognize a commit whose acknowledgement was interrupted, avoiding duplicate
+copies on repeated startup. Checkpoint acknowledgement follows the atomic recovery transaction.
+A recovery failure blocks editing over the retained checkpoint rather than replacing it with a
+new document. Session storage bridges a same-tab navigation; it does not promise recovery after
+browser eviction or closing the tab. A checkpoint beyond the bounded budget refuses departure
+instead of truncating lyrics.
+
+`departure-checkpoint.test.ts` covers retained failures, stale writers and side records,
+interrupted predecessor writes, repeated recovery, malformed inputs and unreadable rich originals.
+`e2e/immediate-reload.spec.ts` drives native typing and real fresh-document reloads.
+
+### Recovery references cross workspace boundaries
+
+Previously the Scribe and backup copiers preserved `sourceDraftId` as both provenance and a
+local lookup. A foreign ID collision exported an unrelated destination song; backup collision
+remapping also left the recovery pointing to the old ID. The controller regression uses real
+Dexie repositories to reproduce the wrong download. Recovery parsers now preserve local
+associations for internal copies and checkpoints while the Scribe boundary clears them. Backup
+restore remaps carried associations and the repository recovery cache together, without changing
+portable provenance, visible text, checkpoints, reasons or the destination's existing rows.
+
+### Profile switching keeps one durable document
+
+`persistence/conversion.ts` validates the entire envelope and exact active projection at each
+storage or file boundary. Every copier keeps recovery fields and storage generations. Duplication
+copies media references and ignored diagnostics atomically with the document. Local database
+recovery leaves unrecognized rich bytes untouched and creates a separate blocked text copy; a
+remembered recovery reference prevents repeated startup from producing duplicates.
+
+`conversion-persistence.test.ts` covers the complete export/import and reopen path, metadata-only
+drafts, rollback when a conflict copy cannot be saved, continuing edits after a fork, and the
+actual older-Dexie reopening behavior. Explicit deletion also clears the retained legacy rows so
+the database barrier does not leave deleted lyrics behind.
+
+### Deliberate clears and side records share the conflict boundary
+
+Clearing saved lyrics used to call unconditional deletion, bypassing the generation check and
+allowing a stale tab to remove another tab's newer lyrics, audio, and ignores. Saved clears now
+use the normal CAS save and remain recoverable, including an empty local conflict copy. Only
+never-saved blank documents stay transient; old blank cleanup checks its read generation again.
+
+The media and ignore stores used to write before lyric autosave, so a conflict fork could occur
+after local side records had already overwritten the newer original. The workbench now routes
+those mutations through its captured draft snapshot. Standalone legacy consumers keep direct
+writes. Backups read committed side records for generation-bearing drafts, so a stale session
+mirror cannot substitute local ignored choices onto the newer original. Opening another draft
+refreshes its ignore mirror; explicit deletion clears that mirror without scheduling a new save. The actual controller-order regressions in `workbench-conflicts.test.ts` cover a stale
+clear, local attachment and ignores before flush, detach, playhead, and a racing historical sweep.
 
 ### A longer draft list can be searched without opening each document
 
@@ -77,7 +260,11 @@ visible when deletion is armed. A header-only or wordless audio draft simply has
 `DraftMenu.svelte.test.ts` pins duplicate-only display, search by lyric, and opening the intended
 copy; `persistence.test.ts` pins header skipping and the absence of the derived field on records.
 
-### A draft is one line, and an empty draft is not a draft
+### A draft is one line; untouched new blanks stay transient
+
+The glyph-only draft commands described below were superseded by the single Actions disclosure.
+The resting list remains compact; only the chosen row shows action words. The roster description
+is historical too; its current interaction contract is in `performers.md`.
 
 The drafts menu used to spend two rows on every draft: its name, then `Rename Duplicate Export
 Delete` spelled out underneath. Seven drafts came to twenty-eight words of chrome around seven
@@ -96,8 +283,8 @@ row itself no longer pressable while the question is open, and it moves focus on
 because a control that replaces another has to inherit the focus that was on it. **Every list that
 offers a way out of one of its rows shares the component**: the drafts menu, the linter panel's
 recent-drafts list (which is where a returning user actually meets the drafts they want rid of),
-and the performer roster. `label` is all that differs between them, because a draft is deleted and
-a performer is removed from a roster. The armed row is the list's state, never the row's: only one
+and the performer roster. The shared component supports an icon or labelled trigger; the verb
+distinguishes deleting a draft from removing a performer. The armed row is the list's state, never the row's: only one
 question may be open at a time, and closing the surface has to abandon it.
 
 **The roster is the same list, and there the name _is_ the rename.** A performer was two rows as
@@ -132,14 +319,12 @@ discard it was working around. This costs a wordless draft with a song in it a r
 list, which is the right trade: an `Untitled transcription` the user can see and delete beats an attachment
 that vanishes with no sign it existed.
 
-**A draft with nothing in it is never written.** Every "new draft" used to create a record
-immediately, so a session of second thoughts left a list of `Untitled transcription`s that had never held a
-character. Now `createDraft` loads a transient record and writes nothing; the first save with text
-in it is what creates the row and takes over the current-draft pointer, so a reload before the
-first keystroke comes back to the draft that still has the work in it. A draft emptied out gives up
-its record the same way (`discardEmptyDraft`): undo puts the text back and the next save writes
-the same id, so nothing is lost. `recoverStartupDraft` sweeps blank records on the way through for
-the databases earlier builds already filled.
+**An untouched new draft stays transient.** Every "new draft" used to create a record
+immediately, leaving a list of `Untitled transcription`s that had never held a character.
+`createDraft` now writes nothing until there is work to preserve. Historical builds also discarded
+a saved draft when its text was cleared; that behavior is superseded by the guarded clear-save
+contract above. `recoverStartupDraft` only sweeps historical blanks without a storage generation,
+rechecking that generation before deletion. A deliberate saved clear survives reload.
 
 **Which makes a landed save the moment a draft joins the list, so a landed save is what re-reads
 it.** The list was fetched once at boot and thereafter only by the operations that change it
@@ -342,6 +527,14 @@ reports a refusal by toast and announcement, without announcing an export. Impor
 filename and byte ceiling before loading or reading the file, then uses the unchanged parser
 validation before writing any draft state. The lightweight format contract owns the byte ceiling
 and error class; the codec reexports both for compatibility.
+
+The same import picker accepts `.txt` lyrics. Choosing text reveals a named source-format field,
+defaulted to the current profile, before creating a draft. Opening imports the source exactly
+after the editor's usual LF line-ending boundary, retains the original decoded text in
+`originalText`, and selects that source profile. There is no syntax guessing or conversion during
+opening. File-byte and engine work ceilings are checked before creation, and a failed current
+autosave blocks opening another document. Tests cover literal Musixmatch brackets, original line
+endings, refusal before reading oversized files, and the picker at phone and desktop widths.
 
 
 ### Draft rows load behind the native menu

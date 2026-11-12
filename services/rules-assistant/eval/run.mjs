@@ -1,6 +1,6 @@
 /**
  * Run the evaluation set against a live assistant endpoint (staging, or
- * `wrangler dev` with the Turnstile test secret, which passes any token):
+ * `wrangler dev` with the official Turnstile test pair and local flag):
  *
  *   ASSISTANT_EVAL_URL=http://127.0.0.1:8787 \
  *   ASSISTANT_EVAL_ORIGIN=http://127.0.0.1:5173 \
@@ -73,7 +73,7 @@ for (const [index, testCase] of evalSet.cases.entries()) {
 			messages: [{ role: 'user', content: testCase.question }],
 			clientRuleSetVersion: corpus.ruleSetVersion,
 			clientCorpusHash: corpus.contentHash,
-			turnstileToken: 'eval-turnstile-token'
+			turnstileToken: 'XXXX.DUMMY.TOKEN.XXXX'
 		})
 	});
 	if (!response.ok) {

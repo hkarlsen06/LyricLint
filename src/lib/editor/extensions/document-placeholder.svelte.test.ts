@@ -88,15 +88,13 @@ describe('the empty-document placeholder', () => {
 		const line = document.querySelector('.cm-line');
 		const ghost = document.querySelector('.ll-placeholder');
 		if (!line || !ghost) throw new Error('The empty document did not draw its ghost.');
-		expect(getComputedStyle(ghost).position).toBe('absolute');
-		expect(line.getBoundingClientRect().height).toBeLessThan(
-			ghost.getBoundingClientRect().height / 2
-		);
+		expect(getComputedStyle(ghost).display).toBe('inline-block');
+		expect(line.getBoundingClientRect().height).toBeLessThan(ghost.scrollHeight / 2);
 	});
 
-	// The out-of-flow ghost only fixes the native caret. The drawn caret layer
+	// The one-row inline box fixes the native caret. The drawn caret layer
 	// measures through coordsAtPos, which falls back to the widget's own client
-	// rect (four rows tall however it is positioned), so the widget answers
+	// rect, so the widget answers
 	// that measurement with its first row, or the four-row caret is back.
 	it('keeps the drawn caret one row tall beside the ghost', async () => {
 		const handle = await mount();
@@ -109,7 +107,7 @@ describe('the empty-document placeholder', () => {
 			expect(caret).toBeTruthy();
 			const height = caret!.getBoundingClientRect().height;
 			expect(height).toBeGreaterThan(0);
-			expect(height).toBeLessThan(ghost.getBoundingClientRect().height / 2);
+			expect(height).toBeLessThan(ghost.scrollHeight / 2);
 		});
 	});
 

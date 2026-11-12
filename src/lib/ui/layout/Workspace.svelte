@@ -28,23 +28,26 @@
 	import { workspaceEntrance } from './workspace-entrance.js';
 	import type { HarperDiagnosticProvider } from '#lib/rules/harper.js';
 	import { isHarperRuleId } from '#lib/rules/harper-ids.js';
+	import { HarperInitializationCanceled } from '#lib/rules/harper-cancellation.js';
 	import { mergeHarperDiagnostics } from '#lib/rules/results.js';
 	import { useAssistantState } from '#lib/assistant/assistant.svelte.js';
 	import type { AssistantDraftBridge } from '#lib/assistant/draft-bridge.js';
 	import { onDestroy, tick, type Component, untrack } from 'svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import {
+		projectionPolicyContext,
 		buildRuleContext,
 		filterForEditorState,
 		everyLyricLineTimed,
 		isTypingChange,
 		selectionCoversLyricLine,
 		timedLinesSkippable,
-		resolveVoiceGroupRanges
+		resolveProfileVoiceGroupRanges
 	} from '../state/wiring.js';
 	import ControlTooltip from '../primitives/ControlTooltip.svelte';
 	import DocumentToolbar from './DocumentToolbar.svelte';
 	import EditorActions from './EditorActions.svelte';
+	import DraftStart from './DraftStart.svelte';
 	import MediaPicker from '../media/MediaPicker.svelte';
 	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
 	import { carryHarperDiagnosticsAcrossEdit } from '../state/harper-continuity.js';
@@ -65,7 +68,8 @@
 		brandRevealed = true,
 		onready,
 		onerror,
-		loadNativeRules = () => import('#lib/rules/engine.js')
+		loadNativeRules = () => import('#lib/rules/engine.js'),
+		loadHarper = () => import('#lib/rules/harper.js')
 	}: {
 		controller: WorkbenchController;
 		editorComponent: Component<EditorPaneProps>;
@@ -77,15 +81,25 @@
 		onready?: () => void;
 		onerror?: (error: Error) => void;
 		loadNativeRules?: () => Promise<{ runRules: NativeRules }>;
+		loadHarper?: () => Promise<
+			Pick<typeof import('#lib/rules/harper.js'), 'createHarperDiagnosticProvider'>
+		>;
 	} = $props();
 
-	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
+	const placeholderEditor = untrack(() => controller.editor);
+	let editorHandle = $state<EditorHandle>(placeholderEditor);
 	let editorExpanded = $state(false);
 	let workspaceElement = $state<HTMLElement>();
-	let entranceReadyDraftId = $state<string>();
+	let entranceReadySession = $state<number>();
 	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
 	// The phone's Review badge counts what Review draws: one row per decision.
 	const reviewCount = $derived(controller.reviewDecisions.length);
+	let navigationHeight = $state(0);
+	$effect(() => {
+		const root = document.documentElement;
+		root.style.setProperty('--mobile-navigation-height', `${navigationHeight}px`);
+		return () => root.style.removeProperty('--mobile-navigation-height');
+	});
 	const floatingVideo = $derived(!phone.current);
 	type MobileView = 'write' | 'review' | 'tools';
 	let mobileView = $state<MobileView>('write');
@@ -98,8 +112,9 @@
 	$effect.pre(() => {
 		if (!panelCollapsed) panelInitialized = true;
 	});
+	const reviewEditorVisible = $derived(reviewFocused && !controller.requestedConversionReview);
 	const editorHidden = $derived(
-		phone.current && (mobileView === 'tools' || (mobileView === 'review' && !reviewFocused))
+		phone.current && (mobileView === 'tools' || (mobileView === 'review' && !reviewEditorVisible))
 	);
 	let previousTab = untrack(() => controller.activeTab);
 	$effect(() => {
@@ -110,6 +125,25 @@
 		}
 		if (tab !== 'linter') toolsTab = tab;
 		previousTab = tab;
+	});
+
+	let previousPassageRequest = untrack(() => controller.conversionPassageRequest);
+	$effect(() => {
+		const request = controller.conversionPassageRequest;
+		if (request && request !== previousPassageRequest) {
+			if (phone.current) mobileView = 'write';
+			void tick().then(() => {
+				if (controller.conversionPassageRequest !== request) return;
+				controller.editor.setSelection({ anchor: request.range.from, head: request.range.to });
+				controller.editor.revealRange(request.range);
+				if (phone.current && request.intent === 'view')
+					workspaceElement
+						?.querySelector<HTMLButtonElement>('.mobile-navigation [aria-pressed="true"]')
+						?.focus({ preventScroll: true });
+				else controller.editor.focus();
+			});
+		}
+		previousPassageRequest = request;
 	});
 
 	function showMobileView(view: MobileView): void {
@@ -135,6 +169,10 @@
 
 	async function openMobileFinding(diagnostic: Diagnostic, range?: TextRange): Promise<void> {
 		if (!phone.current || mobileView !== 'review') return;
+		// Commit the target before exposing focused Review. Otherwise its reveal
+		// effect queues the previous card, and the two deferred selections keep
+		// sending each other back through this handoff.
+		controller.highlightDiagnostic(diagnostic);
 		reviewFocused = true;
 		await tick();
 		// Reveal after the editor has acquired its review-context height.
@@ -200,9 +238,52 @@
 		void mediaPicker?.open(source, () => focusMediaOpener(workspace));
 	}
 
+	let lastRecordingAttempt:
+		| {
+				editor: EditorHandle;
+				model: NonNullable<EditorSnapshot['conversion']>['model'];
+				recordingId: string | undefined;
+		  }
+		| undefined;
+	$effect(() => {
+		if (
+			!editorHandle ||
+			editorHandle === placeholderEditor ||
+			controller.editor !== editorHandle ||
+			entranceReadySession !== controller.draftSession ||
+			!editorHandle.dispatchConversionAction
+		)
+			return;
+		const snapshot = controller.snapshot;
+		const conversion = snapshot.conversion;
+		const media = controller.media;
+		if (
+			!conversion ||
+			!media ||
+			media.restoring ||
+			snapshot.conversionRecovery ||
+			snapshot.originalRecovery ||
+			snapshot.composing ||
+			untrack(() => editorHandle.getSnapshot().composing)
+		)
+			return;
+		const recordingId = media.recordingId;
+		if (conversion.model.recordingId === recordingId) return;
+		if (
+			lastRecordingAttempt?.editor === editorHandle &&
+			lastRecordingAttempt.model === conversion.model &&
+			lastRecordingAttempt.recordingId === recordingId
+		)
+			return;
+		lastRecordingAttempt = { editor: editorHandle, model: conversion.model, recordingId };
+		untrack(() => controller.applyConversionAction({ kind: 'setRecording', recordingId }));
+	});
+
 	// Undefined in a workspace rendered on its own, which is how every component
 	// test renders it, and the control simply does not draw there.
 	const assistant = useAssistantState();
+	const assistantProfile = $derived(controller.profile);
+	const assistantSession = $derived(controller.profileSession);
 
 	// The assistant store outlives this workspace and deliberately knows nothing
 	// about the editor. This bridge reads the controller's current handle at call
@@ -210,10 +291,20 @@
 	// was just destroyed. Tracking the draft id re-registers the seam when the
 	// open draft changes, which also reloads that draft's stored access decision.
 	$effect(() => {
-		if (!assistant) return;
+		if (
+			!assistant ||
+			!editorHandle ||
+			editorHandle === placeholderEditor ||
+			controller.editor !== editorHandle
+		)
+			return;
 		const draftId = controller.draftId;
+		const profile = assistantProfile;
+		const sessionId = assistantSession;
 		const bridge: AssistantDraftBridge = {
 			draftId: () => draftId,
+			profile: () => profile,
+			sessionId: () => sessionId,
 			readText: () => controller.snapshot.text,
 			revision: () => controller.snapshot.revision,
 			preview(edit) {
@@ -339,7 +430,7 @@
 				}
 			}
 		};
-		return assistant.registerDraftBridge(bridge);
+		return untrack(() => assistant.registerDraftBridge(bridge));
 	});
 
 	const reducedMotion = prefersReducedMotion();
@@ -352,7 +443,7 @@
 	let lastLintKey = '';
 	let harperTimer: ReturnType<typeof setTimeout> | undefined;
 	let harperRequest = 0;
-	let harperPending = false;
+	let harperPending = $state(false);
 	let harperUnavailable = false;
 	// The document Harper has actually answered for, or has nothing to say
 	// about, which is the same thing to everyone downstream. See the memoized
@@ -364,20 +455,64 @@
 	let destroyed = false;
 	let ownedHarperProvider: HarperDiagnosticProvider | undefined;
 	let harperProviderPromise: Promise<HarperDiagnosticProvider | undefined> | undefined;
+	let harperLifetime = new AbortController();
+	let pageHidden = false;
+
+	// Install before the outer provider import. Timers and import completions
+	// cannot establish that a navigation was canceled; fresh input can.
+	$effect(() => {
+		const suspend = (): void => {
+			harperLifetime.abort();
+			harperProviderPromise = undefined;
+			invalidateHarper();
+			harperPending =
+				shouldRunHarper(controller.snapshot) &&
+				harperCoveredKey !== harperCoverage(lintKey(controller.snapshot));
+		};
+		const hide = (): void => {
+			pageHidden = true;
+			suspend();
+		};
+		const resume = (): void => {
+			if (pageHidden || destroyed || !harperLifetime.signal.aborted) return;
+			harperLifetime = new AbortController();
+			invalidateHarper();
+			publishSnapshot(controller.snapshot);
+		};
+		const show = (): void => {
+			pageHidden = false;
+		};
+		window.addEventListener('pageshow', show);
+		window.addEventListener('beforeunload', suspend);
+		window.addEventListener('pagehide', hide);
+		window.addEventListener('pointerdown', resume);
+		window.addEventListener('keydown', resume);
+		return () => {
+			window.removeEventListener('pageshow', show);
+			window.removeEventListener('beforeunload', suspend);
+			window.removeEventListener('pagehide', hide);
+			window.removeEventListener('pointerdown', resume);
+			window.removeEventListener('keydown', resume);
+		};
+	});
 
 	async function lintWithHarper(
 		request: Parameters<HarperDiagnosticProvider['lint']>[0],
 		generation: number
 	): Promise<Diagnostic[]> {
+		const signal = harperLifetime.signal;
+		if (signal.aborted) return [];
 		const provider =
 			harperProvider ??
-			(await (harperProviderPromise ??= import('#lib/rules/harper.js').then(
-				({ createHarperDiagnosticProvider }) => {
-					if (destroyed) return undefined;
-					return (ownedHarperProvider = createHarperDiagnosticProvider());
-				}
-			)));
-		if (destroyed || generation !== harperRequest || !provider) return [];
+			ownedHarperProvider ??
+			(await (harperProviderPromise ??= loadHarper().then(({ createHarperDiagnosticProvider }) => {
+				if (destroyed || signal.aborted) return undefined;
+				return (ownedHarperProvider = createHarperDiagnosticProvider(
+					undefined,
+					() => harperLifetime.signal
+				));
+			})));
+		if (destroyed || signal.aborted || generation !== harperRequest || !provider) return [];
 		return provider.lint(request);
 	}
 
@@ -468,7 +603,7 @@
 					`${performer.id}:${performer.normalizedKey}:${performer.aliases.join('\u001f')}`
 			)
 			.join('\u001e');
-		return `${controller.language}\u0000${performerKey}\u0000${snapshot.revision}\u0000${snapshot.text}`;
+		return `${snapshot.conversion?.profile ?? 'genius'}\u0000${snapshot.conversion?.model.contentKind ?? 'unknown'}\u0000${controller.language}\u0000${performerKey}\u0000${snapshot.revision}\u0000${snapshot.text}`;
 	}
 
 	// What a Harper answer belongs to: the draft as well as the lint key, because
@@ -502,6 +637,11 @@
 		nativeDiagnostics: EditorSnapshot['diagnostics']
 	): void {
 		const request = invalidateHarper();
+		if (harperLifetime.signal.aborted) {
+			harperPending =
+				shouldRunHarper(snapshot) && harperCoveredKey !== harperCoverage(lintKey(snapshot));
+			return;
+		}
 		const key = harperCoverage(lintKey(snapshot));
 		if (!shouldRunHarper(snapshot)) {
 			// Nothing is coming and nothing is owed: this document is as answered as
@@ -513,6 +653,8 @@
 
 		harperPending = true;
 		const language = controller.language;
+		const profile = snapshot.conversion?.profile ?? 'genius';
+		const { languageRanges } = projectionPolicyContext(snapshot);
 		const performers = [...controller.performers];
 		harperTimer = setTimeout(() => {
 			harperTimer = undefined;
@@ -520,7 +662,9 @@
 				{
 					text: snapshot.text,
 					document: snapshot.parsed,
+					profile,
 					language,
+					languageRanges,
 					performers,
 					revision: snapshot.revision
 				},
@@ -549,6 +693,11 @@
 				})
 				.catch((error: unknown) => {
 					if (request !== harperRequest || harperUnavailable) return;
+					if (error instanceof HarperInitializationCanceled) {
+						invalidateHarper();
+						if (!harperLifetime.signal.aborted) publishSnapshot(controller.snapshot);
+						return;
+					}
 					harperPending = false;
 					// A provider that has failed is one nothing more is coming from,
 					// here or on any later document, so this key is answered too.
@@ -592,6 +741,14 @@
 	// The controller owns recovered links before the real editor is attached.
 	// Reading the bindable handle directly here briefly sees its unrestored state.
 	function enrichSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
+		if (
+			snapshot.conversionRecovery ||
+			snapshot.originalRecovery ||
+			controller.snapshot.originalRecovery
+		) {
+			invalidateHarper();
+			return { ...snapshot, diagnostics: [] };
+		}
 		noteDocumentChange(snapshot);
 		// Keep publishing text, selection and revisions while the first catalog
 		// request is pending. Its completion always checks the latest snapshot.
@@ -624,11 +781,16 @@
 					})
 				};
 			}
+			const policy = projectionPolicyContext(snapshot);
 			const context = buildRuleContext(
 				controller.language,
 				controller.performers,
 				controller.ruleSet?.version ?? 'unavailable',
-				snapshot.revision
+				snapshot.revision,
+				snapshot.conversion?.profile,
+				snapshot.conversion?.model.contentKind,
+				policy.languageRanges,
+				policy.confirmedFacts
 			);
 			const nativeDiagnostics = nativeRules(snapshot.parsed, context);
 			nativeRulesStatus = 'ready';
@@ -696,6 +858,7 @@
 
 	onDestroy(() => {
 		destroyed = true;
+		harperLifetime.abort();
 		if (settleTimer !== undefined) clearTimeout(settleTimer);
 		if (languageDetectorTimer !== undefined) clearTimeout(languageDetectorTimer);
 		invalidateHarper();
@@ -705,6 +868,7 @@
 	});
 
 	const editorContext = $derived<EditorDisplayContext>({
+		profile: controller.profile,
 		language: controller.language,
 		performers: controller.performers,
 		ruleSetVersion: controller.ruleSet?.version ?? 'unavailable',
@@ -713,25 +877,36 @@
 			revision: controller.snapshot.revision,
 			items: controller.unignoredDiagnostics
 		},
-		voiceGroups: resolveVoiceGroupRanges(controller.snapshot.parsed, controller.performers),
+		voiceGroups: resolveProfileVoiceGroupRanges(controller.snapshot, controller.performers),
 		languagePack: getLanguagePack(controller.language),
 		reducedMotion,
 		sources: [...controller.sources.values()]
 	});
 
 	const editorCallbacks: LyricEditorCallbacks = {
+		onPerformersPasted: (performers) => controller.adoptPastedPerformers(performers),
 		onSnapshot: publishSnapshot,
 		// Assignment happens inline in the floating card; the right panel keeps
 		// whatever tab the user chose.
 		onAssignRequest: () => {},
 		onAddPerformer: (displayName) => controller.addPerformer(displayName),
+		onPerformerRecordsChanged: (delta) => controller.adoptPerformerRecords(delta),
+		getNextPerformerOrder: () => controller.nextPerformerOrder,
 		onPerformerRenamed: ({ performerId, previousName, displayName }) =>
 			controller.adoptHeaderRename(performerId, previousName, displayName),
-		onSectionHeaderRequest: () => {},
+		onSectionDetailRequest: (sectionId) => {
+			controller.openSectionDetails(sectionId);
+			editorExpanded = false;
+			if (phone.current) mobileView = 'tools';
+		},
+		onSectionHeaderRequest: () => {
+			if (controller.profile === 'musixmatch') controller.insertSection();
+		},
 		// `Ctrl-Alt-U`, and the action bar's own press goes through the controller
 		// directly, and it is one implementation either way, because the edit is the
 		// session's to dispatch.
 		onUnknownMarkerRequest: () => {
+			if (controller.profile === 'musixmatch') return false;
 			controller.insertUnknownMarker();
 			return true;
 		},
@@ -787,6 +962,19 @@
 		onAnnouncement: (message) => controller.feedback.announce(message),
 		createPerformerEdit: ({ range, performerIds, sectionPerformerIds }) => {
 			const snapshot = controller.snapshot;
+			if (controller.profile === 'musixmatch') {
+				const sectionId = snapshot.parsed.sections.find(
+					(section) => section.from <= range.from && range.from <= section.to
+				)?.conversionSectionId;
+				if (sectionId)
+					controller.applyConversionAction({
+						kind: 'assignVoice',
+						range,
+						sectionId,
+						performerIds: [...performerIds]
+					});
+				return undefined;
+			}
 			const result = assignVoiceGroup({
 				revision: snapshot.revision,
 				text: snapshot.text,
@@ -803,6 +991,19 @@
 		},
 		createUnknownVoiceEdit: ({ range, styleSlot }) => {
 			const snapshot = controller.snapshot;
+			if (controller.profile === 'musixmatch') {
+				const sectionId = snapshot.parsed.sections.find(
+					(section) => section.from <= range.from && range.from <= section.to
+				)?.conversionSectionId;
+				if (sectionId)
+					controller.applyConversionAction({
+						kind: 'assignVoice',
+						range,
+						sectionId,
+						performerIds: []
+					});
+				return undefined;
+			}
 			const request: UnknownVoiceRequest = {
 				revision: snapshot.revision,
 				text: snapshot.text,
@@ -867,6 +1068,7 @@
 		onApplyDiagnosticFixBatch: (diagnostic, fix) => controller.applyFixBatch(diagnostic, fix),
 		onIgnoreDiagnostic: (diagnostic) => controller.ignoreDiagnostic(diagnostic),
 		onSetLanguage: (language) => controller.setLanguage(language),
+		onConversionReviewRequest: (diagnostic) => controller.openConversionReview(diagnostic),
 		// The song dropped onto the lyrics it belongs to. The editor recognized the
 		// file and knows nothing else about it; where the bytes go is the media
 		// store's business. False when the draft has no store yet, so the drop
@@ -922,7 +1124,8 @@
 			// Only an explicit request navigates. Reading or selecting lyrics keeps
 			// the current tool and its pending decision in place.
 			if (origin?.takesFocus === false) return;
-			controller.openLinking(request.range.from);
+			if (controller.profile === 'musixmatch') controller.setActiveTab('linking');
+			else controller.openLinking(request.range.from);
 			editorExpanded = false;
 			if (phone.current) mobileView = 'tools';
 			void tick().then(() => {
@@ -938,7 +1141,7 @@
 		// The editor owns the mode and this only reacts, which is what keeps the
 		// tape and the mode from ever disagreeing: `Escape` and running out of lines
 		// end a run without the shell being asked, and both arrive here.
-		onLyricSyncChange: (active, startAt, scoped) => {
+		onLyricSyncChange: (active, startAt, scoped, reason) => {
 			syncing = active;
 			syncScoped = active && (scoped ?? false);
 			const player = controller.media?.player;
@@ -973,7 +1176,7 @@
 							?.focus({ preventScroll: true });
 					} else editorHandle?.focus();
 				});
-			} else {
+			} else if (reason !== 'profile') {
 				player?.pause();
 			}
 		},
@@ -1006,7 +1209,9 @@
 
 	// Read off the snapshot rather than asked for through the handle: the anchors
 	// carry their own line numbers and the text is already here.
-	const allLinesTimed = $derived(everyLyricLineTimed(controller.snapshot.text, anchors));
+	const allLinesTimed = $derived(
+		everyLyricLineTimed(controller.snapshot.text, anchors, controller.profile)
+	);
 
 	// Whether a run standing here has timed lines to skip past. A song synced
 	// once and then split into more lines is timed everywhere except the new
@@ -1015,7 +1220,12 @@
 	// `allLinesTimed`, plus the selection: a tap moves the caret and writes an
 	// anchor, and both arrive here as state this derivation already reads.
 	const skippableAhead = $derived(
-		timedLinesSkippable(controller.snapshot.text, anchors, controller.snapshot.selection.head)
+		timedLinesSkippable(
+			controller.snapshot.text,
+			anchors,
+			controller.snapshot.selection.head,
+			controller.profile
+		)
 	);
 
 	// Whether a press on the sync control would scope the run to the selection:
@@ -1023,7 +1233,11 @@
 	// the snapshot the shell already holds, so the strip's label can say what the
 	// press will do before it is made.
 	const selectionSyncable = $derived(
-		selectionCoversLyricLine(controller.snapshot.text, controller.snapshot.selection)
+		selectionCoversLyricLine(
+			controller.snapshot.text,
+			controller.snapshot.selection,
+			controller.profile
+		)
 	);
 
 	// Two timed lines is the floor for a scroll to mean anything: with one, the
@@ -1218,8 +1432,10 @@
 	// diagnostics immediately instead of waiting for the next keystroke.
 	$effect(() => {
 		const current = controller.snapshot;
+		// Protected recovery deliberately has no checking result to memoize.
+		if (current.conversionRecovery || current.originalRecovery || current.composing) return;
 		const key = lintKey(current);
-		if (current.composing || key === lastLintKey) return;
+		if (key === lastLintKey) return;
 		publishSnapshot(current);
 	});
 </script>
@@ -1227,16 +1443,16 @@
 <main
 	bind:this={workspaceElement}
 	{@attach (node) => {
-		// The attachment effect follows identity, not edits or lint snapshots.
-		if (controller.draftId) return workspaceEntrance(node);
+		// Only a document load starts an entrance; a guarded-save fork keeps this session.
+		if (controller.draftSession) return workspaceEntrance(node);
 	}}
 	class="workspace"
 	class:workspace--expanded={!phone.current && editorExpanded}
 	data-mobile-view={mobileView}
 	data-video-floating={floatingVideo}
-	data-review-focused={reviewFocused}
+	data-review-focused={reviewEditorVisible}
 	data-testid="workspace"
-	data-entrance-pending={entranceReadyDraftId !== controller.draftId}
+	data-entrance-pending={entranceReadySession !== controller.draftSession}
 	data-diagnostics-pending={!controller.isEmpty && nativeRulesStatus === 'pending'}
 >
 	<h1 class="sr-only">LyricLint transcription workbench</h1>
@@ -1263,24 +1479,28 @@
 		/>
 
 		<div class="editor-host" data-testid="editor-region">
-			{#key controller.draftId}
-				{@const mountedDraftId = controller.draftId}
+			{#key controller.draftSession}
+				{@const mountedSession = controller.draftSession}
 				<EditorComponent
 					initialText={controller.snapshot.text}
+					initialConversion={controller.snapshot.conversion}
+					initialConversionRecovery={controller.snapshot.conversionRecovery}
 					initialSelection={controller.snapshot.selection}
 					initialRevision={controller.snapshot.revision}
 					context={editorContext}
+					sectionGhosts={false}
 					diagnosticsInPanel={phone.current}
 					callbacks={editorCallbacks}
 					bind:handle={editorHandle}
 					onready={() => {
-						entranceReadyDraftId = mountedDraftId;
+						entranceReadySession = mountedSession;
 						onready?.();
 					}}
 					{onerror}
 				/>
 			{/key}
 		</div>
+		<DraftStart {controller} />
 	</section>
 
 	{#if panelInitialized}
@@ -1291,6 +1511,7 @@
 				controller,
 				assistant,
 				nativeRulesStatus,
+				grammarPending: harperPending,
 				onRetryNativeRules: retryNativeRules,
 				collapsed: panelCollapsed,
 				mobile: phone.current,
@@ -1342,28 +1563,30 @@
 		{/if}
 	</div>
 
-	<nav class="mobile-navigation" aria-label="Workbench views">
-		<button
-			type="button"
-			class="button button--quiet"
-			aria-pressed={mobileView === 'write'}
-			onclick={() => showMobileView('write')}>Write</button
-		>
-		<button
-			id="mobile-review-control"
-			type="button"
-			class="button button--quiet"
-			aria-pressed={mobileView === 'review'}
-			onclick={() => showMobileView('review')}
-		>
-			{reviewCount > 0 ? `Review (${reviewCount})` : 'Review'}
-		</button>
-		<button
-			type="button"
-			class="button button--quiet"
-			aria-pressed={mobileView === 'tools'}
-			onclick={() => showMobileView('tools')}>Tools</button
-		>
+	<nav class="mobile-navigation" aria-label="Workbench views" bind:offsetHeight={navigationHeight}>
+		<div class="segmented mobile-navigation__views">
+			<button
+				type="button"
+				class="button button--quiet"
+				aria-pressed={mobileView === 'write'}
+				onclick={() => showMobileView('write')}>Write</button
+			>
+			<button
+				id="mobile-review-control"
+				type="button"
+				class="button button--quiet"
+				aria-pressed={mobileView === 'review'}
+				onclick={() => showMobileView('review')}
+			>
+				{reviewCount > 0 ? `Review (${reviewCount})` : 'Review'}
+			</button>
+			<button
+				type="button"
+				class="button button--quiet"
+				aria-pressed={mobileView === 'tools'}
+				onclick={() => showMobileView('tools')}>Tools</button
+			>
+		</div>
 	</nav>
 
 	{#if controller.media}
@@ -1411,9 +1634,9 @@
 	   fallback for browsers without the unit, where it is exactly today's
 	   behaviour. */
 	.workspace {
-		--radius-control: var(--radius-md);
-		--radius-panel: var(--radius-lg);
-		--radius-overlay: calc(var(--radius-lg) + var(--radius-xs));
+		--radius-control: var(--radius-sm);
+		--radius-panel: var(--radius-md);
+		--radius-overlay: var(--radius-lg);
 	}
 
 	.workspace {
@@ -1456,7 +1679,9 @@
 		/* What the find bar keeps clear so the tray never covers its way out. It is a
 		   constant because the tray is a fixed set of glyphs, and it is asserted
 		   against the tray's measured width rather than trusted. */
-		--editor-actions-reserve: calc(11rem + var(--control-height-sm) + var(--space-1));
+		--editor-actions-reserve: calc(
+			11rem + var(--control-height-sm) + var(--space-1) + var(--editor-actions-inset)
+		);
 
 		position: relative;
 		display: grid;
@@ -1469,8 +1694,12 @@
 		background: transparent;
 	}
 
+	/* The document is the window's one sheet: a ring for its edge, so it reads
+	   as a surface on the chrome frame rather than a slightly different shade
+	   of it. `tokens.css` says why the ring is the whole shadow. */
 	.editor-region > .editor-host {
 		border-radius: var(--radius-panel);
+		box-shadow: var(--shadow-sheet);
 	}
 
 	/* Without a transport below it, keep the rounded document clear of the window edge. */
@@ -1632,7 +1861,7 @@
 		.workspace,
 		.workspace.workspace--expanded {
 			grid-template-columns: minmax(0, 1fr);
-			grid-template-rows: auto minmax(0, 1fr) minmax(0, 0fr) auto auto auto;
+			grid-template-rows: auto minmax(0, 1fr) minmax(0, 0fr) auto auto auto auto;
 			padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
 			transition: none;
 			height: var(--visual-viewport-height, 100dvh);
@@ -1641,6 +1870,16 @@
 			left: 0;
 			right: 0;
 		}
+		.workspace::before {
+			content: '';
+			grid-column: 1 / -1;
+			grid-row: 5;
+			height: var(--notification-height, 0px);
+			/* An empty notification region reserves no space. */
+			margin-block: min(var(--notification-height, 0px), var(--space-2));
+			pointer-events: none;
+		}
+
 		.workspace .editor-region {
 			--editor-actions-reserve: 0px;
 			display: flex;
@@ -1653,15 +1892,32 @@
 			flex: 1;
 			min-height: 0;
 		}
+		/* On a phone the editing commands are the sheet's own header: one ringed
+		   surface holds the strip and the lyrics under it, rather than a row of
+		   words floating between the toolbar and the document. */
+		.workspace .editor-region {
+			border-radius: var(--radius-panel);
+			background: var(--color-surface);
+			box-shadow: var(--shadow-sheet);
+		}
+		.workspace .editor-region > .editor-host {
+			border-radius: 0 0 var(--radius-panel) var(--radius-panel);
+			box-shadow: none;
+		}
+		.workspace[data-mobile-view='review'][data-review-focused='true']
+			.editor-region
+			> .editor-host {
+			border-radius: var(--radius-panel);
+		}
 		.workspace[data-mobile-view='review'][data-review-focused='true'] {
-			grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto auto auto;
+			grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto auto auto auto;
 		}
 		.editor-region[aria-hidden='true'] {
 			display: none;
 		}
 		.workspace-media {
 			grid-column: 1;
-			grid-row: 5;
+			grid-row: 6;
 			margin: 0;
 		}
 		.workspace-video {
@@ -1670,23 +1926,28 @@
 		}
 		.mobile-navigation {
 			grid-column: 1;
-			grid-row: 6;
+			grid-row: 7;
 			display: flex;
 			gap: var(--space-1);
 			padding: var(--space-1) var(--space-2);
 			padding-bottom: max(var(--space-1), env(safe-area-inset-bottom));
 			background: var(--color-chrome);
 		}
+		/* The three views are one segmented control: a track across the bar with
+		   the current view raised out of it. The raise is the non-color cue. */
+		.mobile-navigation__views {
+			display: flex;
+			flex: 1;
+		}
 		.mobile-navigation .button {
 			flex: 1;
 			min-height: var(--control-height-touch);
 		}
-		/* `:where()` holds this at the specificity it had as a global rule, so the
-		   shared quiet tier's hover fill still outranks it. */
-		.mobile-navigation :where([aria-pressed='true']) {
-			background: var(--color-fill-strong);
+		.mobile-navigation__views > .button[aria-pressed='true'] {
+			background: var(--color-control);
+			box-shadow: var(--shadow-control);
 			color: var(--color-text);
-			box-shadow: inset 0 calc(-1 * var(--focus-ring-width)) var(--color-text);
+			font-weight: var(--font-weight-semibold);
 		}
 		/* The visual viewport supplies the keyboard floor for the whole workbench,
 		   so editor and assistant composer get the space above it, with no overlay. */
@@ -1721,14 +1982,16 @@
 	   writing region and allow this constrained workspace to scroll. */
 	@media (pointer: coarse) and (max-width: 46rem) and (orientation: portrait) {
 		.workspace:has(.workspace-video) {
-			grid-template-rows: auto minmax(var(--mobile-context-min), 1fr) minmax(0, 0fr) auto auto auto;
+			grid-template-rows:
+				auto minmax(var(--mobile-context-min), 1fr) minmax(0, 0fr)
+				auto auto auto auto;
 			overflow-y: auto;
 		}
 		:global(:root[data-keyboard-inset])
 			.workspace:has(.workspace-video)[data-mobile-view='review'][data-review-focused='true'] {
 			grid-template-rows:
 				auto minmax(var(--mobile-context-min), 1fr) minmax(var(--mobile-context-min), 1fr)
-				auto auto auto;
+				auto auto auto auto;
 		}
 	}
 

@@ -698,27 +698,34 @@ export const lintDecorationTheme = EditorView.baseTheme({
 		position: 'relative',
 		display: 'inline-block'
 	},
-	// Cluster badges are filled circles in the severity color with dark count
-	// text (mockup: the amber "2" past the end of the line).
+	// A cluster count is a small tinted tag in the severity color, the way the
+	// Review chips draw a kind: tint, a hairline of the same hue and a tabular
+	// count. A filled disc read as a sticker on the line; this reads as a note
+	// the line carries, and still separates by hue and position at a glance.
 	'.ll-diagnostic-badge': {
 		boxSizing: 'border-box',
-		minWidth: '1.15rem',
-		height: '1.15rem',
+		minWidth: '1.25rem',
+		height: '1.125rem',
 		marginInlineStart: 'var(--space-1-5)',
 		padding: '0 var(--space-1)',
 		border: 'none',
-		borderRadius: 'var(--radius-pill)',
-		background: 'currentColor',
+		borderRadius: 'var(--radius-xs)',
+		background: 'color-mix(in oklch, currentColor 16%, transparent)',
+		boxShadow: 'inset 0 0 0 var(--border-width) color-mix(in oklch, currentColor 38%, transparent)',
 		fontFamily: 'var(--font-ui)',
 		fontSize: 'var(--font-size-2xs)',
-		fontWeight: 'var(--font-weight-bold)',
-		lineHeight: '1.15rem',
+		fontWeight: 'var(--font-weight-semibold)',
+		fontVariantNumeric: 'tabular-nums',
+		lineHeight: '1.125rem',
 		textAlign: 'center',
-		verticalAlign: '0.16rem',
+		verticalAlign: '0.12rem',
 		cursor: 'pointer'
 	},
+	'.ll-diagnostic-badge:hover': {
+		background: 'color-mix(in oklch, currentColor 26%, transparent)'
+	},
 	'.ll-diagnostic-badge > .ll-diagnostic-badge-count': {
-		color: 'var(--color-canvas)'
+		color: 'inherit'
 	},
 	// `--ll-focus` was never defined anywhere, so this ring had been rendering in
 	// its literal fallback, an off-palette orange at a width the focus tokens

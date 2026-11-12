@@ -816,39 +816,17 @@ describe('RightPanel', () => {
 		expect(calls.sectionHeaderRequestCount).toBe(1);
 	});
 
-	// The editor now carries the instructions (a ghost transcription where the
-	// caret is, and Paste lyrics in the toolbar) so the panel says what it will
-	// do rather than repeating how to feed it, and offers the sample instead.
-	test('says what it is waiting for, and offers the sample, while the document is empty', async () => {
+	// The document sheet carries the instructions and every way to begin (a
+	// ghost transcription where the caret is, and the start tray under it), so
+	// the panel says what it will do rather than repeating how to feed it.
+	test('says what it is waiting for, and offers nothing, while the document is empty', async () => {
 		const { controller } = createTestWorkbench({ text: '   \n\n', diagnostics: [] });
 		await render(RightPanel, { controller });
 
 		expect(screen.getByText('Ready for your lyrics')).toBeTruthy();
 		expect(screen.getByText('Suggestions will appear here as you write.')).toBeTruthy();
-		expect(screen.getByRole('button', { name: "Load a sample 'scribe" })).toBeTruthy();
-		expect(screen.queryByText('No issues found')).toBeNull();
-	});
-
-	test('replaces the empty document with the sample transcription in one edit', async () => {
-		const { controller, calls } = createTestWorkbench({ text: '', diagnostics: [] });
-		await render(RightPanel, { controller });
-
-		await fireEvent.click(screen.getByRole('button', { name: "Load a sample 'scribe" }));
-
-		expect(calls.dispatched).toHaveLength(1);
-		expect(calls.dispatched[0]!.edits[0]!.insert).toContain('[Verse 1]');
-	});
-
-	// English lyrics under another selection would open with a mismatch warning
-	// about a document the user never wrote, so the offer is withdrawn rather
-	// than made and then apologized for.
-	test('withholds the sample when the selected language is not the sample’s', async () => {
-		const { controller } = createTestWorkbench({ text: '', diagnostics: [] });
-		controller.setLanguage('no');
-		await render(RightPanel, { controller });
-
-		await waitFor(() => expect(screen.getByText('Ready for your lyrics')).toBeTruthy());
 		expect(screen.queryByRole('button', { name: "Load a sample 'scribe" })).toBeNull();
+		expect(screen.queryByText('No issues found')).toBeNull();
 	});
 
 	// A fresh open is only empty because it opened a *new* draft; the work the
@@ -867,19 +845,11 @@ describe('RightPanel', () => {
 		expect(screen.queryByRole('button', { name: /^Test draft/ })).toBeNull();
 
 		// They are the foot of the column, not part of the empty state's message:
-		// the sample answers "nothing to lint yet" and stays with it, the drafts
-		// come after everything the panel has to say about this document.
+		// the drafts come after everything the panel has to say about this
+		// document.
 		const panel = document.querySelector('.linter-panel')!;
 		const drafts = panel.querySelector('.linter-panel__drafts')!;
 		expect(panel.lastElementChild).toBe(drafts);
-		expect(drafts.contains(screen.getByRole('button', { name: "Load a sample 'scribe" }))).toBe(
-			false
-		);
-		expect(
-			drafts.compareDocumentPosition(
-				screen.getByRole('button', { name: "Load a sample 'scribe" })
-			) & Node.DOCUMENT_POSITION_PRECEDING
-		).toBeTruthy();
 	});
 
 	// A draft the user wants rid of is most likely one of these, so the way out
@@ -945,7 +915,9 @@ describe('RightPanel', () => {
 		await render(RightPanel, { controller: clean });
 		expect(screen.getByText('No issues found')).toBeTruthy();
 		expect(
-			screen.getByText('Your lyrics pass every enabled rule. Checking continues as you write.')
+			screen.getByText(
+				'No issues found by the enabled Genius checks. Checking continues as you write.'
+			)
 		).toBeTruthy();
 		await cleanup();
 

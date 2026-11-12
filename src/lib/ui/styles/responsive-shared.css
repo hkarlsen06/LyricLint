@@ -35,10 +35,11 @@
 		--font-size-editor: var(--font-size-lg);
 	}
 
-	input,
-	select,
-	textarea {
+	:root input:not(:where([type='checkbox'], [type='radio'], [type='range'], [type='file'])),
+	:root select,
+	:root textarea {
 		font-size: var(--font-size-lg);
+		min-height: var(--control-height-touch);
 	}
 
 	:root .button,

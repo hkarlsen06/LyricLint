@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { corpusMetadata } from '../services/rules-assistant/generated/rules-context-meta.js';
+import { musixmatchCorpusMetadata } from '../services/rules-assistant/generated/musixmatch-context-meta.js';
 import {
 	heroCaptions,
 	heroPlaybackRate,
@@ -352,10 +353,11 @@ test('a failed mobile hero keeps its still without downloading the desktop video
 	expect(requested).toEqual(['/workbench-mobile.webm']);
 });
 
-test('landing video frames keep their dimensions through loading on phone and desktop', async ({
-	page
-}) => {
-	for (const width of [390, 1280]) {
+// Each viewport is an independent media lifecycle with its own page and decoder.
+for (const width of [390, 1280]) {
+	test(`landing video frames keep their dimensions through loading at ${width}px`, async ({
+		page
+	}) => {
 		await page.setViewportSize({ width, height: 844 });
 		await page.goto('/');
 		await page.evaluate(() => document.fonts.ready);
@@ -414,12 +416,14 @@ test('landing video frames keep their dimensions through loading on phone and de
 			expect(after!.width).toBeCloseTo(before!.width, 1);
 			expect(after!.height).toBeCloseTo(before!.height, 1);
 		}
-	}
-});
+	});
+}
 
-test('demo subtitles follow spoken beats inside the video header', async ({ page }) => {
-	test.setTimeout(60_000);
-	for (const width of [390, 1280]) {
+for (const width of [390, 1280]) {
+	test(`demo subtitles follow spoken beats inside the video header at ${width}px`, async ({
+		page
+	}) => {
+		test.setTimeout(60_000);
 		await page.setViewportSize({ width, height: 1000 });
 		await page.goto('/');
 		await page.evaluate(() => document.fonts.ready);
@@ -450,31 +454,43 @@ test('demo subtitles follow spoken beats inside the video header', async ({ page
 				}, cue.start + 0.1);
 				await expect(caption).toHaveText(cue.text);
 				await expect(caption).toBeVisible();
-				expect(await frame.boundingBox()).toEqual(before);
-				const text = await caption.boundingBox();
-				const footage = await video.boundingBox();
-				expect(text!.y).toBeGreaterThanOrEqual(footage!.y);
-				expect(text!.y + text!.height / 2).toBeCloseTo(
-					footage!.y + Math.max(footage!.width * headerCenter, text!.height / 2),
+				// Measure the same rendered state in one browser call. The native cue
+				// and visibility assertions above still wait for the real media events.
+				const geometry = await frame.evaluate((element) => {
+					const caption = element.querySelector('.demo-captions__current');
+					const video = element.querySelector('video');
+					if (!caption || !video) throw new Error('Missing caption or demonstration video');
+					const box = (node: Element) => {
+						const { x, y, width, height } = node.getBoundingClientRect();
+						return { x, y, width, height };
+					};
+					const style = getComputedStyle(caption);
+					return {
+						frame: box(element),
+						text: box(caption),
+						footage: box(video),
+						maxHeight:
+							2 * parseFloat(style.lineHeight) +
+							parseFloat(style.paddingTop) +
+							parseFloat(style.paddingBottom)
+					};
+				});
+				expect(geometry.frame).toEqual(before);
+				const { text, footage, maxHeight } = geometry;
+				expect(text.y).toBeGreaterThanOrEqual(footage.y);
+				expect(text.y + text.height / 2).toBeCloseTo(
+					footage.y + Math.max(footage.width * headerCenter, text.height / 2),
 					0
 				);
-				const maxHeight = await caption.evaluate((element) => {
-					const style = getComputedStyle(element);
-					return (
-						2 * parseFloat(style.lineHeight) +
-						parseFloat(style.paddingTop) +
-						parseFloat(style.paddingBottom)
-					);
-				});
-				expect(text!.height).toBeLessThanOrEqual(maxHeight + 1);
-				expect(text!.x + text!.width / 2).toBeCloseTo(footage!.x + footage!.width / 2, 0);
-				expect(before!.height - footage!.height).toBeLessThan(3);
-				expect(text!.x).toBeGreaterThanOrEqual(before!.x);
-				expect(text!.x + text!.width).toBeLessThanOrEqual(before!.x + before!.width);
+				expect(text.height).toBeLessThanOrEqual(maxHeight + 1);
+				expect(text.x + text.width / 2).toBeCloseTo(footage.x + footage.width / 2, 0);
+				expect(before!.height - footage.height).toBeLessThan(3);
+				expect(text.x).toBeGreaterThanOrEqual(before!.x);
+				expect(text.x + text.width).toBeLessThanOrEqual(before!.x + before!.width);
 			}
 		}
-	}
-});
+	});
+}
 
 test('player demonstrations keep their screenshots for reduced motion', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -752,7 +768,11 @@ test('the assistant release manifest identifies the built website and citation c
 			execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
 		...corpusMetadata,
 		clientCorpusHash: true,
-		answersUrl: expect.any(String)
+		answersUrl: expect.any(String),
+		profileCorpora: [
+			{ profile: 'genius', ...corpusMetadata },
+			{ profile: 'musixmatch', ...musixmatchCorpusMetadata }
+		]
 	});
 });
 
@@ -768,21 +788,26 @@ test('sitemap lists every public page including the workbench', async ({ request
 	// costs; the arithmetic is written out so the next mismatch is legible.
 	const rulePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/checks\/[^/]+\/<\/loc>/gu) ?? [];
-	expect(rulePages).toHaveLength(60);
-	// Ten topic pages, plus the complete guide and the optional essentials.
+	expect(rulePages).toHaveLength(86);
+	// One page per guidance topic, this number moves when `guidanceTopicTitles`
+	// gains a topic with entries, which docs/guidelines.md tells the contributor.
+	// Then the complete guide, the optional essentials and the Musixmatch guide.
 	const guidelinePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/[^/]+\/<\/loc>/gu) ?? [];
-	expect(guidelinePages).toHaveLength(12);
-	for (const route of ['all', 'essentials']) {
+	expect(guidelinePages).toHaveLength(13);
+	for (const route of ['all', 'essentials', 'musixmatch']) {
 		expect(sitemap).toContain(`<loc>https://lyriclint.com/guidelines/${route}/</loc>`);
 	}
+	const musixmatchTopics =
+		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/musixmatch\/[^/]+\/<\/loc>/gu) ?? [];
+	expect(musixmatchTopics).toHaveLength(10);
 	// One page per docs catalog entry, plus the docs index.
 	const docsPages = sitemap.match(/<loc>https:\/\/lyriclint\.com\/docs\/[^/]+\/<\/loc>/gu) ?? [];
 	expect(docsPages).toHaveLength(docsCatalog.length);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/docs/</loc>');
-	// Plus the home, about, workbench, unified guide, privacy, and docs index pages.
+	// Plus home, about, workbench, unified guide, privacy and docs index.
 	expect(sitemap.match(/<url>/gu)).toHaveLength(
-		rulePages.length + guidelinePages.length + docsPages.length + 6
+		rulePages.length + guidelinePages.length + musixmatchTopics.length + docsPages.length + 6
 	);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/about/</loc>');
@@ -964,29 +989,29 @@ test.describe('document editing', () => {
 		});
 		await expect(languageConflict).toHaveCount(0);
 
-		await page.getByRole('button', { name: 'Lyric language: English' }).click();
-		const languageDialog = page.getByRole('dialog', { name: 'Lyric language' });
+		await page.getByRole('button', { name: 'Document language: English' }).click();
+		const languageDialog = page.getByRole('dialog', { name: 'Document language' });
 		await languageDialog.getByPlaceholder('Search languages').fill('Norwegian');
 		await languageDialog.getByRole('button', { name: 'Norwegian' }).click();
 		await expect(languageConflict).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Replace with Vers' })).toBeVisible();
 
-		await page.getByRole('button', { name: 'Lyric language: Norwegian' }).click();
+		await page.getByRole('button', { name: 'Document language: Norwegian' }).click();
 		await languageDialog.getByRole('button', { name: 'English', exact: true }).click();
 		await expect(languageConflict).toHaveCount(0);
 	});
 
 	test('new drafts use the last selected language', async ({ page }) => {
 		await openWorkspace(page);
-		await page.getByRole('button', { name: /^Lyric language:/u }).click();
-		const languageDialog = page.getByRole('dialog', { name: 'Lyric language' });
+		await page.getByRole('button', { name: /^Document language:/u }).click();
+		const languageDialog = page.getByRole('dialog', { name: 'Document language' });
 		await languageDialog.getByPlaceholder('Search languages').fill('French');
 		await languageDialog.getByRole('button', { name: 'French' }).click();
 
-		await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+		await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 		await page.getByRole('button', { name: "New 'scribe" }).click();
 
-		await expect(page.getByRole('button', { name: 'Lyric language: French' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Document language: French' })).toBeVisible();
 		await expectDocText(page, '');
 	});
 
@@ -1022,7 +1047,7 @@ test.describe('document editing', () => {
 		const canonical = '[Chorus: Blair & <i>Avery</i>]\nLead\n<i>Harmony</i>';
 		await replaceDocument(page, canonical);
 
-		await page.getByRole('button', { name: 'Copy lyrics' }).click();
+		await page.getByRole('button', { name: 'Copy Genius' }).click();
 		const clipboard = await page.evaluate(() => navigator.clipboard.readText());
 		expect(clipboard).toBe(canonical);
 	});
@@ -1092,7 +1117,7 @@ test.describe('document editing', () => {
 		await editor(page).click();
 		await waitForSaved(page);
 
-		await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+		await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 		await page.getByRole('button', { name: "New 'scribe" }).click();
 		await replaceDocument(page, '[Verse]\nSecond draft');
 		await page.getByRole('textbox', { name: "'Scribe title" }).fill('Second');
@@ -1102,10 +1127,10 @@ test.describe('document editing', () => {
 
 		// The row's own control leads with the draft's name; the commands beside it
 		// carry that name too ("Rename First"), so anchor on the start of the label.
-		await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+		await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 		await page.getByRole('button', { name: /^First/u }).click();
 		await expectDocText(page, '[Verse]\nFirst draft');
-		await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+		await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
 		await page.getByRole('button', { name: /^Second/u }).click();
 		await expectDocText(page, '[Verse]\nSecond draft');
 
@@ -1129,7 +1154,7 @@ test.describe('document editing', () => {
 	test('nothing in the panel can scroll the app shell', async ({ page }) => {
 		await openWorkspace(page);
 		await replaceDocument(page, '[Verse]\nImma stay');
-		const toolbar = page.getByRole('button', { name: 'Copy lyrics' });
+		const toolbar = page.getByRole('button', { name: 'Copy Genius' });
 		await expect(toolbar).toBeInViewport();
 
 		const metrics = await page.locator('.right-panel__body').evaluate((panel) => {

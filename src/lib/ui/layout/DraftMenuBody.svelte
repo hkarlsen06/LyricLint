@@ -1,7 +1,4 @@
 <script lang="ts">
-	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
-	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
-	import PencilIcon from 'phosphor-svelte/lib/PencilIcon';
 	import type { DraftSummary } from '#lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import RemoveButton from '#lib/ui/primitives/RemoveButton.svelte';
@@ -23,6 +20,7 @@
 	let renameId = $state<string | undefined>();
 	let renameValue = $state('');
 	let deleteId = $state<string | undefined>();
+	let actionsId = $state<string | undefined>();
 	let query = $state('');
 	const filteredDrafts = $derived(
 		controller.drafts.filter((draft) =>
@@ -47,6 +45,7 @@
 			query = '';
 			renameId = undefined;
 			deleteId = undefined;
+			actionsId = undefined;
 		}
 	});
 
@@ -54,12 +53,27 @@
 		renameId = id;
 		renameValue = title;
 		deleteId = undefined;
+		actionsId = undefined;
 	}
 
 	async function submitRename(event: SubmitEvent, id: string): Promise<void> {
 		event.preventDefault();
+		const row = event.currentTarget instanceof Element ? event.currentTarget.closest('li') : null;
 		await controller.renameDraft(id, renameValue);
+		if (renameId === id) await finishRename(row);
+	}
+
+	async function finishRename(row: Element | null): Promise<void> {
 		renameId = undefined;
+		await tick();
+		if (open && row?.isConnected)
+			row.querySelector<HTMLButtonElement>('.draft-menu__actions-trigger')?.focus();
+	}
+
+	function toggleActions(id: string): void {
+		renameId = undefined;
+		deleteId = undefined;
+		actionsId = actionsId === id ? undefined : id;
 	}
 
 	/** The rename field replaces the row, so it takes the row's focus with it. */
@@ -80,6 +94,7 @@
 			?.nextElementSibling?.querySelector<HTMLButtonElement>('.list-row__action');
 		await controller.deleteDraft(id);
 		deleteId = undefined;
+		actionsId = undefined;
 		await tick();
 		if (nextDraft?.isConnected) {
 			nextDraft.focus();
@@ -116,6 +131,7 @@
 		oninput={() => {
 			renameId = undefined;
 			deleteId = undefined;
+			actionsId = undefined;
 		}}
 	/>
 {/if}
@@ -126,7 +142,7 @@
 {:else}
 	<ul class="draft-list">
 		{#each filteredDrafts as draft (draft.id)}
-			<li class="list-row" class:current={draft.id === controller.draftId}>
+			<li class="list-row draft-menu__row" class:current={draft.id === controller.draftId}>
 				{#if renameId === draft.id}
 					<form class="list-row__form" onsubmit={(event) => submitRename(event, draft.id)}>
 						<label class="sr-only" for={`rename-${draft.id}`}>'Scribe title</label>
@@ -135,80 +151,75 @@
 						<button
 							class="button button--quiet"
 							type="button"
-							onclick={() => (renameId = undefined)}
+							onclick={(event) => finishRename(event.currentTarget.closest('li'))}>Cancel</button
 						>
-							Cancel
-						</button>
 					</form>
 				{:else}
-					<!-- The row stops being a way into the draft while its deletion is
-							     the question: one decision on screen, and the confirm sits in
-							     the slot the trigger just vacated. -->
-					{#if deleteId === draft.id}
-						<span class="list-row__action list-row__action--static">
-							{@render identity(draft)}
-						</span>
-					{:else}
-						<button
-							type="button"
-							class="list-row__action"
-							aria-current={draft.id === controller.draftId ? 'page' : undefined}
-							onclick={() => closeAnd(() => controller.openDraft(draft.id))}
-						>
-							{@render identity(draft)}
-						</button>
-					{/if}
-					<!-- Icons, not four words per row: the labels repeated down the
-							     list were the list, and the draft's own name had to compete
-							     with them. Each one keeps the draft in its accessible name so
-							     "Rename" alone is never all a screen reader hears. -->
-					<div class="list-row__commands">
-						<!-- Only the competing commands go while the confirm is pending.
-								     The `RemoveButton` itself stays the same instance across the
-								     arming, which is what the roster and the recent-drafts list
-								     already do and what this menu got wrong: mounted afresh with
-								     `pending` already true, its live region was *born* holding
-								     the question, and a region that never changes announces
-								     nothing. -->
-						{#if deleteId !== draft.id}
+					<div class="draft-menu__row-main">
+						{#if deleteId === draft.id}
+							<span class="list-row__action list-row__action--static"
+								>{@render identity(draft)}</span
+							>
+						{:else}
 							<button
 								type="button"
-								class="button--quiet icon-button"
-								aria-label="Rename {draft.title}"
-								title="Rename"
-								onclick={() => beginRename(draft.id, draft.title)}
+								class="list-row__action"
+								aria-current={draft.id === controller.draftId ? 'page' : undefined}
+								onclick={() => closeAnd(() => controller.openDraft(draft.id))}
 							>
-								<PencilIcon aria-hidden="true" size={14} weight="bold" />
+								{@render identity(draft)}
 							</button>
 							<button
 								type="button"
-								class="button--quiet icon-button"
-								aria-label="Duplicate {draft.title}"
-								title="Duplicate"
-								onclick={() => controller.duplicateDraft(draft.id)}
+								class="button button--quiet draft-menu__actions-trigger"
+								aria-label="Actions for {draft.title}"
+								aria-expanded={actionsId === draft.id}
+								aria-controls={`draft-actions-${draft.id}`}
+								onclick={() => toggleActions(draft.id)}>Actions</button
 							>
-								<CopyIcon aria-hidden="true" size={14} weight="bold" />
-							</button>
-							<button
-								type="button"
-								class="button--quiet icon-button"
-								aria-label="Export {draft.title}"
-								title="Export Scribe (.lls)"
-								onclick={() => controller.exportScribe(draft.id)}
-							>
-								<DownloadIcon aria-hidden="true" size={14} weight="bold" />
-							</button>
 						{/if}
-						<RemoveButton
-							subject={draft.title}
-							pending={deleteId === draft.id}
-							onRequest={() => {
-								renameId = undefined;
-								deleteId = draft.id;
-							}}
-							onCancel={() => (deleteId = undefined)}
-							onConfirm={(trigger) => deleteDraftAndMoveFocus(draft.id, trigger)}
-						/>
+					</div>
+					<div
+						id={`draft-actions-${draft.id}`}
+						class="draft-menu__actions"
+						role="group"
+						aria-label="Actions for {draft.title}"
+						hidden={actionsId !== draft.id}
+					>
+						{#if actionsId === draft.id}
+							{#if deleteId !== draft.id}
+								<button
+									type="button"
+									class="button button--quiet"
+									aria-label="Rename {draft.title}"
+									onclick={() => beginRename(draft.id, draft.title)}>Rename</button
+								>
+								<button
+									type="button"
+									class="button button--quiet"
+									aria-label="Duplicate {draft.title}"
+									onclick={() => closeAnd(() => controller.duplicateDraft(draft.id))}
+									>Duplicate</button
+								>
+								<button
+									type="button"
+									class="button button--quiet"
+									aria-label="Export Scribe for {draft.title}"
+									onclick={() => controller.exportScribe(draft.id)}>Export Scribe</button
+								>
+							{/if}
+							<RemoveButton
+								subject={draft.title}
+								showLabel
+								pending={deleteId === draft.id}
+								onRequest={() => {
+									renameId = undefined;
+									deleteId = draft.id;
+								}}
+								onCancel={() => (deleteId = undefined)}
+								onConfirm={(trigger) => deleteDraftAndMoveFocus(draft.id, trigger)}
+							/>
+						{/if}
 					</div>
 				{/if}
 			</li>
@@ -224,12 +235,61 @@
 		     data` in the tools panel, where the paragraph above it says what local
 		     data is: a claim is made once, where the reader is deciding. -->
 <style>
-	/*
-	 * A draft is one `.list-row` (rows.css): its name, when it was last touched, and
-	 * the commands that act on it, all on one line. What is here is only what the
-	 * drafts list adds to that: the row is a way into the draft, so its name and
-	 * date are one pressable control.
-	 */
+	.draft-menu__row {
+		display: block;
+	}
+	.draft-menu__row-main {
+		display: flex;
+		min-height: var(--control-height-sm);
+		gap: var(--space-2);
+		align-items: center;
+	}
+	.draft-menu__actions-trigger {
+		flex: none;
+		min-height: var(--control-height-sm);
+		padding-block: 0;
+		padding-inline: var(--space-3);
+		font-size: var(--font-size-sm);
+	}
+	.draft-menu__actions {
+		display: flex;
+		min-height: var(--control-height-sm);
+		gap: var(--space-1);
+		justify-content: flex-end;
+		align-items: center;
+		margin-block-start: var(--space-2);
+	}
+	.draft-menu__actions[hidden] {
+		display: none;
+	}
+	.draft-menu__actions > .button {
+		min-height: var(--control-height-sm);
+		padding-block: 0;
+		font-size: var(--font-size-sm);
+		padding-inline: var(--space-3);
+	}
+	@media (pointer: coarse) and (max-width: 68rem) {
+		.draft-menu__row-main {
+			min-height: var(--control-height-touch);
+		}
+		.draft-menu__actions > .button,
+		.draft-menu__actions-trigger {
+			min-height: var(--control-height-touch);
+		}
+	}
+	@media (max-width: 40rem) {
+		.draft-menu__actions {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			grid-auto-rows: var(--control-height-touch);
+		}
+		.draft-menu__actions :global(.remove-button__question) {
+			grid-column: 1 / -1;
+			min-height: var(--control-height-touch);
+			align-content: center;
+			margin: 0;
+		}
+	}
 	.draft-menu__search {
 		width: 100%;
 		margin-block: var(--space-2);

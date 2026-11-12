@@ -1,8 +1,6 @@
 import type { RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
-
-const censoredWordCandidate =
-	/(?<![\p{L}\p{M}\p{N}_*])[\p{L}\p{M}]*\*[\p{L}\p{M}*]*(?![\p{L}\p{M}\p{N}_*])/gu;
+import { censoredWordCandidate, isMaskedCensorCandidate } from '#lib/profiles/censorship.js';
 
 export const censoredMaskRule: RuleDefinition = {
 	id: 'censored.mask',
@@ -15,10 +13,7 @@ export const censoredMaskRule: RuleDefinition = {
 			section.lines.flatMap((line) => {
 				if (!line.text.includes('*')) return [];
 				return matchesOutsideMarkup(line, censoredWordCandidate)
-					.filter(
-						(match) =>
-							/\p{L}/u.test(match.text) && !(match.text.startsWith('*') && match.text.endsWith('*'))
-					)
+					.filter((match) => isMaskedCensorCandidate(match.text) && /\p{L}/u.test(match.text))
 					.map((match) => {
 						const range = { from: match.from, to: match.to };
 						return diagnostic(

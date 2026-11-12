@@ -1,6 +1,67 @@
 // Decision record: docs/subsystems/drafts.md and docs/subsystems/section-links.md. Read both before changing this file, and update them with any behavior change.
 import type { CompareBaselineRecord, SectionLink } from '../core/types.js';
 import { validateLinkPassages } from '../core/link-record.js';
+import {
+	copyConversionEnvelope,
+	parseConversionRecovery,
+	parseOriginalRecovery
+} from './conversion.js';
+import { hasConversionMetadata } from './conversion.js';
+import { parseWriting, beginWriting } from './writing.js';
+import type { DraftRecord } from './types.js';
+
+/** Rich state is authoritative; legacy view coordinates are migration inputs only. */
+export function copyConversionFields(source: DraftRecord, target: DraftRecord): void {
+	if (source.storageWriteId !== undefined) {
+		if (
+			!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u.test(source.storageWriteId)
+		)
+			throw new Error('Invalid draft write identity.');
+		target.storageWriteId = source.storageWriteId;
+	}
+	if (source.originalRecovery !== undefined)
+		target.originalRecovery = parseOriginalRecovery(source.originalRecovery);
+	if (source.storageGeneration !== undefined) {
+		if (!Number.isSafeInteger(source.storageGeneration) || source.storageGeneration < 0) {
+			throw new Error('Invalid draft storage generation.');
+		}
+		target.storageGeneration = source.storageGeneration;
+	}
+	if (source.conversionRecovery !== undefined) {
+		target.conversionRecovery = parseConversionRecovery(source.conversionRecovery, source.text);
+		if (
+			source.conversion === undefined ||
+			JSON.stringify(source.conversion) !== JSON.stringify(source.conversionRecovery.checkpoint)
+		) {
+			throw new Error('The recovery checkpoint and conversion document do not match.');
+		}
+	}
+	if (source.conversion !== undefined) {
+		if (
+			source.conversion.model.defaultLanguage !== source.language &&
+			source.conversionRecovery === undefined
+		) {
+			throw new Error('The draft language and conversion document do not match.');
+		}
+		target.conversion = copyConversionEnvelope(
+			source.conversion,
+			target.conversionRecovery ? undefined : source.text
+		);
+		delete target.lineAnchors;
+		delete target.sectionLinks;
+	}
+	if (source.writing !== undefined) {
+		const writing = parseWriting(source.writing, target.conversion?.profile);
+		target.writing =
+			writing.phase === 'new' &&
+			(source.text.length > 0 ||
+				hasConversionMetadata(source.conversion) ||
+				source.conversionRecovery !== undefined ||
+				source.originalRecovery !== undefined)
+				? beginWriting(writing)
+				: writing;
+	}
+}
 
 /**
  * A deep copy of a draft's section links.

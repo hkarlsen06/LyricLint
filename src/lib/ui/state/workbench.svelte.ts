@@ -1,3 +1,10 @@
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
+import { importDocument } from '#lib/conversion/import.js';
+import { otherProfile, type DraftWriting } from '#lib/persistence/writing.js';
+import { planProfileSwitch } from '#lib/conversion/plan.js';
+import { parseDocument } from '#lib/core/parser.js';
+import { extractCompletePerformers } from '#lib/performers/import.js';
 import type {
 	AutosaveController,
 	AutosaveStatus,
@@ -11,6 +18,7 @@ import type {
 	EditorSnapshot,
 	LineAnchor,
 	PerformerRecord,
+	PerformerRecordDelta,
 	RuleSetManifest,
 	SectionLink,
 	DraftIgnoreStore,
@@ -18,8 +26,10 @@ import type {
 	SourceReference,
 	TextRange
 } from '#lib/core/types.js';
-import { SvelteDate, SvelteMap } from 'svelte/reactivity';
+import { conversionReviewAction, type ConversionReviewKind } from '#lib/conversion/review.js';
+import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { resolveLanguageTag } from '#lib/languages/registry.js';
+import { isLanguageTag } from '#lib/languages/tag.js';
 import { randomId } from '#lib/core/random-id.js';
 import type { TimedLyricsFormat } from '#lib/core/timed-lyrics.js';
 import { formatTimedLyrics, timedLyricsExtensions } from '#lib/core/timed-lyrics.js';
@@ -34,7 +44,7 @@ import type { Decision } from '#lib/diagnostics/decisions.js';
 import type { RightPanelTab } from './panel-view.svelte.js';
 import { createPanelView } from './panel-view.svelte.js';
 import type { RosterMergeSuggestion } from './roster-store.svelte.js';
-import { createRosterStore } from './roster-store.svelte.js';
+import { cloneRoster, createRosterStore } from './roster-store.svelte.js';
 import type { MediaRepository } from '#lib/persistence/media-repository.js';
 import type { MediaPlayer } from './media-player.svelte.js';
 import type { MediaStore } from './media-store.svelte.js';
@@ -42,10 +52,15 @@ import { createMediaStore } from './media-store.svelte.js';
 import { WorkspaceBackupError, type WorkspaceBackupController } from '#lib/persistence/backup.js';
 import { DEFAULT_DRAFT_TITLE } from '#lib/persistence/draft-repository.js';
 import { headerNameAtoms, isMirrorableHeaderName } from '#lib/performers/index.js';
-import { buildRuleContext } from './wiring.js';
+import { buildRuleContext, projectionPolicyContext } from './wiring.js';
 import { maxScribeBytes, ScribeFormatError } from '#lib/scribe/contracts.js';
 import type { ScribeProjectInput } from '#lib/scribe/format.js';
 import { canonicalLineBreaks } from '#lib/core/line-numbers.js';
+import { profileSources } from '#lib/profiles/sources.js';
+import type { ProfileId } from '#lib/profiles/types.js';
+import { applyPerformerRecordDelta } from '#lib/editor/extensions/conversion-roster.js';
+import { renamedPerformer, allocatePerformerColor } from '#lib/performers/index.js';
+import { renderProfile } from '#lib/conversion/index.js';
 
 /**
  * Linked lyrics one page may open as new drafts. A page that opened this tab
@@ -95,7 +110,51 @@ interface WorkbenchDependencies {
 	loadHandoffCodec?: () => Promise<typeof import('#lib/core/handoff.js')>;
 }
 
+export interface ConversionReviewRequest {
+	recordingId: string | undefined;
+	kind: ConversionReviewKind;
+	sequence: number;
+	range: { from: number; to: number };
+	revision: number;
+	draftId: string | undefined;
+	profile: string;
+}
+
 export interface WorkbenchController {
+	applyClipboardReview(): boolean;
+	dismissClipboardReview(): void;
+	readonly requestedSection: { id: string; origin: 'editor' | 'review' } | undefined;
+	readonly requestedConversionReview: ConversionReviewRequest | undefined;
+	dismissConversionReview(): void;
+	openConversionReview(diagnostic: Diagnostic): void;
+	editRetainedRepeatHeader(sectionId: string): void;
+	readonly conversionPassageRequest:
+		{ readonly range: TextRange; readonly intent: 'view' | 'edit' } | undefined;
+	openSectionDetails(sectionId: string, origin?: 'editor' | 'review'): void;
+	dismissSectionDetails(): void;
+	showConversionPassage(range: TextRange, intent?: 'view' | 'edit'): void;
+	applyConversionAction(
+		action: import('#lib/conversion/decisions.js').ConversionAction,
+		rosterChanges?: PerformerRecordDelta
+	): boolean;
+	adoptPerformerRecords(delta: PerformerRecordDelta): void;
+	prepareInterpretation(sourceProfile: ProfileId): void;
+	adoptPastedPerformers(performers: readonly PerformerRecord[]): void;
+	exportOriginalRecovery(): Promise<void>;
+	readonly profile: ProfileId;
+	readonly pendingProfile: ProfileId | undefined;
+	readonly exportSession: number;
+	requestExport(): void;
+	readonly writing: DraftWriting;
+	getExport(): string | undefined;
+	setExport(text: string, session?: number): boolean;
+	copyExport(text: string): Promise<boolean>;
+	downloadExport(text: string): void;
+	readonly profileSession: number;
+	isConversionSectionLocal(sectionId: string): boolean;
+	toggleConversionSectionLocal(sectionId: string): boolean;
+	readonly geniusText: string;
+	switchProfile(profile: ProfileId): void;
 	readonly editor: EditorHandle;
 	readonly snapshot: EditorSnapshot;
 	/**
@@ -112,12 +171,15 @@ export interface WorkbenchController {
 	 */
 	readonly canLoadSample: boolean;
 	readonly draftId: string;
+	/** Changes on document load, while guarded-save identity adoption keeps the editor session. */
+	readonly draftSession: number;
 	readonly title: string;
 	readonly geniusUrl: string | undefined;
 	setGeniusUrl(value: string): boolean;
 	readonly language: string;
 	readonly recentLanguages: readonly string[];
 	readonly performers: readonly PerformerRecord[];
+	readonly nextPerformerOrder: number;
 	readonly activeTab: RightPanelTab;
 	readonly activeDiagnosticKey?: string;
 	readonly activeDiagnosticRange?: TextRange;
@@ -214,7 +276,7 @@ export interface WorkbenchController {
 	/** Draw Review's rows in rank order again, after Review was hidden and is shown again. */
 	releaseReviewOrder(): void;
 	setTitle(title: string): Promise<void>;
-	setLanguage(language: string): void;
+	setLanguage(language: string): boolean;
 	undo(): void;
 	redo(): void;
 	navigateToDiagnostic(
@@ -266,6 +328,7 @@ export interface WorkbenchController {
 	 * without overwriting this one. Hand-overs run one at a time.
 	 */
 	openHandoff(fragment: string): Promise<boolean>;
+	importLyrics(file: File, sourceProfile: ProfileId): Promise<boolean>;
 	deleteDraft(id: string): Promise<void>;
 	deleteAllDrafts(): Promise<void>;
 	backupWorkspace(): Promise<void>;
@@ -287,7 +350,9 @@ const grammarCheckPreference = 'grammarCheck';
  */
 export function createWorkbenchController(deps: WorkbenchDependencies): WorkbenchController {
 	const feedback = deps.feedback ?? createFeedbackState();
-	const sources = new SvelteMap((deps.sources ?? []).map((source) => [source.id, source]));
+	const sources = new SvelteMap(
+		[...(deps.sources ?? []), ...profileSources].map((source) => [source.id, source])
+	);
 	const copy = deps.copy ?? copyCanonicalMarkup;
 	const readClipboard = deps.readClipboard ?? readClipboardText;
 	const exportText = deps.exportText ?? downloadUtf8Text;
@@ -317,6 +382,15 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	// links, and a save landing in that window would write the blank over the
 	// draft's own.
 	let knownSectionLinks = $state<readonly SectionLink[]>(deps.initialDraft.sectionLinks ?? []);
+	let metadataEditorReady = true;
+	let exportSession = $state(0);
+	let pendingProfile = $state<ProfileId | undefined>();
+	let profileSession = $state(0);
+	let draftSession = $state(1);
+	let conversionScopeRevision = $state(0);
+	let requestedSection = $state<WorkbenchController['requestedSection']>();
+	let requestedConversionReview = $state<ConversionReviewRequest>();
+	let conversionPassageRequest = $state<WorkbenchController['conversionPassageRequest']>();
 	let linkingHeaderFrom = $state<number | undefined>();
 	let linkingFromOverview = $state(false);
 	let linkingComparedHeaders = $state<readonly number[] | undefined>();
@@ -344,7 +418,31 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		// in-session ignore mirror has to be told or it answers for a draft that
 		// no longer has a record, and loses the ignores on reload.
 		ignoreStore: deps.ignoreStore,
+		beforeFlush: async () => {
+			await media?.flushPosition();
+		},
 		bindings: {
+			get originalRecovery() {
+				return editorSession.snapshot.originalRecovery;
+			},
+			get saveSideRecords() {
+				return {
+					ignoredDiagnostics: deps.ignoreStore.list(draft.draftId),
+					media: media?.storageSnapshot()
+				};
+			},
+			onDraftForked(result) {
+				media?.adoptDraftId(result.draft.id);
+				for (const key of deps.ignoreStore.list(result.sourceId))
+					deps.ignoreStore.ignore(result.draft.id, key);
+				panel.refreshIgnoredDiagnostics();
+			},
+			get conversionRecovery() {
+				return editorSession.snapshot.conversionRecovery;
+			},
+			get conversion() {
+				return editorSession.snapshot.conversion;
+			},
 			get snapshot() {
 				return editorSession.snapshot;
 			},
@@ -356,12 +454,19 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				// with a headless handle that cannot answer this, and any save that
 				// landed in that window (a rename is enough) would write an empty
 				// list over the draft's own timings.
-				return editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
+				return metadataEditorReady
+					? (editorSession.editor.getLineAnchors?.() ?? knownLineAnchors)
+					: knownLineAnchors;
 			},
 			get sectionLinks() {
-				return editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
+				return metadataEditorReady
+					? (editorSession.editor.getSectionLinks?.() ?? knownSectionLinks)
+					: knownSectionLinks;
 			},
 			onDraftLoaded(nextDraft) {
+				metadataEditorReady = false;
+				draftSession += 1;
+				pendingProfile = undefined;
 				resetLinking();
 				roster.reset(nextDraft.performers);
 				panel.refreshIgnoredDiagnostics();
@@ -391,7 +496,20 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		initialPerformers: deps.initialDraft.performers,
 		feedback,
 		idFactory,
-		scheduleSave: draft.scheduleSave
+		scheduleSave: draft.keepDraft,
+		undoScope: () => String(draftSession),
+		snapshot: () => editorSession.snapshot,
+		applyRichUndo(delta) {
+			const result = editorSession.editor.dispatchPerformerRecords?.(
+				delta,
+				editorSession.snapshot.revision
+			);
+			if (result?.ok) return true;
+			const message = result?.message ?? 'The performer history is not ready. Try again.';
+			feedback.announce(message);
+			feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+			return false;
+		}
 	});
 
 	// Grammar checking is on by default: the feedback that prompted the toggle
@@ -437,6 +555,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// every later save. Both directions are lazy closures because the two
 			// stores need each other and only one of them can be built first.
 			onAttached: () => draft.keepDraft(),
+			onStorageChange: deps.repository.compareAndSave
+				? (ownerId) => {
+						if (ownerId === draft.draftId) draft.keepDraft();
+					}
+				: undefined,
 			onPositionSettled: deps.backup?.schedule,
 			onTitleSuggestion: (title) => void nameDraftAfterSource(title)
 		};
@@ -448,16 +571,30 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 
 	const media = deps.mediaRepository ? buildMediaStore(deps.mediaRepository) : undefined;
 
+	if (deps.repository.compareAndSave) {
+		deps.ignoreStore.setPersistenceHandler?.((ownerId) => {
+			if (ownerId !== draft.draftId) return false;
+			draft.keepDraft();
+			return true;
+		});
+	}
+
 	const panel = createPanelView({
 		editor: () => editorSession.editor,
 		snapshot: () => editorSession.snapshot,
-		ruleContext: () =>
-			buildRuleContext(
-				draft.language,
+		ruleContext: () => {
+			const policy = projectionPolicyContext(editorSession.snapshot);
+			return buildRuleContext(
+				editorSession.snapshot.conversion?.model.defaultLanguage ?? draft.language,
 				roster.performers,
 				deps.ruleSet?.version ?? 'unavailable',
-				editorSession.snapshot.revision
-			),
+				editorSession.snapshot.revision,
+				editorSession.snapshot.conversion?.profile,
+				editorSession.snapshot.conversion?.model.contentKind,
+				policy.languageRanges,
+				policy.confirmedFacts
+			);
+		},
 		draftId: () => draft.draftId,
 		ignoreStore: deps.ignoreStore,
 		feedback,
@@ -477,15 +614,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	 * appeared nowhere in the document. Keeping the headers in step is the one
 	 * job a roster rename exists for.
 	 *
-	 * The rewrite is one atomic edit over every header occurrence, so it is one
-	 * editor undo, exactly as a mirrored header edit is. The roster half goes
-	 * through `adoptHeaderRename` rather than the plain rename, so the old
-	 * spelling survives as an alias and an editor undo of the rewrite still
-	 * resolves the headers to this performer instead of importing a duplicate.
-	 * The roster is adopted *before* the dispatch, because the re-lint arrives
-	 * from inside it: a large enough rename crosses the import threshold, and an
-	 * extraction run against the old roster would read the freshly written name
-	 * as a stranger.
+	 * Text and the affected roster records share one editor history event. The
+	 * history listener publishes the roster before the snapshot can re-import
+	 * names, retaining the old spelling as an alias without duplicate identities.
+	 * Undo and Redo restore the exact records without replacing later additions.
 	 *
 	 * The toast's Undo is the same rename run in reverse. It recomputes against
 	 * the document as it stands, so pressed after further edits it reverses the
@@ -497,6 +629,23 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		if (!current || !trimmed || current.displayName === trimmed) return;
 		const previousName = current.displayName;
 		const snapshot = editorSession.snapshot;
+		if (snapshot.conversion) {
+			const next = {
+				...renamedPerformer(current, previousName, trimmed),
+				colorId: allocatePerformerColor(
+					trimmed,
+					roster.performers.filter((entry) => entry.id !== id)
+				)
+			};
+			if (
+				controller.applyConversionAction(
+					{ kind: 'renamePerformer', performerId: id, previousName, displayName: trimmed },
+					{ before: [current], after: [next] }
+				)
+			)
+				feedback.announce(`Renamed ${previousName} to ${trimmed}.`);
+			return;
+		}
 		const occurrences = headerNameAtoms(snapshot.parsed, roster.performers).filter(
 			(atom) => atom.performerId === id && atom.text !== trimmed
 		);
@@ -516,35 +665,58 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			feedback.addToast({
 				message,
 				actionLabel: 'Undo',
-				action: () => renamePerformer(id, previousName)
+				action: roster.guardUndo(
+					{
+						before: cloneRoster(roster.performers.filter((entry) => entry.id === id)),
+						after: cloneRoster(roster.performers.filter((entry) => entry.id === id))
+					},
+					() => renamePerformer(id, previousName)
+				)
 			});
 			return;
 		}
-		roster.adoptHeaderRename(id, previousName, trimmed);
-		roster.recolorPerformer(id);
-		editorSession.editor.dispatchAtomic({
-			baseRevision: snapshot.revision,
-			edits: occurrences.map(({ from, to }) => ({ from, to, insert: trimmed }))
-		});
+		const next = {
+			...renamedPerformer(current, previousName, trimmed),
+			colorId: allocatePerformerColor(
+				trimmed,
+				roster.performers.filter((entry) => entry.id !== id)
+			)
+		};
+		editorSession.editor.dispatchAtomic(
+			{
+				baseRevision: snapshot.revision,
+				edits: occurrences.map(({ from, to }) => ({ from, to, insert: trimmed }))
+			},
+			{ before: [current], after: [next] }
+		);
 		const headers = occurrences.length === 1 ? 'header' : 'headers';
 		const message = `Renamed ${previousName} to ${trimmed} in ${occurrences.length} ${headers}.`;
 		feedback.announce(message);
 		feedback.addToast({
 			message,
 			actionLabel: 'Undo',
-			action: () => renamePerformer(id, previousName)
+			action: roster.guardUndo(
+				{
+					before: cloneRoster(roster.performers.filter((entry) => entry.id === id)),
+					after: cloneRoster(roster.performers.filter((entry) => entry.id === id))
+				},
+				() => renamePerformer(id, previousName)
+			)
 		});
 	}
 
 	/**
 	 * Write `record` as a new draft and open it, leaving the open one as it is.
-	 * `false` means it was not opened, and the reason has been passed to `report`.
+	 * `false` means it was not written, and the reason has been passed to `report`.
+	 * When `stillCurrent` says the reader moved on while it was written, the
+	 * draft stays saved but is not opened over their work.
 	 */
 	async function openAsNewDraft(
 		record: DraftRecord,
 		failure: string,
 		report: (message: string) => void,
-		beforeOpen?: () => Promise<void>
+		beforeOpen?: () => Promise<void>,
+		stillCurrent?: () => boolean
 	): Promise<boolean> {
 		await draft.flushAutosave();
 		// The flush reports its own failure and never throws, so this is the one
@@ -559,6 +731,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		} catch {
 			report(failure);
 			return false;
+		}
+		if (stillCurrent && !stillCurrent()) {
+			report('The imported draft was saved separately. Open it from saved scribes when ready.');
+			return true;
 		}
 		await draft.openDraft(record.id);
 		return draft.draftId === record.id;
@@ -634,6 +810,268 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	}
 
 	const controller: WorkbenchController = {
+		applyClipboardReview() {
+			const result = editorSession.editor.applyClipboardReview?.();
+			if (!result?.ok) {
+				const message = result?.message ?? 'The copied details are no longer available.';
+				feedback.announce(message);
+				feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+				return false;
+			}
+			feedback.announce('Passage details applied to this lyric format.');
+			editorSession.editor.focus();
+			return true;
+		},
+		dismissClipboardReview() {
+			editorSession.editor.dismissClipboardReview?.();
+			editorSession.editor.focus();
+		},
+		isConversionSectionLocal(sectionId) {
+			void conversionScopeRevision;
+			void editorSession.snapshot;
+			return editorSession.editor.isConversionSectionLocal?.(sectionId) ?? false;
+		},
+		toggleConversionSectionLocal(sectionId) {
+			return editorSession.editor.toggleConversionSectionLocal?.(sectionId) ?? false;
+		},
+		get profileSession() {
+			return profileSession;
+		},
+		get requestedConversionReview() {
+			return requestedConversionReview?.draftId === controller.draftId &&
+				requestedConversionReview.profile === controller.profile
+				? requestedConversionReview
+				: undefined;
+		},
+		openConversionReview(diagnostic) {
+			const action = conversionReviewAction(diagnostic);
+			if (!action || !editorSession.snapshot.conversion || controller.profile !== 'musixmatch')
+				return;
+			editorSession.editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
+			requestedSection = undefined;
+			requestedConversionReview = {
+				kind: action.kind,
+				recordingId: controller.media?.recordingId,
+				range: { from: diagnostic.from, to: diagnostic.to },
+				revision: editorSession.snapshot.revision,
+				draftId: controller.draftId,
+				profile: controller.profile,
+				sequence: (requestedConversionReview?.sequence ?? 0) + 1
+			};
+			panel.setActiveTab('linter');
+		},
+		editRetainedRepeatHeader(sectionId) {
+			const conversion = controller.snapshot.conversion;
+			const projection = conversion && renderProfile(conversion.model, 'genius');
+			const section =
+				projection?.ok && projection.value.sections.find((item) => item.id === sectionId);
+			if (
+				!section ||
+				section.headerFrom === undefined ||
+				section.headerTo === undefined ||
+				controller.snapshot.composing
+			) {
+				const message =
+					'This retained header cannot be opened yet. Finish editing and reopen the current detail.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return;
+			}
+			if (controller.profile !== 'genius') {
+				controller.requestExport();
+				return;
+			}
+			if (controller.profile !== 'genius') return;
+			controller.showConversionPassage({ from: section.headerFrom, to: section.headerTo }, 'edit');
+		},
+		dismissConversionReview() {
+			requestedConversionReview = undefined;
+		},
+		get requestedSection() {
+			return requestedSection;
+		},
+		get conversionPassageRequest() {
+			return conversionPassageRequest;
+		},
+		openSectionDetails(sectionId, origin = 'editor') {
+			requestedSection = { id: sectionId, origin };
+			requestedConversionReview = undefined;
+			panel.setActiveTab('song');
+		},
+		dismissSectionDetails() {
+			requestedSection = undefined;
+		},
+		showConversionPassage(range, intent = 'view') {
+			editorSession.editor.setSelection({ anchor: range.from, head: range.to });
+			editorSession.editor.revealRange(range);
+			conversionPassageRequest = { range: { ...range }, intent };
+		},
+		prepareInterpretation(sourceProfile) {
+			const { anchor, head } = editorSession.snapshot.selection;
+			const result = editorSession.editor.prepareInterpretation?.(sourceProfile, {
+				from: Math.min(anchor, head),
+				to: Math.max(anchor, head)
+			});
+			if (!result?.ok) {
+				const message = result?.message ?? 'Select a passage in the lyrics first.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return;
+			}
+			panel.setActiveTab('song');
+		},
+		adoptPerformerRecords(delta) {
+			roster.reset(applyPerformerRecordDelta(roster.performers, delta));
+		},
+		applyConversionAction(action, rosterChanges) {
+			const result = editorSession.editor.dispatchConversionAction?.(
+				action,
+				editorSession.snapshot.revision,
+				rosterChanges
+			);
+			if (result?.ok) return true;
+			const message = result?.message ?? 'Document details are not ready yet.';
+			feedback.announce(message);
+			feedback.addToast({ message });
+			return false;
+		},
+		adoptPastedPerformers(performers) {
+			const ids = new SvelteSet(roster.performers.map((performer) => performer.id));
+			if (performers.some((performer) => ids.has(performer.id))) return;
+			roster.reset([...roster.performers, ...performers]);
+		},
+		async exportOriginalRecovery() {
+			const recovery =
+				editorSession.snapshot.originalRecovery ?? editorSession.snapshot.conversionRecovery;
+			const id = recovery?.localSourceDraftId;
+			try {
+				if (!id || !deps.repository.exportRawDraft)
+					throw new Error('The original record is unavailable.');
+				const text = await deps.repository.exportRawDraft(id);
+				if (!text) throw new Error('The original record is unavailable.');
+				exportText(text, safeFilename(`${draft.title} original data`, 'json'), 'application/json');
+				feedback.announce('Original recovery data exported.');
+			} catch {
+				const message = 'The original data could not be exported. It has not been changed.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+			}
+		},
+		get exportSession() {
+			return exportSession;
+		},
+		requestExport() {
+			exportSession += 1;
+		},
+		get writing() {
+			return draft.writing;
+		},
+		getExport() {
+			if (editorSession.snapshot.conversionRecovery || editorSession.snapshot.originalRecovery) {
+				const message =
+					'Resolve the retained document recovery before creating another format. Your main lyrics and original data are preserved.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return;
+			}
+			const record = draft.draftFromSnapshot();
+			if (record.writing?.phase === 'writing' && record.writing.export)
+				return record.writing.export.text;
+			const conversion = editorSession.snapshot.conversion;
+			const model = conversion
+				? { ok: true as const, value: conversion.model }
+				: importDocument({
+						text: editorSession.snapshot.text,
+						profile: controller.profile,
+						language: controller.language
+					});
+			if (!model.ok) {
+				feedback.announce(model.refusal.message);
+				feedback.addToast({ message: model.refusal.message });
+				return;
+			}
+			const plan = planProfileSwitch(model.value, {
+				from: controller.profile,
+				to: otherProfile(controller.profile)
+			});
+			if (!plan.ok) {
+				feedback.announce(plan.refusal.message);
+				feedback.addToast({ message: plan.refusal.message });
+				return;
+			}
+			return plan.value.projection.text;
+		},
+		setExport(text, session = draftSession) {
+			if (session !== draftSession) {
+				const message =
+					'This output belongs to another draft. Copy or download it before reopening Export.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+			try {
+				draft.setExport(text);
+				return true;
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : 'The edited export could not be saved.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+		},
+		async copyExport(text) {
+			const session = draftSession;
+			const source = editorSession.snapshot;
+			try {
+				await copy(text);
+				if (
+					session !== draftSession ||
+					source.text !== editorSession.snapshot.text ||
+					source.conversion !== editorSession.snapshot.conversion
+				)
+					return false;
+				feedback.announce('Export output copied.');
+				return true;
+			} catch {
+				const message = 'Copy failed. Check browser clipboard permission and try again.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+		},
+		downloadExport(text) {
+			exportText(text, safeFilename(`${draft.title} ${otherProfile(controller.profile)}`));
+		},
+		get profile() {
+			return draft.writing.profile;
+		},
+		get pendingProfile() {
+			return pendingProfile;
+		},
+		get geniusText() {
+			const conversion = editorSession.snapshot.conversion;
+			if (!conversion) return editorSession.snapshot.text;
+			const rendered = renderProfile(conversion.model, 'genius');
+			return rendered.ok ? rendered.value.text : editorSession.snapshot.text;
+		},
+		switchProfile(profile) {
+			if (draft.writing.phase !== 'new' || editorSession.snapshot.text.length > 0) return;
+			const record = draft.draftFromSnapshot();
+			const model = importDocument({ text: '', profile, language: controller.language });
+			if (!model.ok) return;
+			draft.chooseProfile(profile);
+			record.writing = draft.writing;
+			record.conversion = createConversionEnvelope(model.value, profile, profilePolicyVersions);
+			const opened = deps.onOpenDraft?.(record) ?? {
+				...editorSession.snapshot,
+				conversion: record.conversion
+			};
+			editorSession.replaceSnapshot(opened);
+			editorSession.resetRevisionGuard();
+			draftSession += 1;
+			profileSession += 1;
+		},
 		get editor() {
 			return editorSession.editor;
 		},
@@ -646,11 +1084,16 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get canLoadSample() {
 			return (
 				editorSession.snapshot.text.trim().length === 0 &&
-				resolveLanguageTag(draft.language) === sampleDraftLanguage
+				controller.profile === 'genius' &&
+				!editorSession.snapshot.conversion?.model.sections.length &&
+				resolveLanguageTag(controller.language) === sampleDraftLanguage
 			);
 		},
 		get draftId() {
 			return draft.draftId;
+		},
+		get draftSession() {
+			return draftSession;
 		},
 		get geniusUrl() {
 			return draft.geniusUrl;
@@ -660,13 +1103,16 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			return draft.title;
 		},
 		get language() {
-			return draft.language;
+			return editorSession.snapshot.conversion?.model.defaultLanguage ?? draft.language;
 		},
 		get recentLanguages() {
 			return draft.recentLanguages;
 		},
 		get performers() {
 			return roster.performers;
+		},
+		get nextPerformerOrder() {
+			return roster.nextPerformerOrder;
 		},
 		get activeTab() {
 			return panel.activeTab;
@@ -742,6 +1188,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// replacing the handle with `undefined` would make even an optional
 			// editor capability such as `previewAtomic` unsafe to inspect.
 			if (!handle) return;
+			if (handle !== editorSession.editor) {
+				profileSession += 1;
+				requestedConversionReview = undefined;
+				requestedSection = undefined;
+			}
 			editorSession.setEditorHandle(handle);
 			// Re-seat the draft's anchors on any editor that can hold them and has
 			// none. The capability is *checked* rather than optional-called: the
@@ -764,6 +1215,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			) {
 				handle.setSectionLinks(knownSectionLinks);
 			}
+			metadataEditorReady = true;
 			// The card that starts expanded asks for its preview before the real
 			// editor exists to draw it. Now that one does, show it.
 			panel.retryFixPreview();
@@ -771,8 +1223,25 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		setSaveStatus: draft.setSaveStatus,
 		onSnapshot(nextSnapshot) {
 			const previous = editorSession.snapshot;
+			if (
+				(previous.conversion?.profile ?? 'genius') !==
+				(nextSnapshot.conversion?.profile ?? 'genius')
+			)
+				profileSession += 1;
+			if (previous.originalRecovery)
+				nextSnapshot = { ...nextSnapshot, originalRecovery: previous.originalRecovery };
 			const change = editorSession.adoptSnapshot(nextSnapshot);
 			if (!change) return;
+			if (nextSnapshot.conversionRecovery && !previous.conversionRecovery) {
+				const message =
+					'Your latest text is preserved, but its retained details need recovery. Export a Scribe from Song to keep both the text and the last valid document.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+			}
+			if (nextSnapshot.conversion) {
+				knownLineAnchors = editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
+				knownSectionLinks = editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
+			}
 			// Offsets and difference indexes belong to the text that was reviewed.
 			// A new text needs a fresh choice; selection and lint-only updates do not.
 			if (previous.text !== nextSnapshot.text) resetLinking();
@@ -789,6 +1258,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			draft.scheduleSave();
 		},
 		onSectionLinksChanged() {
+			conversionScopeRevision += 1;
 			knownSectionLinks = editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
 			draft.scheduleSave();
 		},
@@ -865,7 +1335,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// The editor's own field first, for the reason `bindings.lineAnchors`
 			// gives: the known set is the fallback, not the truth.
 			const anchors = editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
-			const content = formatTimedLyrics(editorSession.snapshot.text, anchors, format);
+			const content = formatTimedLyrics(
+				editorSession.snapshot.text,
+				anchors,
+				format,
+				editorSession.snapshot.conversion?.profile ?? 'genius'
+			);
 			if (content.length === 0) {
 				feedback.announce('There are no line timings to export.');
 				return;
@@ -884,7 +1359,21 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		toggleSeverity: panel.toggleSeverity,
 		releaseReviewOrder: panel.releaseReviewOrder,
 		setTitle: draft.setTitle,
-		setLanguage: draft.setLanguage,
+		setLanguage(language) {
+			if (!isLanguageTag(language)) {
+				const message = 'Choose a valid language code.';
+				feedback.announce(message);
+				feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+				return false;
+			}
+			if (
+				editorSession.snapshot.conversion &&
+				!controller.applyConversionAction({ kind: 'setLanguage', language })
+			)
+				return false;
+			draft.setLanguage(language);
+			return true;
+		},
 		undo: editorSession.undo,
 		redo: editorSession.redo,
 		navigateToDiagnostic: panel.navigateToDiagnostic,
@@ -904,14 +1393,28 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		restoreDiagnostic: panel.restoreDiagnostic,
 		copyCanonical: editorSession.copyCanonical,
 		pasteLyrics: editorSession.pasteLyrics,
-		insertUnknownMarker: editorSession.insertUnknownMarker,
+		insertUnknownMarker() {
+			if (controller.profile === 'genius') editorSession.insertUnknownMarker();
+		},
 		loadSample() {
 			editorSession.replaceDocument(
 				sampleDraftText,
 				"Sample transcription loaded. Undo replaces it with an empty 'scribe."
 			);
 		},
-		insertSection: editorSession.insertSection,
+		insertSection() {
+			if (controller.profile === 'genius') {
+				editorSession.insertSection();
+				return;
+			}
+			const snapshot = editorSession.snapshot;
+			const conversion = snapshot.conversion;
+			const projection = conversion && renderProfile(conversion.model, conversion.profile);
+			const section = projection?.ok
+				? projection.value.sections.filter((entry) => entry.at <= snapshot.selection.head).at(-1)
+				: undefined;
+			controller.openSectionDetails(section?.id ?? 'new');
+		},
 		get searchOpen() {
 			return editorSession.searchOpen;
 		},
@@ -920,8 +1423,37 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		addPerformer: roster.addPerformer,
 		renamePerformer,
 		adoptHeaderRename: roster.adoptHeaderRename,
-		mergePerformers: roster.mergePerformers,
-		removePerformer: roster.removePerformer,
+		mergePerformers(sourceId, targetId) {
+			if (!editorSession.snapshot.conversion) {
+				roster.mergePerformers(sourceId, targetId);
+				return;
+			}
+			const source = roster.performers.find((entry) => entry.id === sourceId);
+			const target = roster.performers.find((entry) => entry.id === targetId);
+			if (!source || !target || sourceId === targetId) return;
+			const next = {
+				...target,
+				aliases: [
+					...new SvelteSet([...target.aliases, ...source.aliases, source.displayName])
+				].filter((name) => name !== target.displayName)
+			};
+			controller.applyConversionAction(
+				{ kind: 'mergePerformer', fromPerformerId: sourceId, toPerformerId: targetId },
+				{ before: [source, target], after: [next] }
+			);
+		},
+		removePerformer(id) {
+			if (!editorSession.snapshot.conversion) {
+				roster.removePerformer(id);
+				return;
+			}
+			const current = roster.performers.find((entry) => entry.id === id);
+			if (current)
+				controller.applyConversionAction(
+					{ kind: 'removePerformer', performerId: id },
+					{ before: [current], after: [] }
+				);
+		},
 		refreshDrafts: draft.refreshDrafts,
 		createDraft: draft.createDraft,
 		openDraft: draft.openDraft,
@@ -976,6 +1508,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// record never made.
 			if (exported.geniusUrl !== undefined) project.geniusUrl = exported.geniusUrl;
 			if (exported.originalText !== undefined) project.originalText = exported.originalText;
+			if (exported.writing !== undefined) project.writing = exported.writing;
+			if (exported.conversion !== undefined) project.conversion = exported.conversion;
+			if (exported.conversionRecovery !== undefined)
+				project.conversionRecovery = exported.conversionRecovery;
+			if (exported.originalRecovery !== undefined)
+				project.originalRecovery = exported.originalRecovery;
 			if (exported.editorSelection !== undefined) project.selection = exported.editorSelection;
 			if (exported.compareBaseline !== undefined) {
 				project.compareBaseline = exported.compareBaseline;
@@ -996,7 +1534,78 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				feedback.addToast({ message });
 			}
 		},
+		async importLyrics(file, sourceProfile) {
+			const session = draftSession;
+			const source = editorSession.snapshot;
+			const stillCurrent = () =>
+				session === draftSession &&
+				source.text === editorSession.snapshot.text &&
+				source.conversion === editorSession.snapshot.conversion;
+			try {
+				if (!file.name.toLocaleLowerCase().endsWith('.txt'))
+					throw new Error('Choose a lyrics file ending in .txt.');
+				if (sourceProfile !== 'genius' && sourceProfile !== 'musixmatch')
+					throw new Error('Choose a supported source format.');
+				const { CONVERSION_LIMITS, importDocument } = await import('#lib/conversion/index.js');
+				if (file.size > CONVERSION_LIMITS.text * 4)
+					throw new Error('This lyrics file is too large to import.');
+				const originalText = await file.text();
+				const text = originalText.replace(/\r\n?/g, '\n');
+				const performers =
+					sourceProfile === 'genius'
+						? extractCompletePerformers(parseDocument(text), []).rosterAdditions
+						: [];
+				const model = importDocument({
+					performers,
+					text,
+					profile: sourceProfile,
+					language: controller.language
+				});
+				if (!model.ok) throw new Error(model.refusal.message);
+				const timestamp = now();
+				const imported: DraftRecord = {
+					id: idFactory(),
+					title: file.name.slice(0, -4).trim() || DEFAULT_DRAFT_TITLE,
+					text,
+					originalText,
+					language: model.value.defaultLanguage,
+					performers,
+					createdAt: timestamp,
+					updatedAt: timestamp,
+					ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion,
+					conversion: createConversionEnvelope(model.value, sourceProfile, profilePolicyVersions)
+				};
+				await draft.flushAutosave();
+				if (deps.autosave.status() === 'failed')
+					throw new Error('Save or export the current draft before opening imported lyrics.');
+				await deps.repository.create(imported);
+				if (!stillCurrent()) {
+					const message =
+						'The imported draft was saved separately. Open it from saved scribes when ready.';
+					feedback.announce(message);
+					feedback.addToast({ message });
+					return true;
+				}
+				await draft.openDraft(imported.id);
+				feedback.announce(
+					`Imported ${imported.title} as ${sourceProfile === 'genius' ? 'Genius' : 'Musixmatch'} lyrics.`
+				);
+				return true;
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : 'The lyrics file could not be imported.';
+				feedback.announce(message);
+				feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+				return false;
+			}
+		},
 		async importScribe(file) {
+			const session = draftSession;
+			const source = editorSession.snapshot;
+			const stillCurrent = () =>
+				session === draftSession &&
+				source.text === editorSession.snapshot.text &&
+				source.conversion === editorSession.snapshot.conversion;
 			if (!file.name.toLocaleLowerCase().endsWith('.lls')) {
 				const message = 'Choose a LyricLint Scribe file ending in .lls.';
 				feedback.announce(message);
@@ -1043,6 +1652,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			const scribed = project.document;
 			if (scribed.geniusUrl !== undefined) imported.geniusUrl = scribed.geniusUrl;
 			if (scribed.originalText !== undefined) imported.originalText = scribed.originalText;
+			if (scribed.writing !== undefined) imported.writing = scribed.writing;
+			if (scribed.conversion !== undefined) imported.conversion = scribed.conversion;
+			if (scribed.conversionRecovery !== undefined)
+				imported.conversionRecovery = scribed.conversionRecovery;
+			if (scribed.originalRecovery !== undefined)
+				imported.originalRecovery = scribed.originalRecovery;
 			if (scribed.selection !== undefined) imported.editorSelection = scribed.selection;
 			if (scribed.compareBaseline !== undefined) {
 				imported.compareBaseline = scribed.compareBaseline;
@@ -1070,9 +1685,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 						if (source.kind === 'apple') attachment.songId = source.id;
 						await deps.mediaRepository.attach(attachment);
 					}
-				}
+				},
+				stillCurrent
 			);
-			if (opened) feedback.announce(`Imported ${imported.title}.`);
+			if (opened && draft.draftId === imported.id) feedback.announce(`Imported ${imported.title}.`);
 			return opened;
 		},
 		openHandoff(fragment) {
@@ -1086,11 +1702,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// from writing the freshly emptied workspace over the one file that
 			// could undo this press. The file itself stays on the user's disk.
 			await deps.backup?.unlink();
-			await draft.deleteAllDrafts();
 			// A reset returns the running session to its defaults too: the stored
 			// rows are already gone, and a switch still showing the old choice would
 			// be reporting a preference that no longer exists.
-			grammarCheckEnabled = true;
+			if (await draft.deleteAllDrafts()) grammarCheckEnabled = true;
 		},
 		async backupWorkspace() {
 			if (!deps.backup) return;

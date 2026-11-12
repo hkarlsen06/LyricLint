@@ -60,6 +60,7 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 	// Snapshots are immutable replacements from the editor. Proxying every parsed
 	// line, finding and fix adds reactive bookkeeping without an in-place writer.
 	let snapshot = $state.raw(deps.initialSnapshot);
+	let loadSession = 0;
 	let lastEditorRevision: number | undefined;
 
 	// Declared out here rather than as a sibling method: the controller hands
@@ -126,6 +127,7 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			// snapshot matches the persisted state byte for byte, so store it
 			// (for its diagnostics) without dirtying the draft.
 			const unchanged =
+				next.conversion === snapshot.conversion &&
 				next.text === snapshot.text &&
 				next.selection.anchor === snapshot.selection.anchor &&
 				next.selection.head === snapshot.selection.head;
@@ -134,6 +136,7 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			return { unchanged, textDelta };
 		},
 		replaceSnapshot(next) {
+			loadSession += 1;
 			snapshot = next;
 		},
 		resetRevisionGuard() {
@@ -146,9 +149,21 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			editor.redo();
 		},
 		async copyCanonical() {
+			const session = loadSession;
+			const source = snapshot;
 			try {
-				await deps.copy(snapshot.text);
-				deps.feedback.announce('Canonical Genius markup copied.');
+				await deps.copy(source.text);
+				if (
+					session !== loadSession ||
+					source.text !== snapshot.text ||
+					source.conversion !== snapshot.conversion
+				)
+					return false;
+				deps.feedback.announce(
+					snapshot.conversion?.profile === 'musixmatch'
+						? 'Musixmatch lyrics copied.'
+						: 'Canonical Genius markup copied.'
+				);
 				return true;
 			} catch {
 				report('Copy failed. Check browser clipboard permission and try again.');
@@ -157,10 +172,19 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 		},
 		replaceDocument,
 		async pasteLyrics() {
+			const session = loadSession;
+			const source = snapshot.text;
+			const conversion = snapshot.conversion;
 			let text: string;
 			try {
 				text = await deps.readClipboard();
 			} catch {
+				if (
+					session !== loadSession ||
+					snapshot.text !== source ||
+					snapshot.conversion !== conversion
+				)
+					return;
 				// Still not a failure worth reporting as one: every browser that
 				// refuses a programmatic read pastes from the keyboard, so the caret
 				// goes where that keystroke lands rather than a permission being
@@ -172,6 +196,8 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 				report('Press the paste shortcut to paste into the editor.');
 				return;
 			}
+			if (session !== loadSession || snapshot.text !== source || snapshot.conversion !== conversion)
+				return;
 			if (text.trim().length === 0) {
 				editor.focus();
 				report('The clipboard has no text to paste.');

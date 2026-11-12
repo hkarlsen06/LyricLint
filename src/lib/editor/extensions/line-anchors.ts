@@ -1,4 +1,5 @@
-// Decision record: docs/subsystems/line-anchors.md. Read it before changing this file, and update it with any behavior change.
+import { profileForState } from './conversion-state.js';
+// Decision record: docs/subsystems/line-anchors.md, read it before changing this file, and update it with any behavior change.
 import {
 	EditorState,
 	Facet,
@@ -43,8 +44,16 @@ export type { LineAnchor };
  * and only the document knows the `](id)` that closes it: sung text that gets
  * timed, not structure.
  */
-export function isStampableLine(line: Line, doc: Text): boolean {
-	return isLyricLine(line.text, { annotations: annotationSpansFor(doc), lineFrom: line.from });
+export function isStampableLine(
+	line: Line,
+	doc: Text,
+	profile: 'genius' | 'musixmatch' = 'genius'
+): boolean {
+	return isLyricLine(line.text, {
+		annotations: annotationSpansFor(doc),
+		lineFrom: line.from,
+		profile
+	});
 }
 
 /**
@@ -1302,7 +1311,11 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 				// deliberate anchor must not vanish.
 				if (
 					found === undefined &&
-					!isStampableLine(view.state.doc.lineAt(line.from), view.state.doc)
+					!isStampableLine(
+						view.state.doc.lineAt(line.from),
+						view.state.doc,
+						profileForState(view.state)
+					)
 				) {
 					return null;
 				}
@@ -1396,8 +1409,9 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 export const lineAnchorTheme = EditorView.baseTheme({
 	// Collapsed until there is a song. `display: none` rather than a zero width,
 	// so the column contributes nothing to the content's measure either.
-	'.cm-editor:not(.ll-has-audio) .ll-time-gutter': {
-		display: 'none'
+	// CodeMirror's gutter display is important, so this conditional override is too.
+	'&:not(.ll-has-audio) .ll-time-gutter': {
+		display: 'none !important'
 	},
 	// CodeMirror clips every gutter column (`.cm-gutter { overflow: hidden }`),
 	// which cut the `−` hanging off the start of the number down to a sliver. This

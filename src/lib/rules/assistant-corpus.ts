@@ -36,10 +36,16 @@ import type {
 } from './assistant-corpus-types.js';
 import { policyCases } from './catalog/policy-cases.js';
 import { currentRuleSet } from './data/rule-set.js';
+import { sharedTranscriptionRules } from './registry.js';
 import { sourceRegistry } from './data/sources.js';
 import { harperRuleIds } from './harper.js';
 import { ruleLookupTables } from './lookup-tables.js';
 import { ruleReferences } from './reference.js';
+import type { ProfileId } from '#lib/profiles/types.js';
+import { profileGuidelines, languagePolicyGaps } from '#lib/profiles/coverage.js';
+import { profileSources } from '#lib/profiles/sources.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
+import { profileGuidelineTopic, profileGuidelineTitle } from '#lib/profiles/reference-topics.js';
 
 export type { AssistantCorpus } from './assistant-corpus-types.js';
 
@@ -49,16 +55,16 @@ export type { AssistantCorpus } from './assistant-corpus-types.js';
 export const CORPUS_FORMAT_VERSION = 6;
 
 const HARPER_BEHAVIOR =
-	'Alongside the reviewed Genius rules, LyricLint runs Harper, a local English proofreader, ' +
+	'Alongside the active lyric-format rules, LyricLint runs Harper, a local English proofreader, ' +
 	'in the browser. Its findings arrive as spelling.harper, grammar.harper, and style.harper, ' +
-	'always suggestions, always citing Harper itself (T-HARPER) rather than a Genius guideline, ' +
+	'always suggestions, always citing Harper itself (T-HARPER) rather than a platform guideline, ' +
 	'and a native reviewed rule always wins where the two overlap.';
 
 const HARPER_LIMITATIONS = [
 	'English only; it does not run for the other reviewed languages.',
-	'Its suggestions are general proofreading, not reviewed Genius policy, and have no reference pages.',
+	'Its suggestions are general proofreading, not reviewed platform policy, and have no reference pages.',
 	'Prose-assuming readability measures are filtered out, because lyrics use deliberate fragments, dialect, repetition, and nonstandard spelling.',
-	"It is seeded with the reviewed preferred spellings and the 'scribe’s performer names so it does not fight the Genius-specific rules."
+	"It is seeded with the active profile’s reviewed preferred spellings and the 'scribe’s performer names; Genius-specific spellings are not imported for Musixmatch."
 ];
 
 /** Sections of docs/rules.md that bear on rule interpretation. The catalog
@@ -83,7 +89,7 @@ export function policyNotesFromRulesDoc(rulesMd: string): string[] {
 }
 
 function corpusSource(source: SourceReference): AssistantCorpusSource {
-	return {
+	const result: AssistantCorpusSource = {
 		id: source.id,
 		pageTitle: source.pageTitle,
 		sectionTitle: source.sectionTitle,
@@ -91,18 +97,31 @@ function corpusSource(source: SourceReference): AssistantCorpusSource {
 		lastVerifiedAt: source.lastVerifiedAt,
 		authority: source.authority
 	};
+	if (source.platform) {
+		result.platform = source.platform;
+		result.platformStanding = source.platformStanding;
+	}
+	return result;
 }
 
 /** Everything but the stamp and the hash, deterministic for a given source tree. */
 export function buildAssistantCorpusContent(
-	rulesMd: string
+	rulesMd: string,
+	profile: ProfileId = 'genius'
 ): Omit<AssistantCorpus, 'generatedAt' | 'contentHash'> {
 	const policyCaseById = new Map(policyCases.map((policy) => [policy.id, policy]));
 	// `corpusContentHash` hashes `JSON.stringify`, which writes keys in insertion
 	// order, so where an optional key sits is part of the artifact, and an
 	// absent one has to be absent rather than `undefined`. That is why the two
 	// halves either side of `fixLabel` are named: appending it would move it.
-	const rules = ruleReferences().map((reference) => {
+	const sharedIds = new Set(sharedTranscriptionRules.map((rule) => rule.id));
+	const references = [
+		...ruleReferences(profile),
+		...(profile === 'musixmatch'
+			? ruleReferences().filter((reference) => sharedIds.has(reference.id))
+			: [])
+	];
+	const rules = references.map((reference) => {
 		const head = {
 			id: reference.id,
 			slug: reference.slug,
@@ -125,6 +144,62 @@ export function buildAssistantCorpusContent(
 			? { ...head, fixLabel: reference.fix.label, ...example }
 			: { ...head, ...example };
 	});
+	if (profile === 'musixmatch') {
+		return {
+			formatVersion: 6,
+			profile,
+			ruleSetVersion: profilePolicyVersions.musixmatch,
+			rules,
+			lookups: [],
+			guidance: profileGuidelines.map((entry) => ({
+				id: entry.id,
+				topic: profileGuidelineTopic(entry),
+				topicTitle: entry.topic,
+				title: profileGuidelineTitle(entry),
+				statement: entry.statement,
+				authority: entry.handling === 'advisory' ? 'community' : 'external',
+				sourceIds: [...entry.sourceIds],
+				relatedRuleIds: [...entry.ruleIds],
+				note: entry.limit,
+				languages: [...entry.languages],
+				handling: entry.handling
+			})),
+			sources: [
+				...profileSources,
+				...[
+					...new Set(['T-HARPER', ...sharedTranscriptionRules.flatMap((rule) => rule.sourceIds)])
+				].map((id) => {
+					const source = sourceRegistry.get(id);
+					if (!source) throw new Error(`Missing shared transcription source ${id}`);
+					return source;
+				})
+			]
+				.map(corpusSource)
+				.sort((a, b) => a.id.localeCompare(b.id, 'en')),
+			languages: reviewedLanguagePacks.map((pack) => ({
+				tag: pack.tag,
+				displayName: pack.displayName,
+				policy:
+					pack.tag === 'ar' || pack.tag === 'ko'
+						? languagePolicyGaps[pack.tag]
+						: 'Use only the language-scoped Musixmatch claims in this corpus; preserve native script and sung dialect.',
+				headerTerms: []
+			})),
+			harper: {
+				ruleIds: [...harperRuleIds],
+				behavior: HARPER_BEHAVIOR,
+				limitations: HARPER_LIMITATIONS
+			},
+			policyNotes: [
+				'Use only this Musixmatch corpus. Official Musixmatch source standing is independent of Genius staff/editorial authority; community supplements remain advisory.',
+				`Shared transcription checks (${sharedTranscriptionRules.map((rule) => rule.id).join(', ')}) retain their original sources and are general text or grammar suggestions, not additional Musixmatch platform rules. Do not treat their Genius-derived provenance as Musixmatch authority.`,
+				'Every clause records its language scope, handling and remaining limits. A syntactic check is not full verification. Unresolved source conflicts, audio evidence, numeric meaning and unknown words never justify a guessed edit.',
+				'Switching is a deterministic, lossless local representation operation. The assistant never runs conversion and must not reinterpret switching as permission to edit lyrics.',
+				'No complete Arabic or Korean language-specific policy has been established by the inspected sources. Do not claim that generic checks or an English fallback fill this gap.',
+				"Main-page finite slang forms: ballin', 'cause (because), cuz (cousin), 'em, gon' or gonna, I'ma, outta, 'til, yo (greeting), yo' (possessive). Meaning is a precondition; there is no unconditional replacement of every matching spelling."
+			]
+		};
+	}
 
 	const sources = [...sourceRegistry.values()]
 		.filter((source) => source.reviewStatus === 'reviewed')
@@ -188,14 +263,18 @@ export async function corpusContentHash(
 
 export async function buildAssistantCorpus(
 	rulesMd: string,
-	generatedAt: string
+	generatedAt: string,
+	profile: ProfileId = 'genius'
 ): Promise<AssistantCorpus> {
-	const content = buildAssistantCorpusContent(rulesMd);
+	const content = buildAssistantCorpusContent(rulesMd, profile);
 	const contentHash = await corpusContentHash(content);
 	// Key order matters only for human diffs; hashing covers `content` alone, so
 	// regenerating never dirties the artifact unless the reviewed data moved.
+	const head = content.profile
+		? { formatVersion: content.formatVersion, profile: content.profile }
+		: { formatVersion: content.formatVersion };
 	return {
-		formatVersion: content.formatVersion,
+		...head,
 		ruleSetVersion: content.ruleSetVersion,
 		generatedAt,
 		contentHash,

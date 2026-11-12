@@ -1,12 +1,24 @@
-import type { EditorSnapshot, ImportSuggestion, PerformerRecord } from '#lib/core/types.js';
+import { extractCompletePerformers } from '#lib/performers/import.js';
+import type {
+	EditorSnapshot,
+	ImportSuggestion,
+	PerformerRecord,
+	PerformerRecordDelta
+} from '#lib/core/types.js';
 import {
 	allocatePerformerColor,
-	extractPerformers,
+	headerNameAtoms,
 	isRetiredUnresolvedVoiceName,
-	normalizePerformerKey
+	normalizePerformerKey,
+	renamedPerformer
 } from '#lib/performers/index.js';
+import {
+	applyPerformerRecordDelta,
+	changesReferencedPerformers,
+	validPerformerRecordDelta
+} from '#lib/editor/extensions/conversion-roster.js';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { FeedbackState } from './feedback.svelte.js';
+import { NOTICE_TOAST_DURATION, type FeedbackState } from './feedback.svelte.js';
 
 export interface RosterMergeSuggestion {
 	sourceId: string;
@@ -25,10 +37,15 @@ interface RosterStoreDependencies {
 	feedback: FeedbackState;
 	idFactory: () => string;
 	scheduleSave: () => void;
+	undoScope: () => string;
+	snapshot: () => EditorSnapshot;
+	applyRichUndo: (delta: PerformerRecordDelta) => boolean;
 }
 
 interface RosterStore {
 	readonly performers: readonly PerformerRecord[];
+	readonly nextPerformerOrder: number;
+	guardUndo(delta: PerformerRecordDelta, action: () => void): () => void;
 	readonly suggestions: readonly RosterMergeSuggestion[];
 	/** Adopt a stored roster without marking the draft dirty. */
 	reset(roster: readonly PerformerRecord[]): void;
@@ -56,31 +73,85 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 	let importSuggestions = $state<ImportSuggestion[]>([]);
 
 	const feedback = deps.feedback;
+	let orderScope = deps.undoScope();
+	let nextOrder = deps.initialPerformers.reduce(
+		(next, record) => Math.max(next, record.order + 1),
+		0
+	);
+
+	function retainOrder(): void {
+		const scope = deps.undoScope();
+		const next = performers.reduce((value, record) => Math.max(value, record.order + 1), 0);
+		nextOrder = scope === orderScope ? Math.max(nextOrder, next) : next;
+		orderScope = scope;
+	}
 
 	function setRoster(next: readonly PerformerRecord[]): void {
-		performers = next
-			.map((performer, index) => ({ ...performer, aliases: [...performer.aliases], order: index }))
-			.sort((left, right) => left.order - right.order);
+		// Keep record order stable so an independent Undo does not edit other identities.
+		performers = cloneRoster(next).sort((left, right) => left.order - right.order);
+		retainOrder();
 		deps.scheduleSave();
+	}
+
+	function guardUndo(delta: PerformerRecordDelta, action: () => void): () => void {
+		const scope = deps.undoScope();
+		return () => {
+			let refusal: string | undefined;
+			if (scope !== deps.undoScope()) {
+				refusal = 'Cannot undo this roster change after switching drafts.';
+			} else if (!validPerformerRecordDelta(performers, delta)) {
+				refusal = 'Cannot undo this roster change because an affected performer has changed.';
+			} else {
+				const model = deps.snapshot().conversion?.model;
+				if (model && changesReferencedPerformers(model, performers, delta))
+					refusal =
+						'Cannot undo this roster change while a performer is used in retained voices or legends.';
+			}
+			if (refusal) {
+				feedback.announce(refusal);
+				feedback.addToast({ message: refusal, duration: NOTICE_TOAST_DURATION });
+				return;
+			}
+			action();
+		};
 	}
 
 	function commitRoster(next: readonly PerformerRecord[], message: string): void {
 		const previous = cloneRoster(performers);
+		const affected = new SvelteSet(
+			[...previous, ...next]
+				.filter(
+					(record) =>
+						JSON.stringify(previous.find((entry) => entry.id === record.id)) !==
+						JSON.stringify(next.find((entry) => entry.id === record.id))
+				)
+				.map((record) => record.id)
+		);
+		const inverse = {
+			before: cloneRoster(next.filter((record) => affected.has(record.id))),
+			after: previous.filter((record) => affected.has(record.id))
+		};
 		setRoster(next);
 		feedback.announce(message);
 		feedback.addToast({
 			message,
 			actionLabel: 'Undo',
-			action: () => {
-				setRoster(previous);
+			action: guardUndo(inverse, () => {
+				if (deps.snapshot().conversion) {
+					if (!deps.applyRichUndo(inverse)) return;
+				} else setRoster(applyPerformerRecordDelta(performers, inverse));
 				feedback.announce('Roster change undone.');
-			}
+			})
 		});
 	}
 
 	return {
+		guardUndo,
 		get performers() {
 			return performers;
+		},
+		get nextPerformerOrder() {
+			return nextOrder;
 		},
 		get suggestions() {
 			const suggestions = new SvelteMap<string, RosterMergeSuggestion>();
@@ -122,9 +193,10 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 		},
 		reset(roster) {
 			performers = cloneRoster(roster);
+			retainOrder();
 		},
 		importFromSnapshot(snapshot) {
-			const extraction = extractPerformers(snapshot.parsed, performers);
+			const extraction = extractCompletePerformers(snapshot.parsed, performers);
 			importSuggestions = extraction.suggestions.map((suggestion) => ({
 				...suggestion,
 				importedRange: { ...suggestion.importedRange }
@@ -135,16 +207,26 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			// voice whose whole point is having none, and a pressable stranger in
 			// every picker. The state is derived now, but drafts saved while the
 			// minting ran still carry the records, so the same moment that created
-			// them retires them: an exact-named placeholder no extracted group
+			// them retires them: an exact-named placeholder no existing header
 			// references is the artifact and nothing else. One a header genuinely
-			// names stays referenced (extraction resolves the name to the record),
+			// names stays referenced even beside incomplete legend markup,
 			// and one the user renamed no longer matches the name.
 			const referencedIds = new SvelteSet(
-				extraction.voiceGroups.flatMap((group) => group.performerIds)
+				headerNameAtoms(snapshot.parsed, [...performers, ...extraction.rosterAdditions]).flatMap(
+					(atom) => (atom.performerId ? [atom.performerId] : [])
+				)
 			);
 			const retired = performers.filter(
 				(performer) =>
-					isRetiredUnresolvedVoiceName(performer.displayName) && !referencedIds.has(performer.id)
+					isRetiredUnresolvedVoiceName(performer.displayName) &&
+					!referencedIds.has(performer.id) &&
+					!(
+						snapshot.conversion &&
+						changesReferencedPerformers(snapshot.conversion.model, performers, {
+							before: [performer],
+							after: []
+						})
+					)
 			);
 			if (retired.length > 0) {
 				const kept = performers.filter((performer) => !retired.includes(performer));
@@ -159,7 +241,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			const additions = extraction.rosterAdditions.map((performer, index) => ({
 				...performer,
 				aliases: [...performer.aliases],
-				order: performers.length + index
+				order: nextOrder + index
 			}));
 			const names = additions.map((performer) => performer.displayName);
 			const message =
@@ -177,7 +259,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 				normalizedKey: normalizePerformerKey(trimmed),
 				aliases: [],
 				colorId: allocatePerformerColor(trimmed, performers),
-				order: performers.length
+				order: nextOrder
 			};
 			commitRoster([...performers, next], `Added ${trimmed} to the roster.`);
 		},
@@ -210,34 +292,17 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			const trimmed = displayName.trim();
 			const current = performers.find((performer) => performer.id === id);
 			if (!current || !trimmed) return;
-			// The previous spelling stays as an alias so undoing the document edit,
-			// or a header the user has not retyped yet, still resolves to this
-			// performer instead of importing a duplicate.
-			const aliases = [...current.aliases, previousName].filter(
-				(alias, index, allAliases) =>
-					alias.length > 0 && alias !== trimmed && allAliases.indexOf(alias) === index
-			);
+			const next = renamedPerformer(current, previousName, trimmed);
 			if (
 				current.displayName === trimmed &&
-				aliases.length === current.aliases.length &&
-				aliases.every((alias, index) => alias === current.aliases[index])
+				next.aliases.length === current.aliases.length &&
+				next.aliases.every((alias, index) => alias === current.aliases[index])
 			) {
 				return;
 			}
 			// The header edit already lives in editor undo, so this roster update
 			// deliberately carries no toast of its own.
-			setRoster(
-				performers.map((performer) =>
-					performer.id === id
-						? {
-								...performer,
-								displayName: trimmed,
-								normalizedKey: normalizePerformerKey(trimmed),
-								aliases
-							}
-						: performer
-				)
-			);
+			setRoster(performers.map((performer) => (performer.id === id ? next : performer)));
 		},
 		recolorPerformer(id) {
 			const current = performers.find((performer) => performer.id === id);

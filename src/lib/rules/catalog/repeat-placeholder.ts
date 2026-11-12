@@ -1,9 +1,14 @@
 import type { Diagnostic, RuleDefinition } from '#lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup } from './utils.js';
 
+/** Header instructions remain actionable when their syntax is hidden by another format. */
+export function hasRepeatHeaderInstruction(header: string): boolean {
+	return /(?:\b(?:x\s*\d+|\d+\s*x)\b|×\s*\d+\b|\b\d+\s*×|\brepeat(?:ed)?\b)/iu.test(header);
+}
+
 export const repeatPlaceholderRule: RuleDefinition = {
 	id: 'repeat.placeholder',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'warning',
 	fixability: 'none',
 	sourceIds: ['G-REPEATS'],
@@ -11,10 +16,7 @@ export const repeatPlaceholderRule: RuleDefinition = {
 		const diagnostics: Diagnostic[] = [];
 		for (const section of document.sections) {
 			const header = section.header;
-			if (
-				header &&
-				/(?:\b(?:x|×)\s*\d+\b|\b\d+\s*(?:x|×)\b|\brepeat(?:ed)?\b)/iu.test(header.rawNamePart)
-			) {
+			if (header && hasRepeatHeaderInstruction(header.rawNamePart)) {
 				const rawNameRange = {
 					from: header.nameRange.from,
 					to: header.nameRange.from + header.rawNamePart.length

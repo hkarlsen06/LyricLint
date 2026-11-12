@@ -170,12 +170,28 @@
 
 	/* The link and the unlinkable title it falls back to, and nothing else: the
 	   tooltip is a child of this element too, and it lays itself out. */
+	/* The citation is present but quiet: the message and the decision lead a
+	   finding, and a bold accent link with a colored logo outshouted both. It
+	   rests in the meta line's own muted tone with no underline; under the
+	   pointer or focus it takes the text color and its underline, and the logo
+	   its color. The external-link mark stays, so leaving the page is announced
+	   by shape as well as by the screen-reader note. */
 	.source-citation a,
 	.source-citation__label {
 		display: inline-flex;
+		min-width: 0;
 		gap: 0.25rem;
 		align-items: center;
-		font-weight: var(--font-weight-semibold);
+		color: var(--color-text-muted);
+		font-weight: var(--font-weight-medium);
+		text-decoration: none;
+	}
+
+	.source-citation a:hover,
+	.source-citation a:focus-visible {
+		color: var(--color-text);
+		text-decoration: underline;
+		text-decoration-thickness: var(--border-width);
 	}
 
 	.source-citation :global(.source-citation__external) {
@@ -199,6 +215,20 @@
 		   rather than the token itself: at a mark this small the full 4px reads as
 		   a circle, and a mark that has gone circular is cropping its own tile. */
 		border-radius: calc(var(--radius-xs) / 2);
+		filter: grayscale(1);
+	}
+
+	.source-citation a:is(:hover, :focus-visible) .source-citation__favicon {
+		filter: none;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.source-citation a,
+		.source-citation__favicon {
+			transition:
+				color var(--duration-fast) var(--ease-out-quart),
+				filter var(--duration-fast) var(--ease-out-quart);
+		}
 	}
 
 	/*

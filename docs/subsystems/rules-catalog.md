@@ -1,10 +1,98 @@
 # The rules catalog: tiers, shared predicates, Harper, and how a rule ships
 
 Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/results.ts`, `src/lib/rules/harper.ts`, `src/lib/rules/registry.ts`,
+`src/lib/rules/musixmatch.ts`, `src/lib/profiles/`,
 `src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/spelling.ts`, `src/lib/rules/data/rule-set.ts`, `src/lib/ui/state/wiring.ts`,
 `src/lib/rules/catalog/policy-cases.ts`, `src/lib/languages/registry.ts`, `src/lib/languages/detect.ts`, `src/lib/languages/statistical-detector.ts`, `services/rules-assistant/`
 
 ## The rules
+
+- Repeat-header detection is shared with retained-detail Review. Multiplication signs in
+  `Chorus ×2` and `Chorus 2×` are punctuation, so their recognition does not require a word
+  boundary beside the sign. The source version and copy count remain explicit user decisions.
+
+- `RuleContext.profile` selects the platform-policy registry; omitted means Genius for existing
+  callers. Musixmatch policy findings have `mxm.*` identifiers and their own sources. Shared
+  transcription checks run beside those policies with their original IDs and citations.
+  `getRule` resolves both registries, while `enabledRules` and the existing Genius manifest
+  keep their original scope.
+  A profile switch does not apply diagnostic fixes. Musixmatch fixes are explicit previews,
+  bound to the current revision; semantic/audio uncertainties and contradictory sources never
+  produce automatic rewrites. `musixmatch.test.ts` pins repeated profile selection without
+  mutating the parsed input and checks every researched clause against the coverage inventory.
+- Explicit `RuleContext.languageRanges` scope both Genius and Musixmatch checks inside multilingual lyrics.
+  A finding belongs to the language at its start; findings or fixes crossing a language boundary
+  require review and carry no replacement. Ranges are validated before evaluation by `rules/language-ownership.ts`, shared with Harper.
+  Raw locale ownership protects boundaries; bounded policy passes retain Genius en-US/en-GB
+  distinctions and existing Nordic quote policies rather than running once per arbitrary locale.
+  Projection scopes include only visible source segments. Hidden retained language ownership
+  remains in the model without becoming an empty checking range. A transformed wording with
+  mixed source languages is undetermined for checking, rather than borrowing one language for
+  its indivisible visible unit. The checking boundary keeps its strict range validation.
+  Quote-policy languages retain their own tag without acquiring another language's spelling rules.
+  Language-independent checks run
+  once. Language-dependent findings belong to their starting owner, with cross-owner edits
+  withheld. Whole-document language mismatch detection treats explicit multilingual text as
+  inconclusive; section checks still see the complete document for structural context.
+  Harper receives `projectionPolicyContext` ranges, masks non-English passages and split tokens,
+  and separates their grammar context with projection-only paragraph boundaries. Removing a
+  foreign phrase must not create a new English clause from its neighbors. English spelling on
+  either side and grammar in unaffected passages remain checked.
+  It rejects findings or edits spanning different owners. The installed Harper API returns
+  UTF-16 spans (its internal Rust span is scalar-based); projection mapping indexes the public
+  UTF-16 span, including after emoji. English grammar checking is available in both lyric
+  formats. Its dictionary follows the active profile; Genius-specific spellings are not
+  imported for Musixmatch. Dictionary replacement and linting share one serialized engine
+  turn, so an overlapping old-profile request cannot contaminate the new profile's dictionary.
+  Literal Musixmatch brackets and tags are not masked as Genius
+  syntax. Its decade tokens also remain in the grammar input; a spelling guess at a letter
+  fragment attached to digits cannot replace the complete alphanumeric token. This boundary
+  refusal does not classify or convert numbers. Unreviewed languages
+  supply no lexical-standardization evidence; the Cuz meaning gate specifically requires English.
+  `profiles/decisions.ts` separately evaluates user-confirmed ordinary quantities and instrumental
+  intervals: exact integer values, pronunciation/role facts, current recording identity and
+  interval placement are required. Unsupported numeric morphology and contradictory Japanese
+  spacing remain explicit refusals; no number or recording fact is inferred on switching.
+- `RuleContext.confirmedFacts` contains only currently eligible model decisions mapped into the
+  exact active projection by `profiles/confirmed-facts.ts`. The live checker and panel planners
+  share `projectionPolicyContext`; mismatched/recovery snapshots supply no facts. A matching
+  quantity or generated instrumental marker settles only its semantic review question. Repeated
+  numbers, unconfirmed literal markers and unrelated spelling/layout findings remain checked.
+  Changed ownership, quantity text, language or recording context requires confirmation again;
+  diagnostic ignores never supply facts. `confirmed-facts.test.ts` and the real-editor
+  `WorkspaceRules.svelte.test.ts` cover scoping, invalidation and text-identical undo.
+- English quantity diagnostics and quantity commits share lexical phrase boundaries in
+  `profiles/quantity-ranges.ts`. Recognized tens, hundreds and thousands stay together across
+  spaces or hyphens, within a lyric line and the selection's language ownership. A component
+  or word fragment cannot be confirmed as the whole quantity. This recognizes a range only;
+  value, role, pronunciation and exact wording still require supplied facts. Markup is not
+  absorbed into a phrase. Unknown forms are never parsed into a value; existing explicitly
+  supplied custom wording and the manual-edit route remain available.
+  Recognition splits at every explicit raw language boundary, including tags from the same
+  policy family. It keeps the original physical word edges so a language assignment inside
+  a word cannot manufacture a quantity. The diagnostic and commit guard share these scopes.
+- Protected recovery snapshots keep exact visible text without running native or grammar
+  checking. Metadata-driven checking effects leave that state alone rather than republishing
+  it while waiting for a normal checking result.
+- General transcription checks run in both profiles through `sharedTranscriptionRules`:
+  whitespace hygiene, balanced and spaced parentheses, English contractions, first-person I
+  and common English spelling. They retain their existing IDs, sources, language boundaries
+  and fix tiers. They are separate from the Musixmatch policy registry and do not acquire
+  official platform provenance. Profile-specific punctuation, number, header and slang rules
+  remain separate. `shared-checking.test.ts` and real Harper sample checks pin the distinction.
+- Musixmatch sources retain `platformStanding` independently of Genius's author-role ladder.
+  Official platform sources are official for that platform; a linked community supplement does
+  not acquire that standing. `profiles/coverage.ts` records every researched clause, its language
+  scope, checks and remaining limits. No rule claims that passing text checks certifies listening,
+  authorship, native submission, translation quality or unresolved Arabic/Korean policy evidence.
+- Musixmatch check registration adds the definition in `musixmatch.ts`, its clause mapping in
+  `profiles/coverage.ts`, an invented trigger/accepted/ambiguous case in
+  `profiles/policy-cases.ts`, focused behavior tests, and a new pinned profile policy version when
+  reviewed policy or representation semantics change. A corrective diagnostic-range change
+  increments the rule version without silently changing the stored policy identity: existing
+  conversion envelopes reject unavailable pinned versions. `profiles/reference.test.ts` derives and verifies each public check page;
+  the sitemap includes both registries. The four-registration Genius process below remains for
+  the existing Genius catalog.
 
 - Every rule declares `settlesOn` (`character` | `caret` | `line` | `document`; default
   `line`): the axis is how far right a change can still reach, not time. A diagnostic may
@@ -15,6 +103,12 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   editor's own annotation) over any guess; `isTypingChange` judges only undispatched changes,
   by changed span. A selection defers nothing; mirrored-line deferral clamps to the peer's
   own line range.
+- `profiles/censorship.ts` owns whole masked-word candidates shared by both format checks and
+  explicit censor decisions. Candidates spanning multiple star runs remain one decision; a partial
+  range cannot leave a residual mask behind.
+  It also owns audible-prefix content validation shared by decisions and saved details.
+  Refusals distinguish excessive length, spaces or line breaks, and stars or markup.
+- `repeat.placeholder` owns `hasRepeatHeaderInstruction`, shared by visible Genius findings and retained Musixmatch metadata. A section type cannot settle a repeat instruction. Instrumental bounds beyond a finite recording name its actual duration separately from malformed boundaries; all listening, precision and interior-placement guards remain.
 - Where two rules can fire on one line, one owns the predicate and the other imports it:
   `isProseHeaderLine` (header-prose ← header-missing, numbers.spell-out),
   `isImmediateRepeat`, `recognizedUnknownMarker`, `headerNameIsEmpty`, and
@@ -83,6 +177,18 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   kinds drop whole in `appliesToLyrics`; marked g-drops (`runnin'`) are filtered in the
   provider; unmarked g-drops get a synthesized elision-mark fix only when Harper's own
   suggestions endorse the `-ing` form (`elisionMarkFixes`). Rules that merely misfire stay on.
+- Pending Harper engine imports belong to the provider's lifetime. Disposal cancels
+  construction, and `beforeunload` cancels that initialization attempt before WebKit
+  stops allowing the old document to create workers or fetch WASM. `pagehide` is too
+  late for this boundary. Cancellation creates no worker and does not turn grammar
+  off: Workspace owns the navigation attempt before its outer provider-module import,
+  passes that lifetime through engine initialization, and never records a canceled answer
+  as clean coverage. Pointer or keyboard input in the surviving page resumes checking
+  unchanged text; timers and import completions alone never resume a departing page.
+  A canceled initialization has its own error type, distinct from live engine failure.
+  A ready cached engine survives a canceled navigation. The factory awaits main-thread binary setup before constructing WorkerLinter,
+  whose Serializer otherwise starts setup without an owner for its rejection. Existing
+  live-document engine failures still reach the workbench's unavailable feedback.
 - Shorthand expansion (`spelling.texting-shorthand`) is gated on one question (does anybody
   sing the letters?), never a `safe` fix, never mirrors the token's case beyond a leading
   capital, and leaves neighbouring sets to the rules that own them.
@@ -607,9 +713,10 @@ What stays on is deliberate too. The its/it's and missing-possessive-apostrophe 
 same standard punctuation `contraction.apostrophe` already enforces natively, so refusing it would
 be the catalog disagreeing with itself. What remains open is the slang Harper's dictionary simply
 lacks (`finna`, `shawty`, `hunnid`, `gon'` all drew spelling guesses in the same probes), which is
-a curation question for the reviewed spellings or a taught lexicon, not a filter. And a per-user
-toggle for Harper as a whole is a settings surface this workbench does not have yet; the audit
-removes what is wrong for everyone, and only that.
+a curation question for the reviewed spellings or a taught lexicon, not a filter. The original
+audit predated the persisted Grammar checking control now available in Preferences. That
+control enables the same provider in either English lyric format; the profile still owns its
+accepted dictionary and the audit's transcription refusals remain in force.
 
 Implementation: `disabledHarperLints`, `appliesToLyrics`, `isMarkedGDrop` and `elisionMarkFixes`
 in `src/lib/rules/harper.ts`, and the pins in `harper.test.ts` (the stub tests for the ordering,
@@ -738,3 +845,26 @@ callers, and `runRules` remains the single synchronous rule runner. Shared edito
 builds context and applies the existing deferral policy without importing that runner; callers
 that execute native rules import the engine explicitly. Engine and fix-contract tests continue
 to verify ordering and all-or-nothing collision handling.
+
+
+### A departing document cannot start Harper after its engine imports resolve
+
+The native delete/reset/new/open/reload workflow reproduced a blob-worker error and a
+same-origin WASM fetch error in desktop WebKit at revision
+`327ff529b2cca55ae0448f6147caaf80960d1b7c`. All persistence assertions passed.
+An event-driven replay reloaded at the engine chunk request: the old time origin
+logged `beforeunload`, then worker construction and WASM fetch with both access-control
+errors, then `pagehide` and `unload`, then the new time origin. This is an initialization
+lifetime race, not evidence for weakening CSP. Harper's Serializer starts WASM setup
+without awaiting worker readiness, explaining the paired failures.
+
+A first production replay of the import-only guard also exposed canceled, already
+in-flight WASM setup as unhandled Serializer and queue rejections. The factory must
+therefore own main-thread binary setup as well, before constructing the worker.
+Cancellation is handled only for a departing or disposed lifetime; live failures propagate.
+
+The factory now observes navigation while awaiting imports and setup, and the provider supplies
+an abort signal for disposal. Neither canceled attempt constructs a worker. An aborted
+navigation attempt clears the cached initialization so a subsequent request remains
+usable. The focused lifetime tests cover both boundaries and renewed grammar requests;
+the production WebKit replay covers the browser failure that mocks cannot establish.

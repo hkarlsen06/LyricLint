@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { browser } from '$app/env';
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { parseDocument } from '#lib/core/parser.js';
+	import { draftSnapshot } from '#lib/ui/state/draft-snapshot.js';
 	import type {
 		AutosaveStatus,
 		DraftRecord,
@@ -23,6 +23,11 @@
 		type LyricLintDatabase,
 		type WorkspaceBackupController
 	} from '#lib/persistence/index.js';
+	import {
+		createDepartureCheckpoint,
+		recoverDepartureCheckpoint,
+		departureRecoveryFile
+	} from '#lib/persistence/departure-checkpoint.js';
 	import { siteUrl } from '#lib/seo.js';
 	import { currentRuleSet } from '#lib/rules/data/rule-set.js';
 	import { sourceRegistry } from '#lib/rules/data/sources.js';
@@ -43,6 +48,7 @@
 
 	let controller = $state<WorkbenchController | undefined>();
 	let bootError = $state<string | undefined>();
+	let storageNotice = $state<string | undefined>();
 	// Another tab of this browser holds the workbench, so this one has not opened
 	// local storage and is not going to until that tab goes away. It outranks the
 	// pending startup announcement.
@@ -52,6 +58,8 @@
 	let revealed = $state(false);
 	let database: LyricLintDatabase | undefined;
 	let backup: WorkspaceBackupController | undefined;
+	let checkpointPending: (() => boolean) | undefined;
+	let recoveryFile = $state<string | undefined>();
 	// Held for the life of this tab and given up in `onDestroy`, after the final
 	// flush has landed and the database is closed, never in the mount cleanup,
 	// which returns while that flush is still in flight.
@@ -59,22 +67,22 @@
 	const feedback = useFeedbackState();
 	let markShown: () => void = () => {};
 	const workspaceShown = new Promise<void>((resolve) => (markShown = resolve));
+	beforeNavigate((navigation) => {
+		if (navigation.willUnload || navigation.to?.route.id === page.route.id) return;
+		if (checkpointPending?.() === false) navigation.cancel();
+	});
 	const finishNavigation = finishWorkbenchNavigation();
 	$effect(() => {
 		if (revealed || bootError || tabBusy) finishNavigation();
 	});
 
 	function snapshotFor(draft: DraftRecord, revision = 0): EditorSnapshot {
-		return {
-			revision,
-			text: draft.text,
-			selection: draft.editorSelection ?? { anchor: 0, head: 0 },
-			parsed: parseDocument(draft.text),
-			diagnostics: [],
-			composing: false,
-			canUndo: false,
-			canRedo: false
-		};
+		const opened = draftSnapshot(draft, revision);
+		if (opened.notice) {
+			feedback.announce(opened.notice);
+			feedback.addToast({ message: opened.notice });
+		}
+		return opened.snapshot;
 	}
 
 	// The controller starts with a headless editor handle; the real CodeMirror
@@ -139,16 +147,36 @@
 					}
 				}
 
-				database = await openDatabase();
+				database = await openDatabase(undefined, (state) => {
+					if (cancelled) return;
+					if (state === 'blocked') {
+						storageNotice =
+							'Close other LyricLint tabs to finish upgrading local storage. Your saved drafts are unchanged.';
+					} else if (state === 'version-changed') {
+						storageNotice =
+							'Another tab upgraded local storage. Keep this tab open and export your current Scribe to preserve any unsaved edits.';
+						feedback.announce(storageNotice);
+					} else if (state === 'ready') storageNotice = undefined;
+				});
 				// Hydrated before the workbench exists to ask: the store's readers are
 				// synchronous, so the one await this costs is spent here, at boot.
+				const checkpoint = createDepartureCheckpoint(() => window.sessionStorage);
+				const recovery = await recoverDepartureCheckpoint(database, checkpoint);
 				const ignoreStore = await createDraftIgnoreStore(database);
 				backup = createWorkspaceBackup(database, { ignoreStore });
 				const repository = createDraftRepository(database);
 				const mediaRepository = createMediaRepository(database);
 				const autosave = createAutosaveController(repository, {
-					onStatusChange: (status: AutosaveStatus) => controller?.setSaveStatus(status)
+					onStatusChange: (status: AutosaveStatus) => controller?.setSaveStatus(status),
+					checkpoint,
+					onCheckpointFailure: () => {
+						const message =
+							'Your latest edits could not be kept for reload. Keep this tab open until saved, or export your Scribe.';
+						feedback.announce(message);
+						feedback.addToast({ message });
+					}
 				});
+				checkpointPending = () => autosave.checkpoint?.() ?? false;
 				const initialDraft = await recoverStartupDraft(repository, mediaRepository);
 				const initialRecentLanguages = await repository.getRecentLanguages();
 				// `onDestroy` ran while the open was still in flight, so it found no
@@ -194,6 +222,13 @@
 						return snapshot;
 					}
 				});
+				if (recovery.recovered) {
+					const message = recovery.conflicted
+						? 'Your latest edits were recovered as a separate conflict copy. The other saved version is unchanged.'
+						: 'Your latest edits were recovered after leaving before autosave finished. Reconnect any unsaved local audio file if needed.';
+					feedback.announce(message);
+					feedback.addToast({ message });
+				}
 				// A link captured at boot (`handoff-links.ts`) is opened before the
 				// workspace first draws, so the editor mounts on the handed-over lyric
 				// rather than flashing the draft it replaces. Later ones, such as the
@@ -210,32 +245,54 @@
 			} catch (error) {
 				if (!cancelled) {
 					bootError = "Local storage is unavailable, so 'scribes cannot be saved in this browser.";
+					try {
+						recoveryFile = departureRecoveryFile(window.sessionStorage);
+					} catch {
+						/* Storage itself is unavailable. */
+					}
+					if (recoveryFile)
+						bootError =
+							'Your pending edits could not be recovered. Download the recovery file before trying again. Your saved drafts and pending recovery are preserved.';
 					console.error('LyricLint failed to open local storage.', error);
 				}
 			}
 		})();
 
-		// Hiding the tab is the last moment either of these is reachable, and a
-		// reload or a close arrives here first. The playhead flushes alongside the
-		// text for the same reason the text flushes at all.
+		// The synchronous checkpoint survives destruction during the async flush.
+		// Browsers can deliver pagehide before hidden visibility. If the page stays
+		// alive, the guarded save and linked backup still finish normally.
 		const flushWhenHidden = () => {
 			if (document.visibilityState !== 'hidden') return;
+			checkpointPending?.();
 			void (async () => {
-				await Promise.all([controller?.flushAutosave(), controller?.media?.flushPosition()]);
+				await controller?.flushAutosave();
 				await controller?.backup?.flush();
 			})();
 		};
+		const beforeUnload = (event: BeforeUnloadEvent) => {
+			if (checkpointPending?.() === false) {
+				event.preventDefault();
+				event.returnValue = '';
+			}
+		};
+		const pageHide = () => {
+			checkpointPending?.();
+		};
+		window.addEventListener('beforeunload', beforeUnload);
+		window.addEventListener('pagehide', pageHide);
 		document.addEventListener('visibilitychange', flushWhenHidden);
 		return () => {
 			cancelled = true;
 			stopHandoffs?.();
 			document.removeEventListener('visibilitychange', flushWhenHidden);
+			window.removeEventListener('beforeunload', beforeUnload);
+			window.removeEventListener('pagehide', pageHide);
 		};
 	});
 
 	// Leaving the page is the other last moment, and the only one the
 	// `visibilitychange` flush above never sees: a client-side navigation (the
-	// `About LyricLint` link in the status bar is one press away from the caret)
+	// `About LyricLint` link in Preferences is reachable from the workbench)
 	// hides nothing and unloads nothing. Closing the database under the autosave's
 	// own ~250ms debounce lost the last edit and left the deferred write to throw
 	// against a closed connection, so the flush comes first and the close waits for
@@ -250,6 +307,7 @@
 	// the teardown side.
 	onDestroy(() => {
 		if (!browser) return;
+		checkpointPending?.();
 		backup?.destroy();
 		void (controller?.flushAutosave() ?? Promise.resolve())
 			.catch((error: unknown) => console.error('The final autosave flush failed.', error))
@@ -286,9 +344,25 @@
 {#if bootError}
 	<div class="boot-message">
 		<p role="alert">{bootError}</p>
+		{#if recoveryFile}
+			<a
+				class="button"
+				download="lyriclint-departure-recovery.json"
+				href={`data:application/json;charset=utf-8,${encodeURIComponent(recoveryFile)}`}
+				>Download recovery file</a
+			>
+		{/if}
 		<button class="button" type="button" onclick={() => location.reload()}>Reload</button>
 	</div>
 {:else if controller}
+	{#if storageNotice}
+		<div class="storage-notice">
+			<p role="alert">{storageNotice}</p>
+			<button type="button" class="button" onclick={() => controller?.exportScribe()}
+				>Export current Scribe</button
+			>
+		</div>
+	{/if}
 	<Workspace
 		{controller}
 		editorComponent={EditorPane}
@@ -304,14 +378,21 @@
 	/>
 {:else if tabBusy}
 	<TabBusyNotice />
+{:else if storageNotice}
+	<div class="boot-message"><p role="status">{storageNotice}</p></div>
 {/if}
 
 <!-- Announce pending startup without a visual splash or animation gate. -->
-{#if !revealed && !bootError && !tabBusy}
+{#if !revealed && !bootError && !tabBusy && !storageNotice}
 	<p class="sr-only" role="status">Loading your workspace…</p>
 {/if}
 
 <style>
+	.storage-notice {
+		padding: var(--space-3) var(--space-4);
+		color: var(--color-text);
+	}
+
 	.boot-message {
 		margin: var(--space-8) auto;
 		max-width: var(--measure-prose);

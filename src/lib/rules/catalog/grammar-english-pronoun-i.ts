@@ -5,6 +5,13 @@ import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 const lowercasePronounI =
 	/(?<![\p{L}\p{N}_])i(?=(?:['’](?:[mM]|[vV][eE]|[dD]|[lL][lL])(?![\p{L}\p{N}_])|(?!\.[eE]\.)(?![-'’\p{L}\p{N}_])))/gu;
 
+const lowercasePronounIAtStart = new RegExp(`^(?:${lowercasePronounI.source})`, 'u');
+
+/** Line-capitalization checks leave this token to the pronoun's own finding. */
+export function startsWithLowercaseEnglishPronounI(text: string): boolean {
+	return lowercasePronounIAtStart.test(text);
+}
+
 export const grammarEnglishPronounIRule: RuleDefinition = {
 	id: 'grammar.english-pronoun-i',
 	version: 1,

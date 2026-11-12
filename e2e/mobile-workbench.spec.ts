@@ -1,3 +1,4 @@
+import { importPrimary, exportOutput } from './format-fixture.js';
 import { expect, test, type Page } from '@playwright/test';
 
 // Functional cases need the ready workspace. Keep the complete animated startup
@@ -32,6 +33,57 @@ async function replaceLyrics(page: Page, text: string): Promise<void> {
 	await lyricsEditor(page).fill(text);
 	await expectLyrics(page, text);
 }
+
+test('phone independent export preserves multilingual lyrics and retained annotations through reload', async ({
+	page
+}) => {
+	await openWorkspace(page);
+	const source = '[Verse]\n[مرحبا](123) — café\n\n[Chorus]\n夜の光 🎵';
+	const plain = 'مرحبا — café\n\n夜の光 🎵';
+	await replaceLyrics(page, source);
+	for (let index = 0; index < 3; index++) {
+		await exportOutput(page, 'Musixmatch', plain);
+		await expectLyrics(page, source);
+	}
+	await page.reload();
+	await expectLyrics(page, source);
+	await exportOutput(page, 'Musixmatch', plain);
+});
+
+test('hidden Song clear preserves a saved primary and native history', async ({ page }) => {
+	const errors: string[] = [];
+	page.on('pageerror', (error) => errors.push(error.message));
+	await openWorkspace(page);
+	const source = '[Verse: Åsa]\nA [café](123456) 星\n\n[Chorus: Bjørn]\nWe sing שלום';
+	const plain = 'A café 星\n\nWe sing שלום';
+	await importPrimary(page, source);
+	await mobileNavigation(page).getByRole('button', { name: 'Tools', exact: true }).click();
+	await page.getByRole('tab', { name: 'Song', exact: true }).click();
+	await expect(lyricsEditor(page)).not.toBeVisible();
+
+	await expectLyrics(page, plain);
+	await page.getByText('Clear this transcription', { exact: true }).click();
+	await page
+		.getByRole('button', { name: 'Clear lyrics and retained details…', exact: true })
+		.click();
+	await page.getByRole('button', { name: 'Delete lyrics and details', exact: true }).click();
+	await expectLyrics(page, '');
+	await expect(page.locator('.profile-picker')).toHaveText('Musixmatch');
+	await expect(page.getByRole('button', { name: 'Lyric format: Genius' })).toHaveCount(0);
+	async function history(name: 'Undo' | 'Redo') {
+		await page.getByRole('button', { name: 'Document', exact: true }).click();
+		await page.locator('.document-toolbar').getByRole('button', { name, exact: true }).click();
+		await page.keyboard.press('Escape');
+	}
+	await history('Undo');
+	await expectLyrics(page, plain);
+	await history('Redo');
+	await expectLyrics(page, '');
+	await history('Undo');
+	await exportOutput(page, 'Genius', source);
+	await expectLyrics(page, plain);
+	expect(errors).toEqual([]);
+});
 
 test.describe('normal-motion integration', () => {
 	test.use({ reducedMotion: 'no-preference' });
@@ -110,7 +162,7 @@ test('phone review fixes a finding beside its lyric passage and returns to writi
 			}
 		});
 	});
-	await page.getByRole('button', { name: 'Copy lyrics' }).click();
+	await page.getByRole('button', { name: 'Copy Genius' }).click();
 	await expect(page.locator('html')).toHaveAttribute('data-copied-lyrics', "[Verse]\nI'ma go");
 	await page.getByRole('button', { name: 'Document', exact: true }).click();
 	await page.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -360,7 +412,7 @@ test('phone review steps through a decision’s places and sets one aside', asyn
 test('phone language search keeps the touch font and target floor', async ({ page }) => {
 	await openWorkspace(page);
 	await page.getByRole('button', { name: 'Document', exact: true }).click();
-	await page.getByRole('button', { name: 'Lyric language: English' }).click();
+	await page.getByRole('button', { name: 'Document language: English' }).click();
 	const search = page.getByPlaceholder('Search languages');
 	await expect(search).toBeVisible();
 	const metrics = await search.evaluate((element) => ({
@@ -425,7 +477,9 @@ test('the phone Document menu has named rows that receive taps above the editor 
 	);
 	await expect(menu.getByRole('button', { name: 'Undo', exact: true })).toHaveText('Undo');
 	await expect(menu.getByRole('button', { name: 'Redo', exact: true })).toHaveText('Redo');
-	await expect(menu.getByRole('button', { name: /^Lyric language:/u })).toContainText('English');
+	await expect(
+		menu.getByRole('button', { name: 'Document language: English', exact: true })
+	).toHaveText('Document language');
 	for (const button of await menu.locator(':scope > button:not(:disabled)').all()) {
 		await expect(button).toBeInViewport();
 		expect(

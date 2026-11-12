@@ -26,7 +26,11 @@ export default defineConfig({
 			testMatch: [
 				'**/mobile-workbench.spec.ts',
 				'**/mobile-guide.spec.ts',
-				'**/guide-help.spec.ts'
+				'**/guide-help.spec.ts',
+				'**/language-dialog.spec.ts',
+				'**/immediate-reload.spec.ts',
+				'**/draft-menu.spec.ts',
+				'**/main-format-export.spec.ts'
 			],
 			use: { ...devices['iPhone 13'], browserName: 'webkit' }
 		}

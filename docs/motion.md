@@ -2,7 +2,8 @@
 
 LyricLint uses native Web Animations through a Svelte attachment in
 `src/lib/ui/layout/workspace-entrance.ts`. `Workspace.svelte` keeps it on the workspace root
-and restarts its lifetime when `controller.draftId` changes. The opacity reveal needs no
+and restarts its lifetime when `controller.draftSession` changes. Adopting a guarded-save
+conflict copy keeps that load session, editor history and entrance. The opacity reveal needs no
 animation-library download. The installed Motion package remains available for effects
 that need it.
 
@@ -65,6 +66,24 @@ resurrecting an explicitly dismissed splash. Missing API support uses the same C
 with a direct DOM handoff. Reduced motion parks the mark and wave and skips the minimum and
 explosion. Direct page loads and draft switches do not show it. See
 [site guidance](subsystems/site.md) for its lifetime and refusal paths.
+
+State changes have one CSS vocabulary, all inside the 120 to 240ms budget and dropped under
+reduced motion. Menus that arrive lift: the drafts menu, the phone Document menu and
+the editor's diagnostic popover are at their resting place and full strength from the first
+frame, and only their shadow deepens, from `--shadow-control` to their own over
+`--duration-slow` (`surface-lift` in `overlays.css`, opted into with `.surface-lift`). A modal
+dialog arrives whole while its backdrop dims over `--duration-medium`; its own shadow does not
+animate, because WebKit re-rasterizes that large blurred paint on every frame (in a timing
+probe of the export flow, with six dialog openings, the dialog lift was most of the motion's
+cost). Nothing moves, scales or
+fades, so no control is pressed or measured mid-flight and no surface is ever
+part-transparent; leaving is instant. Controls ease fill and color over
+`--duration-fast`; the dock's tools and the new-draft format cards also ease their edge, so
+the open tool and a chosen format settle rather than snap. The shared control tiers do not
+ease their edge: on a 32px button the change is invisible, and it added transition work to
+every control on the WebKit export flow, the suite's thinnest timing margin. The open finding's accent rail grows from its middle over
+`--duration-medium`. The new-draft format tray fades out over `--duration-fast` when writing
+begins, the one exit that animates, because it is leaving a surface the user is now typing in.
 
 ## Best practices
 
