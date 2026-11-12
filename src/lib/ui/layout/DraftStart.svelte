@@ -11,7 +11,7 @@
 	const id = $props.id();
 	const profiles: ProfileId[] = ['genius', 'musixmatch'];
 	const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
-	const formats: Record<ProfileId, { detail: string; sample: readonly [string, string] }> = {
+	const formats = {
 		genius: {
 			detail: 'Section headers in brackets, with performers and annotations.',
 			sample: ['[Chorus: Mira & Noor]', 'Hold on, hold on']
@@ -20,7 +20,7 @@
 			detail: 'Plain lines in stanzas, backing vocals in parentheses.',
 			sample: ['Hold on, hold on', "Don't let go (Let go)"]
 		}
-	};
+	} satisfies Record<ProfileId, { detail: string; sample: readonly [string, string] }>;
 	const leave = () => ({ duration: prefersReducedMotion() ? 0 : 120 });
 </script>
 
