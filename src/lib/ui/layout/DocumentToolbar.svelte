@@ -699,8 +699,12 @@
 		flex: none;
 		gap: var(--space-1);
 	}
-	.document-toolbar--phone .document-toolbar__commands :global(.profile-picker) {
-		margin-inline-end: auto;
+	/* The format and its export read as one group at the row's start, and the
+	   copy holds the far end on its own. That also keeps Export clear of the
+	   Document menu, which hangs from the identity row over this one's end and
+	   stays open after a history command. */
+	.document-toolbar--phone .document-toolbar__commands > .button--contrast {
+		margin-inline-start: auto;
 	}
 	.document-toolbar--phone .draft-switcher {
 		flex: 1;
