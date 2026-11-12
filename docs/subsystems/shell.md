@@ -764,6 +764,14 @@ an ordinary draft: counts that could not have been otherwise, offering to filter
 are not in the document, the same discipline the Song tab's counts follow. A clean draft draws no
 row at all.
 
+**Each kind is a two-line tile, so four kinds fit one row.** Four names on one line need about
+430px and the panel gives 330, so the one-line pills wrapped and left the last kind alone on a
+second row. A tile puts the count beside the mark and the name under both (`.filter-chip` in
+`controls.css`), which fits all four at every panel width and on a 360px phone, and makes the
+count the first thing read. The name never wraps or truncates, because this row is the one place
+that pairs the four marks with their names. The accessible name still reads the name, then the
+count.
+
 **A chip's count is over the unignored diagnostics and blind to the filters**, exactly as in the
 rule reference, and that is what makes drawing on the count safe: a kind the user has switched off
 keeps its count, so it keeps its chip, which is the only control that brings it back. Read the

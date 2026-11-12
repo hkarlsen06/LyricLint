@@ -255,7 +255,7 @@
 					     without this the only thing tying "Suggestions" to the eight rows
 					     it hides would be their shared color. -->
 						<SeverityIcon severity={filter.value} />
-						{filter.label}
+						<span class="filter-chip__label">{filter.label}</span>
 						<span class="filter-chip__count">{counts[filter.value]}</span>
 					</button>
 				{/each}
@@ -634,38 +634,22 @@
 		font-size: var(--font-size-xs);
 	}
 
-	/* The chips hang from the tab strip: no gap above them, and a rule below
-	   separating them from the run of diagnostic cards. They are drawn whenever the
-	   document has a finding of any kind: one chip per kind that is actually
-	   there, so the row costs the panel nothing on a clean draft and never offers
-	   to filter out a severity with nothing in it. */
+	/* The kinds hang from the heading as one row of tiles, drawn whenever the
+	   document has a finding of any kind: one per kind that is actually there,
+	   so the row costs the panel nothing on a clean draft and never offers to
+	   filter out a severity with nothing in it. */
 	.linter-panel__filters {
 		display: flex;
 		padding: 0 var(--panel-inset) var(--space-2);
 		border-bottom: 0;
-		flex-wrap: wrap;
-		gap: var(--space-1);
+		gap: var(--space-1-5);
 		/* Chrome, like the tab strip it drops out of: the row is an extension of
 		   the tabs, not the first item in the list of diagnostics. */
 		background: var(--color-chrome);
 	}
 
-	/* The chip itself is `.filter-chip` in `controls.css`, the same control
-	   filtering the same kinds out of a list wherever one is drawn, so it is one
-	   implementation and not two. Nothing about it needs overriding here; this
-	   row only decides where the chips sit. */
-
-	/* The count is what pressing the chip puts back. A kind with nothing in it
-	   draws no chip rather than printing a zero. It used to also drop to
-	   `opacity: 0.45` (2.2:1), which made the number the hardest thing on the
-	   chip to read. */
-	.filter-chip__count {
-		min-width: 1ch;
-		color: var(--color-text-muted);
-		font-weight: var(--font-weight-semibold);
-		font-variant-numeric: tabular-nums;
-		line-height: var(--line-height-ui);
-	}
+	/* The tile itself is `.filter-chip` in `controls.css`. Nothing about it
+	   needs overriding here; this row only decides where the tiles sit. */
 
 	/* Keep this query aligned with PHONE_WORKSPACE_QUERY. An opened finding is
 	   the whole task view, so the list's chrome steps aside for it. */
