@@ -626,6 +626,10 @@ export interface DraftSummary {
 	lyricPreview?: string;
 	/** Complete document text for list search, including lines beyond the preview. */
 	searchText?: string;
+	/** The format the draft is written in, derived for lists so two versions of a song tell apart. */
+	profile: 'genius' | 'musixmatch';
+	/** The draft carries an edited export in the other format. */
+	exported?: true;
 }
 
 /** A revision-tagged, serializable draft state accepted by autosave. */

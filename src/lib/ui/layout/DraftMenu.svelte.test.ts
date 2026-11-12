@@ -537,4 +537,54 @@ describe('DraftMenu duplicate titles', () => {
 		expect(controller.draftId).toBe('same-b');
 		expect(await repository.get('same-b')).not.toHaveProperty('lyricPreview');
 	});
+
+	test.each([390, 1200])(
+		'names each draft’s format, and its edited export, beside the date at %i pixels',
+		async (width) => {
+			await page.viewport(width, 844);
+			const drafts: DraftRecord[] = [
+				{
+					...secondDraft(),
+					id: 'genius-copy',
+					title: 'A long song title that has to give way before the format does',
+					writing: {
+						schema: 1,
+						phase: 'writing',
+						profile: 'genius',
+						export: { profile: 'musixmatch', text: 'Another line' }
+					}
+				},
+				{
+					...secondDraft(),
+					id: 'musixmatch-copy',
+					title: 'Second song',
+					text: 'Another line',
+					writing: { schema: 1, phase: 'writing', profile: 'musixmatch' }
+				}
+			];
+			const { controller } = createTestWorkbench({ drafts });
+			await controller.refreshDrafts();
+			await render(DraftMenu, { controller });
+			await userEvent.click(screen.getByRole('button', { name: "Open saved 'scribes" }));
+			await waitForBody();
+
+			const genius = screen.getByRole('button', {
+				name: /^A long song title.*Genius\s\+ Musixmatch export/
+			});
+			const musixmatch = screen.getByRole('button', { name: /^Second song Musixmatch/ });
+			expect(within(musixmatch).queryByText(/export/)).toBeNull();
+			// The format and the date stay whole; the title is what truncates.
+			for (const row of [genius, musixmatch]) {
+				const chip = row.querySelector<HTMLElement>('.draft-menu__format')!;
+				const time = row.querySelector('time')!;
+				expect(chip.scrollWidth).toBeLessThanOrEqual(chip.clientWidth);
+				expect(chip.getBoundingClientRect().right).toBeLessThanOrEqual(
+					time.getBoundingClientRect().left
+				);
+				expect(time.getBoundingClientRect().right).toBeLessThanOrEqual(
+					row.getBoundingClientRect().right + 1
+				);
+			}
+		}
+	);
 });

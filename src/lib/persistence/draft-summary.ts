@@ -23,8 +23,14 @@ export function summarizeDraft(draft: DraftRecord): DraftSummary {
 		title: isUsableDraftTitle(draft.title) ? draft.title : DEFAULT_DRAFT_TITLE,
 		language: draft.language,
 		createdAt: draft.createdAt,
-		updatedAt: draft.updatedAt
+		updatedAt: draft.updatedAt,
+		// A draft saved before formats existed is Genius text.
+		profile:
+			draft.writing?.profile === 'musixmatch' || draft.conversion?.profile === 'musixmatch'
+				? 'musixmatch'
+				: 'genius'
 	};
+	if (draft.writing?.phase === 'writing' && draft.writing.export) summary.exported = true;
 	if (isReadableDraft(draft)) summary.searchText = draft.text;
 	if (lyricPreview) summary.lyricPreview = lyricPreview;
 	return summary;

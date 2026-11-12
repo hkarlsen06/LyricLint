@@ -135,7 +135,12 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   Escape and outside presses close the native menu even before its queued toggle event updates
   the bound state. Escape returns focus to Open; an outside press retains its own focus target.
 
-- A uniquely titled draft has one identity row with its title, date and Actions disclosure.
+- Every row names its draft's main format in a chip beside the date, and adds the other
+  format when the draft carries an edited export (`Genius + Musixmatch`, with `export` for
+  screen readers). Both are derived in `summarizeDraft` and never persisted. The title is
+  what truncates; the chip and the date stay whole. Two versions of one song share a title
+  and an opening line, so the chip is what tells them apart before one is opened.
+- A uniquely titled draft has one identity row with its title, format, date and Actions disclosure.
   Only one row reveals its named Rename, Duplicate, Export Scribe and Delete controls below
   that trigger. Search, another row, Escape and closing the menu abandon pending actions.
   The confirm takes the trigger's own slot

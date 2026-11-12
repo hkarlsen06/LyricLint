@@ -4,6 +4,8 @@
 	import RemoveButton from '#lib/ui/primitives/RemoveButton.svelte';
 	import { formatDraftDate, fullDraftDate } from '#lib/ui/drafts/draft-date.js';
 	import { tick } from 'svelte';
+	import { profileLabels } from '#lib/profiles/types.js';
+	import { otherProfile } from '#lib/persistence/writing.js';
 
 	let {
 		controller,
@@ -115,9 +117,19 @@
 	{:else}
 		<span class="list-row__name">{draft.title}</span>
 	{/if}
-	<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
-		{formatDraftDate(draft.updatedAt)}
-	</time>
+	<!-- The format rides beside the date on every row: two versions of one song
+	     share a title and an opening line, and this is the only thing that
+	     tells them apart before one is opened. -->
+	<span class="draft-menu__facts">
+		<span class="draft-menu__format"
+			>{profileLabels[draft.profile]}{#if draft.exported}&nbsp;<span class="draft-menu__export"
+					>+ {profileLabels[otherProfile(draft.profile)]}<span class="sr-only"> export</span></span
+				>{/if}</span
+		>
+		<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
+			{formatDraftDate(draft.updatedAt)}
+		</time>
+	</span>
 {/snippet}
 
 {#if searchAvailable}
@@ -308,6 +320,27 @@
 		font-weight: var(--font-weight-semibold);
 	}
 
+	.draft-menu__facts {
+		display: flex;
+		flex: none;
+		gap: var(--space-2);
+		align-items: baseline;
+	}
+	/* A categorical chip, not a control: the same fill a finding's line tag takes. */
+	.draft-menu__format {
+		padding: 0 var(--space-1-5);
+		border-radius: var(--radius-pill);
+		background: var(--color-fill);
+		color: var(--color-text);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-medium);
+		line-height: var(--line-height-ui);
+		white-space: nowrap;
+	}
+	.draft-menu__export {
+		color: var(--color-text-muted);
+		font-weight: var(--font-weight-regular);
+	}
 	.draft-menu__identity {
 		display: grid;
 		min-width: 0;
