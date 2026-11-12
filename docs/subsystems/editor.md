@@ -29,6 +29,14 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   source profile. Opening reports the refusal without replacing the original text or claiming
   a Genius envelope. Shortening the source can make its retained operations available again.
 
+- A rich draft's section boundary (`conversion-sections.ts`) is drawn as structure: its name
+  in the small semibold UI face on the lyric column, then a hairline rule in `--color-border`
+  running to the editor measure. The name's own `--color-surface` hides the stretch of rule
+  it stands on, and it keeps its quiet-button hit area and hover fill. The rule is a
+  pseudo-element of the widget row, so nothing reaches the document or the clipboard.
+- The caret's line number takes the accent and the semibold weight: the editor's one
+  current-state mark, in the color the open tool and the open finding use.
+
 - Native non-pointer focus synchronizes the DOM selection through `EditorView.focus()`
   before the next key can edit. Pointer entry retains native placement and an active
   composition retains its own selection. The focus extension keeps this handoff local

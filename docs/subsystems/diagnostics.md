@@ -81,6 +81,9 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 - Occurrence suppression and the ignored-list location use the same derived match result.
   Repeated line-number queries share `core/line-numbers.ts` and its indexed lookup.
 
+- A line's cluster count is a small tinted tag in its severity's color: a tint and a hairline
+  of the same hue, a semibold tabular count in the hue itself, `--radius-xs` corners. It is
+  not a filled disc; the count sits with the type rather than over it.
 - In phone task views, tapping an editor underline or count badge opens that finding in
   Review, with the real lyric context and shared actions. A count badge starts with its
   first finding; Previous/Next handles the rest. No diagnostic popover or cluster menu opens.

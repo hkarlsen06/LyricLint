@@ -173,7 +173,19 @@ export const conversionSectionBoundaries: Extension = [
 		'.ll-conversion-sections': {
 			userSelect: 'none'
 		},
+		// A section break reads as structure: its name, then a hairline rule
+		// running to the measure. The rule sits under the label, whose own
+		// surface hides the stretch of it the name stands on.
 		'.ll-conversion-section-row': { display: 'grid' },
+		'.ll-conversion-section-row::after': {
+			content: '""',
+			gridArea: '1 / 1',
+			alignSelf: 'center',
+			height: 'var(--border-width)',
+			marginInlineEnd: 'max(var(--space-1), calc(100% - var(--measure-editor)))',
+			background: 'var(--color-border)',
+			pointerEvents: 'none'
+		},
 		'.ll-conversion-heading-size': {
 			gridArea: '1 / 1',
 			visibility: 'hidden',
@@ -192,14 +204,23 @@ export const conversionSectionBoundaries: Extension = [
 			// hover fill reaches back into the gutter instead.
 			marginInlineStart: 'calc(var(--space-1) - var(--control-padding-inline))',
 			maxWidth: '100%',
+			position: 'relative',
+			zIndex: '1',
+			paddingInlineEnd: 'var(--space-2)',
+			background: 'var(--color-surface)',
 			color: 'var(--color-text-muted)',
 			whiteSpace: 'normal',
 			textAlign: 'start',
 			overflowWrap: 'anywhere',
 			fontFamily: 'var(--font-ui)',
-			fontSize: 'var(--font-size-sm)'
+			fontSize: 'var(--font-size-xs)',
+			fontWeight: 'var(--font-weight-semibold)',
+			letterSpacing: '0.01em'
 		},
-		'.ll-conversion-section:hover': { color: 'var(--color-text)' },
+		'.ll-conversion-section:hover': {
+			background: 'var(--color-fill-subtle)',
+			color: 'var(--color-text)'
+		},
 		'@media (max-width: 46rem)': {
 			'.cm-content': { '--ll-section-control-height': 'var(--control-height-lg)' }
 		},

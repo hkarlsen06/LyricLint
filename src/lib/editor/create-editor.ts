@@ -360,9 +360,13 @@ const editorTheme = EditorView.theme({
 	'.cm-activeLine:has(.ll-placeholder)': {
 		boxShadow: 'none'
 	},
+	// The caret's line number is the editor's one current-state mark, so it
+	// takes the accent, as the open tool and the open finding do. Its weight
+	// carries it for anyone who cannot see the hue.
 	'.cm-activeLineGutter': {
 		backgroundColor: 'transparent',
-		color: 'var(--color-text)'
+		color: 'var(--color-accent)',
+		fontWeight: 'var(--font-weight-semibold)'
 	},
 	// The selection is the browser's own, not CodeMirror's drawn one (see
 	// `drawSelection` in the extension list): a native highlight is painted over
