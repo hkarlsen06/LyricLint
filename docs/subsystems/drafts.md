@@ -56,7 +56,13 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   so a subsequent checkpoint validates and recovers the complete pending snapshot.
 
 - Rich drafts store the exact active text with a versioned `conversion` envelope. Its pinned
-  renderer, guideline versions, model, and recovery projection must validate together. Legacy
+  renderer, guideline versions, model, and recovery projection must validate together. The
+  guideline versions are each format's representation identity (`profiles/versions.ts`), not the
+  lint rule set's version: publishing a rule set must leave every saved rich draft readable.
+  `readsPolicyVersions` admits the saved identities the current renderer reads, reading keeps
+  the saved identity, and the envelope must still re-render to its exact saved text. Change an
+  identity only when what the renderer writes for that format changes, and keep the old one in
+  the readable list unless a reviewed migration replaces it. Legacy
   line-number anchors and links are omitted after migration; the model owns their stable records.
   A metadata-only rich draft survives every blank-document sweep. Unreadable rich state is never
   downgraded over its original row: startup creates a separately labeled text recovery and keeps
@@ -545,3 +551,20 @@ search, previews, row commands, and confirmation implementation do not run durin
 The body stays mounted after first use and receives the current open state; closing clears
 search and armed row actions while preserving the import input and any pending import.
 Escape still returns focus to the summary, and outside presses retain their own focus target.
+
+### A rule set publish made every saved rich draft a text recovery
+
+The Genius policy identity pinned into a conversion envelope was `currentRuleSet.version`, and
+the envelope was read only when its pin equalled the current value. On the feature branch the
+rule set never changed, so nothing showed. Merging `main` on 2026-11-12 brought rule set
+`2026.11.11.0` (four language packs), and every draft whose format had been chosen under
+`2026.09.21.2` failed with "The saved guideline version is unavailable", so startup preserved
+the row and opened a `(text recovery)` copy with Review reading "Retained details need
+recovery". Nothing was lost, but an ordinary publish had locked every rich draft.
+
+The pin now names the format's representation, which a rule set publish does not touch:
+`profilePolicyVersions.genius` is the fixed `2026.09.21.2`, and the readable list also
+admits `2026.11.11.0`, which builds wrote for a few hours that day. Rows that were turned away
+read normally again; the recovery copies made meanwhile are ordinary drafts the user can delete.
+The exact re-render check is unchanged and remains the guard against a renderer that would
+change saved text. Pins: `conversion-persistence.test.ts`.

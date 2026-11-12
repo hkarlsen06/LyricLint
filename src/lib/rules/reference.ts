@@ -15,6 +15,7 @@ import type {
 import { policyCases, type RulePolicyCase } from './catalog/policy-cases.js';
 import { lookupSearchTerms, ruleLookupTable } from './lookup-tables.js';
 import { ruleSlug } from './reference-search.js';
+import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
 import { sortDiagnostics } from './results.js';
 import { enabledRules } from './registry.js';
@@ -217,7 +218,10 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 		language: policy.language ?? 'en',
 		performers: performerRecordsFor(policy.performers ?? ['A']),
 		sources: profile === 'musixmatch' ? profileSourceRegistry : sourceRegistry,
-		ruleSetVersion: profilePolicyVersions[profile],
+		// Genius checks are versioned by their rule set. The Musixmatch registry
+		// has no rule set of its own, so its checks carry the profile's policy.
+		ruleSetVersion:
+			profile === 'musixmatch' ? profilePolicyVersions.musixmatch : currentRuleSet.version,
 		// The reference never dispatches the fixes it reads labels from, so any
 		// revision works; zero states that these edits are not for applying.
 		revision: 0

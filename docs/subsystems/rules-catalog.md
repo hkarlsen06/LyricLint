@@ -90,7 +90,9 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
   `profiles/policy-cases.ts`, focused behavior tests, and a new pinned profile policy version when
   reviewed policy or representation semantics change. A corrective diagnostic-range change
   increments the rule version without silently changing the stored policy identity: existing
-  conversion envelopes reject unavailable pinned versions. `profiles/reference.test.ts` derives and verifies each public check page;
+  conversion envelopes reject unavailable pinned versions. A new identity keeps the previous one
+  in the readable list (`profiles/versions.ts`), or every saved rich draft becomes a text
+  recovery on the next load. Publishing a Genius rule set never changes the Genius identity. `profiles/reference.test.ts` derives and verifies each public check page;
   the sitemap includes both registries. The four-registration Genius process below remains for
   the existing Genius catalog.
 

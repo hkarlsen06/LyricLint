@@ -3,7 +3,7 @@ import { hasConversionContent } from '../conversion/model.js';
 import { renderProfile } from '../conversion/projection.js';
 import { validateModel } from '../conversion/validation.js';
 import type { ProfileId } from '../profiles/types.js';
-import { profilePolicyVersions } from '../profiles/versions.js';
+import { readsPolicyVersions } from '../profiles/versions.js';
 
 /** The exact model and rendered recovery text are committed together. */
 export interface ConversionEnvelope {
@@ -151,10 +151,7 @@ export function parseConversionEnvelope(value: unknown, expectedText?: string): 
 	) {
 		throw new ConversionStorageError('The conversion document is incomplete.');
 	}
-	if (
-		versions.genius !== profilePolicyVersions.genius ||
-		versions.musixmatch !== profilePolicyVersions.musixmatch
-	) {
+	if (!readsPolicyVersions({ genius: versions.genius, musixmatch: versions.musixmatch })) {
 		throw new ConversionStorageError(
 			'The saved guideline version is unavailable. The original record has been preserved.'
 		);

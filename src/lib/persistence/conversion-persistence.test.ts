@@ -326,6 +326,30 @@ describe('lossless conversion durability', () => {
 		expect(results).toHaveLength(1);
 	});
 
+	// The Genius identity once followed the lint rule set's version, so every
+	// rule set publish turned each saved rich draft into a text recovery. Both
+	// identities that builds wrote stay readable, and reading keeps the saved one.
+	it('reads every policy identity that a build has saved, and keeps it', () => {
+		const draft = rich();
+		for (const genius of ['2026.09.21.2', '2026.11.11.0']) {
+			const saved = {
+				...draft.conversion!,
+				policyVersions: { ...profilePolicyVersions, genius }
+			};
+			expect(parseConversionEnvelope(saved, draft.text).policyVersions.genius).toBe(genius);
+		}
+		expect(profilePolicyVersions.genius).toBe('2026.09.21.2');
+		expect(() =>
+			parseConversionEnvelope(
+				{
+					...draft.conversion!,
+					policyVersions: { ...profilePolicyVersions, genius: 'unavailable' }
+				},
+				draft.text
+			)
+		).toThrow('The saved guideline version is unavailable.');
+	});
+
 	it('refuses corrupt, mismatched, and unavailable rich versions instead of losing the model', async () => {
 		const draft = rich();
 		for (const bad of [
