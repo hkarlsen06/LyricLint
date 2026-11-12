@@ -2735,7 +2735,7 @@ describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
 
 	test('offers the conversion once lyrics arrive, and changes nothing until it is taken', () => {
 		const { controller, editor } = setup({ initial: musixmatchDraft(pasted) });
-		const read = vi.fn(() => ({ ok: true as const, sections: 2 }));
+		const read = vi.fn(() => ({ ok: true as const, sections: 2, steps: 1, kept: 0 }));
 		editor.readGeniusFormatting = read;
 
 		controller.offerGeniusFormatting();
@@ -2743,7 +2743,7 @@ describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
 		expect(read).not.toHaveBeenCalled();
 		expect(controller.feedback.toasts).toMatchObject([
 			{
-				message: 'These lyrics hold 2 Genius headers as lyric lines.',
+				message: '2 Genius headers are in the lyrics.',
 				actionLabel: 'Convert to sections'
 			}
 		]);
@@ -2765,7 +2765,7 @@ describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
 	test('takes the conversion back from its toast only while it is the last change', () => {
 		const record = musixmatchDraft(pasted);
 		const { controller, editor } = setup({ initial: record });
-		editor.readGeniusFormatting = () => ({ ok: true, sections: 2 });
+		editor.readGeniusFormatting = () => ({ ok: true, sections: 2, steps: 1, kept: 0 });
 		const undo = vi.fn();
 		editor.undo = undo;
 
@@ -2780,6 +2780,43 @@ describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
 		expect(undo).toHaveBeenCalledOnce();
 	});
 
+	test('leaves both toasts with the draft that raised them', async () => {
+		const record = musixmatchDraft(pasted);
+		const other = { ...musixmatchDraft(pasted), id: 'draft-b' };
+		const { controller, editor } = setup({ initial: record, drafts: [record, other] });
+		const read = vi.fn(() => ({ ok: true as const, sections: 2, steps: 1, kept: 0 }));
+		editor.readGeniusFormatting = read;
+		const undo = vi.fn();
+		editor.undo = undo;
+		controller.offerGeniusFormatting();
+		const offer = controller.feedback.toasts.at(-1)?.action;
+		expect(controller.convertGeniusHeaders()).toBe(true);
+		const takeBack = controller.feedback.toasts.at(-1)?.action;
+		read.mockClear();
+
+		await controller.openDraft(other.id);
+		offer?.();
+		takeBack?.();
+
+		expect(read).not.toHaveBeenCalled();
+		expect(undo).not.toHaveBeenCalled();
+	});
+
+	test('undoes every step of a conversion made in several, and says what stayed', () => {
+		const { controller, editor } = setup({ initial: musixmatchDraft(pasted) });
+		editor.readGeniusFormatting = () => ({ ok: true, sections: 3, steps: 2, kept: 1 });
+		const undo = vi.fn();
+		editor.undo = undo;
+
+		controller.convertGeniusHeaders();
+
+		expect(controller.feedback.toasts.at(-1)?.message).toBe(
+			'Converted 3 Genius headers to sections. 1 stayed as lyric lines beside existing details.'
+		);
+		controller.feedback.toasts.at(-1)?.action?.();
+		expect(undo).toHaveBeenCalledTimes(2);
+	});
+
 	test('says why when the editor refuses', () => {
 		const { controller, editor } = setup({ initial: musixmatchDraft(pasted) });
 		editor.readGeniusFormatting = () => ({ ok: false, message: 'Finish the current edit first.' });
@@ -2792,7 +2829,7 @@ describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
 
 	test('reads the finding action as the conversion', () => {
 		const { controller, editor } = setup({ initial: musixmatchDraft(pasted) });
-		const read = vi.fn(() => ({ ok: true as const, sections: 2 }));
+		const read = vi.fn(() => ({ ok: true as const, sections: 2, steps: 1, kept: 0 }));
 		editor.readGeniusFormatting = read;
 
 		controller.openConversionReview({

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Diagnostic, DiagnosticFix } from '#lib/core/types.js';
 import {
 	applyFixes,
-	exportFindingKey,
+	exportFindingKeys,
 	exportFindings,
 	lineOfOffset,
 	outputSegments
@@ -36,12 +36,16 @@ describe('export findings', () => {
 	it('keeps an answer attached to its line when text above it changes', () => {
 		const before = 'First line.\nSecond line.';
 		const after = 'A new opening\nFirst line.\nSecond line.';
-		expect(exportFindingKey(finding(10, 11), before)).toBe(
-			exportFindingKey(finding(24, 25), after)
-		);
-		expect(exportFindingKey(finding(10, 11), before)).not.toBe(
-			exportFindingKey(finding(23, 24), before)
-		);
+		const [first, second] = exportFindingKeys([finding(10, 11), finding(23, 24)], before);
+		expect(exportFindingKeys([finding(24, 25), finding(37, 38)], after)).toEqual([first, second]);
+		expect(first).not.toBe(second);
+	});
+
+	it('tells identical lines apart by which one they are, whatever order they arrive in', () => {
+		const chorus = 'Hold on.\nHold on.';
+		const keys = exportFindingKeys([finding(16, 17), finding(7, 8)], chorus);
+		expect(keys[0]).not.toBe(keys[1]);
+		expect(exportFindingKeys([finding(7, 8), finding(16, 17)], chorus)).toEqual([keys[1], keys[0]]);
 	});
 });
 

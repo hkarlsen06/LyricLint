@@ -72,6 +72,63 @@ describe('the export review', () => {
 		expect(within(review).getByRole('status')).toHaveTextContent('1 to review');
 	});
 
+	test('settles a fix against what was typed since the last check', async () => {
+		const { review, output } = await openExport();
+		await userEvent.click(
+			within(review).getByRole('button', { name: 'Review this terminal period.' })
+		);
+		const fix = within(review).getByRole('button', { name: 'Remove the period' });
+
+		// A line above the finding, and the press before the debounced re-check.
+		output.value = `A new opening\n${output.value}`;
+		output.dispatchEvent(new InputEvent('input', { bubbles: true }));
+		fix.click();
+
+		await waitFor(() =>
+			expect(output).toHaveValue(
+				'A new opening\nShe said hold on\nevery window I pass\n\nHold the line'
+			)
+		);
+	});
+
+	test('keeps a keyboard walk in place when a row leaves', async () => {
+		const { review } = await openExport();
+		await userEvent.click(
+			within(review).getByRole('button', { name: 'Review this terminal period.' })
+		);
+		const ignore = within(review).getByRole('button', { name: 'Ignore' });
+		ignore.focus();
+
+		await userEvent.keyboard('{Enter}');
+
+		const next = within(review).getByRole('button', {
+			name: 'Review the lowercase line beginning.'
+		});
+		await waitFor(() => expect(document.activeElement).toBe(next));
+		await userEvent.click(next);
+		within(review).getByRole('button', { name: 'Ignore' }).focus();
+		await userEvent.keyboard('{Enter}');
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				within(review).getByRole('heading', { name: 'Musixmatch review' })
+			)
+		);
+	});
+
+	test('ignores one of two identical lines without answering the other', async () => {
+		const { review } = await openExport('[Chorus]\nHold on.\nHold on.');
+		const rows = within(review).getAllByRole('button', { name: 'Review this terminal period.' });
+		expect(rows).toHaveLength(2);
+		await userEvent.click(rows[0]!);
+
+		await userEvent.click(within(review).getByRole('button', { name: 'Ignore' }));
+
+		expect(
+			within(review).getAllByRole('button', { name: 'Review this terminal period.' })
+		).toHaveLength(1);
+		expect(within(review).getByRole('status')).toHaveTextContent('1 to review');
+	});
+
 	test('re-checks what is typed into the output', async () => {
 		const { review, output } = await openExport();
 

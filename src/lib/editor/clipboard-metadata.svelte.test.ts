@@ -525,7 +525,7 @@ describe('paste', () => {
 			edits: [{ from: 0, to: 0, insert: source }]
 		});
 
-		expect(handle.readGeniusFormatting?.()).toEqual({ ok: true, sections: 2 });
+		expect(handle.readGeniusFormatting?.()).toEqual({ ok: true, sections: 2, steps: 1, kept: 0 });
 
 		expect(text()).toBe('Stay beside me\n\nHold the line');
 		expect(
@@ -538,6 +538,52 @@ describe('paste', () => {
 		expect(text()).toBe('Stay beside me\n\nHold the line');
 	});
 
+	async function annotatedMusixmatchDraft() {
+		const mounted = await mount({ text: '[Verse]\nA [moon](123)' });
+		expect(mounted.handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+		expect(mounted.text()).toBe('A moon');
+		return mounted;
+	}
+
+	it('converts a header added later and keeps the sections and annotations already there', async () => {
+		const { handle, text } = await annotatedMusixmatchDraft();
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 6, to: 6, insert: '\n\n[Chorus]\nHold the line\n\n[laughs]\nAgain' }]
+		});
+
+		expect(handle.readGeniusFormatting?.()).toEqual({ ok: true, sections: 1, steps: 1, kept: 0 });
+
+		// Only the recognized header's own passage was read: the bracketed vocal
+		// and the lines after it are still lyric text.
+		expect(text()).toBe('A moon\n\nHold the line\n\n[laughs]\nAgain');
+		const model = handle.getSnapshot().conversion?.model;
+		expect(model?.sections.map((section) => section.header.trim())).toEqual([
+			'[Verse]',
+			'[Chorus]'
+		]);
+		expect(model?.wrappers.map((wrapper) => wrapper.annotationId)).toEqual(['123']);
+		expect(handle.switchProfile?.('genius')).toEqual({ ok: true });
+		expect(text()).toBe('[Verse]\nA [moon](123)\n\n[Chorus]\nHold the line\n\n[laughs]\nAgain');
+	});
+
+	it('leaves a header alone when the draft already keeps details in its passage', async () => {
+		const { handle, text } = await annotatedMusixmatchDraft();
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 0, insert: '[Chorus]\n' }]
+		});
+		const before = handle.getSnapshot().conversion?.model.wrappers;
+
+		expect(handle.readGeniusFormatting?.()).toEqual({
+			ok: false,
+			message:
+				'These headers sit among timings or details this draft already keeps, so they stay as lyric lines.'
+		});
+		expect(text()).toBe('[Chorus]\nA moon');
+		expect(handle.getSnapshot().conversion?.model.wrappers).toEqual(before);
+	});
+
 	it('refuses to convert lyrics that hold no Genius header', async () => {
 		const { handle, text } = await mount({ text: '' });
 		expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
@@ -548,7 +594,7 @@ describe('paste', () => {
 
 		expect(handle.readGeniusFormatting?.()).toEqual({
 			ok: false,
-			message: 'No Genius section headers were found in this passage.'
+			message: 'No Genius section headers were found in these lyrics.'
 		});
 		expect(text()).toBe('Stay beside me');
 	});

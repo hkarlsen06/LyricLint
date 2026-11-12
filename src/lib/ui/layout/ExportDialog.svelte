@@ -14,7 +14,7 @@
 	import { diagnosticKey } from '#lib/diagnostics/order.js';
 	import {
 		applyFixes,
-		exportFindingKey,
+		exportFindingKeys,
 		exportFindings,
 		lineOfOffset,
 		outputSegments
@@ -66,13 +66,20 @@
 			target
 		)
 	);
-	const shown = $derived(
-		findings.filter((finding) => !left.has(exportFindingKey(finding, output)))
-	);
+	// Findings carry offsets into the text they were found in, which typing
+	// leaves behind until the next check. They are only ever read against that
+	// text: marks and line numbers wait for the check, and a fix settles first.
+	let checkedText = $state('');
+	const current = $derived(checkedText === output);
+	const keys = $derived(exportFindingKeys(findings, checkedText));
+	const shown = $derived(findings.filter((_finding, index) => !left.has(keys[index]!)));
 	const automatic = $derived(engine ? engine.collectSafeFixes(shown).length : 0);
 	// A field shows the empty line after a final line break; a block does not
 	// until something follows it, so the layer always ends in one more.
-	const segments = $derived([...outputSegments(output, shown, openFinding), { text: '\n' }]);
+	const segments = $derived([
+		...outputSegments(output, current ? shown : [], current ? openFinding : undefined),
+		{ text: '\n' }
+	]);
 
 	function requestRules(): void {
 		checkStatus = 'checking';
@@ -86,17 +93,35 @@
 			}
 		);
 	}
+	function keyOf(finding: Diagnostic | undefined): string | undefined {
+		const index = finding ? findings.indexOf(finding) : -1;
+		return index === -1 ? undefined : keys[index];
+	}
 	function check(): void {
 		clearTimeout(checkTimer);
 		if (!engine) return;
-		findings = exportFindings(engine.runRules(parseDocument(output), context));
 		// The open row follows its finding by identity; when the fix settled it,
 		// the row closes rather than opening whatever now sits at that offset.
-		const key = openFinding && exportFindingKey(openFinding, output);
-		openFinding = key
-			? findings.find((finding) => exportFindingKey(finding, output) === key)
-			: undefined;
+		const open = keyOf(openFinding);
+		const next = exportFindings(engine.runRules(parseDocument(output), context));
+		const nextKeys = exportFindingKeys(next, output);
+		findings = next;
+		checkedText = output;
+		openFinding = open === undefined ? undefined : next[nextKeys.indexOf(open)];
 		checkStatus = 'ready';
+	}
+	/**
+	 * The same finding and fix, read against the output as it stands now.
+	 * Undefined when what was typed since the last check already settled it.
+	 */
+	function settled(finding: Diagnostic, fix: DiagnosticFix): DiagnosticFix | undefined {
+		if (current) return fix;
+		const key = keyOf(finding);
+		check();
+		const fresh = key === undefined ? undefined : findings[keys.indexOf(key)];
+		return fresh?.fixes?.find(
+			(candidate) => candidate.kind === fix.kind && candidate.label === fix.label
+		);
 	}
 	function checkSoon(): void {
 		clearTimeout(checkTimer);
@@ -135,6 +160,7 @@
 		left = new Set();
 		openFinding = undefined;
 		findings = [];
+		checkedText = generated;
 		sections = controller.exportSections();
 		if (engine) check();
 		else requestRules();
@@ -248,19 +274,25 @@
 					openKey={openFinding && diagnosticKey(openFinding)}
 					{automatic}
 					{sections}
-					lineFor={(offset) => lineOfOffset(output, offset)}
+					lineFor={(offset) => lineOfOffset(checkedText, offset)}
 					onOpen={(finding) => {
 						openFinding = finding;
 						void reveal();
 					}}
-					onApplyFix={(_finding: Diagnostic, fix: DiagnosticFix) =>
-						replaceOutput(applyFixes(output, [fix]))}
-					onFixAll={() =>
-						engine && replaceOutput(applyFixes(output, engine.collectSafeFixes(shown)))}
+					onApplyFix={(finding, fix) => {
+						const fresh = settled(finding, fix);
+						if (fresh) replaceOutput(applyFixes(output, [fresh]));
+					}}
+					onFixAll={() => {
+						if (!engine) return;
+						if (!current) check();
+						replaceOutput(applyFixes(output, engine.collectSafeFixes(shown)));
+					}}
 					onIgnore={(finding) => {
-						left = new Set([...left, exportFindingKey(finding, output)]);
-						if (openFinding && diagnosticKey(openFinding) === diagnosticKey(finding))
-							openFinding = undefined;
+						const key = keyOf(finding);
+						if (key === undefined) return;
+						left = new Set([...left, key]);
+						if (openFinding === finding) openFinding = undefined;
 					}}
 					onRetry={requestRules}
 				/>

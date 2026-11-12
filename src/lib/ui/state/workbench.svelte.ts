@@ -966,14 +966,19 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			if (!result?.ok) {
 				const message = result?.message ?? 'The lyrics are not ready to be converted yet.';
 				feedback.announce(message);
-				feedback.addToast({ message });
+				feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
 				return false;
 			}
+			const session = draftSession;
 			const revision = editorSession.snapshot.revision;
-			const message =
+			const converted =
 				result.sections === 1
 					? 'Converted 1 Genius header to a section.'
 					: `Converted ${result.sections} Genius headers to sections.`;
+			// Headers among details the draft already keeps are left alone, and said so.
+			const message = result.kept
+				? `${converted} ${result.kept} stayed as lyric lines beside existing details.`
+				: converted;
 			feedback.announce(`${message} Undo keeps them as lyric lines.`);
 			feedback.addToast({
 				message,
@@ -981,13 +986,14 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				groupKey: JSON.stringify(['genius-converted', controller.draftId, revision]),
 				actionLabel: 'Undo',
 				action: () => {
-					// Only this step is the toast's to take back. After another edit the
-					// toolbar's Undo is the honest one, since it names no particular change.
-					if (editorSession.snapshot.revision !== revision) {
+					// Only this change is the toast's to take back: the same draft, still
+					// open, with nothing edited since. Revisions restart with each draft,
+					// so the session is what tells two drafts at revision 3 apart.
+					if (session !== draftSession || editorSession.snapshot.revision !== revision) {
 						feedback.announce('The lyrics changed since. Use Undo to step back through them.');
 						return;
 					}
-					controller.undo();
+					for (let step = 0; step < result.steps; step++) controller.undo();
 				}
 			});
 			return true;
@@ -995,16 +1001,22 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		offerGeniusFormatting() {
 			const headers = countGeniusHeadersInLyrics();
 			if (!headers) return;
+			const session = draftSession;
+			// Short enough that the toast keeps its action on one line.
 			const message =
 				headers === 1
-					? 'These lyrics hold 1 Genius header as a lyric line.'
-					: `These lyrics hold ${headers} Genius headers as lyric lines.`;
+					? '1 Genius header is in the lyrics.'
+					: `${headers} Genius headers are in the lyrics.`;
 			feedback.announce(`${message} Convert to sections is available.`);
 			feedback.addToast({
 				message,
 				groupKey: JSON.stringify(['genius-offer', controller.draftId]),
 				actionLabel: 'Convert to sections',
-				action: () => void controller.convertGeniusHeaders(),
+				// A toast outlives the draft it was raised over; its press must not
+				// reach whichever draft is open by then.
+				action: () => {
+					if (session === draftSession) controller.convertGeniusHeaders();
+				},
 				duration: GENIUS_OFFER_DURATION
 			});
 		},

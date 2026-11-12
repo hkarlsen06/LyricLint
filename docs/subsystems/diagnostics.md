@@ -21,8 +21,9 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
 - A bracketed Musixmatch label that is a complete Genius header naming a reviewed song part
   carries `readableAsSection`, set by the rule itself, and both surfaces then offer
   `Convert Genius headers to sections` through `conversionReviewAction`. It is the one
-  conversion action that opens no Review task: it converts every such header in the draft in
-  one undoable step (`convertGeniusHeaders`). A bracketed vocal keeps `Ignore` alone.
+  conversion action that opens no Review task: it converts every such header in the draft
+  whose passage holds no retained details yet (`convertGeniusHeaders`), and its toast's Undo
+  belongs to that draft session and revision only. A bracketed vocal keeps `Ignore` alone.
 - Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
 
 - Repeat review keeps source, blank copy count and Preview above variable source context.

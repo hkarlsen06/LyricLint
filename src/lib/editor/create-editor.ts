@@ -1160,8 +1160,8 @@ export function createLyricEditor(
 		prepareInterpretation(profile, range) {
 			return prepareInterpretation(view, profile, range);
 		},
-		readGeniusFormatting(range) {
-			return readGeniusFormatting(view, range);
+		readGeniusFormatting() {
+			return readGeniusFormatting(view);
 		},
 		dismissClipboardReview() {
 			dismissClipboardReview(view);

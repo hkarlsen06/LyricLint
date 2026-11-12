@@ -40,10 +40,16 @@
 	font-variant-numeric: tabular-nums;
 }
 
+/* The sentence is what wraps. A command split over two lines reads as two. */
 .toast__actions {
 	display: flex;
+	flex: none;
 	margin-inline-start: var(--space-3);
 	gap: var(--space-2);
+}
+
+.toast__actions .button {
+	white-space: nowrap;
 }
 
 /* `dvh` for the reason `.workspace` takes it: a full-window message sized to the

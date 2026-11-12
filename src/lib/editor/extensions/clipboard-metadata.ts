@@ -3,7 +3,9 @@ import type { EditorState, Extension } from '@codemirror/state';
 import { isolateHistory } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
 import { isSectionHeaderLine, parseDocument } from '#lib/core/parser.js';
-import { recognizedSectionHeaders } from '#lib/conversion/section-types.js';
+import { recognizedSectionHeaders, sectionTypeForName } from '#lib/conversion/section-types.js';
+import { canRetainSectionHeader } from '#lib/conversion/section-placement.js';
+import { contentOffset } from '#lib/conversion/projection.js';
 import { annotationSpansFor } from './annotation-spans.js';
 import type { LinkHole, LinkPassageOccurrence, SectionLink, TextRange } from '#lib/core/types.js';
 import type { ProfileId } from '#lib/profiles/types.js';
@@ -448,24 +450,99 @@ export function prepareInterpretation(
 }
 
 /**
- * Keep the Genius headers, voices and annotations in a passage as this draft's
- * own sections and details, in one undoable step.
+ * The passages a header conversion may take, last first.
  *
- * The same commit as the previewed route, without the preview: this one is
- * asked for by name on a passage whose headers are recognized song parts. The
- * words between headers are not touched, and undo puts the bracketed lines
- * back exactly.
+ * A passage is one recognized header line and the lyrics under it, up to the
+ * next bracketed header of any kind; neighbours merge into one run. A passage
+ * is left out when the draft already keeps something inside it (a section, an
+ * annotation, a voice, a wording, a timing, a link), because the conversion
+ * replaces what it reads and those would go with the text they sit on.
+ */
+function geniusHeaderRuns(view: EditorView) {
+	const state = view.state;
+	const language = state.field(editorContextField, false)?.language ?? 'und';
+	const headers = parseDocument(state.doc.toString())
+		.sections.flatMap((section) => (section.header ? [section.header] : []))
+		.map((header) => ({
+			from: state.doc.lineAt(header.from).from,
+			recognized:
+				canRetainSectionHeader(header) && sectionTypeForName(header.name, language) !== undefined
+		}));
+	const current = conversionForPaste(state);
+	const model = current?.envelope.model;
+	const anchored = lineAnchorsFor(state).map((anchor) => anchor.line);
+	const linked = sectionLinksFor(state).flatMap((link) => link.lines);
+	const untouched = (range: TextRange): boolean => {
+		if (!current || !model) return false;
+		const lower = contentOffset(current.projection, range.from, 1);
+		const upper = contentOffset(current.projection, range.to, -1);
+		const inside = (at: number) => lower <= at && at <= upper;
+		const overlaps = (record: TextRange) => record.from < upper && lower < record.to;
+		const firstLine = state.doc.lineAt(range.from).number;
+		const lastLine = state.doc.lineAt(range.to).number;
+		return !(
+			model.sections.some((section) => inside(section.at)) ||
+			model.markers.some((marker) => inside(marker.at)) ||
+			[model.wrappers, model.forms, model.languageRanges, model.voices].some((records) =>
+				records.some(overlaps)
+			) ||
+			model.decisions.some((decision) => 'from' in decision && overlaps(decision)) ||
+			model.links.some(
+				(link) =>
+					link.holes.some(overlaps) ||
+					link.detached?.some(overlaps) ||
+					link.passages?.some((passage) => passage.members.some(overlaps))
+			) ||
+			[...anchored, ...linked].some((line) => firstLine <= line && line <= lastLine)
+		);
+	};
+	const runs: TextRange[] = [];
+	let kept = 0;
+	for (let index = headers.length - 1; index >= 0; index--) {
+		const header = headers[index]!;
+		if (!header.recognized) continue;
+		const range = { from: header.from, to: headers[index + 1]?.from ?? state.doc.length };
+		if (!untouched(range)) kept++;
+		else if (runs.at(-1)?.from === range.to) runs.at(-1)!.from = range.from;
+		else runs.push(range);
+	}
+	return { runs, kept };
+}
+
+/**
+ * Keep the recognized Genius headers this draft holds as lyric lines, with
+ * their voices and annotations, as its own sections and details.
+ *
+ * The same commit as the previewed route, without the preview: it is asked for
+ * by name, it reads only the passages under those headers, and the words in
+ * them are not touched. Each run is one history step, and `steps` undos return
+ * the exact bracketed lines. `kept` counts headers left alone because the
+ * draft already keeps details inside their passage.
  */
 export function readGeniusFormatting(
-	view: EditorView,
-	range: TextRange = { from: 0, to: view.state.doc.length }
-): { ok: true; sections: number } | { ok: false; message: string } {
-	const interpreted = interpretPassage(view, 'genius', range);
-	if (!interpreted.ok) return interpreted;
-	if (!interpreted.sections)
-		return { ok: false, message: 'No Genius section headers were found in this passage.' };
-	const applied = applyPendingReview(view, interpreted.pending);
-	return applied.ok ? { ok: true, sections: interpreted.sections } : applied;
+	view: EditorView
+): { ok: true; sections: number; steps: number; kept: number } | { ok: false; message: string } {
+	const { runs, kept } = geniusHeaderRuns(view);
+	if (!runs.length)
+		return {
+			ok: false,
+			message: kept
+				? 'These headers sit among timings or details this draft already keeps, so they stay as lyric lines.'
+				: 'No Genius section headers were found in these lyrics.'
+		};
+	let sections = 0;
+	let steps = 0;
+	for (const range of runs) {
+		const interpreted = interpretPassage(view, 'genius', range);
+		const applied = interpreted.ok ? applyPendingReview(view, interpreted.pending) : interpreted;
+		if (!applied.ok) {
+			if (steps) break;
+			return applied;
+		}
+		sections += interpreted.ok ? interpreted.sections : 0;
+		steps++;
+	}
+	return { ok: true, sections, steps, kept };
 }
 
 export function applyClipboardReview(view: EditorView): Outcome {

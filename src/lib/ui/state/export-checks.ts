@@ -10,19 +10,32 @@ export function exportFindings(diagnostics: readonly Diagnostic[]): Diagnostic[]
 }
 
 /**
- * A finding's identity across edits to the output: its rule, the line it sits
- * on and the text it flags. Offsets move with every fix above them, and an
- * answer of "leave this one" has to survive that.
+ * Each finding's identity across edits to the output, in the order given: its
+ * rule, the line it sits on, the text it flags, and which such finding it is.
+ * Offsets move with every fix above them, and an answer of "leave this one"
+ * has to survive that; the count is what keeps one answered chorus line from
+ * answering its identical repeat.
  */
-export function exportFindingKey(diagnostic: Diagnostic, text: string): string {
-	const lineFrom = text.lastIndexOf('\n', diagnostic.from - 1) + 1;
-	const lineEnd = text.indexOf('\n', diagnostic.to);
-	return JSON.stringify([
-		diagnostic.ruleId,
-		text.slice(lineFrom, lineEnd === -1 ? text.length : lineEnd),
-		text.slice(diagnostic.from, diagnostic.to),
-		diagnostic.message
-	]);
+export function exportFindingKeys(diagnostics: readonly Diagnostic[], text: string): string[] {
+	const seen = new Map<string, number>();
+	const keys = new Array<string>(diagnostics.length);
+	const inDocumentOrder = diagnostics
+		.map((diagnostic, index) => ({ diagnostic, index }))
+		.sort((left, right) => left.diagnostic.from - right.diagnostic.from);
+	for (const { diagnostic, index } of inDocumentOrder) {
+		const lineFrom = text.lastIndexOf('\n', diagnostic.from - 1) + 1;
+		const lineEnd = text.indexOf('\n', diagnostic.to);
+		const identity = JSON.stringify([
+			diagnostic.ruleId,
+			text.slice(lineFrom, lineEnd === -1 ? text.length : lineEnd),
+			text.slice(diagnostic.from, diagnostic.to),
+			diagnostic.message
+		]);
+		const occurrence = seen.get(identity) ?? 0;
+		seen.set(identity, occurrence + 1);
+		keys[index] = `${identity}#${occurrence}`;
+	}
+	return keys;
 }
 
 /** Apply one or more fixes' edits to plain output text, last edit first. */

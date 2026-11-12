@@ -54,7 +54,12 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   into view without taking focus. From the meta line down a row is the shared diagnostic
   (`DiagnosticMeta`, `DiagnosticActions`): a fix edits the output only, `Ignore` sets the
   finding aside for this open dialog, and `Fix N issues automatically` applies the safe
-  fixes together. Findings whose only answer lives in the workbench are left out
+  fixes together. Findings carry offsets into the text they were found in, and typing is
+  re-checked on a short delay, so marks and line numbers are drawn only against that text
+  and a fix first settles against the output as it stands, finding its own row again by
+  identity (rule, line, flagged text, and which such finding it is). When a fix or an ignore
+  removes the row its press was made in, focus goes to the finding that takes its place,
+  else the rail's heading. Findings whose only answer lives in the workbench are left out
   (`export-checks.ts`). A Musixmatch export also lists its section tags in song order under
   the findings, since they are not part of its text. Under 52rem the rail stacks below the
   output at up to two fifths of the dialog and scrolls as one column.

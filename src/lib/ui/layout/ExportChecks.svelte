@@ -2,6 +2,7 @@
 	// The destination's findings for an export output. The rows are this
 	// surface's own chrome; from the meta line down a finding is drawn by the
 	// same components as the Review card and the editor's popover.
+	import { tick } from 'svelte';
 	import MagicWandIcon from 'phosphor-svelte/lib/MagicWandIcon';
 	import type { Diagnostic, DiagnosticFix, SourceReference } from '#lib/core/types.js';
 	import DiagnosticActions from '#lib/diagnostics/DiagnosticActions.svelte';
@@ -41,12 +42,35 @@
 		onRetry: () => void;
 	} = $props();
 	const headingId = $props.id();
+
+	let list = $state<HTMLOListElement>();
+	let heading = $state<HTMLHeadingElement>();
+
+	/**
+	 * A fix or an ignore removes the row its own press was made in. Focus goes
+	 * to the finding that takes its place, else the one before it, else the
+	 * rail's heading, so a keyboard walk down the list keeps its position.
+	 */
+	async function thenKeepPlace(diagnostic: Diagnostic, action: () => void): Promise<void> {
+		const held = list?.contains(document.activeElement) ?? false;
+		const index = diagnostics.indexOf(diagnostic);
+		action();
+		await tick();
+		if (!held || list?.contains(document.activeElement)) return;
+		const rows = list?.querySelectorAll<HTMLButtonElement>('.export-check__show');
+		(rows?.[Math.min(index, (rows?.length ?? 0) - 1)] ?? heading)?.focus();
+	}
+
+	/** An opened row grows downward; keep its decision inside the rail's own scroll. */
+	function keepInView(row: HTMLElement): void {
+		row.scrollIntoView({ block: 'nearest' });
+	}
 	const count = $derived(diagnostics.length);
 </script>
 
 <section class="export-checks" aria-labelledby={headingId}>
 	<header class="export-checks__header">
-		<h3 id={headingId}>{format} review</h3>
+		<h3 id={headingId} bind:this={heading} tabindex="-1">{format} review</h3>
 		<!-- Said once per change in the count, never per keystroke: the output is
 		     re-checked while it is typed in. -->
 		<p class="export-checks__count" role="status">
@@ -93,7 +117,11 @@
 					</button>
 				</div>
 			{/if}
-			<ol class="export-checks__list" aria-label={`${format} findings in this output`}>
+			<ol
+				bind:this={list}
+				class="export-checks__list"
+				aria-label={`${format} findings in this output`}
+			>
 				{#each diagnostics as diagnostic (diagnosticKey(diagnostic))}
 					{@const open = diagnosticKey(diagnostic) === openKey}
 					<li class:export-check--open={open}>
@@ -113,7 +141,7 @@
 							/>
 						</div>
 						{#if open}
-							<div class="export-check__body">
+							<div class="export-check__body" {@attach keepInView}>
 								<p class="diagnostic-explanation">{diagnostic.explanation}</p>
 								<!-- The highlight in the output is this row's preview, and it is
 							     already drawn, so the two preview hooks have nothing to add. -->
@@ -121,8 +149,9 @@
 									{diagnostic}
 									onPreviewFix={() => {}}
 									onCancelPreview={() => {}}
-									onApplyFix={(fix) => onApplyFix(diagnostic, fix)}
-									onIgnore={() => onIgnore(diagnostic)}
+									onApplyFix={(fix) =>
+										void thenKeepPlace(diagnostic, () => onApplyFix(diagnostic, fix))}
+									onIgnore={() => void thenKeepPlace(diagnostic, () => onIgnore(diagnostic))}
 								/>
 							</div>
 						{/if}

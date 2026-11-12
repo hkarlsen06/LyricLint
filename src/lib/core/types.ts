@@ -922,10 +922,13 @@ export interface EditorHandle {
 		range: TextRange
 	): { ok: true } | { ok: false; message: string };
 	dismissClipboardReview?(): void;
-	/** Keep the Genius headers in a passage (the whole document by default) as this draft's sections. */
-	readGeniusFormatting?(
-		range?: TextRange
-	): { ok: true; sections: number } | { ok: false; message: string };
+	/**
+	 * Keep the recognized Genius headers held as lyric lines as this draft's
+	 * sections. `steps` is how many undos take it back; `kept` counts headers
+	 * left alone because the draft already keeps details inside their passage.
+	 */
+	readGeniusFormatting?():
+		{ ok: true; sections: number; steps: number; kept: number } | { ok: false; message: string };
 	/** Commit a roster-only inverse in the same history as retained lyric associations. */
 	dispatchPerformerRecords?(
 		rosterChanges: PerformerRecordDelta,
