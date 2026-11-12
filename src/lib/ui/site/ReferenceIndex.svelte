@@ -382,6 +382,14 @@
 		font-size: var(--font-size-editor);
 		min-height: var(--control-height-lg);
 	}
+	/* The shared coarse-pointer floor in responsive-shared.css has this rule's
+	   specificity and comes first, so a phone's fields would keep the desktop height. */
+	@media (pointer: coarse) {
+		input,
+		select {
+			min-height: var(--control-height-touch);
+		}
+	}
 	.reference-tools {
 		display: flex;
 		flex-wrap: wrap;
