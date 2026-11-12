@@ -2,6 +2,8 @@
 	import type { Diagnostic, SourceReference, TextRange } from '#lib/core/types.js';
 	import { tick, type Snippet } from 'svelte';
 	import BookOpenIcon from 'phosphor-svelte/lib/BookOpenIcon';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
+	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
 	import ChecksIcon from 'phosphor-svelte/lib/ChecksIcon';
 	import { diagnosticKey, orderDiagnostics } from '#lib/diagnostics/order.js';
 	import { describeControl } from '#lib/ui/state/control-tooltip.svelte.js';
@@ -294,23 +296,31 @@
 	</div>
 {:else}
 	{#if !overview && sortedDiagnostics.length > 1}
-		<div class="diagnostic-actions" role="group" aria-label="Navigate findings">
+		<div
+			class="diagnostic-actions diagnostic-list__pager"
+			role="group"
+			aria-label="Navigate findings"
+		>
 			<button
 				type="button"
 				class="button button--quiet"
 				disabled={currentIndex <= 0}
 				aria-keyshortcuts="Alt+Shift+ArrowUp"
 				{@attach describeControl(() => ({ label: 'Previous finding', shortcut: 'Alt+Shift+↑' }))}
-				onclick={() => step(-1)}>Previous</button
+				onclick={() => step(-1)}
+				><CaretUpIcon aria-hidden="true" size={14} weight="bold" />Previous</button
 			>
-			<span aria-live="polite">{currentIndex + 1} of {sortedDiagnostics.length}</span>
+			<span class="diagnostic-list__position" aria-live="polite"
+				>{currentIndex + 1} of {sortedDiagnostics.length}</span
+			>
 			<button
 				type="button"
 				class="button button--quiet"
 				disabled={currentIndex >= sortedDiagnostics.length - 1}
 				aria-keyshortcuts="Alt+Shift+ArrowDown"
 				{@attach describeControl(() => ({ label: 'Next finding', shortcut: 'Alt+Shift+↓' }))}
-				onclick={() => step(1)}>Next</button
+				onclick={() => step(1)}
+				>Next<CaretDownIcon aria-hidden="true" size={14} weight="bold" /></button
 			>
 		</div>
 	{/if}
@@ -426,8 +436,35 @@
 	.diagnostic-list__empty .diagnostic-list__empty-title {
 		color: var(--color-text);
 		font-size: var(--font-size-xl);
-		font-weight: var(--font-weight-medium);
+		font-weight: var(--font-weight-semibold);
+		letter-spacing: var(--tracking-heading);
 		line-height: var(--line-height-tight);
+	}
+
+	/* The pager steps through the list it heads, so it sits on the list's own
+	   inset, its position between the two directions in tabular figures that
+	   hold their width as the count changes. */
+	.diagnostic-list__pager {
+		padding: var(--space-1) var(--space-3) 0;
+		gap: var(--space-1);
+	}
+	.diagnostic-list__pager > :global(.button) {
+		min-height: var(--control-height-sm);
+		padding-inline: var(--space-2);
+		gap: var(--space-1);
+	}
+	.diagnostic-list__pager > :global(.button:first-child) {
+		margin-inline-start: calc(-1 * var(--space-2));
+	}
+	.diagnostic-list__pager :global(svg) {
+		flex: none;
+	}
+	.diagnostic-list__position {
+		min-width: 5.5ch;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		font-variant-numeric: tabular-nums;
+		text-align: center;
 	}
 
 	/* Inset findings separate by space; only the open finding takes depth. */

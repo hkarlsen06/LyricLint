@@ -186,8 +186,9 @@
 		visibility: hidden;
 	}
 
+	/* On the Review column's own inset, level with its heading and chips. */
 	.retained-review {
-		padding: var(--space-4);
+		padding: var(--space-4) var(--space-3);
 	}
 	.retained-review h2 {
 		font-size: var(--font-size-md);

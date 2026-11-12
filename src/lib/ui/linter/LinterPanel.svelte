@@ -5,6 +5,7 @@
 	import RemoveButton from '#lib/ui/primitives/RemoveButton.svelte';
 	import { formatDraftDate, fullDraftDate } from '#lib/ui/drafts/draft-date.js';
 	import DiagnosticList from './DiagnosticList.svelte';
+	import MagicWandIcon from 'phosphor-svelte/lib/MagicWandIcon';
 	import SeverityIcon from '#lib/diagnostics/SeverityIcon.svelte';
 	import { severityPluralLabels } from '#lib/diagnostics/severity-labels.js';
 	import { retainedFindings } from '#lib/conversion/review.js';
@@ -281,6 +282,7 @@
 					class="button linter-panel__bulk-action"
 					onclick={(event) => void applyBulkFix(event.currentTarget)}
 				>
+					<MagicWandIcon aria-hidden="true" size={14} weight="bold" />
 					Fix {bulk.automatic}
 					{bulk.automatic === 1 ? 'issue' : 'issues'} automatically
 				</button>
@@ -365,7 +367,7 @@
 				{#each unreviewedLanguages as tag (tag)}
 					<p>{languageName(tag)}: language-independent checks and conversion only.</p>
 				{/each}
-				<details>
+				<details class="disclosure">
 					<summary>Checking coverage</summary>
 					{#if reviewedLanguages.length}
 						<p>
@@ -429,7 +431,7 @@
 
 <style>
 	.linter-panel__coverage {
-		padding: var(--space-3);
+		padding: var(--space-3) var(--space-3) var(--space-4);
 		font-size: var(--font-size-sm);
 		color: var(--color-text-muted);
 	}
@@ -442,11 +444,15 @@
 		flex-direction: column;
 	}
 
+	/* The heading shares the chips' and the bulk command's inset, so the
+	   column's leading edge is one line from the title down. */
 	.linter-panel .linter-panel__heading {
 		margin: 0;
-		padding: var(--space-5) var(--space-4) var(--space-3);
+		padding: var(--space-5) var(--space-3) var(--space-3);
 		font-size: var(--font-size-xl);
-		font-weight: var(--font-weight-medium);
+		font-weight: var(--font-weight-semibold);
+		letter-spacing: var(--tracking-heading);
+		line-height: var(--line-height-tight);
 	}
 
 	/* The drafts sit at the foot of the column, pushed there by the auto margin
@@ -581,8 +587,12 @@
 	   one of those per surface. */
 	.linter-panel__bulk-action {
 		min-height: var(--control-height-sm);
-		padding: var(--space-1) var(--space-2-5);
+		padding: var(--space-1) var(--space-2-5) var(--space-1) var(--space-2);
+		gap: var(--space-1-5);
 		font-size: var(--font-size-xs);
+	}
+	.linter-panel__bulk-action :global(svg) {
+		flex: none;
 	}
 
 	/* The shared size floors for a phone's `.button` (responsive-shared.css) used to
@@ -634,10 +644,15 @@
 	   `opacity: 0.45` (2.2:1), which made the number the hardest thing on the
 	   chip to read. */
 	.filter-chip__count {
-		min-width: 1.1em;
+		display: inline-grid;
+		min-width: 1.5em;
+		padding-inline: var(--space-1);
+		place-items: center;
+		border-radius: var(--radius-pill);
+		background: color-mix(in oklch, currentColor 14%, transparent);
 		color: inherit;
 		font-variant-numeric: tabular-nums;
-		text-align: end;
+		line-height: var(--line-height-ui);
 	}
 
 	/* Keep this query aligned with PHONE_WORKSPACE_QUERY. An opened finding is
