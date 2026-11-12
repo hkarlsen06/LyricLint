@@ -61,6 +61,7 @@ import type { ProfileId } from '#lib/profiles/types.js';
 import { applyPerformerRecordDelta } from '#lib/editor/extensions/conversion-roster.js';
 import { renamedPerformer, allocatePerformerColor } from '#lib/performers/index.js';
 import { renderProfile } from '#lib/conversion/index.js';
+import { recognizedSectionHeaders } from '#lib/conversion/section-types.js';
 
 /**
  * Linked lyrics one page may open as new drafts. A page that opened this tab
@@ -68,6 +69,8 @@ import { renderProfile } from '#lib/conversion/index.js';
  * otherwise write a draft of up to 1 MiB.
  */
 export const MAX_HANDOFFS_PER_PAGE = 5;
+/** Long enough to finish reading a pasted song's first screen before deciding. */
+const GENIUS_OFFER_DURATION = 20_000;
 
 interface WorkbenchDependencies {
 	editor: EditorHandle;
@@ -139,6 +142,15 @@ export interface WorkbenchController {
 	): boolean;
 	adoptPerformerRecords(delta: PerformerRecordDelta): void;
 	prepareInterpretation(sourceProfile: ProfileId): void;
+	/**
+	 * How many Genius section headers a Musixmatch draft is holding as lyric
+	 * lines. Zero in a Genius draft, where a header is the format itself.
+	 */
+	readonly geniusHeadersInLyrics: number;
+	/** Keep those headers as this draft's sections, in one undoable step. */
+	convertGeniusHeaders(): boolean;
+	/** Offer that conversion after lyrics arrived whole. Nothing changes until it is taken. */
+	offerGeniusFormatting(): void;
 	adoptPastedPerformers(performers: readonly PerformerRecord[]): void;
 	exportOriginalRecovery(): Promise<void>;
 	readonly profile: ProfileId;
@@ -809,6 +821,23 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		return opened;
 	}
 
+	// Counted once per snapshot: the Review row and the paste button both ask.
+	let headerCount: { snapshot: EditorSnapshot; profile: ProfileId; count: number } | undefined;
+	function countGeniusHeadersInLyrics(): number {
+		const snapshot = editorSession.snapshot;
+		const profile = draft.writing.profile;
+		if (headerCount?.snapshot !== snapshot || headerCount.profile !== profile)
+			headerCount = {
+				snapshot,
+				profile,
+				count:
+					profile === 'musixmatch' && snapshot.text.includes('[')
+						? recognizedSectionHeaders(parseDocument(snapshot.text), controller.language)
+						: 0
+			};
+		return headerCount.count;
+	}
+
 	const controller: WorkbenchController = {
 		applyClipboardReview() {
 			const result = editorSession.editor.applyClipboardReview?.();
@@ -845,6 +874,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		openConversionReview(diagnostic) {
 			const action = conversionReviewAction(diagnostic);
+			if (action?.kind === 'sections') {
+				controller.convertGeniusHeaders();
+				return;
+			}
 			if (!action || !editorSession.snapshot.conversion || controller.profile !== 'musixmatch')
 				return;
 			editorSession.editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
@@ -919,6 +952,56 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				return;
 			}
 			panel.setActiveTab('song');
+		},
+		get geniusHeadersInLyrics() {
+			return countGeniusHeadersInLyrics();
+		},
+		convertGeniusHeaders() {
+			const result = editorSession.editor.readGeniusFormatting?.();
+			if (!result?.ok) {
+				const message = result?.message ?? 'The lyrics are not ready to be converted yet.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+			const revision = editorSession.snapshot.revision;
+			const message =
+				result.sections === 1
+					? 'Converted 1 Genius header to a section.'
+					: `Converted ${result.sections} Genius headers to sections.`;
+			feedback.announce(`${message} Undo keeps them as lyric lines.`);
+			feedback.addToast({
+				message,
+				// Two conversions are two steps of history, never one toast counting to two.
+				groupKey: JSON.stringify(['genius-converted', controller.draftId, revision]),
+				actionLabel: 'Undo',
+				action: () => {
+					// Only this step is the toast's to take back. After another edit the
+					// toolbar's Undo is the honest one, since it names no particular change.
+					if (editorSession.snapshot.revision !== revision) {
+						feedback.announce('The lyrics changed since. Use Undo to step back through them.');
+						return;
+					}
+					controller.undo();
+				}
+			});
+			return true;
+		},
+		offerGeniusFormatting() {
+			const headers = countGeniusHeadersInLyrics();
+			if (!headers) return;
+			const message =
+				headers === 1
+					? 'These lyrics hold 1 Genius header as a lyric line.'
+					: `These lyrics hold ${headers} Genius headers as lyric lines.`;
+			feedback.announce(`${message} Convert to sections is available.`);
+			feedback.addToast({
+				message,
+				groupKey: JSON.stringify(['genius-offer', controller.draftId]),
+				actionLabel: 'Convert to sections',
+				action: () => void controller.convertGeniusHeaders(),
+				duration: GENIUS_OFFER_DURATION
+			});
 		},
 		adoptPerformerRecords(delta) {
 			roster.reset(applyPerformerRecordDelta(roster.performers, delta));
@@ -1392,7 +1475,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		recordAcceptedOccurrence: panel.recordAcceptedOccurrence,
 		restoreDiagnostic: panel.restoreDiagnostic,
 		copyCanonical: editorSession.copyCanonical,
-		pasteLyrics: editorSession.pasteLyrics,
+		async pasteLyrics() {
+			const before = editorSession.snapshot.revision;
+			await editorSession.pasteLyrics();
+			// The start tray's button replaces the document without a paste event, so
+			// it makes the offer a keyboard paste gets from the editor.
+			if (editorSession.snapshot.revision !== before) controller.offerGeniusFormatting();
+		},
 		insertUnknownMarker() {
 			if (controller.profile === 'genius') editorSession.insertUnknownMarker();
 		},

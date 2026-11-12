@@ -17,6 +17,12 @@
 	until you edit the original lyrics or their formatting details. Changing a title or moving the caret
 	keeps your edited output.
 </p>
+<p>
+	If you paste Genius lyrics into a Musixmatch 'scribe, the paste stays exact and LyricLint offers
+	<strong>Convert to sections</strong>. One press keeps every recognized header such as
+	<code>[Chorus: Mira]</code> as a section with its label and performers, and Undo brings the
+	bracketed lines back. The same action stays on the bracketed-label finding in Review.
+</p>
 
 <h2 id="copy">Copy the lyrics</h2>
 <p>

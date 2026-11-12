@@ -17,6 +17,8 @@ import type {
 	TextRange
 } from '#lib/core/types.js';
 import { languagePolicyGaps } from '#lib/profiles/coverage.js';
+import { parseDocument } from '#lib/core/parser.js';
+import { recognizedSectionHeaders } from '#lib/conversion/section-types.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './catalog/utils.js';
 import { repeatPlaceholderRule } from './catalog/repeat-placeholder.js';
 import {
@@ -99,19 +101,20 @@ const labelsRule: RuleDefinition = {
 	version: 1,
 	defaultSeverity: 'warning',
 	sourceIds: general,
-	check(document) {
-		return physicalLines(document).flatMap((line) =>
-			/^\s*\[[^\]\r\n]+\]\s*$/u.test(line.text) && !/^\s*\[\?+\]\s*$/u.test(line.text)
-				? [
-						review(
-							this,
-							line,
-							'Review this bracketed label for Musixmatch.',
-							'Musixmatch keeps section and performer tags outside lyric text. Confirm this is metadata; bracketed vocals and uncertain words must remain until their meaning is known. Switching retains recognized Genius metadata separately.'
-						)
-					]
-				: []
-		);
+	check(document, context) {
+		return physicalLines(document).flatMap((line) => {
+			if (!/^\s*\[[^\]\r\n]+\]\s*$/u.test(line.text) || /^\s*\[\?+\]\s*$/u.test(line.text))
+				return [];
+			const finding = review(
+				this,
+				line,
+				'Review this bracketed label for Musixmatch.',
+				'Musixmatch keeps section and performer tags outside lyric text. Confirm this is metadata; bracketed vocals and uncertain words must remain until their meaning is known. Switching retains recognized Genius metadata separately.'
+			);
+			if (recognizedSectionHeaders(parseDocument(line.text), context.language))
+				finding.readableAsSection = true;
+			return [finding];
+		});
 	}
 };
 

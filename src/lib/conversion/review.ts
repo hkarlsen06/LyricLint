@@ -6,11 +6,19 @@ import { sectionType } from './section-types.js';
 
 export type ConversionReviewKind = 'quantity' | 'instrumental' | 'censor' | 'repeat';
 
-/** The shared card and popover offer only decisions with an implemented Review task. */
+/**
+ * The shared card and popover offer only decisions with an implemented Review task.
+ * `sections` is the one that is not a task: it converts every Genius header the
+ * draft holds as lyric lines, at once, and has nothing left to review.
+ */
 export function conversionReviewAction(
 	diagnostic: Diagnostic
-): { kind: ConversionReviewKind; label: string } | undefined {
+): { kind: ConversionReviewKind | 'sections'; label: string } | undefined {
 	switch (diagnostic.ruleId) {
+		case 'mxm.transcription.labels':
+			return diagnostic.readableAsSection
+				? { kind: 'sections', label: 'Convert Genius headers to sections' }
+				: undefined;
 		case 'mxm.numbers.context':
 			return { kind: 'quantity', label: 'Review quantity' };
 		case 'mxm.structure.instrumental':

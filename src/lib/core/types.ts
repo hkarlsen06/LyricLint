@@ -297,6 +297,11 @@ export interface Diagnostic extends TextRange {
 	/** Present when resolving the finding means selecting an inferred language. */
 	detectedLanguage?: DetectedDiagnosticLanguage;
 	/**
+	 * The flagged line is a complete Genius header naming a reviewed song part,
+	 * so a Musixmatch draft can keep it as a section instead of as lyric text.
+	 */
+	readableAsSection?: true;
+	/**
 	 * The finding is a guess about intent whose likeliest answer is that the text
 	 * is already right, so a shell leads with accepting it rather than with the
 	 * change. It is carried here rather than read off the rule id because a rule
@@ -917,6 +922,10 @@ export interface EditorHandle {
 		range: TextRange
 	): { ok: true } | { ok: false; message: string };
 	dismissClipboardReview?(): void;
+	/** Keep the Genius headers in a passage (the whole document by default) as this draft's sections. */
+	readGeniusFormatting?(
+		range?: TextRange
+	): { ok: true; sections: number } | { ok: false; message: string };
 	/** Commit a roster-only inverse in the same history as retained lyric associations. */
 	dispatchPerformerRecords?(
 		rosterChanges: PerformerRecordDelta,

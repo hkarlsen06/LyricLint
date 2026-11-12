@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { importDocument } from './import.js';
 import { renderProfile } from './projection.js';
-import { sectionType } from './section-types.js';
+import { parseDocument } from '#lib/core/parser.js';
+import { recognizedSectionHeaders, sectionType } from './section-types.js';
 import { sampleDraftText } from '#lib/ui/sample-draft.js';
 
 function imported(text: string, language = 'en') {
@@ -52,5 +53,25 @@ describe('section types from authored headings', () => {
 		expect(sectionType({ ...section, type: 'Bridge' }, 'en')).toBe('Bridge');
 		expect(sectionType({ ...section, headerVisible: false }, 'en')).toBeUndefined();
 		expect(sectionType({ ...section, placement: 'unresolved' }, 'en')).toBeUndefined();
+	});
+});
+
+describe('recognizing Genius formatting', () => {
+	it('counts complete headers that name a reviewed song part', () => {
+		expect(
+			recognizedSectionHeaders(
+				parseDocument('[Verse 1: Mira]\nStay\n\n[Chorus]\nGo\n\n[Refreng]\nBli'),
+				'no'
+			)
+		).toBe(3);
+	});
+
+	it.each([
+		['a bracketed vocal', '[laughs]\nStay'],
+		['an unknown lyric', 'Stay [?]\n[?]'],
+		['a header left open', '[Chorus\nStay'],
+		['plain lyrics', 'Stay beside me (Beside me)']
+	])('does not read %s as structure', (_name, text) => {
+		expect(recognizedSectionHeaders(parseDocument(text), 'en')).toBe(0);
 	});
 });

@@ -127,7 +127,8 @@ import {
 	clipboardMetadata,
 	applyClipboardReview,
 	dismissClipboardReview,
-	prepareInterpretation
+	prepareInterpretation,
+	readGeniusFormatting
 } from './extensions/clipboard-metadata.js';
 import { selectionAnchorPlugin } from './extensions/selection-anchor.js';
 import { searchReplace } from './extensions/search-replace.js';
@@ -604,6 +605,7 @@ const lyricEditorCallbackKeySet = {
 	onRequestMediaSource: true,
 	onMediaSourcePasted: true,
 	onPerformersPasted: true,
+	onGeniusFormattingPasted: true,
 	onSeekMedia: true,
 	onLineAnchorsChanged: true,
 	onLyricSyncChange: true,
@@ -673,6 +675,7 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		onRequestMediaSource: () => read().onRequestMediaSource?.(),
 		onMediaSourcePasted: (source) => read().onMediaSourcePasted?.(source),
 		onPerformersPasted: (performers) => read().onPerformersPasted?.(performers),
+		onGeniusFormattingPasted: () => read().onGeniusFormattingPasted?.(),
 		onSeekMedia: (time) => read().onSeekMedia?.(time),
 		onLyricSyncChange: (active, startAt, scoped, reason) =>
 			reason === undefined
@@ -1156,6 +1159,9 @@ export function createLyricEditor(
 		},
 		prepareInterpretation(profile, range) {
 			return prepareInterpretation(view, profile, range);
+		},
+		readGeniusFormatting(range) {
+			return readGeniusFormatting(view, range);
 		},
 		dismissClipboardReview() {
 			dismissClipboardReview(view);

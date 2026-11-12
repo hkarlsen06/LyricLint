@@ -36,7 +36,9 @@ async function mount(options: {
 	let lastText = options.text;
 	const linksChanged = vi.fn();
 	const sourcePasted = vi.fn();
+	const geniusPasted = vi.fn();
 	const callbacks: LyricEditorCallbacks = {
+		onGeniusFormattingPasted: geniusPasted,
 		onSnapshot: (snapshot) => {
 			lastText = snapshot.text;
 		},
@@ -64,7 +66,7 @@ async function mount(options: {
 	await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
 	await vi.waitFor(() => expect(handle).toBeDefined());
 	if (!handle) throw new Error('CodeMirror did not publish its editor handle.');
-	return { handle, linksChanged, sourcePasted, text: () => lastText };
+	return { handle, linksChanged, sourcePasted, geniusPasted, text: () => lastText };
 }
 
 function content(): HTMLElement {
@@ -470,6 +472,85 @@ describe('paste', () => {
 		expect(text()).toBe('A moon');
 		handle.undo();
 		expect(text()).toBe(source);
+	});
+
+	it('pastes Genius-formatted lyrics into a Musixmatch draft exactly, and tells the shell', async () => {
+		const { handle, geniusPasted, text } = await mount({ text: '' });
+		expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+		const source = '[Verse 1]\nStay beside me\n\n[Chorus]\nHold the line';
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', source);
+		await focusEditor();
+
+		clipboard('paste', transfer);
+
+		expect(text()).toBe(source);
+		expect(handle.getSnapshot().conversion?.model.sections ?? []).toHaveLength(0);
+		await vi.waitFor(() => expect(geniusPasted).toHaveBeenCalledOnce());
+	});
+
+	it('says nothing about a Genius header pasted into a Genius draft', async () => {
+		const { geniusPasted, text } = await mount({ text: '' });
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', '[Chorus]\nHold the line');
+		await focusEditor();
+
+		clipboard('paste', transfer);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		expect(text()).toBe('[Chorus]\nHold the line');
+		expect(geniusPasted).not.toHaveBeenCalled();
+	});
+
+	it('says nothing about bracketed vocals pasted into a Musixmatch draft', async () => {
+		const { handle, geniusPasted, text } = await mount({ text: '' });
+		expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', '[laughs]\nStay [?]');
+		await focusEditor();
+
+		clipboard('paste', transfer);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		expect(text()).toBe('[laughs]\nStay [?]');
+		expect(geniusPasted).not.toHaveBeenCalled();
+	});
+
+	it('converts recognized Genius headers to sections in one step that undo takes back', async () => {
+		const { handle, text } = await mount({ text: '' });
+		expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+		const source = '[Verse 1]\nStay beside me\n\n[Chorus]\nHold the line';
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 0, insert: source }]
+		});
+
+		expect(handle.readGeniusFormatting?.()).toEqual({ ok: true, sections: 2 });
+
+		expect(text()).toBe('Stay beside me\n\nHold the line');
+		expect(
+			handle.getSnapshot().conversion?.model.sections.map((section) => section.header.trim())
+		).toEqual(['[Verse 1]', '[Chorus]']);
+		expect(handle.getSnapshot().clipboardReview).toBeUndefined();
+		handle.undo();
+		expect(text()).toBe(source);
+		handle.redo();
+		expect(text()).toBe('Stay beside me\n\nHold the line');
+	});
+
+	it('refuses to convert lyrics that hold no Genius header', async () => {
+		const { handle, text } = await mount({ text: '' });
+		expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 0, insert: 'Stay beside me' }]
+		});
+
+		expect(handle.readGeniusFormatting?.()).toEqual({
+			ok: false,
+			message: 'No Genius section headers were found in this passage.'
+		});
+		expect(text()).toBe('Stay beside me');
 	});
 
 	it('pastes same-profile hidden details and restores them exactly when switching back', async () => {

@@ -2715,3 +2715,98 @@ test('saved Musixmatch ownership and edited Genius output survive loading a Geni
 	});
 	expect(controller.getExport()).not.toBe('Edited independent Genius output');
 });
+
+describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
+	const pasted = '[Verse 1]\nStay beside me\n\n[Chorus]\nHold the line';
+	function musixmatchDraft(text: string) {
+		return {
+			...draft('draft-a', text),
+			writing: { schema: 1, phase: 'writing', profile: 'musixmatch' } as const
+		};
+	}
+
+	test('counts them, and counts none in a Genius draft where they are the format', () => {
+		expect(setup({ initial: musixmatchDraft(pasted) }).controller.geniusHeadersInLyrics).toBe(2);
+		expect(setup({ initial: draft('draft-a', pasted) }).controller.geniusHeadersInLyrics).toBe(0);
+		expect(
+			setup({ initial: musixmatchDraft('[laughs]\nStay') }).controller.geniusHeadersInLyrics
+		).toBe(0);
+	});
+
+	test('offers the conversion once lyrics arrive, and changes nothing until it is taken', () => {
+		const { controller, editor } = setup({ initial: musixmatchDraft(pasted) });
+		const read = vi.fn(() => ({ ok: true as const, sections: 2 }));
+		editor.readGeniusFormatting = read;
+
+		controller.offerGeniusFormatting();
+
+		expect(read).not.toHaveBeenCalled();
+		expect(controller.feedback.toasts).toMatchObject([
+			{
+				message: 'These lyrics hold 2 Genius headers as lyric lines.',
+				actionLabel: 'Convert to sections'
+			}
+		]);
+
+		controller.feedback.toasts[0]?.action?.();
+
+		expect(read).toHaveBeenCalledOnce();
+		expect(controller.feedback.toasts.map((toast) => toast.message)).toContain(
+			'Converted 2 Genius headers to sections.'
+		);
+	});
+
+	test('makes no offer over lyrics that hold none', () => {
+		const { controller } = setup({ initial: musixmatchDraft('Stay beside me') });
+		controller.offerGeniusFormatting();
+		expect(controller.feedback.toasts).toEqual([]);
+	});
+
+	test('takes the conversion back from its toast only while it is the last change', () => {
+		const record = musixmatchDraft(pasted);
+		const { controller, editor } = setup({ initial: record });
+		editor.readGeniusFormatting = () => ({ ok: true, sections: 2 });
+		const undo = vi.fn();
+		editor.undo = undo;
+
+		expect(controller.convertGeniusHeaders()).toBe(true);
+		controller.feedback.toasts.at(-1)?.action?.();
+		expect(undo).toHaveBeenCalledOnce();
+
+		expect(controller.convertGeniusHeaders()).toBe(true);
+		const stale = controller.feedback.toasts.at(-1)?.action;
+		controller.onSnapshot(snapshot(record, 5, `${pasted}\nmore`));
+		stale?.();
+		expect(undo).toHaveBeenCalledOnce();
+	});
+
+	test('says why when the editor refuses', () => {
+		const { controller, editor } = setup({ initial: musixmatchDraft(pasted) });
+		editor.readGeniusFormatting = () => ({ ok: false, message: 'Finish the current edit first.' });
+
+		expect(controller.convertGeniusHeaders()).toBe(false);
+		expect(controller.feedback.toasts.map((toast) => toast.message)).toEqual([
+			'Finish the current edit first.'
+		]);
+	});
+
+	test('reads the finding action as the conversion', () => {
+		const { controller, editor } = setup({ initial: musixmatchDraft(pasted) });
+		const read = vi.fn(() => ({ ok: true as const, sections: 2 }));
+		editor.readGeniusFormatting = read;
+
+		controller.openConversionReview({
+			ruleId: 'mxm.transcription.labels',
+			severity: 'manual-review',
+			message: 'Review this bracketed label for Musixmatch.',
+			explanation: '',
+			sourceIds: [],
+			from: 0,
+			to: 15,
+			readableAsSection: true
+		});
+
+		expect(read).toHaveBeenCalledOnce();
+		expect(controller.requestedConversionReview).toBeUndefined();
+	});
+});

@@ -111,7 +111,15 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   and hold incompatible metadata for explicit review in Song. The passage preview names its source
   format and shows the exact receiving-format text; Apply commits text and details together, while
   Keep current text discards the pending metadata. A deliberate Interpret as Genius/Musixmatch
-  action uses this same preview and commit path for selected ordinary text. Pending reviews map
+  action uses this same preview and commit path for selected ordinary text.
+  A plain paste into a Musixmatch draft is still exact and is still CodeMirror's own. When
+  it carries at least one complete header naming a reviewed song part
+  (`recognizedSectionHeaders`), the editor tells the shell after the paste has landed
+  (`onGeniusFormattingPasted`), and the shell offers `Convert to sections` in a toast.
+  Nothing is converted until that press, or the same action on the bracketed-label finding,
+  is taken. `readGeniusFormatting` is the commit: the previewed route's own, without the
+  preview, over the whole document, as one history step that undo takes back to the exact
+  bracketed lines. A bracketed vocal or `[?]` is never a header and raises no offer. Pending reviews map
   through outside edits, including insertions and deletions adjacent to its boundaries, and
   invalidate when the passage is touched or the profile changes; undo
   restores the previous reviewed basis. Rich attachment that cannot preserve

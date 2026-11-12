@@ -885,6 +885,7 @@
 
 	const editorCallbacks: LyricEditorCallbacks = {
 		onPerformersPasted: (performers) => controller.adoptPastedPerformers(performers),
+		onGeniusFormattingPasted: () => controller.offerGeniusFormatting(),
 		onSnapshot: publishSnapshot,
 		// Assignment happens inline in the floating card; the right panel keeps
 		// whatever tab the user chose.

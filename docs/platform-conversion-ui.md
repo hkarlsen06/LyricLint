@@ -330,8 +330,13 @@ is inferred from its spelling.
 ## 5. Import, output, and empty states
 
 Normal paste preserves the exact inserted text. It does not change format or silently interpret
-foreign markup. A supported foreign-syntax finding may offer **Interpret as Genius formatting**
-with a precise preview. This is an explicit action, not a background “smart paste.”
+foreign markup. Converting is an explicit action, not a background “smart paste”, and it is
+offered where the decision is made: when lyrics with recognized Genius headers land in a
+Musixmatch draft, a toast names how many there are and offers **Convert to sections**, and
+the bracketed-label finding carries **Convert Genius headers to sections** for as long as
+they stay. One press keeps every recognized header as a typed section with its label and
+performers retained, and one undo returns the bracketed lines. Song's **Interpret as Genius
+formatting** remains the previewed route for a selected passage.
 
 Plain-text file opening exposes a source-format field, defaulting to the current format. A rich
 `.lls` restores its declared profile. Missing Musixmatch structure/performer tags cannot be

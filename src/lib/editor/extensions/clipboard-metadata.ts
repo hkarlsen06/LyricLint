@@ -2,7 +2,8 @@
 import type { EditorState, Extension } from '@codemirror/state';
 import { isolateHistory } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
-import { isSectionHeaderLine } from '#lib/core/parser.js';
+import { isSectionHeaderLine, parseDocument } from '#lib/core/parser.js';
+import { recognizedSectionHeaders } from '#lib/conversion/section-types.js';
 import { annotationSpansFor } from './annotation-spans.js';
 import type { LinkHole, LinkPassageOccurrence, SectionLink, TextRange } from '#lib/core/types.js';
 import type { ProfileId } from '#lib/profiles/types.js';
@@ -387,12 +388,15 @@ function conversionForPaste(state: EditorState): ConversionState | undefined {
 	return imported.ok ? imported.value : undefined;
 }
 
-/** An explicit review action may convert the copied fragment into the receiving format. */
-export function prepareInterpretation(
+type Outcome = { ok: true } | { ok: false; message: string };
+
+/** Read a passage of the document as another format, without changing anything yet. */
+function interpretPassage(
 	view: EditorView,
 	sourceProfile: ProfileId,
 	range: TextRange
-): { ok: true } | { ok: false; message: string } {
+):
+	{ ok: true; pending: PendingClipboardReview; sections: number } | { ok: false; message: string } {
 	if (view.state.readOnly || view.composing || conversionForState(view.state)?.recovery)
 		return {
 			ok: false,
@@ -416,24 +420,61 @@ export function prepareInterpretation(
 	});
 	if (!imported.ok) return { ok: false, message: imported.refusal.message };
 	const referenced = new Set(imported.value.voices.flatMap((voice) => voice.performerIds));
-	const pending = {
-		...range,
-		text,
-		conversion: createConversionEnvelope(imported.value, sourceProfile, profilePolicyVersions),
-		performers: (context?.performers ?? []).filter((performer) => referenced.has(performer.id))
+	return {
+		ok: true,
+		sections: imported.value.sections.length,
+		pending: {
+			...range,
+			text,
+			conversion: createConversionEnvelope(imported.value, sourceProfile, profilePolicyVersions),
+			performers: (context?.performers ?? []).filter((performer) => referenced.has(performer.id))
+		}
 	};
+}
+
+/** An explicit review action may convert the copied fragment into the receiving format. */
+export function prepareInterpretation(
+	view: EditorView,
+	sourceProfile: ProfileId,
+	range: TextRange
+): Outcome {
+	const interpreted = interpretPassage(view, sourceProfile, range);
+	if (!interpreted.ok) return interpreted;
 	view.dispatch({
-		effects: setClipboardReviewEffect.of(pending),
+		effects: setClipboardReviewEffect.of(interpreted.pending),
 		annotations: isolateHistory.of('full')
 	});
 	return { ok: true };
 }
 
-export function applyClipboardReview(
-	view: EditorView
-): { ok: true } | { ok: false; message: string } {
+/**
+ * Keep the Genius headers, voices and annotations in a passage as this draft's
+ * own sections and details, in one undoable step.
+ *
+ * The same commit as the previewed route, without the preview: this one is
+ * asked for by name on a passage whose headers are recognized song parts. The
+ * words between headers are not touched, and undo puts the bracketed lines
+ * back exactly.
+ */
+export function readGeniusFormatting(
+	view: EditorView,
+	range: TextRange = { from: 0, to: view.state.doc.length }
+): { ok: true; sections: number } | { ok: false; message: string } {
+	const interpreted = interpretPassage(view, 'genius', range);
+	if (!interpreted.ok) return interpreted;
+	if (!interpreted.sections)
+		return { ok: false, message: 'No Genius section headers were found in this passage.' };
+	const applied = applyPendingReview(view, interpreted.pending);
+	return applied.ok ? { ok: true, sections: interpreted.sections } : applied;
+}
+
+export function applyClipboardReview(view: EditorView): Outcome {
 	const pending = clipboardReviewFor(view.state);
 	if (!pending) return { ok: false, message: 'These copied details are no longer available.' };
+	return applyPendingReview(view, pending);
+}
+
+function applyPendingReview(view: EditorView, pending: PendingClipboardReview): Outcome {
 	if (view.state.readOnly || view.composing)
 		return { ok: false, message: 'Finish the current edit before applying copied details.' };
 	const current = conversionForPaste(view.state);
@@ -487,11 +528,33 @@ export function dismissClipboardReview(view: EditorView): void {
 	view.dispatch({ effects: setClipboardReviewEffect.of(undefined) });
 }
 
+/**
+ * Genius-formatted lyrics pasted into a Musixmatch draft.
+ *
+ * The paste itself is never touched: it lands exact, through CodeMirror's own
+ * handler. What changes is that the shell hears about it, because every
+ * `[Chorus: Mira]` is now a lyric line Musixmatch does not allow and the way to
+ * keep it as a section used to be a selection, three disclosures and a preview.
+ * The shell offers that as one press; nothing is converted until it is taken.
+ */
+function noteGeniusPaste(data: DataTransfer, view: EditorView): void {
+	if (profileForState(view.state) !== 'musixmatch' || view.state.readOnly) return;
+	const text = data.getData('text/plain');
+	if (!text.includes('[')) return;
+	const language = view.state.field(editorContextField, false)?.language ?? 'und';
+	if (!recognizedSectionHeaders(parseDocument(text.replace(/\r\n?/g, '\n')), language)) return;
+	// After CodeMirror has applied the paste this handler declined.
+	setTimeout(() => view.state.field(editorCallbacksField, false)?.onGeniusFormattingPasted?.());
+}
+
 function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
 	const data = event.clipboardData;
 	if (!data) return false;
 	const metadata = metadataFromClipboardHtml(data.getData('text/html'));
-	if (!metadata) return false;
+	if (!metadata) {
+		noteGeniusPaste(data, view);
+		return false;
+	}
 	if (view.state.readOnly || view.state.selection.ranges.length !== 1) return false;
 	const text = data.getData('text/plain').replace(/\r\n?/g, '\n');
 	if (!text) return false;

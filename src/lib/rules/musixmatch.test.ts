@@ -470,3 +470,13 @@ describe('explicit lyric language ranges', () => {
 		).toThrow('overlapping language ranges');
 	});
 });
+
+describe('a bracketed label that is a Genius header', () => {
+	it('is marked as convertible only when it names a reviewed song part', () => {
+		const labels = has(
+			'[Chorus: Mira & Noor]\nHold the line\n[laughs]\n[Verse 2]\nStay',
+			'transcription.labels'
+		);
+		expect(labels.map((label) => label.readableAsSection === true)).toEqual([true, false, true]);
+	});
+});
