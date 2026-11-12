@@ -125,6 +125,7 @@
 {#snippet picker()}
 	<LanguagePicker
 		{language}
+		profile={controller.profile}
 		scopeLanguages={selectionLanguages}
 		recentLanguages={controller.recentLanguages}
 		label={controlsOnly ? 'Selection language' : 'Selected passage language'}

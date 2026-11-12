@@ -230,6 +230,7 @@
 			</button>
 			<LanguagePicker
 				language={controller.language}
+				profile={controller.profile}
 				recentLanguages={controller.recentLanguages}
 				onchoose={(tag) => controller.setLanguage(tag)}
 				label="Document language"

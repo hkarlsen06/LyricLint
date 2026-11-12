@@ -246,6 +246,7 @@
 				<div class="document-settings">
 					<LanguagePicker
 						language={controller.language}
+						profile={controller.profile}
 						recentLanguages={controller.recentLanguages}
 						label="Document language"
 						expandedLabel

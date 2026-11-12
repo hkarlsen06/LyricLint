@@ -13,7 +13,7 @@
 	import RetainedReview from '../tools/RetainedReview.svelte';
 	import { tick, untrack } from 'svelte';
 	import ConversionReview from '../tools/ConversionReview.svelte';
-	import { profileLanguage } from '#lib/profiles/languages.js';
+	import { hasReviewedLanguageRules } from '#lib/profiles/languages.js';
 	import { languageName } from '#lib/languages/options.js';
 
 	let {
@@ -122,8 +122,10 @@
 			...(controller.snapshot.conversion?.model.languageRanges.map((range) => range.language) ?? [])
 		])
 	]);
-	const unreviewedLanguages = $derived(languages.filter((tag) => profileLanguage(tag) === 'und'));
-	const reviewedLanguages = $derived(languages.filter((tag) => profileLanguage(tag) !== 'und'));
+	const reviewedLanguages = $derived(
+		languages.filter((tag) => hasReviewedLanguageRules(tag, controller.profile))
+	);
+	const unreviewedLanguages = $derived(languages.filter((tag) => !reviewedLanguages.includes(tag)));
 	const emptyState = $derived.by(() => {
 		if (controller.snapshot.conversionRecovery || controller.snapshot.originalRecovery) {
 			return {

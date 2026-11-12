@@ -4,12 +4,14 @@
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { filterLanguages, languages, languageName } from '#lib/languages/options.js';
-	import { profileLanguage } from '#lib/profiles/languages.js';
+	import { hasReviewedLanguageRules } from '#lib/profiles/languages.js';
+	import type { ProfileId } from '#lib/profiles/types.js';
 	import { isLanguageTag } from '#lib/languages/tag.js';
 	import { onDestroy, tick } from 'svelte';
 
 	let {
 		language,
+		profile = 'genius',
 		recentLanguages: recent = [],
 		onchoose,
 		onopen = () => {},
@@ -26,6 +28,8 @@
 		hideWhenUnavailable = false
 	}: {
 		language: string | undefined;
+		/** The draft's main format, whose reviewed languages the coverage names. */
+		profile?: ProfileId;
 		recentLanguages?: readonly string[];
 		onchoose: (tag: string) => boolean | void;
 		onopen?: () => void;
@@ -156,8 +160,8 @@
 {#snippet coverage()}
 	{#each checkingLanguages as tag (tag)}
 		<p class="language-coverage">
-			{#if profileLanguage(tag) === 'und'}{languageName(tag)}: language-independent checks and
-				conversion only.
+			{#if !hasReviewedLanguageRules(tag, profile)}{languageName(tag)}: language-independent checks
+				and conversion only.
 			{:else}Reviewed language-specific rules for {languageName(tag)}.{/if}
 		</p>
 	{/each}
@@ -170,12 +174,14 @@
 			class="language-option"
 			class:selected={tag === language}
 			aria-label={name}
-			aria-describedby={profileLanguage(tag) === 'und' ? `${id}-${tag}-coverage` : undefined}
+			aria-describedby={hasReviewedLanguageRules(tag, profile)
+				? undefined
+				: `${id}-${tag}-coverage`}
 			aria-current={tag === language ? 'true' : undefined}
 			onclick={() => choose(tag)}
 		>
 			<span
-				>{name}{#if profileLanguage(tag) === 'und'}<small id={`${id}-${tag}-coverage`}
+				>{name}{#if !hasReviewedLanguageRules(tag, profile)}<small id={`${id}-${tag}-coverage`}
 						>Language-independent only</small
 					>{/if}</span
 			>
