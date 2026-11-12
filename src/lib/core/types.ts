@@ -924,11 +924,15 @@ export interface EditorHandle {
 	dismissClipboardReview?(): void;
 	/**
 	 * Keep the recognized Genius headers held as lyric lines as this draft's
-	 * sections. `steps` is how many undos take it back; `kept` counts headers
-	 * left alone because the draft already keeps details inside their passage.
+	 * sections, all of them or only those starting in `within`. `steps` is how
+	 * many undos take it back; `kept` counts headers left alone because the
+	 * draft already keeps details inside their passage.
 	 */
-	readGeniusFormatting?():
-		{ ok: true; sections: number; steps: number; kept: number } | { ok: false; message: string };
+	readGeniusFormatting?(
+		within?: TextRange
+	):
+		| { ok: true; sections: number; steps: number; kept: number }
+		| { ok: false; message: string; kept: number };
 	/** Commit a roster-only inverse in the same history as retained lyric associations. */
 	dispatchPerformerRecords?(
 		rosterChanges: PerformerRecordDelta,

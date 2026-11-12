@@ -60,9 +60,15 @@ const providerOrder = (diagnostic: Diagnostic): number =>
  * document-level decision at the head of the panel, ahead of provider,
  * severity, and position, so it cannot look like a consequence of those
  * findings.
+ *
+ * A Genius header held as a lyric line in a Musixmatch draft comes next, for
+ * the same reason one level down: while it stands, the findings under it are
+ * about a document in the wrong shape (its `1` reads as a number to confirm,
+ * its section has no boundary), and one press on it settles them. Its severity
+ * is `manual-review`, which would otherwise file it last.
  */
 const decisionOrder = (diagnostic: Diagnostic): number =>
-	diagnostic.ruleId === 'language.selection-mismatch' ? 0 : 1;
+	diagnostic.ruleId === 'language.selection-mismatch' ? 0 : diagnostic.readableAsSection ? 1 : 2;
 
 /**
  * The order the linter reads in: a language-selection mismatch first, then

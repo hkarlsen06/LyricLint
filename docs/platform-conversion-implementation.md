@@ -506,7 +506,7 @@ saved draft; it is retained by the in-session editor until content/other deliber
 | New rich `.lls` / backup | Validate declared schema, model, versions and projection before any mutation; restore saved profile |
 | Plain-text file | Source-format field defaults to current profile; opening preserves that source text; switching afterward uses the normal converter |
 | Ordinary paste | Exact insertion in active format; no profile guessing or silent stripping |
-| Ordinary paste of recognized Genius headers into Musixmatch | Exact insertion, then an offer; `Convert to sections` commits the Genius reading of each recognized header's own passage through the normal model/history validation; a passage that already holds retained details is left as text |
+| Ordinary paste of recognized Genius headers into Musixmatch | Exact insertion as its own history step, then an automatic second step with an Undo toast, which commits the Genius reading of each recognized header's own passage through the normal model/history validation; a passage that already holds retained details is left as text |
 | Valid rich clipboard data | Keep plain text exact; attach only validated compatible metadata, remapping copied occurrence IDs |
 | Foreign-profile rich clipboard | Preserve pasted text; expose explicit interpretation/conversion before applying incompatible syntax records |
 | Explicit Interpret as Genius/Musixmatch formatting | Preview selected input's named source parse and target projection; commit through normal model/history validation |

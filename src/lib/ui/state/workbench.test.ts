@@ -2733,33 +2733,65 @@ describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
 		).toBe(0);
 	});
 
-	test('offers the conversion once lyrics arrive, and changes nothing until it is taken', () => {
+	test('converts the headers of lyrics that just arrived, within the range they landed in', () => {
 		const { controller, editor } = setup({ initial: musixmatchDraft(pasted) });
-		const read = vi.fn(() => ({ ok: true as const, sections: 2, steps: 1, kept: 0 }));
+		const read = vi.fn<NonNullable<EditorHandle['readGeniusFormatting']>>(() => ({
+			ok: true,
+			sections: 2,
+			steps: 1,
+			kept: 0
+		}));
 		editor.readGeniusFormatting = read;
 
-		controller.offerGeniusFormatting();
+		controller.convertPastedGeniusHeaders({ from: 0, to: pasted.length });
 
-		expect(read).not.toHaveBeenCalled();
+		expect(read).toHaveBeenCalledWith({ from: 0, to: pasted.length });
 		expect(controller.feedback.toasts).toMatchObject([
-			{
-				message: '2 Genius headers are in the lyrics.',
-				actionLabel: 'Convert to sections'
-			}
+			{ message: 'Converted 2 Genius headers to sections.', actionLabel: 'Undo' }
 		]);
-
-		controller.feedback.toasts[0]?.action?.();
-
-		expect(read).toHaveBeenCalledOnce();
-		expect(controller.feedback.toasts.map((toast) => toast.message)).toContain(
-			'Converted 2 Genius headers to sections.'
-		);
+		// Nobody pressed for this one, so its toast outlasts a pressed-for change.
+		expect(controller.feedback.toasts[0]?.duration).toBeGreaterThan(NOTICE_TOAST_DURATION);
 	});
 
-	test('makes no offer over lyrics that hold none', () => {
-		const { controller } = setup({ initial: musixmatchDraft('Stay beside me') });
-		controller.offerGeniusFormatting();
+	test('stays quiet when arriving lyrics had nothing to convert', () => {
+		const { controller, editor } = setup({ initial: musixmatchDraft('Stay beside me') });
+		editor.readGeniusFormatting = () => ({ ok: false, message: 'None found.', kept: 0 });
+
+		controller.convertPastedGeniusHeaders();
+
 		expect(controller.feedback.toasts).toEqual([]);
+	});
+
+	test('says why arriving headers stayed when the draft keeps details among them', () => {
+		const { controller, editor } = setup({ initial: musixmatchDraft(pasted) });
+		editor.readGeniusFormatting = () => ({ ok: false, message: 'They stay.', kept: 2 });
+
+		controller.convertPastedGeniusHeaders();
+
+		expect(controller.feedback.toasts.map((toast) => toast.message)).toEqual(['They stay.']);
+	});
+
+	test('converts after the paste button replaces the document', async () => {
+		const empty = {
+			...draft('draft-a', ''),
+			writing: { schema: 1, phase: 'new', profile: 'musixmatch' } as const
+		};
+		const { controller, editor } = setup({
+			initial: empty,
+			readClipboard: () => Promise.resolve(pasted)
+		});
+		const read = vi.fn<NonNullable<EditorHandle['readGeniusFormatting']>>(() => ({
+			ok: true,
+			sections: 2,
+			steps: 1,
+			kept: 0
+		}));
+		editor.readGeniusFormatting = read;
+		editor.dispatchAtomic = () => controller.onSnapshot(snapshot(empty, 1, pasted));
+
+		await controller.pasteLyrics();
+
+		expect(read).toHaveBeenCalledWith(undefined);
 	});
 
 	test('takes the conversion back from its toast only while it is the last change', () => {
@@ -2780,7 +2812,7 @@ describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
 		expect(undo).toHaveBeenCalledOnce();
 	});
 
-	test('leaves both toasts with the draft that raised them', async () => {
+	test('leaves the Undo toast with the draft that raised it', async () => {
 		const record = musixmatchDraft(pasted);
 		const other = { ...musixmatchDraft(pasted), id: 'draft-b' };
 		const { controller, editor } = setup({ initial: record, drafts: [record, other] });
@@ -2788,17 +2820,12 @@ describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
 		editor.readGeniusFormatting = read;
 		const undo = vi.fn();
 		editor.undo = undo;
-		controller.offerGeniusFormatting();
-		const offer = controller.feedback.toasts.at(-1)?.action;
 		expect(controller.convertGeniusHeaders()).toBe(true);
 		const takeBack = controller.feedback.toasts.at(-1)?.action;
-		read.mockClear();
 
 		await controller.openDraft(other.id);
-		offer?.();
 		takeBack?.();
 
-		expect(read).not.toHaveBeenCalled();
 		expect(undo).not.toHaveBeenCalled();
 	});
 
@@ -2819,7 +2846,11 @@ describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
 
 	test('says why when the editor refuses', () => {
 		const { controller, editor } = setup({ initial: musixmatchDraft(pasted) });
-		editor.readGeniusFormatting = () => ({ ok: false, message: 'Finish the current edit first.' });
+		editor.readGeniusFormatting = () => ({
+			ok: false,
+			message: 'Finish the current edit first.',
+			kept: 0
+		});
 
 		expect(controller.convertGeniusHeaders()).toBe(false);
 		expect(controller.feedback.toasts.map((toast) => toast.message)).toEqual([

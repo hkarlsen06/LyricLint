@@ -38,6 +38,32 @@ describe('the panel reading order', () => {
 		]);
 	});
 
+	it('leads with a Genius header held as a lyric line, under only the language mismatch', () => {
+		const ordered = orderDiagnostics([
+			diagnostic('mxm.numbers.context', 'manual-review', 7, 'the 1 in Verse 1'),
+			diagnostic('mxm.punctuation.line-end', 'warning', 30, 'a warning'),
+			{
+				...diagnostic('mxm.transcription.labels', 'manual-review', 60, 'second header'),
+				readableAsSection: true
+			},
+			{
+				...diagnostic('mxm.transcription.labels', 'manual-review', 0, 'first header'),
+				readableAsSection: true
+			},
+			diagnostic('mxm.transcription.labels', 'manual-review', 90, 'a bracketed vocal'),
+			diagnostic('language.selection-mismatch', 'warning', 50, 'language mismatch')
+		]);
+
+		expect(ids(ordered)).toEqual([
+			'language mismatch',
+			'first header',
+			'second header',
+			'a warning',
+			'the 1 in Verse 1',
+			'a bracketed vocal'
+		]);
+	});
+
 	it('reads worst first, then down the document', () => {
 		const ordered = orderDiagnostics([
 			diagnostic('section.header-prose', 'suggestion', 40, 'suggestion late'),

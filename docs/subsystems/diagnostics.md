@@ -24,6 +24,11 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
   conversion action that opens no Review task: it converts every such header in the draft
   whose passage holds no retained details yet (`convertGeniusHeaders`), and its toast's Undo
   belongs to that draft session and revision only. A bracketed vocal keeps `Ignore` alone.
+  These findings read first in Review, under only a language-selection mismatch
+  (`decisionOrder` in `order.ts`): while a header stands as lyric text, the findings below it
+  describe a document in the wrong shape, and its `manual-review` severity would otherwise
+  file it last. A paste converts its own headers without this row; the row is what remains
+  after an undo, in an older draft, or for a header typed by hand.
 - Conversion diagnostic actions stay in Review. Requests capture the original range, revision, draft and format. Source selection never retargets the decision. Changed lyrics require returning to the current finding. Repeat placeholders replace only the captured standalone notation with an explicitly chosen earlier section and confirmed number of fresh copies; preview precedes application. Song retains its separate metadata tools.
 
 - Repeat review keeps source, blank copy count and Preview above variable source context.

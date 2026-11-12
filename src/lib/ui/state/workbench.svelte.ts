@@ -69,8 +69,8 @@ import { recognizedSectionHeaders, sectionType } from '#lib/conversion/section-t
  * otherwise write a draft of up to 1 MiB.
  */
 export const MAX_HANDOFFS_PER_PAGE = 5;
-/** Long enough to finish reading a pasted song's first screen before deciding. */
-const GENIUS_OFFER_DURATION = 20_000;
+/** A change the reader did not press for stays up long enough to be read and undone. */
+const CONVERTED_ON_ARRIVAL_DURATION = 10_000;
 
 interface WorkbenchDependencies {
 	editor: EditorHandle;
@@ -147,10 +147,14 @@ export interface WorkbenchController {
 	 * lines. Zero in a Genius draft, where a header is the format itself.
 	 */
 	readonly geniusHeadersInLyrics: number;
-	/** Keep those headers as this draft's sections, in one undoable step. */
+	/** Keep those headers as this draft's sections, on request from their finding. */
 	convertGeniusHeaders(): boolean;
-	/** Offer that conversion after lyrics arrived whole. Nothing changes until it is taken. */
-	offerGeniusFormatting(): void;
+	/**
+	 * The same conversion, made on its own for lyrics that just arrived whole:
+	 * the headers in the pasted range, or all of them after a whole-document
+	 * paste. The paste stays its own history step, so one undo returns it exact.
+	 */
+	convertPastedGeniusHeaders(range?: TextRange): void;
 	adoptPastedPerformers(performers: readonly PerformerRecord[]): void;
 	exportOriginalRecovery(): Promise<void>;
 	readonly profile: ProfileId;
@@ -843,6 +847,51 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		return headerCount.count;
 	}
 
+	/**
+	 * `arrived` is the conversion nobody pressed for: it follows a paste, so it
+	 * stays quiet when there was nothing to convert, and its toast stays long
+	 * enough to be read by someone who was looking at the lyrics.
+	 */
+	function convertHeaders(within: TextRange | undefined, arrived: boolean): boolean {
+		const result = editorSession.editor.readGeniusFormatting?.(within);
+		if (!result?.ok) {
+			if (arrived && !result?.kept) return false;
+			const message = result?.message ?? 'The lyrics are not ready to be converted yet.';
+			feedback.announce(message);
+			feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+			return false;
+		}
+		const session = draftSession;
+		const revision = editorSession.snapshot.revision;
+		const converted =
+			result.sections === 1
+				? 'Converted 1 Genius header to a section.'
+				: `Converted ${result.sections} Genius headers to sections.`;
+		// Headers among details the draft already keeps are left alone, and said so.
+		const message = result.kept
+			? `${converted} ${result.kept} stayed as lyric lines beside existing details.`
+			: converted;
+		feedback.announce(`${message} Undo keeps them as lyric lines.`);
+		feedback.addToast({
+			message,
+			// Two conversions are two steps of history, never one toast counting to two.
+			groupKey: JSON.stringify(['genius-converted', controller.draftId, revision]),
+			actionLabel: 'Undo',
+			duration: arrived ? CONVERTED_ON_ARRIVAL_DURATION : undefined,
+			action: () => {
+				// Only this change is the toast's to take back: the same draft, still
+				// open, with nothing edited since. Revisions restart with each draft,
+				// so the session is what tells two drafts at revision 3 apart.
+				if (session !== draftSession || editorSession.snapshot.revision !== revision) {
+					feedback.announce('The lyrics changed since. Use Undo to step back through them.');
+					return;
+				}
+				for (let step = 0; step < result.steps; step++) controller.undo();
+			}
+		});
+		return true;
+	}
+
 	const controller: WorkbenchController = {
 		applyClipboardReview() {
 			const result = editorSession.editor.applyClipboardReview?.();
@@ -962,63 +1011,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			return countGeniusHeadersInLyrics();
 		},
 		convertGeniusHeaders() {
-			const result = editorSession.editor.readGeniusFormatting?.();
-			if (!result?.ok) {
-				const message = result?.message ?? 'The lyrics are not ready to be converted yet.';
-				feedback.announce(message);
-				feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
-				return false;
-			}
-			const session = draftSession;
-			const revision = editorSession.snapshot.revision;
-			const converted =
-				result.sections === 1
-					? 'Converted 1 Genius header to a section.'
-					: `Converted ${result.sections} Genius headers to sections.`;
-			// Headers among details the draft already keeps are left alone, and said so.
-			const message = result.kept
-				? `${converted} ${result.kept} stayed as lyric lines beside existing details.`
-				: converted;
-			feedback.announce(`${message} Undo keeps them as lyric lines.`);
-			feedback.addToast({
-				message,
-				// Two conversions are two steps of history, never one toast counting to two.
-				groupKey: JSON.stringify(['genius-converted', controller.draftId, revision]),
-				actionLabel: 'Undo',
-				action: () => {
-					// Only this change is the toast's to take back: the same draft, still
-					// open, with nothing edited since. Revisions restart with each draft,
-					// so the session is what tells two drafts at revision 3 apart.
-					if (session !== draftSession || editorSession.snapshot.revision !== revision) {
-						feedback.announce('The lyrics changed since. Use Undo to step back through them.');
-						return;
-					}
-					for (let step = 0; step < result.steps; step++) controller.undo();
-				}
-			});
-			return true;
+			return convertHeaders(undefined, false);
 		},
-		offerGeniusFormatting() {
-			const headers = countGeniusHeadersInLyrics();
-			if (!headers) return;
-			const session = draftSession;
-			// Short enough that the toast keeps its action on one line.
-			const message =
-				headers === 1
-					? '1 Genius header is in the lyrics.'
-					: `${headers} Genius headers are in the lyrics.`;
-			feedback.announce(`${message} Convert to sections is available.`);
-			feedback.addToast({
-				message,
-				groupKey: JSON.stringify(['genius-offer', controller.draftId]),
-				actionLabel: 'Convert to sections',
-				// A toast outlives the draft it was raised over; its press must not
-				// reach whichever draft is open by then.
-				action: () => {
-					if (session === draftSession) controller.convertGeniusHeaders();
-				},
-				duration: GENIUS_OFFER_DURATION
-			});
+		convertPastedGeniusHeaders(range) {
+			convertHeaders(range, true);
 		},
 		adoptPerformerRecords(delta) {
 			roster.reset(applyPerformerRecordDelta(roster.performers, delta));
@@ -1514,8 +1510,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			const before = editorSession.snapshot.revision;
 			await editorSession.pasteLyrics();
 			// The start tray's button replaces the document without a paste event, so
-			// it makes the offer a keyboard paste gets from the editor.
-			if (editorSession.snapshot.revision !== before) controller.offerGeniusFormatting();
+			// it asks for the conversion a keyboard paste gets from the editor.
+			if (editorSession.snapshot.revision !== before && countGeniusHeadersInLyrics() > 0)
+				controller.convertPastedGeniusHeaders();
 		},
 		insertUnknownMarker() {
 			if (controller.profile === 'genius') editorSession.insertUnknownMarker();

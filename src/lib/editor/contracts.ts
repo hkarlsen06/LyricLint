@@ -226,8 +226,8 @@ interface EditorOverlayCallbacks {
 	onMediaSourcePasted?(source: ClipboardMediaSource): void;
 	/** Merge validated copied identities before the pasted model's snapshot is published. */
 	onPerformersPasted?(performers: readonly import('#lib/core/types.js').PerformerRecord[]): void;
-	/** An exact paste into a Musixmatch draft carried recognized Genius headers; the shell may offer to convert them. */
-	onGeniusFormattingPasted?(): void;
+	/** An exact paste into a Musixmatch draft carried recognized Genius headers, and landed in this range. */
+	onGeniusFormattingPasted?(range: TextRange): void;
 	/**
 	 * Play from a line's anchored moment.
 	 *

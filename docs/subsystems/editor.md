@@ -115,16 +115,18 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   A plain paste into a Musixmatch draft is still exact and is still CodeMirror's own. When
   it carries at least one complete header naming a reviewed song part
   (`recognizedSectionHeaders`), the editor tells the shell after the paste has landed
-  (`onGeniusFormattingPasted`), and the shell offers `Convert to sections` in a toast.
-  Nothing is converted until that press, or the same action on the bracketed-label finding,
-  is taken. `readGeniusFormatting` is the commit: the previewed route's own, without the
-  preview. It reads only passages: one recognized header line and the lyrics under it, up to
+  (`onGeniusFormattingPasted`, with the range the paste landed in), and the shell converts
+  the headers in that range as a second history step and says so in a toast with Undo
+  (`convertPastedGeniusHeaders`). The start tray's `Paste lyrics` replaces the document
+  without a paste event, so the controller asks for the same conversion over the whole
+  document. `readGeniusFormatting` is the commit: the previewed route's own, without the
+  preview, over every recognized header or only those starting in a given range. It reads only passages: one recognized header line and the lyrics under it, up to
   the next bracketed header of any kind, with neighbours merged into one run and one history
   step. A passage in which the draft already keeps something (a section, an annotation, a
   voice, a wording, a timing, a link) is left as lyric text and counted in `kept`, because
   the commit replaces what it reads and would take those details with it; when every header
   is in that state the action refuses and says so. `steps` undos return the exact bracketed
-  lines. A bracketed vocal or `[?]` is never a header and raises no offer. Pending reviews map
+  lines. A bracketed vocal or `[?]` is never a header and is never converted. Pending reviews map
   through outside edits, including insertions and deletions adjacent to its boundaries, and
   invalidate when the passage is touched or the profile changes; undo
   restores the previous reviewed basis. Rich attachment that cannot preserve

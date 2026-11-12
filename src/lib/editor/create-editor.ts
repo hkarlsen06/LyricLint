@@ -675,7 +675,7 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		onRequestMediaSource: () => read().onRequestMediaSource?.(),
 		onMediaSourcePasted: (source) => read().onMediaSourcePasted?.(source),
 		onPerformersPasted: (performers) => read().onPerformersPasted?.(performers),
-		onGeniusFormattingPasted: () => read().onGeniusFormattingPasted?.(),
+		onGeniusFormattingPasted: (range) => read().onGeniusFormattingPasted?.(range),
 		onSeekMedia: (time) => read().onSeekMedia?.(time),
 		onLyricSyncChange: (active, startAt, scoped, reason) =>
 			reason === undefined
@@ -1160,8 +1160,8 @@ export function createLyricEditor(
 		prepareInterpretation(profile, range) {
 			return prepareInterpretation(view, profile, range);
 		},
-		readGeniusFormatting() {
-			return readGeniusFormatting(view);
+		readGeniusFormatting(within) {
+			return readGeniusFormatting(view, within);
 		},
 		dismissClipboardReview() {
 			dismissClipboardReview(view);

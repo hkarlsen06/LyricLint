@@ -458,7 +458,7 @@ export function prepareInterpretation(
  * annotation, a voice, a wording, a timing, a link), because the conversion
  * replaces what it reads and those would go with the text they sit on.
  */
-function geniusHeaderRuns(view: EditorView) {
+function geniusHeaderRuns(view: EditorView, within?: TextRange) {
 	const state = view.state;
 	const language = state.field(editorContextField, false)?.language ?? 'und';
 	const headers = parseDocument(state.doc.toString())
@@ -501,6 +501,7 @@ function geniusHeaderRuns(view: EditorView) {
 	for (let index = headers.length - 1; index >= 0; index--) {
 		const header = headers[index]!;
 		if (!header.recognized) continue;
+		if (within && (header.from < within.from || header.from >= within.to)) continue;
 		const range = { from: header.from, to: headers[index + 1]?.from ?? state.doc.length };
 		if (!untouched(range)) kept++;
 		else if (runs.at(-1)?.from === range.to) runs.at(-1)!.from = range.from;
@@ -517,15 +518,20 @@ function geniusHeaderRuns(view: EditorView) {
  * by name, it reads only the passages under those headers, and the words in
  * them are not touched. Each run is one history step, and `steps` undos return
  * the exact bracketed lines. `kept` counts headers left alone because the
- * draft already keeps details inside their passage.
+ * draft already keeps details inside their passage. `within` limits it to the
+ * headers that start in one range, which is how a paste converts only itself.
  */
 export function readGeniusFormatting(
-	view: EditorView
-): { ok: true; sections: number; steps: number; kept: number } | { ok: false; message: string } {
-	const { runs, kept } = geniusHeaderRuns(view);
+	view: EditorView,
+	within?: TextRange
+):
+	| { ok: true; sections: number; steps: number; kept: number }
+	| { ok: false; message: string; kept: number } {
+	const { runs, kept } = geniusHeaderRuns(view, within);
 	if (!runs.length)
 		return {
 			ok: false,
+			kept,
 			message: kept
 				? 'These headers sit among timings or details this draft already keeps, so they stay as lyric lines.'
 				: 'No Genius section headers were found in these lyrics.'
@@ -537,7 +543,7 @@ export function readGeniusFormatting(
 		const applied = interpreted.ok ? applyPendingReview(view, interpreted.pending) : interpreted;
 		if (!applied.ok) {
 			if (steps) break;
-			return applied;
+			return { ...applied, kept };
 		}
 		sections += interpreted.ok ? interpreted.sections : 0;
 		steps++;
@@ -609,19 +615,27 @@ export function dismissClipboardReview(view: EditorView): void {
  * Genius-formatted lyrics pasted into a Musixmatch draft.
  *
  * The paste itself is never touched: it lands exact, through CodeMirror's own
- * handler. What changes is that the shell hears about it, because every
- * `[Chorus: Mira]` is now a lyric line Musixmatch does not allow and the way to
- * keep it as a section used to be a selection, three disclosures and a preview.
- * The shell offers that as one press; nothing is converted until it is taken.
+ * handler, as its own history step. What changes is that the shell hears about
+ * it, with the range it landed in, because every `[Chorus: Mira]` is now a
+ * lyric line Musixmatch does not allow. The shell converts those headers as a
+ * second step, so one undo returns the exact pasted lines.
  */
 function noteGeniusPaste(data: DataTransfer, view: EditorView): void {
-	if (profileForState(view.state) !== 'musixmatch' || view.state.readOnly) return;
-	const text = data.getData('text/plain');
+	const state = view.state;
+	if (profileForState(state) !== 'musixmatch' || state.readOnly) return;
+	if (state.selection.ranges.length !== 1) return;
+	const text = data.getData('text/plain').replace(/\r\n?/g, '\n');
 	if (!text.includes('[')) return;
-	const language = view.state.field(editorContextField, false)?.language ?? 'und';
-	if (!recognizedSectionHeaders(parseDocument(text.replace(/\r\n?/g, '\n')), language)) return;
-	// After CodeMirror has applied the paste this handler declined.
-	setTimeout(() => view.state.field(editorCallbacksField, false)?.onGeniusFormattingPasted?.());
+	const language = state.field(editorContextField, false)?.language ?? 'und';
+	if (!recognizedSectionHeaders(parseDocument(text), language)) return;
+	const from = state.selection.main.from;
+	// After CodeMirror has applied the paste this handler declined. The range is
+	// passed only while it still holds exactly what was pasted.
+	setTimeout(() => {
+		const to = from + text.length;
+		if (to <= view.state.doc.length && view.state.doc.sliceString(from, to) === text)
+			view.state.field(editorCallbacksField, false)?.onGeniusFormattingPasted?.({ from, to });
+	});
 }
 
 function claimPaste(event: ClipboardEvent, view: EditorView): boolean {

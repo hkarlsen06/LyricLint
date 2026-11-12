@@ -486,7 +486,40 @@ describe('paste', () => {
 
 		expect(text()).toBe(source);
 		expect(handle.getSnapshot().conversion?.model.sections ?? []).toHaveLength(0);
+		await vi.waitFor(() =>
+			expect(geniusPasted).toHaveBeenCalledExactlyOnceWith({ from: 0, to: source.length })
+		);
+	});
+
+	it('converts only the headers inside the pasted range, as a step after the paste', async () => {
+		const { handle, geniusPasted, text } = await mount({ text: '' });
+		expect(handle.switchProfile?.('musixmatch')).toEqual({ ok: true });
+		// A header the transcriber already chose to keep as text.
+		const kept = '[Verse 1]\nStay beside me\n';
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 0, insert: kept }],
+			selectionAfter: { anchor: kept.length, head: kept.length }
+		});
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', '[Chorus]\nHold the line');
+		await focusEditor();
+		clipboard('paste', transfer);
 		await vi.waitFor(() => expect(geniusPasted).toHaveBeenCalledOnce());
+		const range = geniusPasted.mock.calls[0]![0];
+
+		expect(handle.readGeniusFormatting?.(range)).toEqual({
+			ok: true,
+			sections: 1,
+			steps: 1,
+			kept: 0
+		});
+
+		expect(text()).toBe(`${kept}Hold the line`);
+		handle.undo();
+		expect(text()).toBe(`${kept}[Chorus]\nHold the line`);
+		handle.undo();
+		expect(text()).toBe(kept);
 	});
 
 	it('says nothing about a Genius header pasted into a Genius draft', async () => {
@@ -578,7 +611,8 @@ describe('paste', () => {
 		expect(handle.readGeniusFormatting?.()).toEqual({
 			ok: false,
 			message:
-				'These headers sit among timings or details this draft already keeps, so they stay as lyric lines.'
+				'These headers sit among timings or details this draft already keeps, so they stay as lyric lines.',
+			kept: 1
 		});
 		expect(text()).toBe('[Chorus]\nA moon');
 		expect(handle.getSnapshot().conversion?.model.wrappers).toEqual(before);
@@ -594,7 +628,8 @@ describe('paste', () => {
 
 		expect(handle.readGeniusFormatting?.()).toEqual({
 			ok: false,
-			message: 'No Genius section headers were found in these lyrics.'
+			message: 'No Genius section headers were found in these lyrics.',
+			kept: 0
 		});
 		expect(text()).toBe('Stay beside me');
 	});

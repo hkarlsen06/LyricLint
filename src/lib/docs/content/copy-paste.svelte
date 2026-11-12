@@ -24,10 +24,10 @@
 	also lists its section tags in order, because Musixmatch takes structure as tags and not as text.
 </p>
 <p>
-	If you paste Genius lyrics into a Musixmatch 'scribe, the paste stays exact and LyricLint offers
-	<strong>Convert to sections</strong>. One press keeps every recognized header such as
-	<code>[Chorus: Mira]</code> as a section with its label and performers, and Undo brings the
-	bracketed lines back. The same action stays on the bracketed-label finding in Review.
+	If you paste Genius lyrics into a Musixmatch 'scribe, LyricLint converts every recognized header
+	such as <code>[Chorus: Mira]</code> into a section, keeping its label and performers, and says so
+	with an <strong>Undo</strong>. Undo brings the bracketed lines back exactly as pasted. Headers
+	that stay in the lyrics lead Review with <strong>Convert Genius headers to sections</strong>.
 </p>
 
 <h2 id="copy">Copy the lyrics</h2>

@@ -329,14 +329,19 @@ is inferred from its spelling.
 
 ## 5. Import, output, and empty states
 
-Normal paste preserves the exact inserted text. It does not change format or silently interpret
-foreign markup. Converting is an explicit action, not a background “smart paste”, and it is
-offered where the decision is made: when lyrics with recognized Genius headers land in a
-Musixmatch draft, a toast names how many there are and offers **Convert to sections**, and
-the bracketed-label finding carries **Convert Genius headers to sections** for as long as
-they stay. One press keeps every recognized header as a typed section with its label and
-performers retained, and one undo returns the bracketed lines. Song's **Interpret as Genius
-formatting** remains the previewed route for a selected passage.
+Normal paste preserves the exact inserted text and is its own history step. One conversion
+follows it on its own, decided by the owner on 2026-11-13 and superseding the earlier rule
+that conversion is never a background “smart paste”: when lyrics with recognized Genius
+headers land in a Musixmatch draft, those headers become typed sections with their labels
+and performers retained, as a second history step, and a toast says so with **Undo**. An
+offer in a toast was tried first and was missed in use. The conversion is limited to what
+cannot be meant as lyric text in Musixmatch: a complete header naming a reviewed song part,
+inside the range that was pasted. One undo returns the exact pasted lines; a second removes
+the paste. Headers that stay (after that undo, in an older draft, or typed by hand) raise
+the bracketed-label finding at the head of Review with **Convert Genius headers to
+sections**. Nothing else is interpreted: bracketed vocals, `[?]` and every other markup stay
+literal, and Song's **Interpret as Genius formatting** remains the previewed route for a
+selected passage.
 
 Plain-text file opening exposes a source-format field, defaulting to the current format. A rich
 `.lls` restores its declared profile. Missing Musixmatch structure/performer tags cannot be
