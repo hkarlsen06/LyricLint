@@ -228,7 +228,7 @@
 								{#each group.sectionIds as id (id)}
 									<li>
 										<strong>{names.get(id)}</strong>
-										<details>
+										<details class="disclosure">
 											<summary>Section options</summary>
 											<div class="rich-linking__actions">
 												<button
@@ -264,7 +264,7 @@
 								{/each}
 							</ul>
 							{#if group.passages?.length}
-								<details>
+								<details class="disclosure">
 									<summary>Connected lyrics</summary>
 									<ul class="rich-linking__passages">
 										{#each group.passages as passage, index (index)}
@@ -307,7 +307,7 @@
 								/>
 								<span>{names.get(section.id)}</span>
 							</label>
-							<details>
+							<details class="disclosure">
 								<summary>Lyrics in {names.get(section.id)}</summary>
 								<p class="rich-linking__lyrics">{lyrics(section.id) || 'Empty section'}</p>
 								<button

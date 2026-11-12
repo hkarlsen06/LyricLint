@@ -271,7 +271,7 @@
 			{context.before}<strong>{target}</strong>{context.after}
 		</p>
 		{#if context.clipped}
-			<details>
+			<details class="disclosure">
 				<summary>Full lyric line</summary>
 				<p class="lyrics" aria-label="Full lyric passage">
 					{passage.before}<strong>{target}</strong>{passage.after}
@@ -497,7 +497,7 @@
 									<span class="lyrics">{choiceExcerpt(entry.text)}</span>
 								</button>
 								{#if choiceExcerpt(entry.text) !== entry.text}
-									<details>
+									<details class="disclosure">
 										<summary>Full source lyrics · Section {entry.number}</summary>
 										<pre aria-label={entry.label}>{entry.text}</pre>
 									</details>

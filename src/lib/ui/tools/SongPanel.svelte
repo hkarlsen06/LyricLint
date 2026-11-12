@@ -241,7 +241,7 @@
 				.txt: {controller.profile === 'musixmatch' ? 'Musixmatch' : 'Genius'} lyrics. Scribe: both formats
 				and all editable details.
 			</p>
-			<details>
+			<details class="disclosure">
 				<summary>Language and content type</summary>
 				<div class="document-settings">
 					<LanguagePicker
@@ -283,7 +283,7 @@
 		-->
 			{#if clearable}
 				<details
-					class="song-panel__delete"
+					class="disclosure song-panel__delete"
 					{@attach dismissOnOutside(() => (confirmClearDocument = false))}
 					ontoggle={(event) => {
 						if (!event.currentTarget.open) confirmClearDocument = false;
@@ -443,7 +443,7 @@
 			</section>
 		{/if}
 
-		<details class="song-panel__advanced" bind:open={advancedOpen}>
+		<details class="disclosure song-panel__advanced" bind:open={advancedOpen}>
 			<summary bind:this={advancedSummary}>Advanced tools</summary>
 			<div class="song-panel__advanced-content">
 				<section>

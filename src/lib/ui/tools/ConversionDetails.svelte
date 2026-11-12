@@ -231,7 +231,10 @@
 										}}
 									/>
 								</label>
-								<details class="conversion-section__advanced" bind:open={sectionOptionsOpen}>
+								<details
+									class="disclosure conversion-section__advanced"
+									bind:open={sectionOptionsOpen}
+								>
 									<summary>Boundary and voice options</summary>
 									{#each model.voices.filter((voice) => voice.sectionId === section.id) as voice (voice.id)}
 										<p>
@@ -361,7 +364,7 @@
 		{/if}
 		{#if !controller.requestedSection}
 			{#if model.wrappers.length || model.forms.length}
-				<details>
+				<details class="disclosure">
 					<summary>Retained details</summary>
 					{#each model.wrappers as detail (detail.id)}
 						<section class="conversion-section">
@@ -406,7 +409,7 @@
 				</details>
 			{/if}
 			{#if selection.from < selection.to}
-				<details class="passage-tools">
+				<details class="disclosure passage-tools">
 					<summary>Selected passage tools</summary>
 					<section>
 						<h3>Wording and retained annotations</h3>

@@ -271,7 +271,7 @@
 									></textarea></label
 								>
 							{/if}
-							{#if pronunciation === 'whole-quantity'}<details>
+							{#if pronunciation === 'whole-quantity'}<details class="disclosure">
 									<summary
 										>{wordingRequirement === 'required'
 											? 'Use custom digit form'
@@ -407,7 +407,7 @@
 		{/if}
 	{/snippet}
 	<div class="conversion-facts">
-		{#if focused}{@render content()}{:else}<details bind:open>
+		{#if focused}{@render content()}{:else}<details class="disclosure" bind:open>
 				<summary>{savedOnly ? 'Saved decisions' : 'Decisions that need listening'}</summary
 				>{@render content()}
 			</details>{/if}

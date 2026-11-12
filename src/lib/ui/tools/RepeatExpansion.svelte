@@ -62,7 +62,7 @@
 </script>
 
 {#if controller.snapshot.conversion && !controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery}
-	<details class="repeat-expansion" bind:open>
+	<details class="disclosure repeat-expansion" bind:open>
 		<summary bind:this={summary}>Expand a repeated passage</summary>
 		<p>
 			Select the lyrics that repeat, then choose Use selected passage. Next select their following

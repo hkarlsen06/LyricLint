@@ -276,7 +276,7 @@
 				{/if}
 				{@render coverage()}
 				{#if custom}
-					<details>
+					<details class="disclosure">
 						<summary>Custom language code</summary>
 						<p>Codes without reviewed rules use language-independent checks and conversion only.</p>
 						<label
