@@ -263,7 +263,8 @@ test.each([360, 390])(
 
 test('choosing another phone finding retires the previous deferred reveal', async () => {
 	await page.viewport(390, 844);
-	const controller = await mount();
+	// Two findings that are two decisions, so the second is another row to choose.
+	const controller = await mount('[Verse]\nImma go\nYall stay');
 	const editor = screen.getByTestId('editor-region');
 	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
 	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
@@ -292,7 +293,7 @@ test('choosing another phone finding retires the previous deferred reveal', asyn
 		expect({ anchor: diagnostic.from, head: diagnostic.to }).toEqual(selected);
 	}
 	expect(screen.getAllByRole('button', { name: /^Go to / })).toEqual([findings[1]]);
-	expect(controller.editor.getSnapshot().text).toBe('[Verse]\nImma go\nImma stay');
+	expect(controller.editor.getSnapshot().text).toBe('[Verse]\nImma go\nYall stay');
 	expect(screen.getByTestId('editor-region')).toBe(editor);
 	expect(document.activeElement).not.toBe(screen.getByLabelText('Lyrics editor'));
 	await fireEvent.click(screen.getByRole('button', { name: 'All findings' }));
