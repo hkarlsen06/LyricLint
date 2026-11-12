@@ -963,6 +963,11 @@ describe('one row per decision', () => {
 		const row = rowFor(message);
 		const height = row.getBoundingClientRect().height;
 		expect(Number.isInteger(height)).toBe(false);
+		// Each place's explanation is wrapped at the width the shown one has.
+		const reserve = row.querySelector('.diagnostic-list__reserve > p');
+		const shown = row.querySelector('.diagnostic-list__body .diagnostic-explanation');
+		if (reserve)
+			expect(reserve.getBoundingClientRect().width).toBe(shown!.getBoundingClientRect().width);
 		expect(await unreservedHeight(row)).toBe(height);
 	});
 

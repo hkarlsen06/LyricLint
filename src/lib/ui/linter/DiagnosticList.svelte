@@ -872,7 +872,7 @@
 		position: absolute;
 		top: 0;
 		display: grid;
-		inset-inline: var(--space-4);
+		inset-inline: var(--row-inset);
 		visibility: hidden;
 		pointer-events: none;
 	}
