@@ -54,9 +54,10 @@ test.describe('Musixmatch guide', () => {
 		).toBe(true);
 		const topics = page
 			.getByRole('navigation', { name: 'Guide navigation' })
-			.getByRole('button', { name: 'Topics', exact: true });
+			.getByRole('link', { name: 'All topics', exact: true });
 		await expect(topics).toBeVisible();
 		await topics.click();
+		await expect(page).toHaveURL(/\/guidelines\/musixmatch\/$/u);
 		await expect(page.getByRole('searchbox')).toBeInViewport();
 	});
 });

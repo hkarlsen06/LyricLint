@@ -4,8 +4,23 @@
 	import ArrowLeftIcon from 'phosphor-svelte/lib/ArrowLeftIcon';
 	import { referenceHref, referenceSearchState } from './reference-search.svelte.js';
 
-	let { detailOpen, list, children }: { detailOpen: boolean; list: Snippet; children: Snippet } =
-		$props();
+	let {
+		detailOpen,
+		home = `${resolve('/(site)/guidelines')}/`,
+		title = 'Transcription guide',
+		lede = 'Practical answers for writing lyrics on Genius. Start with the part you are working on.',
+		list,
+		children
+	}: {
+		detailOpen: boolean;
+		/** The directory an article's return link leads to. */
+		home?: string;
+		/** The directory's headline and lede, for a guide other than Genius. */
+		title?: string;
+		lede?: string;
+		list: Snippet;
+		children: Snippet;
+	} = $props();
 	const filters = $derived(referenceSearchState());
 	const hasSearch = $derived(
 		!!filters.query.trim() || filters.scope !== 'all' || !!filters.topic || filters.browseAll
@@ -22,10 +37,8 @@
 >
 	{#if !detailOpen}
 		<header class="guide-heading">
-			<h1>Transcription guide</h1>
-			<p class="site-lede">
-				Practical answers for writing lyrics on Genius. Start with the part you are working on.
-			</p>
+			<h1>{title}</h1>
+			<p class="site-lede">{lede}</p>
 		</header>
 	{/if}
 	<aside class="guide-sidebar" aria-label="Find transcription advice">
@@ -35,7 +48,7 @@
 		{#if detailOpen}
 			<nav class="guide-return" aria-label="Guide navigation">
 				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- Keeps the existing search on the resolved directory route. -->
-				<a class="button button--quiet" href={referenceHref(`${resolve('/(site)/guidelines')}/`)}>
+				<a class="button button--quiet" href={referenceHref(home)}>
 					<ArrowLeftIcon size={16} aria-hidden="true" />
 					{hasSearch ? 'Back to results' : 'All topics'}
 				</a>

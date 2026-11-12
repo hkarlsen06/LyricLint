@@ -3,8 +3,8 @@
 	import CodeProse from './CodeProse.svelte';
 	import SiteSourceFold from './SiteSourceFold.svelte';
 	import MusixmatchCheck from './MusixmatchCheck.svelte';
-	import type { LayoutData } from '../../../routes/(site)/guidelines/$types.js';
-	let { entry }: { entry: LayoutData['musixmatchReader']['entries'][number] } = $props();
+	import type { PageData } from '../../../routes/(site)/guidelines/musixmatch/[topic]/$types.js';
+	let { entry }: { entry: PageData['entries'][number] } = $props();
 	const labels = {
 		check: 'Partly checked from text',
 		metadata: 'Retained metadata',

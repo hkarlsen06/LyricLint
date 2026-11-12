@@ -12,6 +12,7 @@
 			page.params.rule?.startsWith('mxm-') === true
 	);
 	const corpus = $derived(musixmatch ? data.musixmatchCorpus : data.referenceCorpus);
+	const musixmatchHome = `${resolve('/(site)/guidelines/musixmatch')}/`;
 	const selectedTopic = $derived(
 		page.params.topic ??
 			(page.params.rule
@@ -36,15 +37,22 @@
 	$effect(() => {
 		if (page.url.searchParams.get('profile') === 'musixmatch' && !musixmatch && !page.params.rule) {
 			// eslint-disable-next-line svelte/no-navigation-without-resolve -- Preserve query state on the resolved Musixmatch route.
-			void goto(`${resolve('/(site)/guidelines/musixmatch')}/${page.url.search}`, {
-				replaceState: true
-			});
+			void goto(`${musixmatchHome}${page.url.search}`, { replaceState: true });
 		}
 	});
-	const detailOpen = $derived(!/\/guidelines\/?$/u.test(page.url.pathname));
+	const detailOpen = $derived(!/\/guidelines\/(?:musixmatch\/)?$/u.test(page.url.pathname));
 </script>
 
-<SectionSplit {detailOpen}>
+<SectionSplit
+	{detailOpen}
+	{...musixmatch
+		? {
+				home: musixmatchHome,
+				title: 'Musixmatch transcription guide',
+				lede: 'Read the transcription requirements, language exceptions and what each check can establish.'
+			}
+		: {}}
+>
 	{#snippet list()}
 		<ReferenceIndex
 			{corpus}

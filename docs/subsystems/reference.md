@@ -15,7 +15,7 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/name
 `src/routes/(site)/rules/`, `src/routes/(site)/guidelines/`, `static/_redirects`, `vite.config.ts`
 Musixmatch additions: `src/lib/profiles/reference.server.ts`, `src/lib/profiles/reader.server.ts`,
 `src/lib/profiles/policy-cases.ts`, `src/lib/ui/site/MusixmatchClause.svelte`,
-`src/lib/ui/site/MusixmatchCheck.svelte`, `src/lib/ui/site/MusixmatchSearchResults.svelte`.
+`src/lib/ui/site/MusixmatchCheck.svelte`.
 
 ## The rules
 
@@ -27,17 +27,19 @@ Musixmatch additions: `src/lib/profiles/reference.server.ts`, `src/lib/profiles/
   language names, folds citations, flags source conflicts inline, and discloses each related
   check with its flagged and accepted examples; the landing lists question entrances and topics
   with clause counts. `/guidelines/?profile=musixmatch` enters that directory.
-  Musixmatch routes render in the same `SectionSplit` as article routes. Their return link leads
-  to the Musixmatch directory, which has none of its own. The Musixmatch sidebar draws no Genius
-  entrances (Essentials, common questions, standardized spellings, the complete guide), and its
-  topic rows describe themselves by their reader question rather than Genius examples.
+  The Musixmatch directory is a directory page like `/guidelines/`: `SectionSplit` gives it the
+  Musixmatch headline and lede and keeps the finder on phones. Musixmatch topics and `mxm-*`
+  check pages are article routes whose return link leads to the Musixmatch directory. The
+  Musixmatch sidebar draws no Genius entrances (Essentials, common questions, standardized
+  spellings, the complete guide), and its topic rows describe themselves by their reader
+  question rather than Genius examples.
   Check pages keep the common `/guidelines/checks/` path and derive their text from actual rule
   output and tested invented cases. `mxm.*` IDs make profile ownership explicit.
   A Musixmatch statement identical to its heading (with an optional final period) appears only
   as the heading; distinct explanations, source scope, examples and checking limits remain visible.
-  With a query, Musixmatch routes show ranked hits in the reader through the shared
-  server-derived clause and check renderers, preserving language scope, source conflicts and
-  checking limits; clearing restores the directory or selected topic of the current route.
+  Search follows the Genius rules: ranked Musixmatch clauses and checks appear in the finder,
+  and typing never replaces the reader's article. Musixmatch topic snapshots restore open checks
+  and the window position on Back.
 - A source-review finding is not an assertion that its example lyric is wrong. Check pages label
   manual examples as requiring review and do not invent an accepted lyric for a missing-policy
   finding. The assistant opens with the selected guide's independent, versioned corpus; stored
@@ -1038,3 +1040,14 @@ reference initialization into editor startup even though a label only formats it
 The existing reference export remains available for compatibility, while the public rules
 barrel exports directly from the small naming module. Reference derivation and rule
 validation are unchanged.
+
+### The Musixmatch guide moved into the bounded guide shell
+
+The Musixmatch catalog was built against the earlier horizontal strip, where the reading pane
+mirrored the finder's ranked results while a query was active (`MusixmatchSearchResults`). The
+bounded guide removed both the strip and that mirroring for Genius: the finder owns results and
+typing never replaces the article. When the two lines of work were merged in November 2026, the
+Musixmatch pages took the same contract rather than keeping a second search presentation in the
+same shell. The Musixmatch directory became a directory page so phones keep its finder, topic
+pages became ordinary articles with a snapshot for open checks, and the layout stopped sending
+the full Musixmatch reader data to every guide page.

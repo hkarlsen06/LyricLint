@@ -1,4 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+const guideNavigation = (page: Page) => page.getByRole('navigation', { name: 'Guide navigation' });
 
 for (const setting of [
 	{ width: 1440, colorScheme: 'dark', hasTouch: false },
@@ -14,46 +16,38 @@ for (const setting of [
 			reducedMotion: 'reduce'
 		});
 		for (const route of ['', 'numbers/']) {
-			test(`Musixmatch ranked reader and restoration from ${route || 'directory'}`, async ({
+			test(`Musixmatch finder search and restoration from ${route || 'directory'}`, async ({
 				page
 			}, testInfo) => {
 				await page.goto(`/guidelines/musixmatch/${route}`);
-				const index = page.locator('.site-split__index');
-				const detail = page.locator('.site-split__detail');
-				const search = index.getByRole('searchbox');
-				const results = index.locator('.reference-result .site-run__title');
-				const titles = detail.locator('.profile-guideline h2, .musixmatch-check-result h2');
-				const topics = page
-					.getByRole('navigation', { name: 'Guide navigation' })
-					.getByRole('button', { name: 'Topics', exact: true });
+				const sidebar = page.locator('.guide-sidebar');
+				const search = page.getByRole('searchbox', { name: 'What are you working on?' });
+				const results = sidebar.locator('.reference-result');
+				const heading = page.getByRole('heading', { level: 1 });
+				// A phone article has no finder; its return link leads to the one on the directory.
 				if (route && setting.hasTouch) {
-					await expect(
-						detail.getByRole('heading', { name: 'Numbers for Musixmatch', exact: true })
-					).toBeInViewport();
+					await expect(heading).toHaveText('Numbers for Musixmatch');
 					await page.evaluate(() => document.fonts.ready);
-					await topics.click();
+					await guideNavigation(page).getByRole('link', { name: 'All topics' }).click();
+					await expect(page).toHaveURL(/\/guidelines\/musixmatch\/$/u);
 				}
+				const reading =
+					route && !setting.hasTouch ? 'Numbers for Musixmatch' : 'Musixmatch transcription guide';
 				await expect(search).toBeInViewport();
+				await expect(search).toBeEnabled();
 				const bounds = await search.boundingBox();
 				await search.fill('numbers');
 				await expect(results.first()).toBeAttached();
-				await expect(titles).toHaveText(
-					(await results.allTextContents()).map((title) => title.replaceAll('`', ''))
-				);
 				await expect(search).toBeFocused();
 				expect(await search.boundingBox()).toEqual(bounds);
+				await expect(heading).toHaveText(reading);
 				await expect(
-					detail.getByText('What LyricLint can establish', { exact: true }).first()
-				).toBeAttached();
-				await expect(detail.locator('.profile-guideline .mxm-pill').first()).toBeAttached();
-				await expect(index.getByRole('link', { name: 'Musixmatch', exact: true })).toHaveAttribute(
-					'aria-current',
-					'true'
-				);
-				await results.first().click();
+					sidebar.getByRole('link', { name: 'Musixmatch', exact: true })
+				).toHaveAttribute('aria-current', 'true');
+				await results.first().locator(':scope > a').click();
 				await expect(page).toHaveURL(/\/guidelines\/musixmatch\/[^/]+\/\?q=numbers#mx-/u);
-				await expect(detail.locator('#mx-f06')).toBeInViewport();
-				const check = detail.locator('.profile-guideline details[data-check-id]').first();
+				await expect(page.locator('#mx-f06')).toBeInViewport();
+				const check = page.locator('main .profile-guideline details[data-check-id]').first();
 				await check.locator('summary').click();
 				await expect(
 					check.getByText('Requires review under this check', { exact: true })
@@ -63,86 +57,42 @@ for (const setting of [
 				const checkLink = check.getByRole('link').last();
 				await expect(checkLink).toHaveAttribute('href', /\/guidelines\/checks\/mxm-.*\?q=numbers/u);
 				await checkLink.scrollIntoViewIfNeeded();
-				const readingY = await detail.evaluate((element) => element.scrollTop);
+				const readingY = await page.evaluate(() => window.scrollY);
 				await checkLink.click();
-				await expect(detail.getByRole('heading', { name: 'Example', exact: true })).toBeAttached();
-				await expect(search).toHaveValue('numbers');
-				await expect(detail.locator('a[href^="https://"]').first()).toBeAttached();
+				await expect(page.getByRole('heading', { name: 'Example', exact: true })).toBeAttached();
+				// A phone article hides the finder, which keeps the query for the way back.
+				await expect(page.locator('#reference-search')).toHaveValue('numbers');
+				await expect(page.locator('main a[href^="https://"]').first()).toBeAttached();
 				await page.goBack();
 				await expect(check).toHaveAttribute('open', '');
 				await expect(checkLink).toBeInViewport();
 				await expect
-					.poll(async () =>
-						Math.abs((await detail.evaluate((element) => element.scrollTop)) - readingY)
-					)
+					.poll(async () => Math.abs((await page.evaluate(() => window.scrollY)) - readingY))
 					.toBeLessThanOrEqual(1);
-				if (setting.hasTouch) await topics.click();
-				await search.fill('Japanese');
-				await expect(titles).toHaveText(
-					(await results.allTextContents()).map((title) => title.replaceAll('`', ''))
-				);
-				await expect(detail.locator('.mxm-conflict').first()).toContainText('Guidelines disagree.');
-				if (setting.hasTouch)
-					await page
-						.getByRole('navigation', { name: 'Guide navigation' })
-						.getByRole('button', { name: 'Guide', exact: true })
-						.click();
-				await detail.locator('.mxm-conflict').first().scrollIntoViewIfNeeded();
-				await page.screenshot({ path: testInfo.outputPath('source-conflict.png') });
-				if (setting.hasTouch) await topics.click();
+				if (setting.hasTouch) {
+					await guideNavigation(page).getByRole('link', { name: 'Back to results' }).click();
+					await expect(page).toHaveURL(/\/guidelines\/musixmatch\/\?q=numbers$/u);
+				}
 				await search.fill('mxm');
-				await expect(titles).toHaveText(
-					(await results.allTextContents()).map((title) => title.replaceAll('`', ''))
-				);
-				await expect(detail.locator('.musixmatch-check-result').first()).toBeAttached();
-				const gap = detail.locator('.musixmatch-check-result').filter({
-					has: page.getByRole('heading', {
-						name: 'Language-specific evidence still missing',
-						exact: true
-					})
-				});
-				await expect(gap).toContainText('missing language-policy evidence');
-				await expect(gap.locator('.site-sample--valid')).toHaveCount(0);
-				await expect(gap).toContainText('Requires review under this check');
+				const gap = results.filter({ hasText: 'Language-specific evidence still missing' });
+				await expect(gap).toHaveCount(1);
+				await expect(gap).toContainText('LyricLint check');
 				await search.fill('zzzzzznomatchingconvention');
 				await expect(results).toHaveCount(0);
-				await expect(titles).toHaveCount(0);
-				await expect(detail.getByText(/No results match/u)).toBeAttached();
-				await expect(index.getByText(/No results match/u)).toBeAttached();
-				await expect(detail.locator('.musixmatch-welcome')).toHaveCount(0);
+				await expect(sidebar.getByText(/No answers match yet/u)).toBeVisible();
 				await expect(search).toBeFocused();
-				if (setting.hasTouch)
-					await page
-						.getByRole('navigation', { name: 'Guide navigation' })
-						.getByRole('button', { name: 'Guide', exact: true })
-						.click();
-				await page.screenshot({ path: testInfo.outputPath('empty-reader.png') });
-				if (setting.hasTouch) await topics.click();
-				await search.focus();
+				await page.screenshot({ path: testInfo.outputPath('empty-finder.png') });
 				await search.press('Escape');
 				await expect(search).toHaveValue('');
 				await expect(search).toBeFocused();
-				// The result click selected the Numbers topic, so clearing restores that route.
-				await expect(
-					detail.getByRole('heading', { name: 'Numbers for Musixmatch', exact: true })
-				).toBeAttached();
-				await page.goto(`/guidelines/musixmatch/${route}?q=zzzzzznomatchingconvention`);
-				if (route && setting.hasTouch) {
-					await expect(
-						detail.getByRole('heading', { name: 'Musixmatch search results', exact: true })
-					).toBeInViewport();
-					await page.evaluate(() => document.fonts.ready);
-					await topics.click();
-				}
-				await expect(detail.getByText(/No results match/u)).toBeAttached();
+				await expect(results).toHaveCount(0);
+				await expect(sidebar.locator('.reference-topics')).toBeVisible();
+				await page.goto(`/guidelines/musixmatch/?q=zzzzzznomatchingconvention`);
+				await expect(sidebar.getByText(/No answers match yet/u)).toBeVisible();
+				await expect(search).toBeEnabled();
 				await search.focus();
 				await search.press('Escape');
-				await expect(
-					detail.getByRole('heading', {
-						name: route ? 'Numbers for Musixmatch' : 'Musixmatch transcription guide',
-						exact: true
-					})
-				).toBeAttached();
+				await expect(heading).toHaveText('Musixmatch transcription guide');
 				if (setting.hasTouch) {
 					expect(
 						await search.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
@@ -153,12 +103,7 @@ for (const setting of [
 					setting.width
 				);
 				await page.screenshot({ path: testInfo.outputPath('restored.png') });
-				if (setting.hasTouch)
-					await page
-						.getByRole('navigation', { name: 'Guide navigation' })
-						.getByRole('button', { name: 'Guide', exact: true })
-						.click();
-				const finalAction = detail.locator('main .button').last();
+				const finalAction = page.getByRole('main').locator('.button').last();
 				await finalAction.scrollIntoViewIfNeeded();
 				await expect(finalAction).toBeInViewport();
 				await page.screenshot({ path: testInfo.outputPath('final-actions.png') });
@@ -171,36 +116,35 @@ test('standalone Musixmatch check search keeps examples, sources and detail link
 	page
 }) => {
 	await page.goto('/guidelines/musixmatch/?q=numbers&scope=rules');
-	const detail = page.locator('.site-split__detail');
-	const results = page.locator('.site-split__index .reference-result .site-run__title');
+	const results = page.locator('.guide-sidebar .reference-result');
 	await expect(results.first()).toBeAttached();
-	await expect(detail.locator('.musixmatch-check-result h2')).toHaveText(
-		await results.allTextContents()
-	);
-	await expect(detail.locator('.profile-guideline')).toHaveCount(0);
-	const check = detail.locator('.musixmatch-check-result').filter({
-		has: page.getByRole('heading', { name: 'A number without established context', exact: true })
-	});
+	await expect(results.filter({ hasNotText: 'LyricLint check' })).toHaveCount(0);
+	const result = results
+		.filter({ hasText: 'A number without established context' })
+		.locator(':scope > a');
+	await expect(result).toHaveAttribute('href', /q=numbers&scope=rules/u);
+	await result.click();
+	await expect(
+		page.getByRole('heading', { name: 'A number without established context', exact: true })
+	).toBeVisible();
+	const check = page.locator('main');
 	await expect(check.getByText('Requires review under this check', { exact: true })).toBeAttached();
-	await expect(check.getByText('Accepted by this check', { exact: true })).toBeAttached();
+	await expect(check.getByText('Accepted by this rule', { exact: true })).toBeAttached();
 	await expect(check).toContainText('A value alone does not prove its role or pronunciation');
 	await expect(check.locator('a[href^="https://"]').first()).toBeAttached();
-	await expect(
-		check.getByRole('link', { name: 'A number without established context', exact: true })
-	).toHaveAttribute('href', /q=numbers&scope=rules/u);
 });
 
 test('leaving a searched clause restores the Musixmatch topic directory', async ({ page }) => {
 	await page.goto('/guidelines/musixmatch/?q=numbers');
-	const index = page.locator('.site-split__index');
-	await index.locator('a[href$="#mx-f06"]').click();
-	await expect(page.locator('.site-split__detail #mx-f06')).toBeInViewport();
-	const search = index.getByRole('searchbox');
+	const sidebar = page.locator('.guide-sidebar');
+	await sidebar.locator('a[href$="#mx-f06"]').first().click();
+	await expect(page.locator('main #mx-f06')).toBeInViewport();
+	const search = sidebar.getByRole('searchbox');
 	await search.focus();
 	await search.press('Escape');
 	await expect(search).toHaveValue('');
-	await index.getByRole('link', { name: 'Musixmatch', exact: true }).click();
+	await sidebar.getByRole('link', { name: 'Musixmatch', exact: true }).click();
 	await expect(page).toHaveURL(/\/guidelines\/musixmatch\/$/u);
-	await expect(index.locator('.reference-topics')).toBeVisible();
-	await expect(index.locator('.reference-results')).toHaveCount(0);
+	await expect(sidebar.locator('.reference-topics')).toBeVisible();
+	await expect(sidebar.locator('.reference-results')).toHaveCount(0);
 });

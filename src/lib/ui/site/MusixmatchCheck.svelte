@@ -4,8 +4,8 @@
 	import { referenceHref } from './reference-search.svelte.js';
 	import GuidanceSearchHighlight from './GuidanceSearchHighlight.svelte';
 	import SiteSourceFold from './SiteSourceFold.svelte';
-	import type { LayoutData } from '../../../routes/(site)/guidelines/$types.js';
-	let { check }: { check: LayoutData['musixmatchReader']['checks'][number] } = $props();
+	import type { PageData } from '../../../routes/(site)/guidelines/musixmatch/[topic]/$types.js';
+	let { check }: { check: PageData['entries'][number]['checks'][number] } = $props();
 </script>
 
 {#snippet marked(text: string)}<GuidanceSearchHighlight {text} />{/snippet}
