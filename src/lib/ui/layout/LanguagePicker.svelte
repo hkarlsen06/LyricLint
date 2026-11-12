@@ -344,8 +344,11 @@
 		max-height: 4lh;
 		overflow: auto;
 	}
+	/* A trigger stretched across a panel column starts at the column's edge
+	   with its glyph, as a row does, rather than floating centred in it. */
 	.language-trigger {
 		max-width: 100%;
+		justify-content: flex-start;
 		white-space: normal;
 		overflow-wrap: anywhere;
 		/* The native tap flash can outlive this trigger beneath its opened modal. */

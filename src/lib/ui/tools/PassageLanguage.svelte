@@ -182,8 +182,11 @@
 {/if}
 
 <style>
+	/* Quiet and full width, so it is flush: the glyph lines up with the prose
+	   above it and the hover fill reaches into the panel's inset. */
 	.passage-language :global(.language-trigger) {
-		width: 100%;
+		width: calc(100% + 2 * var(--control-padding-inline));
+		margin-inline: calc(-1 * var(--control-padding-inline));
 	}
 	.passage-language__excerpt {
 		white-space: pre-wrap;
