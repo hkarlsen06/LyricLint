@@ -24,7 +24,7 @@ The canonical implementation is `src/lib/ui/styles/tokens.css`. Components consu
 - A segmented control's track is `--color-track` with `--shadow-track`: the recessed level with a hairline, set below the canvas in dark so the well still reads against the chrome.
 - Text and borders use `--color-text`, `--color-text-muted`, `--color-border`, and `--color-border-strong`.
 - Controls use the `--color-control-*` family.
-- Accent is reserved for primary action, selection, and current state.
+- Accent is reserved for primary action, selection, and current state. It is violet (hue 292), chosen by elimination: the severities hold coral, amber, green and blue, and an accent sharing the suggestion blue made every current state read as one more suggestion. Violet sits opposite the wordmark's amber, so the brand and the interface read as one pair. The window spends it where it answers "what is current": the open tool, the open finding, the chosen format, the caret's line number, and text selection. Focus stays neutral.
 - Error, warning, suggestion, success, and manual-review colors each have foreground and soft-surface roles.
 - Every color is expressed in OKLCH. Pure black and pure white are intentionally absent.
 

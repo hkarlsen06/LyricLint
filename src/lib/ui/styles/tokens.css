@@ -5,9 +5,9 @@
 	 * LyricLint is used for long editing sessions in mixed ambient light. The
 	 * palette is a cool neutral so the editor surface stays quiet enough for
 	 * markup, diagnostics, and performer colors to carry meaning. Both schemes
-	 * share the same hue anchors: near-achromatic surfaces (hue 285), a blue
-	 * accent for links and focus (hue 255), and severity hues at coral 28,
-	 * amber 78, blue 255, and neutral gray.
+	 * share the same hue anchors: near-achromatic surfaces (hue 285), a violet
+	 * accent for links, selection and current state (hue 292), a neutral focus
+	 * ring, and severity hues at coral 28, amber 78, blue 255, and neutral gray.
 	 */
 
 	/* Typography */
@@ -320,11 +320,18 @@
 	--color-control-border: var(--color-border-input);
 
 	/* Accent and selection */
-	--color-accent: oklch(50% 0.15 255);
-	--color-accent-hover: oklch(44% 0.15 255);
-	--color-accent-active: oklch(40% 0.14 255);
+	/* The accent is violet, and the hue is chosen by elimination. It used to be
+	   the suggestion blue at the same hue (255), so a current tool, a selected
+	   row or a link read as one more suggestion. The severities hold coral 28,
+	   amber 78, green 155 and blue 255; violet 292 is the widest gap left, and it
+	   sits opposite the wordmark's amber, so the brand and the interface read as
+	   one pair. It is spent only where the window answers "what is current":
+	   the open tool, the open finding, the chosen format, the caret's line. */
+	--color-accent: oklch(51% 0.2 292);
+	--color-accent-hover: oklch(45% 0.2 292);
+	--color-accent-active: oklch(41% 0.19 292);
 	--color-accent-text: oklch(98.5% 0.002 285);
-	--color-accent-soft: oklch(93% 0.03 255);
+	--color-accent-soft: oklch(93% 0.04 292);
 	--color-selected: var(--color-accent-soft);
 
 	/* Discord's own identity color, scheme-independent because it is theirs
@@ -343,7 +350,7 @@
 	 * selection washes out the moment it lands on one, so this is an opaque
 	 * fill. It is light enough to leave the glyphs on top fully readable.
 	 */
-	--color-text-selection: oklch(84% 0.075 255);
+	--color-text-selection: oklch(86% 0.07 292);
 
 	/*
 	 * Feedback states.
@@ -562,13 +569,13 @@
 		   on the canvas. Restated verbatim on `.site`, which pins this scheme. */
 		--color-border-input: oklch(52% 0.008 285);
 		--color-border-disabled: oklch(29% 0.005 285);
-		--color-accent: oklch(71% 0.12 255);
-		--color-accent-hover: oklch(77% 0.11 255);
-		--color-accent-active: oklch(81% 0.1 255);
+		--color-accent: oklch(74% 0.14 292);
+		--color-accent-hover: oklch(80% 0.12 292);
+		--color-accent-active: oklch(84% 0.1 292);
 		--color-accent-text: oklch(17% 0.008 285);
-		--color-accent-soft: oklch(32% 0.06 255);
+		--color-accent-soft: oklch(32% 0.07 292);
 		--color-focus: oklch(62% 0 0);
-		--color-text-selection: oklch(38% 0.1 255);
+		--color-text-selection: oklch(38% 0.11 292);
 		/* The soft severity surfaces rise with the canvas under them: a tag has to
 		   stay a tag against a charcoal card, not sink into it. */
 		--color-danger: oklch(72% 0.15 28);

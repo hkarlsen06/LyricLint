@@ -100,13 +100,13 @@
 	   the performer identities are what the demo is a demonstration *of*, so a
 	   page showing a different amber for a warning than the tool does would be
 	   misreporting the thing it is selling. */
-	--color-accent: oklch(71% 0.12 255);
-	--color-accent-hover: oklch(77% 0.11 255);
-	--color-accent-active: oklch(81% 0.1 255);
+	--color-accent: oklch(74% 0.14 292);
+	--color-accent-hover: oklch(80% 0.12 292);
+	--color-accent-active: oklch(84% 0.1 292);
 	--color-accent-text: oklch(17% 0.008 285);
-	--color-accent-soft: oklch(32% 0.06 255);
+	--color-accent-soft: oklch(32% 0.07 292);
 	--color-focus: oklch(62% 0 0);
-	--color-text-selection: oklch(38% 0.1 255);
+	--color-text-selection: oklch(38% 0.11 292);
 	--color-danger: oklch(72% 0.15 28);
 	--color-danger-hover: oklch(78% 0.14 28);
 	--color-danger-surface: oklch(32% 0.08 25);
