@@ -109,7 +109,7 @@ of controls and neighboring content before and after real interactions on deskto
 ### Elevation and Layers
 
 - Raised in-flow elements use `--shadow-raised`.
-- The document sheet uses `--shadow-sheet`: a one-pixel ring for its edge, a contact shadow and a long soft fall, so it lifts off the chrome frame instead of being a slightly different shade of it.
+- The document sheet uses `--shadow-sheet`: a one-pixel ring for its edge, with the tone step from the chrome carrying the lift. It is one unblurred layer on purpose. The editor repaints on every keystroke and caret blink, and WebKit re-rasterizes any blurred or stacked shadow layer under it: a contact shadow and soft fall here more than doubled the export flow's time in the WebKit suite. Nothing that sits under the live editor takes a blurred shadow.
 - Menus and anchored popovers use `--shadow-popover` or `--shadow-overlay`. Both follow the Geist material recipe: a one-pixel ambient ring carries the edge, a tight contact layer seats the surface, and a wide layer with a negative spread throws depth below it rather than a halo around it.
 - The contrast tier wears `--shadow-contrast`: light along the top edge of the dark key in light, a shade along the foot of the near-white key in dark, and a contact shadow under both.
 - In dark, every outward shadow token also carries a 1px inset light along its top edge, the light the shadow implies, falling on the edge that faces it. Dark surfaces separate by tone alone and the tones are deliberately close, so without it a raised surface reads as a matte rectangle rather than a lit object. It rides the shadow tokens so no surface can pick up one cue without the other; `--shadow-recessed` stays inward-only, because a well is lit at its floor, not its rim.

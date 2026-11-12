@@ -1679,9 +1679,9 @@
 		background: transparent;
 	}
 
-	/* The document is the window's one sheet: a ring for its edge and a long
-	   soft fall, so it lifts off the chrome frame instead of being a slightly
-	   different shade of it. */
+	/* The document is the window's one sheet: a ring for its edge, so it reads
+	   as a surface on the chrome frame rather than a slightly different shade
+	   of it. `tokens.css` says why the ring is the whole shadow. */
 	.editor-region > .editor-host {
 		border-radius: var(--radius-panel);
 		box-shadow: var(--shadow-sheet);

@@ -279,9 +279,12 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 The owner asked for a look that reads as a polished, modern tool, measured against Geist,
 Linear, Raycast, Zed, LanguageTool and Figma UI3. The workbench is now a chrome frame
-holding one document sheet: `--shadow-sheet` gives the editor a one-pixel ring and a long
-soft fall, and dark chrome and surface moved apart (16.5% and 20.5%) so the sheet no longer
-dissolves into its frame. Floating surfaces take Geist's material recipe (ring, contact
+holding one document sheet: `--shadow-sheet` gives the editor a one-pixel ring, and dark
+chrome and surface moved apart (16.5% and 20.5%) so the sheet no longer dissolves into its
+frame. The sheet first had a contact shadow and a long soft fall; in WebKit every editor
+repaint re-rasterized those layers, and the 1280px export spec went from 14.4s to 23.9s on
+average and crossed its 30s fixture budget. A single unblurred ring measured level with the
+baseline, so the ring is the whole shadow. Floating surfaces take Geist's material recipe (ring, contact
 layer, deep layer with a negative spread). Radii follow control height: 8px controls, 12px
 panels, 16px overlays.
 

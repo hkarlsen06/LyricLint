@@ -127,9 +127,7 @@
 	--shadow-overlay:
 		inset 0 1px 0 oklch(100% 0 0 / 0.07), 0 0 0 1px oklch(100% 0 0 / 0.09),
 		0 12px 24px -8px oklch(4% 0.005 285 / 0.5), 0 40px 80px -20px oklch(4% 0.005 285 / 0.7);
-	--shadow-sheet:
-		inset 0 1px 0 oklch(100% 0 0 / 0.04), 0 0 0 1px oklch(100% 0 0 / 0.055),
-		0 16px 40px -20px oklch(4% 0.005 285 / 0.7);
+	--shadow-sheet: 0 0 0 1px oklch(100% 0 0 / 0.06);
 	--shadow-contrast: inset 0 -1px 0 oklch(20% 0.01 285 / 0.18), 0 1px 2px oklch(4% 0.005 285 / 0.6);
 	--color-track: oklch(13.5% 0.004 285);
 	--shadow-track: inset 0 0 0 1px oklch(100% 0 0 / 0.045);

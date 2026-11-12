@@ -419,13 +419,14 @@
 	--shadow-overlay:
 		0 0 0 1px oklch(20% 0.01 285 / 0.09), 0 8px 16px -4px oklch(20% 0.01 285 / 0.14),
 		0 32px 64px -16px oklch(20% 0.01 285 / 0.34);
-	/* The document sheet: the one large raised surface in the window. Linear's
-	   app frame draws its content panel the same way: a faint ring for the
-	   edge, a contact shadow, and a long soft fall that never reaches past the
-	   sheet's own gutter. */
-	--shadow-sheet:
-		0 0 0 1px oklch(20% 0.01 285 / 0.07), 0 1px 3px oklch(20% 0.01 285 / 0.06),
-		0 12px 32px -16px oklch(20% 0.01 285 / 0.18);
+	/* The document sheet: the one large raised surface in the window, edged
+	   the way Linear's app frame edges its content panel, with a faint
+	   one-pixel ring. One unblurred layer and no more: the editor repaints on
+	   every keystroke and caret blink, and WebKit re-rasterizes any blurred or
+	   stacked shadow layer under it. A soft fall here more than doubled the
+	   export flow's time in the WebKit suite; the ring costs nothing
+	   measurable. The tone step from the chrome carries the rest of the lift. */
+	--shadow-sheet: 0 0 0 1px oklch(20% 0.01 285 / 0.08);
 	/* The contrast tier is a physical key, as Raycast draws its primary button:
 	   light catching the top edge and a contact shadow under it. Without them
 	   the one destination action on a surface is a flat swatch. */
@@ -608,9 +609,7 @@
 		--shadow-overlay:
 			inset 0 1px 0 oklch(100% 0 0 / 0.07), 0 0 0 1px oklch(100% 0 0 / 0.09),
 			0 12px 24px -8px oklch(4% 0.005 285 / 0.5), 0 40px 80px -20px oklch(4% 0.005 285 / 0.7);
-		--shadow-sheet:
-			inset 0 1px 0 oklch(100% 0 0 / 0.04), 0 0 0 1px oklch(100% 0 0 / 0.055),
-			0 16px 40px -20px oklch(4% 0.005 285 / 0.7);
+		--shadow-sheet: 0 0 0 1px oklch(100% 0 0 / 0.06);
 		/* The dark contrast key is near-white, so its edge is the shade along
 		   its foot rather than light along its top. */
 		--shadow-contrast:
