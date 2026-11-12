@@ -2,8 +2,8 @@
 	"formatVersion": 6,
 	"profile": "musixmatch",
 	"ruleSetVersion": "2026.09.16.1",
-	"generatedAt": "2026-11-12T19:20:03.058Z",
-	"contentHash": "5f4cc170e6b65118801f9a4674d13100e40a9bf5665592b8a6909930b8af0b63",
+	"generatedAt": "2026-11-07T19:25:13.459Z",
+	"contentHash": "3a2275db0573fba74d1c6773c2f0b58626cde87394035e9819bc62899a27f5f8",
 	"rules": [
 		{
 			"id": "mxm.transcription.labels",
@@ -2306,30 +2306,6 @@
 			"tag": "ko",
 			"displayName": "Korean",
 			"policy": "No reviewed Korean-specific Musixmatch source establishes number readings, spacing, elisions, or romanization exceptions.",
-			"headerTerms": []
-		},
-		{
-			"tag": "pt",
-			"displayName": "Portuguese",
-			"policy": "Use only the language-scoped Musixmatch claims in this corpus; preserve native script and sung dialect.",
-			"headerTerms": []
-		},
-		{
-			"tag": "it",
-			"displayName": "Italian",
-			"policy": "Use only the language-scoped Musixmatch claims in this corpus; preserve native script and sung dialect.",
-			"headerTerms": []
-		},
-		{
-			"tag": "sv",
-			"displayName": "Swedish",
-			"policy": "Use only the language-scoped Musixmatch claims in this corpus; preserve native script and sung dialect.",
-			"headerTerms": []
-		},
-		{
-			"tag": "da",
-			"displayName": "Danish",
-			"policy": "Use only the language-scoped Musixmatch claims in this corpus; preserve native script and sung dialect.",
 			"headerTerms": []
 		}
 	],

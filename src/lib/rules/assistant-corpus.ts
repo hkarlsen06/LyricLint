@@ -29,6 +29,7 @@ import type { SourceReference } from '#lib/core/types.js';
 import { guidanceEntries } from '#lib/guidance/entries.js';
 import { guidanceTopicTitles } from '#lib/guidance/guidance.js';
 import { reviewedLanguagePacks } from '#lib/languages/registry.js';
+import { hasReviewedLanguageRules } from '#lib/profiles/languages.js';
 import type {
 	AssistantCorpus,
 	AssistantCorpusGuidanceEntry,
@@ -176,15 +177,17 @@ export function buildAssistantCorpusContent(
 			]
 				.map(corpusSource)
 				.sort((a, b) => a.id.localeCompare(b.id, 'en')),
-			languages: reviewedLanguagePacks.map((pack) => ({
-				tag: pack.tag,
-				displayName: pack.displayName,
-				policy:
-					pack.tag === 'ar' || pack.tag === 'ko'
-						? languagePolicyGaps[pack.tag]
-						: 'Use only the language-scoped Musixmatch claims in this corpus; preserve native script and sung dialect.',
-				headerTerms: []
-			})),
+			languages: reviewedLanguagePacks
+				.filter((pack) => hasReviewedLanguageRules(pack.tag, 'musixmatch'))
+				.map((pack) => ({
+					tag: pack.tag,
+					displayName: pack.displayName,
+					policy:
+						pack.tag === 'ar' || pack.tag === 'ko'
+							? languagePolicyGaps[pack.tag]
+							: 'Use only the language-scoped Musixmatch claims in this corpus; preserve native script and sung dialect.',
+					headerTerms: []
+				})),
 			harper: {
 				ruleIds: [...harperRuleIds],
 				behavior: HARPER_BEHAVIOR,
