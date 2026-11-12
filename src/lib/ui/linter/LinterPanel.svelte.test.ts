@@ -560,7 +560,7 @@ describe('one row per decision', () => {
 	const rowTexts = () =>
 		screen.getAllByRole('button', { name: /^Go to / }).map((row) => row.textContent?.trim());
 	const commaRow = () =>
-		screen.getByRole('button', { name: 'Go to Lyric lines should not end with a comma.' });
+		screen.getByRole('button', { name: 'Go to Consider removing the final comma.' });
 
 	test('draws the 26 places of a pasted lyric as 3 rows and counts rows', async () => {
 		const { controller } = lintedWorkbench(cityLightsPasted);
@@ -568,7 +568,7 @@ describe('one row per decision', () => {
 
 		expect(rowTexts()).toEqual([
 			"Use a straight ' instead of the curly apostrophe.",
-			'Lyric lines should not end with a comma.',
+			'Consider removing the final comma.',
 			'Link these repeats so one correction reaches them all.'
 		]);
 		expect(screen.getByText('1 of 3')).toBeTruthy();
@@ -682,7 +682,7 @@ describe('one row per decision', () => {
 	const rowFor = (message: string) =>
 		screen.getByRole('button', { name: `Go to ${message}` }).closest('li')!;
 	const apostrophe = "Use a straight ' instead of the curly apostrophe.";
-	const comma = 'Lyric lines should not end with a comma.';
+	const comma = 'Consider removing the final comma.';
 	/** Two curly apostrophes on lines 2 and 4 around a line-end comma on line 3. */
 	const straddled = '[Verse]\nDon’t stop\nKeep going,\nI’m here';
 

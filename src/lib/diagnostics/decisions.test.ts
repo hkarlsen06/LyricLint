@@ -101,7 +101,7 @@ describe('groupDecisions', () => {
 	it('draws the 26 places of a pasted City Lights as 3 decisions', () => {
 		const decisions = decisionsOf(cityLightsPasted);
 		expect(decisions.map((decision) => decision.members.length)).toEqual([15, 10, 1]);
-		expect(decisions[1]!.members[0]!.message).toBe('Lyric lines should not end with a comma.');
+		expect(decisions[1]!.members[0]!.message).toBe('Consider removing the final comma.');
 	});
 
 	it('keeps the opening and closing curly quote as two decisions', () => {
