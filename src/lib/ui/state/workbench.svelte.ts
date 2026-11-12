@@ -29,7 +29,7 @@ import type {
 import { conversionReviewAction, type ConversionReviewKind } from '#lib/conversion/review.js';
 import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { resolveLanguageTag } from '#lib/languages/registry.js';
-import { isLanguageTag } from '#lib/languages/tag.js';
+import { isLanguageTag } from '#lib/languages/language-tag.js';
 import { randomId } from '#lib/core/random-id.js';
 import type { TimedLyricsFormat } from '#lib/core/timed-lyrics.js';
 import { formatTimedLyrics, timedLyricsExtensions } from '#lib/core/timed-lyrics.js';

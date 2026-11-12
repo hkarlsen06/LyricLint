@@ -6,7 +6,7 @@
 	import { filterLanguages, languages, languageName } from '#lib/languages/options.js';
 	import { hasReviewedLanguageRules } from '#lib/profiles/languages.js';
 	import type { ProfileId } from '#lib/profiles/types.js';
-	import { isLanguageTag } from '#lib/languages/tag.js';
+	import { isLanguageTag } from '#lib/languages/language-tag.js';
 	import { onDestroy, tick } from 'svelte';
 
 	let {

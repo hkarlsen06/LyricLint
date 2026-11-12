@@ -1,7 +1,7 @@
 import { canPlaceSection } from './section-placement.js';
 import { replacePassageLanguages } from './passage-language.js';
 import { parseDocument } from '#lib/core/parser.js';
-import { isLanguageTag } from '#lib/languages/tag.js';
+import { isLanguageTag } from '#lib/languages/language-tag.js';
 import type { PerformerRecord, TextEdit, TextRange } from '#lib/core/types.js';
 import { escapeLegendText, serializeLegend, styleTags } from '#lib/serialization/genius-markup.js';
 import { makeVoiceGroupKey } from '#lib/performers/identity.js';
