@@ -431,28 +431,40 @@
 
 <style>
 	.linter-panel__coverage {
-		padding: var(--space-3) var(--space-3) var(--space-4);
+		padding: var(--space-3) var(--panel-inset) var(--space-4);
 		font-size: var(--font-size-sm);
 		color: var(--color-text-muted);
 	}
 	/* A full-height column keeps recent drafts at the foot. Findings are inset
 	   rounded rows, separated by space rather than a ruled grid. */
 	.panel-content.linter-panel {
+		/* The finding pager's geometry, read by the heading that keeps clear of it. */
+		--pager-step: var(--control-height-xs);
+		--pager-position: 3rem;
+		position: relative;
 		display: flex;
 		padding: 0;
 		flex: 1;
 		flex-direction: column;
 	}
 
-	/* The heading shares the chips' and the bulk command's inset, so the
-	   column's leading edge is one line from the title down. */
+	/* The heading shares the chips', the bulk command's and every finding's
+	   inset, so the column's leading edge is one line from the title down. The
+	   finding pager rides the heading's row at its far end (`DiagnosticList`),
+	   so the heading keeps clear of it. */
 	.linter-panel .linter-panel__heading {
 		margin: 0;
-		padding: var(--space-5) var(--space-3) var(--space-3);
-		font-size: var(--font-size-xl);
+		padding: var(--space-5) var(--panel-inset) var(--space-3);
+		font-size: var(--font-size-lg);
 		font-weight: var(--font-weight-semibold);
 		letter-spacing: var(--tracking-heading);
 		line-height: var(--line-height-tight);
+	}
+	.linter-panel:not(.linter-panel--focused):has(> :global(.diagnostic-list__pager))
+		> .linter-panel__heading {
+		padding-inline-end: calc(
+			var(--panel-inset) + 2 * var(--pager-step) + var(--pager-position) + var(--space-2)
+		);
 	}
 
 	/* The drafts sit at the foot of the column, pushed there by the auto margin
@@ -462,7 +474,7 @@
 	   not a region anyone acts on independently of its neighbours, so there is no
 	   border to draw around it, and the empty canvas above is the separation. */
 	.linter-panel__drafts {
-		padding: var(--space-4) var(--space-3);
+		padding: var(--space-4) var(--panel-inset);
 		margin-top: auto;
 	}
 
@@ -557,7 +569,7 @@
 	/* The list ends deliberately: a muted line after the last card says whether
 	   anything else is hidden, so the canvas below never reads as an accident. */
 	.linter-panel__afterword {
-		padding: var(--space-3) var(--space-3) var(--space-4);
+		padding: var(--space-3) var(--panel-inset) var(--space-4);
 		margin: 0;
 		color: var(--color-text-muted);
 		font-size: var(--font-size-xs);
@@ -572,7 +584,7 @@
 	.linter-panel__bulk {
 		display: flex;
 		flex-wrap: wrap;
-		padding: var(--space-2) var(--space-3);
+		padding: var(--space-1) var(--panel-inset) var(--space-2);
 		border-bottom: 0;
 		margin: 0;
 		gap: var(--space-2);
@@ -593,6 +605,7 @@
 	}
 	.linter-panel__bulk-action :global(svg) {
 		flex: none;
+		color: var(--color-accent);
 	}
 
 	/* The shared size floors for a phone's `.button` (responsive-shared.css) used to
@@ -607,6 +620,9 @@
 	@media (pointer: coarse) {
 		:global(:root) .linter-panel__bulk-action {
 			min-height: var(--control-height-touch);
+		}
+		.panel-content.linter-panel {
+			--pager-step: var(--control-height-touch);
 		}
 	}
 
@@ -625,7 +641,7 @@
 	   to filter out a severity with nothing in it. */
 	.linter-panel__filters {
 		display: flex;
-		padding: var(--space-2) var(--space-3);
+		padding: 0 var(--panel-inset) var(--space-2);
 		border-bottom: 0;
 		flex-wrap: wrap;
 		gap: var(--space-1);
@@ -644,13 +660,9 @@
 	   `opacity: 0.45` (2.2:1), which made the number the hardest thing on the
 	   chip to read. */
 	.filter-chip__count {
-		display: inline-grid;
-		min-width: 1.5em;
-		padding-inline: var(--space-1);
-		place-items: center;
-		border-radius: var(--radius-pill);
-		background: color-mix(in oklch, currentColor 14%, transparent);
-		color: inherit;
+		min-width: 1ch;
+		color: var(--color-text-muted);
+		font-weight: var(--font-weight-semibold);
 		font-variant-numeric: tabular-nums;
 		line-height: var(--line-height-ui);
 	}
@@ -668,6 +680,8 @@
 
 		.mobile-review-back {
 			align-self: flex-start;
+			margin: var(--space-2) var(--panel-inset) 0;
+			margin-inline-start: calc(var(--panel-inset) - var(--control-padding-inline));
 		}
 	}
 </style>

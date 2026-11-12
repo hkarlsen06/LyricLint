@@ -40,6 +40,20 @@
 	color: var(--color-text-muted);
 }
 
+/* Where the finding is: a small tabular tag rather than loose words, so the
+   eye can run down a column of line numbers. It is a location, not a control,
+   so it takes a fill step and no edge. */
+.diagnostic-meta__line {
+	padding: 0 var(--space-1);
+	border-radius: var(--radius-xs);
+	background: var(--color-fill);
+	color: var(--color-text);
+	font-weight: var(--font-weight-medium);
+	font-variant-numeric: tabular-nums;
+	line-height: var(--line-height-ui);
+	white-space: nowrap;
+}
+
 /*
  * One citation is the meta line's last word. Two or more would wrap the line
  * into a second and a third, so they fold behind this and the line keeps its
@@ -107,6 +121,12 @@
 	/* Reading order, on both surfaces: the decisions start where the sentence
 	   above them started. Nothing is pushed to a far edge. */
 	justify-content: flex-start;
+}
+
+/* A row that opens on a quiet decision would start a padding's width right of
+   the sentence above it, so that one control is drawn flush. */
+.diagnostic-actions > .button--quiet:first-child {
+	margin-inline-start: calc(-1 * var(--control-padding-inline));
 }
 
 /* Every decision about a diagnostic shares one geometry and one type size;

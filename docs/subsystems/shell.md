@@ -204,8 +204,20 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   opposite command. The phone Document menu stays open; history never opens the editor keyboard.
 - Diagnostics are inset rows separated by space, without hairlines. Resting rows are
   transparent; the active or expanded finding takes `--color-surface`, rounded corners,
-  and `--shadow-raised` in both schemes. No accent wash or ring. The panel and controls
+  and `--shadow-raised` in both schemes, and an accent rail down its leading edge marks it
+  as the window's current decision. No accent wash or ring. The panel and controls
   above it use `--color-chrome`. `RightPanel.svelte.test.ts` pins the treatment.
+- Every tool panel sets its text on one column, `--panel-inset` in from the panel's content
+  edge: Review's heading, chips, bulk command, empty states and finding text, and the
+  Song, Preferences, Linking, Performers and Retained details content. A finding row's
+  fill reaches back toward the edge and its padding makes up the rest of the inset. A quiet
+  button standing alone under text is drawn flush with it.
+- Review's heading is the panel heading size. Its finding pager rides the heading's row at
+  the far end: two arrows around a tabular `1 of 11`, the words `Previous` and `Next` kept
+  in the buttons' accessible names and the tooltip naming each keystroke. Inside an opened
+  phone finding there is no heading, and the pager falls back into the flow. Severity chips
+  carry their kind's color on the mark alone; the label stays in the text color and a
+  pressed chip is its kind's tint.
 - Desktop tools have an icon and visible name: Review, Linking, Assistant (when available), Performers,
   Song, Preferences. The open tool is a raised key: surface plus the control ring. At `78rem` the dock runs vertically along the outside edge; below
   it runs horizontally. Bits UI orientation follows the same query so arrow keys follow

@@ -110,7 +110,7 @@
 					{:else if finding.kind === 'repeat-header'}
 						<button
 							type="button"
-							class="button button--quiet"
+							class="button button--quiet button--flush"
 							onclick={() => controller.editRetainedRepeatHeader(finding.sectionId)}
 							>{controller.profile === 'musixmatch'
 								? 'Open Genius export'
@@ -119,7 +119,7 @@
 					{:else}
 						<button
 							type="button"
-							class="button button--quiet"
+							class="button button--quiet button--flush"
 							onclick={() => controller.openSectionDetails(finding.sectionId ?? 'new', 'review')}
 							>Review in Song</button
 						>
@@ -174,6 +174,10 @@
 	.tool-actions span {
 		white-space: nowrap;
 	}
+	/* The row starts on the text column, as a lone quiet button does. */
+	.tool-actions > .button--quiet:first-child {
+		margin-inline-start: calc(-1 * var(--control-padding-inline));
+	}
 
 	.retained-review__message {
 		display: grid;
@@ -188,7 +192,7 @@
 
 	/* On the Review column's own inset, level with its heading and chips. */
 	.retained-review {
-		padding: var(--space-4) var(--space-3);
+		padding: var(--space-4) var(--panel-inset);
 	}
 	.retained-review h2 {
 		font-size: var(--font-size-md);

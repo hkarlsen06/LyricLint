@@ -308,7 +308,9 @@
 				aria-keyshortcuts="Alt+Shift+ArrowUp"
 				{@attach describeControl(() => ({ label: 'Previous finding', shortcut: 'Alt+Shift+↑' }))}
 				onclick={() => step(-1)}
-				><CaretUpIcon aria-hidden="true" size={14} weight="bold" />Previous</button
+				><CaretUpIcon aria-hidden="true" size={14} weight="bold" /><span class="sr-only"
+					>Previous</span
+				></button
 			>
 			<span class="diagnostic-list__position" aria-live="polite"
 				>{currentIndex + 1} of {sortedDiagnostics.length}</span
@@ -320,7 +322,11 @@
 				aria-keyshortcuts="Alt+Shift+ArrowDown"
 				{@attach describeControl(() => ({ label: 'Next finding', shortcut: 'Alt+Shift+↓' }))}
 				onclick={() => step(1)}
-				>Next<CaretDownIcon aria-hidden="true" size={14} weight="bold" /></button
+				><span class="sr-only">Next</span><CaretDownIcon
+					aria-hidden="true"
+					size={14}
+					weight="bold"
+				/></button
 			>
 		</div>
 	{/if}
@@ -383,13 +389,11 @@
 {/if}
 
 <style>
-	/* Cards are edge to edge, but prose is not: inset the empty state to line up
-	   with the filter row above it. */
+	/* Rows run to the column's edge, prose sits on the panel's text column. */
 	:global(.linter-panel) > .empty-state {
-		padding: var(--space-2) var(--space-3) var(--space-4);
+		padding: var(--space-2) var(--panel-inset) var(--space-4);
 		margin: 0;
 	}
-
 	/* One short title naming the state, one muted line saying why and what to do.
 	   Prose only: the bare panel canvas is the surface, not a box. */
 	.diagnostic-list__empty {
@@ -441,41 +445,53 @@
 		line-height: var(--line-height-tight);
 	}
 
-	/* The pager steps through the list it heads, so it sits on the list's own
-	   inset, its position between the two directions in tabular figures that
-	   hold their width as the count changes. */
+	/* The pager steps through the list from the heading's row, at its far end,
+	   the way an issue tracker counts `3 / 84` beside the title it pages: two
+	   arrows around a tabular position that holds its width as the count
+	   changes. The words stay in the accessible name and the tooltip names the
+	   keystroke. Inside an opened phone finding there is no heading, so it falls
+	   back into the flow under the way back to the list. */
 	.diagnostic-list__pager {
-		padding: var(--space-1) var(--space-3) 0;
-		gap: var(--space-1);
+		gap: var(--space-0-5);
+	}
+	:global(.linter-panel:not(.linter-panel--focused)) > .diagnostic-list__pager {
+		position: absolute;
+		top: calc(
+			var(--space-5) + (var(--font-size-lg) * var(--line-height-tight) - var(--pager-step)) / 2
+		);
+		right: var(--panel-inset);
+		z-index: 1;
+	}
+	:global(.linter-panel--focused) > .diagnostic-list__pager {
+		padding: var(--space-1) var(--panel-inset) 0;
 	}
 	.diagnostic-list__pager > :global(.button) {
-		min-height: var(--control-height-sm);
-		padding-inline: var(--space-2);
-		gap: var(--space-1);
-	}
-	.diagnostic-list__pager > :global(.button:first-child) {
-		margin-inline-start: calc(-1 * var(--space-2));
+		width: var(--pager-step);
+		min-height: var(--pager-step);
+		padding: 0;
 	}
 	.diagnostic-list__pager :global(svg) {
 		flex: none;
 	}
 	.diagnostic-list__position {
-		min-width: 5.5ch;
+		min-width: var(--pager-position);
 		color: var(--color-text-muted);
-		font-size: var(--font-size-sm);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-medium);
 		font-variant-numeric: tabular-nums;
 		text-align: center;
 	}
-
-	/* Inset findings separate by space; only the open finding takes depth. */
+	/* Findings sit a hair inside the column's edge and separate by a breath of
+	   space; only the open finding takes depth. A row's padding makes up the rest
+	   of the panel inset, so its words start on the panel's text column. */
 	.diagnostic-list {
+		--row-inset: calc(var(--panel-inset) - var(--space-1));
 		display: grid;
 		margin: 0;
-		padding: var(--space-2) var(--space-3);
-		gap: var(--space-2);
+		padding: var(--space-1) var(--space-1) var(--space-3);
+		gap: var(--space-0-5);
 		list-style: none;
 	}
-
 	/* Resting findings read as a list. The open finding is the one surface with
 	   an independent decision, so only it takes a fill and elevation. */
 	.diagnostic-list > li {
@@ -488,8 +504,22 @@
 	.diagnostic-list > li.diagnostic-card--expanded,
 	.diagnostic-list > li.diagnostic-card--active {
 		z-index: 1;
+		margin-block: var(--space-1-5);
 		background: var(--color-surface);
 		box-shadow: var(--shadow-raised);
+	}
+	/* The open finding is the window's current decision, so it carries the
+	   accent: a rail down its leading edge, the shape cue that survives without
+	   the color, beside the raise that already marks it. */
+	.diagnostic-list > li.diagnostic-card--expanded::before {
+		content: '';
+		position: absolute;
+		inset-block: var(--space-3);
+		inset-inline-start: 0;
+		width: calc(3 * var(--border-width));
+		border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+		background: var(--color-accent);
+		pointer-events: none;
 	}
 
 	/* The depth answers a press, so it arrives at the control tier's rate rather
@@ -512,7 +542,7 @@
 	.diagnostic-list__head {
 		border-radius: inherit;
 		display: grid;
-		padding: var(--space-3) var(--space-4);
+		padding: var(--space-2-5) var(--row-inset);
 		gap: var(--space-1);
 		justify-items: start;
 	}
@@ -520,6 +550,7 @@
 	/* Expanded, the head hands off to the details below it, so its bottom padding
 	   becomes the seam between the two rather than a second full inset. */
 	.diagnostic-card--expanded > .diagnostic-list__head {
+		padding-top: var(--space-3);
 		padding-bottom: var(--space-2);
 	}
 
@@ -588,6 +619,10 @@
 
 	.diagnostic-list__title {
 		font-weight: var(--font-weight-medium);
+		line-height: var(--line-height-ui);
+	}
+	.diagnostic-card--expanded .diagnostic-list__title {
+		font-weight: var(--font-weight-semibold);
 	}
 
 	/* Keep this query aligned with PHONE_WORKSPACE_QUERY. An opened finding is

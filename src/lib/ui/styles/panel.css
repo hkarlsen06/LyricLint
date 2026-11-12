@@ -15,7 +15,7 @@
 }
 
 .panel-content {
-	padding: var(--space-5);
+	padding: var(--space-5) var(--panel-inset);
 }
 
 .panel-content > :first-child {

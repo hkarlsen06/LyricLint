@@ -257,10 +257,10 @@ textarea:disabled {
 .filter-chip {
 	display: inline-flex;
 	min-height: var(--control-height-sm);
-	padding: var(--space-0-5) var(--space-2-5);
+	padding: var(--space-0-5) var(--space-2-5) var(--space-0-5) var(--space-2);
 	border: var(--border-width) solid transparent;
 	border-radius: var(--radius-pill);
-	gap: var(--control-gap);
+	gap: var(--space-1);
 	align-items: center;
 	background: transparent;
 	color: var(--color-text-muted);
@@ -307,24 +307,35 @@ textarea:disabled {
 	color: var(--color-text);
 }
 
+/* A pressed chip is a tint of its kind with the label in the text color and
+   the kind's color on its mark alone: a whole row of colored words read as
+   four alarms rather than a legend. Fill against dashed outline is the state. */
 .filter-chip--error[aria-pressed='true'] {
 	background: var(--color-danger-soft);
-	color: var(--color-danger);
 }
-
 .filter-chip--warning[aria-pressed='true'] {
 	background: var(--color-warning-soft);
-	color: var(--color-warning);
 }
-
 .filter-chip--suggestion[aria-pressed='true'] {
 	background: var(--color-suggestion-soft);
-	color: var(--color-suggestion);
 }
-
 .filter-chip--manual-review[aria-pressed='true'] {
 	background: var(--color-manual-soft);
+}
+.filter-chip--error .severity-icon {
+	color: var(--color-danger);
+}
+.filter-chip--warning .severity-icon {
+	color: var(--color-warning);
+}
+.filter-chip--suggestion .severity-icon {
+	color: var(--color-suggestion);
+}
+.filter-chip--manual-review .severity-icon {
 	color: var(--color-manual);
+}
+.filter-chip[aria-pressed='false'] .severity-icon {
+	color: inherit;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -160,6 +160,11 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 - A diagnostic's facts are one line (severity glyph, line number, citation) with the
   citation's section and verified date in its tooltip (`aria-describedby` there, because the
   visible tooltip is the only copy). Two or more citations fold behind `Sources ⌄`.
+  The line number is a small tabular tag on a fill step. The citation is present but quiet:
+  the meta line's muted tone, medium weight, no underline and a greyscale favicon at rest;
+  under the pointer or focus it takes the text color, its underline and the favicon's color.
+  The external-link mark stays at rest, so leaving the page is never carried by color.
+  A decision row that opens on a quiet control draws it flush with the text above.
 - The card is the control all the way down: the stretched `::after` hit layer is measured
   against the `<li>`, the head stays unpositioned, and only the buttons lift over it.
 

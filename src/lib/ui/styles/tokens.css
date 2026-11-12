@@ -147,6 +147,7 @@
 	--radius-overlay: var(--radius-lg);
 
 	/* Control geometry */
+	--control-height-xs: 1.5rem;
 	--control-height-sm: 1.75rem;
 	--control-height-md: 2rem;
 	--control-height-lg: 2.25rem;
@@ -167,6 +168,10 @@
 	   sheet's top-right corner. The tray and the find bar's reserve beside it
 	   both read it. */
 	--editor-actions-inset: var(--space-2);
+	/* Every tool panel sets its text on one column, this far in from the panel's
+	   own edge: headings, prose, controls and the text of a finding row alike. A
+	   row's fill reaches back to the edge, so its words still start here. */
+	--panel-inset: var(--space-4);
 
 	/* Reading measures. `ch` resolves against the element's own font, so these
 	   cap a character count rather than a width, which is the point: the real
