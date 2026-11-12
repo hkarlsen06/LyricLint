@@ -69,6 +69,7 @@ describe('AppWordmark', () => {
 	it('holds the wordmark open long enough to read, then contracts to the mark', async () => {
 		vi.useFakeTimers();
 		try {
+			const mounted = Date.now();
 			await render(AppWordmark);
 			const element = lockup();
 			await fontsSettled();
@@ -85,7 +86,8 @@ describe('AppWordmark', () => {
 			// it survives a fixation rather than that it lasts any particular round
 			// number: a lockup that contracted inside 400ms would be gone before it
 			// had been read, which is the whole point of holding at all.
-			await vi.advanceTimersByTimeAsync(6_999);
+			// Counted from the mount: moving the pointer spends fake time of its own.
+			await vi.advanceTimersByTimeAsync(6_999 - (Date.now() - mounted));
 			expect(element.dataset.state).toBe('intro');
 
 			await vi.advanceTimersByTimeAsync(1);
