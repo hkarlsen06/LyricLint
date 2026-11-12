@@ -8,8 +8,9 @@ export function censoredPrefixProblem(prefix: string): string | undefined {
 	return undefined;
 }
 
+/** A whole run of letters, marks and stars that holds at least one star. */
 export const censoredWordCandidate =
-	/(?<![\p{L}\p{M}\p{N}_*])[\p{L}\p{M}*]+(?![\p{L}\p{M}\p{N}_*])/gu;
+	/(?<![\p{L}\p{M}\p{N}_*])[\p{L}\p{M}]*\*[\p{L}\p{M}*]*(?![\p{L}\p{M}\p{N}_*])/gu;
 
 /** Classify a complete candidate without treating star-wrapped stage directions as words. */
 export function isMaskedCensorCandidate(candidate: string): boolean {
