@@ -40,7 +40,10 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   profile, or Genius when absent, regardless of retained model ancestry.
 - The populated toolbar names the main format, copies its exact text, and offers Export to
   the other format. The native export dialog edits independent plain output, never editor
-  history, source metadata or selection. Copy and Download use the exact edited output.
+  history, source metadata or selection. It is a title bar (heading, the edit-scope sentence,
+  an icon `Close`), one edge-to-edge output pane in the editor's paper and lyric face that
+  fills the dialog with no resize grip, and a chrome action band: `Edit lyrics` at the leading
+  end, `Download .txt` and the contrast `Copy` together at the trailing end. Copy and Download use the exact edited output.
   Output too large to persist stays editable and guards departure. Closing points to an
   explicit discard-and-close action; discarding retains the last successfully saved export.
   Edited output persists per draft until a real original text, formatting, language, roster,
@@ -110,8 +113,11 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   languages visible even without findings, with reviewed languages and grammar limits in
   Checking coverage.
 
-- The empty new draft exposes Genius and Musixmatch creation choices in the toolbar.
-  A check and pressed state mark the chosen main format. Once writing begins, the toolbar
+- The empty new draft exposes Genius and Musixmatch creation choices in the toolbar as a
+  segmented control (`.segmented`) captioned `Format` at desktop widths. The chosen segment is
+  raised out of the track; a check and the pressed state mark it as well, and every segment
+  reserves the check's slot so choosing never moves a label. Once writing begins the format
+  is a static tag in the same track, never a raised face that invites a press. Once writing begins, the toolbar
   names that fixed format and offers its direct Copy action and the opposite-format export.
   Recognized headings supply their supported section types automatically.
   Review owns the deliberate type choice and Save action for custom or unsupported labels. Song keeps advanced section editing, voices, annotations,
@@ -180,6 +186,10 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 - The toolbar spans the whole window and splits on what a control acts on, not on how loud it
   is; the save readout draws nothing while saving is going well (`sr-only` otherwise).
+  On desktop, hairline dividers part the command strip into the format, the document's
+  history and language (muted quiet controls), and its outputs: Compare and Export at full
+  tone with their glyphs, then the contrast action. Dividers are decoration
+  (`aria-hidden`) and never children the button order tests count.
   The draft-title group shrinks within the identity strip, truncating a long title before
   it can overlap Open, New or the document commands. The complete title remains editable.
 - When Undo or Redo exhausts its history while holding focus, focus moves to the available
@@ -189,7 +199,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   and `--shadow-raised` in both schemes. No accent wash or ring. The panel and controls
   above it use `--color-chrome`. `RightPanel.svelte.test.ts` pins the treatment.
 - Desktop tools have an icon and visible name: Review, Linking, Assistant (when available), Performers,
-  Song, Preferences. At `78rem` the dock runs vertically along the outside edge; below
+  Song, Preferences. The open tool is a raised key: surface plus the control ring. At `78rem` the dock runs vertically along the outside edge; below
   it runs horizontally. Bits UI orientation follows the same query so arrow keys follow
   the visible order. `.right-panel__content` owns the body, media, and footer independently
   of the dock. `RightPanel.svelte.test.ts` pins orientation and pane visibility.
@@ -206,8 +216,10 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   stay beside their filters. `LinterPanel.svelte.test.ts` pins the states.
 - Severity chips draw only the kinds the document has, unasked; a chip's count is over the
   unignored diagnostics and blind to the filters, or hiding a kind deletes the way back to it.
-- On desktop the editor's command tray (`.editor-actions`) is absolutely positioned over the
-  document's top-right; phones give their larger labelled controls a dedicated row.
+- On desktop the editor's command tray (`.editor-actions`) floats as a small ringed chrome
+  toolbar inset `--editor-actions-inset` from the document sheet's top-right corner; phones
+  give their larger labelled controls a dedicated row. A pressed tray toggle takes a fill as
+  well as the accent.
   Desktop glyphs are the marks they insert; tooltips carry the name (and the keystroke where one exists). Up to four editing/source glyphs
   precede the icon-only expand/restore control at the right edge. The audio note
   stays in that row as the source changes. `Workspace.svelte.test.ts` measures its width
@@ -262,6 +274,24 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   `import.meta.env.DEV`, and is pinned empty in `vite.config.ts` for the suite.
 
 ## Decision record
+
+### A ringed sheet, segmented choices and grouped commands
+
+The owner asked for a look that reads as a polished, modern tool, measured against Geist,
+Linear, Raycast, Zed, LanguageTool and Figma UI3. The workbench is now a chrome frame
+holding one document sheet: `--shadow-sheet` gives the editor a one-pixel ring and a long
+soft fall, and dark chrome and surface moved apart (16.5% and 20.5%) so the sheet no longer
+dissolves into its frame. Floating surfaces take Geist's material recipe (ring, contact
+layer, deep layer with a negative spread). Radii follow control height: 8px controls, 12px
+panels, 16px overlays.
+
+The format decision on a new draft became a captioned segmented control, and the fixed
+format a tag in the same track, because two loose words did not read as the one choice the
+product asks for. The toolbar groups its commands with hairline dividers. The export dialog
+became a title bar, an edge-to-edge output pane and an action band. The editor tray stopped
+being a notch cut into the sheet's corner and floats inset from it, which supersedes the
+corner geometry in "The editor's commands are a tray on the tab strip's own edge" below.
+Disclosures draw their own chevron (`.disclosure`) instead of the browser's triangle.
 
 ### The public workbench entry can appear in search
 
@@ -615,6 +645,8 @@ The workbench now uses chrome as the continuous window background. The document 
 from the left edge, with rounded top corners, and the panel separates from it by tone rather
 than a vertical hairline. The toolbar draws no horizontal rule.
 Controls take the medium radius within the workspace; this does not change the public site.
+(Superseded: controls now take `--radius-sm`, 8px, and panels `--radius-md`, 12px; see
+"A ringed sheet, segmented choices and grouped commands".)
 The active tab has a filled rounded target and stronger type, replacing its underline.
 
 Findings retain their depth cue but gain an inset, rounded corners, and a gap between rows.
@@ -706,6 +738,10 @@ and the components in `src/lib/diagnostics/` (what is inside one), and
 `src/lib/ui/layout/RightPanel.svelte`.
 
 ### The editor's commands are a tray on the tab strip's own edge
+
+Superseded in part by "A ringed sheet, segmented choices and grouped commands": the tray
+now floats inset from the sheet's corner with its own ring, and the test measures that inset
+rather than a flush right edge. Its contents, order and reserve still follow this record.
 
 The tab strip hangs under the toolbar at `--panel-tabs-height` and used to be the whole of that
 band: to the left of it, across the editor column, was nothing. So the editor's own commands had

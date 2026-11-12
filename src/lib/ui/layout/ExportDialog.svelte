@@ -1,5 +1,11 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
+	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
+	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
 	import { profileLabels } from '#lib/profiles/types.js';
 	import { otherProfile } from '#lib/persistence/writing.js';
@@ -73,6 +79,7 @@
 	aria-haspopup="dialog"
 	onclick={show}
 >
+	<ExportIcon aria-hidden="true" size={16} weight="bold" />
 	Export to {profileLabels[target]}
 </button>
 <dialog
@@ -87,22 +94,37 @@
 	}}
 >
 	{#if open}
+		<!-- One document pane between a title bar and an action band, the shape
+		     Geist gives a modal: the output is the thing being edited, so it runs
+		     edge to edge and fills the dialog instead of sitting in a box with a
+		     resize grip. -->
 		<div class="export-surface" {@attach dismissOnOutside(close)}>
 			<div class="export-header">
-				<h2 id={titleId}>{profileLabels[target]} export</h2>
-				<button type="button" class="button button--quiet" onclick={close}>Close</button>
+				<div class="export-heading">
+					<h2 id={titleId}>{profileLabels[target]} export</h2>
+					<p>
+						Edit this output for export. Make lyric changes in your main {profileLabels[
+							controller.profile
+						]} draft.
+					</p>
+				</div>
+				<button
+					type="button"
+					class="icon-button button--quiet export-close"
+					aria-label="Close"
+					onclick={close}
+				>
+					<XIcon aria-hidden="true" size={16} weight="bold" />
+				</button>
 			</div>
-			<p>
-				Edit this output for export. Make lyric changes in your main {profileLabels[
-					controller.profile
-				]} draft.
-			</p>
 			<textarea
 				aria-label={`${profileLabels[target]} output`}
 				bind:value={output}
 				oninput={(event) => save(event.currentTarget.value)}
 				spellcheck="false"></textarea>
-			{#if error}<p role="alert">{error}</p>{/if}
+			{#if error}<p class="export-error" role="alert">
+					<WarningIcon aria-hidden="true" size={16} weight="bold" />{error}
+				</p>{/if}
 			<div class="export-actions">
 				{#if error}
 					<button
@@ -115,18 +137,32 @@
 						}}>Discard unsaved output and close</button
 					>
 				{/if}
-				<button type="button" class="button button--quiet" onclick={close}>Edit lyrics</button>
-				<button type="button" class="button" onclick={() => controller.downloadExport(output)}
-					>Download .txt</button
+				<button type="button" class="button button--quiet export-edit" onclick={close}
+					>Edit lyrics</button
 				>
 				<button
 					type="button"
-					class="button button--contrast"
+					class="button export-download"
+					onclick={() => controller.downloadExport(output)}
+				>
+					<DownloadSimpleIcon aria-hidden="true" size={16} weight="bold" />
+					Download .txt</button
+				>
+				<button
+					type="button"
+					class="button button--contrast export-copy"
 					onclick={async () => {
 						const request = ++copyRequest;
 						const result = await controller.copyExport(output);
 						if (request === copyRequest && session === controller.draftSession) copied = result;
-					}}>{copied ? 'Copied' : 'Copy'}</button
+					}}
+				>
+					{#if copied}<CheckIcon aria-hidden="true" size={16} weight="bold" />{:else}<CopyIcon
+							aria-hidden="true"
+							size={16}
+							weight="bold"
+						/>{/if}
+					{copied ? 'Copied' : 'Copy'}</button
 				>
 			</div>
 		</div>
@@ -134,16 +170,15 @@
 </dialog>
 
 <style>
-	.export-actions .button--contrast {
-		min-width: calc(3 * var(--space-6));
-	}
 	dialog {
 		width: min(48rem, calc(100vw - var(--space-4)));
 		max-width: none;
+		height: min(46rem, calc(100dvh - var(--space-6)));
 		max-height: calc(100dvh - var(--space-4));
 		padding: 0;
 		border: 0;
 		border-radius: var(--radius-overlay);
+		overflow: hidden;
 		background: var(--color-overlay);
 		color: var(--color-text);
 		box-shadow: var(--shadow-overlay);
@@ -152,21 +187,21 @@
 		background: var(--color-backdrop);
 	}
 	.export-surface {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-		padding: var(--space-4);
-		max-height: calc(100dvh - var(--space-4));
-		box-sizing: border-box;
+		display: grid;
+		height: 100%;
+		grid-template-rows: auto minmax(6rem, 1fr) auto auto;
 		overflow: auto;
 	}
-	.export-header,
-	.export-actions {
+	.export-header {
 		display: flex;
-		align-items: center;
+		padding: var(--space-4) var(--space-4) var(--space-3) var(--space-5);
+		gap: var(--space-3);
+		align-items: flex-start;
 		justify-content: space-between;
-		gap: var(--space-2);
-		flex-wrap: wrap;
+	}
+	.export-heading {
+		display: grid;
+		gap: var(--space-1);
 	}
 	h2,
 	p {
@@ -174,26 +209,99 @@
 	}
 	h2 {
 		font-size: var(--font-size-lg);
+		font-weight: var(--font-weight-semibold);
+		letter-spacing: var(--tracking-heading);
+		line-height: var(--line-height-tight);
 	}
+	.export-heading p {
+		max-width: var(--measure-prose);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+	}
+	.export-close {
+		flex: none;
+		margin-block-start: calc(-1 * var(--space-1));
+	}
+	/* The output is a document, so it takes the editor's paper, face and
+	   measure, and the hairlines above and below it are the pane's edges. */
 	textarea {
 		width: 100%;
-		min-height: 6rem;
-		height: min(50dvh, 28rem);
-		flex: 1 1 auto;
+		height: 100%;
+		min-height: 0;
 		box-sizing: border-box;
-		resize: vertical;
+		padding: var(--space-4) var(--space-5);
+		border: 0;
+		border-block: var(--border-width) solid var(--color-border);
+		border-radius: 0;
+		resize: none;
+		background: var(--color-surface);
+		box-shadow: none;
+		color: var(--color-text-reading);
 		font-family: var(--font-lyrics);
 		font-size: var(--font-size-editor);
-		line-height: var(--line-height-body);
-		color: var(--color-text);
-		background: var(--color-canvas);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-control);
-		padding: var(--space-3);
+		font-size-adjust: var(--font-lyrics-size-adjust);
+		line-height: var(--line-height-editor);
+	}
+	textarea:hover:not(:disabled) {
+		background: var(--color-surface);
+	}
+	textarea:focus-visible {
+		outline-offset: calc(-1 * var(--focus-ring-width));
+	}
+	.export-error {
+		display: flex;
+		padding: var(--space-2) var(--space-5);
+		gap: var(--space-2);
+		align-items: center;
+		color: var(--color-danger);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+	}
+	.export-error :global(svg) {
+		flex: none;
+	}
+	/* The action band: the way back to the lyrics at the leading end, the two
+	   outputs together at the trailing end, the contrast action last. */
+	.export-actions {
+		display: flex;
+		padding: var(--space-3) var(--space-4) var(--space-3) var(--space-5);
+		gap: var(--space-2);
+		flex-wrap: wrap;
+		align-items: center;
+		background: var(--color-chrome);
+	}
+	.export-edit {
+		margin-inline-end: auto;
+		margin-inline-start: calc(-1 * var(--control-padding-inline));
+	}
+	.export-actions .button {
+		white-space: nowrap;
+	}
+	.export-actions .button :global(svg) {
+		flex: none;
+	}
+	.export-copy {
+		min-width: calc(3 * var(--space-6));
 	}
 	@media (pointer: coarse) {
-		.button {
+		.button,
+		.icon-button {
 			min-height: var(--control-height-touch);
+		}
+		.icon-button {
+			min-width: var(--control-height-touch);
+		}
+	}
+	@media (max-width: 30rem) {
+		.export-header,
+		.export-actions {
+			padding-inline: var(--space-4) var(--space-3);
+		}
+		textarea {
+			padding-inline: var(--space-4);
+		}
+		.export-actions .button :global(svg) {
+			display: none;
 		}
 	}
 </style>

@@ -198,6 +198,9 @@
 					New 'scribe
 				</button>
 			{/if}
+			<!-- Hairline dividers part the strip into what the commands act on: the
+			     format, the document's history and language, then its outputs. -->
+			{#if !phone.current}<span class="document-toolbar__divider" aria-hidden="true"></span>{/if}
 			<!-- The keystrokes already exist in the editor; these are the same two
 		     commands for the pointer, and they act on the document, so they belong
 		     in this strip rather than beside the draft's name. Quiet tier: they are
@@ -240,6 +243,7 @@
 			<!-- Reviewing what the copy will change on the page is the step before
 		     copying it, so it sits beside the action it precedes. The component
 		     gates itself on the document being empty. -->
+			{#if !phone.current}<span class="document-toolbar__divider" aria-hidden="true"></span>{/if}
 			<CompareDialog
 				{controller}
 				onDismiss={() => (commandsOpen = false)}
@@ -595,6 +599,21 @@
 	.document-toolbar__secondary-actions :global(.button--quiet:not(:disabled)) {
 		color: var(--color-text-muted);
 	}
+	/* History and language are settings and corrections, so they rest muted;
+	   Compare opens the first of the document's outputs and reads at full tone
+	   beside Export, which shares its group. */
+	.document-toolbar__secondary:not(.document-toolbar__secondary--phone)
+		.document-toolbar__secondary-actions
+		:global(.compare-trigger:not(:disabled)) {
+		color: var(--color-text);
+	}
+	.document-toolbar__divider {
+		flex: none;
+		width: var(--border-width);
+		height: var(--space-5);
+		margin-inline: var(--space-1);
+		background: var(--color-border-strong);
+	}
 	.document-toolbar__secondary-actions :global(.button--quiet:hover:not(:disabled)),
 	.document-toolbar__secondary-actions :global(.button--quiet:focus-visible) {
 		color: var(--color-text);
@@ -693,6 +712,16 @@
 	}
 	.document-toolbar--phone .document-toolbar__commands > .button :global(svg) {
 		display: none;
+	}
+	/* On the narrowest phones the format tag and both outputs share one row at
+	   the compact label size, so neither output loses its inset to the other. */
+	@media (max-width: 26rem) {
+		.document-toolbar--phone .document-toolbar__commands {
+			font-size: var(--font-size-sm);
+		}
+		.document-toolbar--phone .document-toolbar__commands :global(.profile-picker--fixed) {
+			padding-inline: var(--space-2);
+		}
 	}
 	.document-toolbar__secondary--phone .document-toolbar__secondary-actions > :global(button) {
 		width: 100%;
