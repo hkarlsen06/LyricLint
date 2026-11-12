@@ -122,6 +122,9 @@ function copyDraft(record: DraftRecord): DraftRecord {
 	return copy;
 }
 
+/** The title a text recovery is created with, which also tells an untouched one apart. */
+export const textRecoveryTitle = (title: string): string => `${title} (text recovery)`;
+
 function createRecord(input: DraftCreateInput): DraftRecord {
 	const timestamp = now();
 	const record: DraftRecord = {
@@ -263,7 +266,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 					'The saved conversion data could not be read. The original draft is preserved unchanged; this copy contains its exact visible lyrics.';
 				const record = createRecord({
 					id: randomId(),
-					title: `${typeof source.title === 'string' ? source.title : DEFAULT_TITLE} (text recovery)`,
+					title: textRecoveryTitle(typeof source.title === 'string' ? source.title : DEFAULT_TITLE),
 					text: source.text,
 					language: typeof source.language === 'string' ? source.language : DEFAULT_LANGUAGE,
 					originalText: typeof source.originalText === 'string' ? source.originalText : source.text,

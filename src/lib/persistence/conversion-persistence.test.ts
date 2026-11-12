@@ -508,6 +508,51 @@ it('recovers malformed writing on a plain row while preserving original output b
 	);
 });
 
+it('removes an untouched text recovery once its source reads again, and opens the source', async () => {
+	const { database, repository } = await setup('recovery-heals');
+	const draft = rich();
+	// A row this build cannot read: a future writer, through its physical store.
+	await database
+		.table(database.drafts.name)
+		.add({ ...draft, conversion: { ...draft.conversion!, schema: 99 } });
+	await repository.setCurrent(draft.id);
+	const standIn = await recoverStartupDraft(repository);
+	expect(standIn.title).toBe('Night (text recovery)');
+	expect(await repository.getCurrent()).toBe(standIn.id);
+
+	// A later build reads the row again.
+	await database.table(database.drafts.name).put(draft);
+	const opened = await recoverStartupDraft(repository);
+
+	expect(opened.id).toBe(draft.id);
+	expect(await repository.getCurrent()).toBe(draft.id);
+	expect((await repository.listRecords()).map(({ id }) => id)).toEqual([draft.id]);
+});
+
+it('keeps a text recovery somebody wrote in after its source reads again', async () => {
+	const { database, repository } = await setup('recovery-kept');
+	const draft = rich();
+	await database
+		.table(database.drafts.name)
+		.add({ ...draft, conversion: { ...draft.conversion!, schema: 99 } });
+	await repository.setCurrent(draft.id);
+	const standIn = await recoverStartupDraft(repository);
+	const text = `${standIn.text}\nOne more line`;
+	await repository.save({
+		...standIn,
+		text,
+		conversionRecovery: { ...standIn.conversionRecovery!, text }
+	});
+
+	await database.table(database.drafts.name).put(draft);
+	const opened = await recoverStartupDraft(repository);
+
+	expect(opened.id).toBe(standIn.id);
+	expect((await repository.listRecords()).map(({ id }) => id).sort()).toEqual(
+		[draft.id, standIn.id].sort()
+	);
+});
+
 it('never reopens a recovered empty source as a creation choice', async () => {
 	const { repository } = await setup('empty-recovery-ownership');
 	const original = rich();

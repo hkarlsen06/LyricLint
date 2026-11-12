@@ -2,7 +2,7 @@ import { newWriting, CREATION_PROFILE_PREFERENCE } from './writing.js';
 import { randomId } from '../core/random-id.js';
 import type { MediaRepository } from './media-repository.js';
 import type { DraftRecord, DraftRepository } from './types.js';
-import { DEFAULT_DRAFT_TITLE } from './draft-repository.js';
+import { DEFAULT_DRAFT_TITLE, textRecoveryTitle } from './draft-repository.js';
 import { isReadableDraft } from './readable-draft.js';
 import { hasConversionMetadata } from './conversion.js';
 
@@ -48,6 +48,11 @@ function blankDraft(profile: 'genius' | 'musixmatch'): DraftRecord {
  * current-draft pointer names as well: it simply never joins the recoverable
  * list, so the boot falls through to the newest draft exactly as it does for a
  * pointer at a record that is gone.
+ *
+ * A text recovery is the stand-in made for such a record. When a later build
+ * reads the record again, a stand-in nobody wrote in holds nothing its source
+ * lacks, so it is removed here and its source opens in its place. One that was
+ * edited, renamed or given performers is somebody's work and stays.
  */
 export async function recoverStartupDraft(
 	repository: DraftRepository,
@@ -84,8 +89,29 @@ export async function recoverStartupDraft(
 		recoverable.push(draft);
 	}
 
+	const pointed = await repository.getCurrent();
+	for (const copy of [...recoverable]) {
+		const sourceId = (copy.conversionRecovery ?? copy.originalRecovery)?.localSourceDraftId;
+		const source = sourceId ? recoverable.find((draft) => draft.id === sourceId) : undefined;
+		if (
+			!source ||
+			source.conversionRecovery !== undefined ||
+			source.originalRecovery !== undefined ||
+			copy.text !== source.text ||
+			copy.title !== textRecoveryTitle(source.title) ||
+			copy.language !== source.language ||
+			copy.performers.length > 0
+		)
+			continue;
+		if (repository.deleteIfUnchanged) {
+			if (!(await repository.deleteIfUnchanged(copy.id, copy.storageGeneration ?? 0))) continue;
+		} else await repository.delete(copy.id);
+		recoverable.splice(recoverable.indexOf(copy), 1);
+		if (pointed === copy.id) await repository.setCurrent(source.id);
+	}
+
 	// `delete` drops the current-draft pointer when it names the deleted record,
-	// so this reads whatever survived the sweep.
+	// so this reads whatever survived the sweeps.
 	const currentId = await repository.getCurrent();
 	const current = recoverable.find((draft) => draft.id === currentId);
 	if (current !== undefined) {

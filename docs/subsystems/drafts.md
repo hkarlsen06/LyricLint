@@ -66,7 +66,11 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   line-number anchors and links are omitted after migration; the model owns their stable records.
   A metadata-only rich draft survives every blank-document sweep. Unreadable rich state is never
   downgraded over its original row: startup creates a separately labeled text recovery and keeps
-  the original bytes available through `exportRawDraft`.
+  the original bytes available through `exportRawDraft`. A text recovery is a stand-in, not
+  a fork: when startup finds that its source row reads again and nobody wrote in the recovery
+  (same lyrics and language as the source, the title it was created with, no performers), it
+  deletes the recovery at the generation it read and opens the source. Any difference keeps
+  both.
 - A rich model owns `defaultLanguage`; the top-level draft language is its compatibility copy
   and mismatches are refused at reads/imports. This keeps language changes, rendered text,
   persistence, and undo in the same document transaction.
@@ -565,6 +569,12 @@ recovery". Nothing was lost, but an ordinary publish had locked every rich draft
 The pin now names the format's representation, which a rule set publish does not touch:
 `profilePolicyVersions.genius` is the fixed `2026.09.21.2`, and the readable list also
 admits `2026.11.11.0`, which builds wrote for a few hours that day. Rows that were turned away
-read normally again; the recovery copies made meanwhile are ordinary drafts the user can delete.
+read normally again.
+
+That left the stand-ins: a reload still opened the `(text recovery)` copy, because it was the
+last draft open, with the working original one menu away. So startup now removes a text recovery
+whose source reads again when nobody wrote in it (same lyrics and language as its source, the
+title it was created with, no performers) and opens the source in its place
+(`recoverStartupDraft`). A stand-in that was edited, renamed or given performers stays.
 The exact re-render check is unchanged and remains the guard against a renderer that would
 change saved text. Pins: `conversion-persistence.test.ts`.
