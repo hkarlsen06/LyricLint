@@ -449,8 +449,8 @@
 	   the way an issue tracker counts `3 / 84` beside the title it pages: two
 	   arrows around a tabular position that holds its width as the count
 	   changes. The words stay in the accessible name and the tooltip names the
-	   keystroke. Inside an opened phone finding there is no heading, so it falls
-	   back into the flow under the way back to the list. */
+	   keystroke. Inside an opened phone finding there is no heading, so it rides
+	   the row of the way back to the list instead. */
 	.diagnostic-list__pager {
 		gap: var(--space-0-5);
 	}
@@ -463,7 +463,10 @@
 		z-index: 1;
 	}
 	:global(.linter-panel--focused) > .diagnostic-list__pager {
-		padding: var(--space-1) var(--panel-inset) 0;
+		position: absolute;
+		top: var(--space-2);
+		right: var(--panel-inset);
+		z-index: 1;
 	}
 	.diagnostic-list__pager > :global(.button) {
 		width: var(--pager-step);

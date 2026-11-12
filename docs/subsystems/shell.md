@@ -215,8 +215,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   button standing alone under text is drawn flush with it.
 - Review's heading is the panel heading size. Its finding pager rides the heading's row at
   the far end: two arrows around a tabular `1 of 11`, the words `Previous` and `Next` kept
-  in the buttons' accessible names and the tooltip naming each keystroke. Inside an opened
-  phone finding there is no heading, and the pager falls back into the flow. Severity chips
+  in the buttons' accessible names and the tooltip naming each keystroke. Inside an opened phone finding there is no heading, and the pager rides the row of `All findings`, the way back to the list. Severity chips
   carry their kind's color on the mark alone; the label stays in the text color and a
   pressed chip is its kind's tint.
 - Desktop tools have an icon and visible name: Review, Linking, Assistant (when available), Performers,
