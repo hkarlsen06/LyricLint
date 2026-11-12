@@ -359,7 +359,6 @@ textarea:disabled {
 		transition:
 			background-color var(--duration-fast) var(--ease-out-quart),
 			border-color var(--duration-fast) var(--ease-out-quart),
-			box-shadow var(--duration-fast) var(--ease-out-quart),
 			color var(--duration-fast) var(--ease-out-quart);
 	}
 }

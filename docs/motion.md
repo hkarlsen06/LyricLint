@@ -74,9 +74,11 @@ strength from the first frame, and only their shadow deepens, from `--shadow-con
 their own over `--duration-slow` (`surface-lift` in `overlays.css`, opted into with
 `.surface-lift`); a modal's backdrop dims over `--duration-medium`. Nothing moves, scales or
 fades, so no control is pressed or measured mid-flight and no surface is ever
-part-transparent; leaving is instant. Controls ease fill, edge and color over
-`--duration-fast`, so a raised segment, the open tool and a chosen format card settle
-rather than snap. The open finding's accent rail grows from its middle over
+part-transparent; leaving is instant. Controls ease fill and color over
+`--duration-fast`; the dock's tools and the new-draft format cards also ease their edge, so
+the open tool and a chosen format settle rather than snap. The shared control tiers do not
+ease their edge: on a 32px button the change is invisible, and it added transition work to
+every control on the WebKit export flow, the suite's thinnest timing margin. The open finding's accent rail grows from its middle over
 `--duration-medium`. The new-draft format tray fades out over `--duration-fast` when writing
 begins, the one exit that animates, because it is leaving a surface the user is now typing in.
 
