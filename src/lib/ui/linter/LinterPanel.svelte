@@ -123,10 +123,10 @@
 			};
 		}
 		// An untouched draft is not "clean", it has nothing to lint yet. The
-		// editor now carries the instructions (a ghost transcription where the
-		// caret is, and Paste lyrics in the toolbar), so this line says what the
-		// panel will do rather than repeating how to feed it, and the space under
-		// it holds the two things worth pressing from here.
+		// document sheet carries the instructions and every way to begin (a ghost
+		// transcription where the caret is, and the start tray under it), so
+		// this line says what the panel will do rather than repeating how to
+		// feed it.
 		if (controller.snapshot.text.length > 0 && (nativeRulesStatus !== 'ready' || grammarPending)) {
 			return {
 				status: true,
@@ -295,13 +295,14 @@
 			</div>
 		{/if}
 
-		<!-- Only the untouched-document state gets a control, and only the sample:
-	     it is the one thing that answers "nothing to lint yet" in place, so it
-	     stays with the sentence it answers. "Hidden by filters" and "All issues
-	     ignored" already name the chip or the footer that undid them, and "No
-	     issues found" is not a problem to solve. The drafts are not an answer to
-	     this state at all, they are somewhere else to be, so they wait at the
-	     far end of the column instead of between the message and its offer. -->
+		<!-- An empty state gets a control only where pressing it answers the
+	     sentence above it: a failed check can be retried, and retained details
+	     can be opened. "Hidden by filters" and "All issues ignored" already name
+	     the chip or the footer that undid them, "No issues found" is not a
+	     problem to solve, and the ways to begin an empty document live in the
+	     sheet's start tray. The drafts are not an answer to this state at all,
+	     they are somewhere else to be, so they wait at the far end of the
+	     column. -->
 		{#snippet emptyActions()}
 			{#if controller.snapshot.text.length > 0 && nativeRulesStatus === 'failed'}
 				<button
@@ -318,13 +319,6 @@
 						if (section) controller.openSectionDetails(section.id, 'review');
 					}}>View retained details</button
 				>{/if}
-			{#if controller.isEmpty && controller.canLoadSample}
-				<div class="linter-panel__empty-action">
-					<button type="button" class="button" onclick={() => controller.loadSample()}>
-						Load a sample 'scribe
-					</button>
-				</div>
-			{/if}
 		{/snippet}
 
 		{#if !detailFindings.length || controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0 || nativeRulesStatus !== 'ready'}
@@ -557,13 +551,6 @@
 		color: var(--color-text-muted);
 		font-size: var(--font-size-xs);
 		font-variant-numeric: tabular-nums;
-	}
-
-	/* The grid stretches its items, and a button that spans the prose measure reads
-	   as a banner rather than an offer. */
-	.linter-panel__empty-action {
-		justify-self: center;
-		padding-top: var(--space-3);
 	}
 
 	/* The list ends deliberately: a muted line after the last card says whether

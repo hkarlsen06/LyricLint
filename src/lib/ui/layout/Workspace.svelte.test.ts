@@ -101,54 +101,14 @@ describe('Workspace and toolbar', () => {
 		expect(document.querySelector('dialog[open]')).toBeNull();
 	});
 
-	// The contrast tier is the loudest thing on the screen, and on an empty
-	// document `Copy lyrics` spends it pointing at the exit. Same slot, same
-	// tier, label following the state, and never both at once.
-	test('offers the paste end of the work while the document is empty', async () => {
-		const { controller } = createTestWorkbench({ text: '' });
-		await render(DocumentToolbar, { controller });
-
-		const paste = screen.getByRole('button', { name: 'Paste lyrics' });
-		expect(paste.classList.contains('button--contrast')).toBe(true);
-		expect(screen.queryByRole('button', { name: 'Copy Genius' })).toBeNull();
-	});
-
-	test('returns the slot to copy once the document has something in it', async () => {
+	// The paste end of the work, and the empty document's other ways to begin,
+	// are the start tray's (`DraftStart.svelte.test.ts`).
+	test('holds copy in the contrast slot once the document has something in it', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
 		await render(DocumentToolbar, { controller });
 
 		expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Paste lyrics' })).toBeNull();
-	});
-
-	test('pastes the clipboard into the empty document in one edit', async () => {
-		const { controller, calls } = createTestWorkbench({
-			text: '',
-			clipboardText: '[Verse]\nPasted line'
-		});
-		await render(DocumentToolbar, { controller });
-
-		await fireEvent.click(screen.getByRole('button', { name: 'Paste lyrics' }));
-
-		await waitFor(() => expect(calls.dispatched).toHaveLength(1));
-		expect(calls.dispatched[0]!.edits).toEqual([
-			{ from: 0, to: 0, insert: '[Verse]\nPasted line' }
-		]);
-	});
-
-	// Firefox gates a programmatic read behind its own prompt and Safari denies
-	// it outright, but the keyboard path is still open in both. Put the caret
-	// where that keystroke lands instead of explaining a permission.
-	test('hands over to keyboard paste when the clipboard cannot be read', async () => {
-		const { controller, calls, feedback } = createTestWorkbench({ text: '' });
-		await render(DocumentToolbar, { controller });
-		await render(LiveRegion, { feedback });
-
-		await fireEvent.click(screen.getByRole('button', { name: 'Paste lyrics' }));
-
-		await waitFor(() => expect(calls.focusCount).toBe(1));
-		expect(calls.dispatched).toEqual([]);
-		expect(screen.getByTestId('live-region').textContent).toContain('paste shortcut');
 	});
 
 	test('keeps document creation, navigation, language, and copy in the toolbar', async () => {

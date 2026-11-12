@@ -17,14 +17,15 @@
 <ol>
 	<li>Copy the transcription from wherever it is now.</li>
 	<li>
-		Press <strong>Paste lyrics</strong> in the toolbar. If the browser does not allow LyricLint to read
+		Press <strong>Paste lyrics</strong> in the editor. If the browser does not allow LyricLint to read
 		the clipboard, the caret moves into the editor and you paste with <Keys combo="Mod-v" /> instead.
 	</li>
 </ol>
 <p>You can also type straight into the editor. There is no account and nothing to set up.</p>
 <p>
-	To look around before you have lyrics of your own, press <strong>Load a sample 'scribe</strong> in
-	the Review panel.
+	To look around before you have lyrics of your own, press <strong>Load a sample 'scribe</strong>
+	under it. The sample is a Genius transcription in English, so it is offered while the format is
+	Genius and the language is English.
 </p>
 <p>
 	The toolbar shows the lyric language. If the lyrics are in another language, a finding offers to

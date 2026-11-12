@@ -120,10 +120,16 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   and `Lyric format: Musixmatch` in a group named `Lyric format`. Each card says what the
   format means and shows a two-line sample in the editor's faces (phones drop the samples).
   The chosen card rises with the accent ring and a filled check, and is pressed; every card
-  keeps one box whether chosen or not. The tray rests at the sheet's foot, clear of where a
-  press starts writing, and is absolutely positioned with presses only on its cards, so the
-  ghost transcription, typing and paste behave exactly as without it, and its exit moves no
-  lyric line. It fades out over `--duration-fast` once writing begins, instantly under reduced
+  keeps one box whether chosen or not. Under the cards the tray holds the ways to begin:
+  `Paste lyrics` on the contrast tier, one line saying typing works too, and a quiet
+  `Load a sample 'scribe` where `canLoadSample` allows it. The sample's row keeps its height
+  when the sample is withdrawn, so choosing a format moves nothing above it. The ways to begin
+  stay for as long as the document is empty (`controller.isEmpty`), so a cleared draft shows
+  them without the format choice. A short phone draws the cards as names alone, and with the
+  keyboard up (`data-keyboard-inset`) the tray keeps only the choice and the paste. The tray
+  rests at the sheet's foot, clear of where a press starts writing, and is absolutely
+  positioned with presses only on its controls, so the ghost transcription, typing and paste
+  behave exactly as without it, and its exit moves no lyric line. It fades out over `--duration-fast` once writing begins, instantly under reduced
   motion. While it is open the toolbar draws no format and no format divider. Once writing
   begins the format is a static tag in the toolbar's track, never a raised face that invites
   a press. Once writing begins, the toolbar names that fixed format and offers its direct Copy action and the opposite-format export.
@@ -266,8 +272,9 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   the imperative `showControlHint` pair and disclose only on the caret's own line. Pins:
   `diagnostic-parity.svelte.test.ts`, `line-anchoring.svelte.test.ts`.
 - The empty document is one message split across surfaces: ghost transcription in the editor,
-  the format choice at the sheet's foot while the draft is new, `Paste lyrics` in the toolbar
-  (refusals toast *and* announce via `report`), a waiting panel, and no counts anywhere. `controller.isEmpty` / `canLoadSample` are the single answers;
+  the start tray at the sheet's foot (the format choice while the draft is new, then
+  `Paste lyrics` and the sample; refusals toast *and* announce via `report`), a toolbar with no
+  contrast action, a waiting panel that offers nothing, and no counts anywhere. `controller.isEmpty` / `canLoadSample` are the single answers;
   `.right-panel__pane` must keep `[hidden]` out of its `display` rule
   (`RightPanel.svelte.test.ts` asserts exactly one pane draws).
 - Keep Song and Preferences sections focused on their own decisions. Song does not repeat
@@ -1076,6 +1083,12 @@ decoration. It is dividing one message between the surfaces so that no two of th
 - **The toolbar says what to do**, by swapping its one contrast action to `Paste lyrics` while the
   document is empty. The slot, the tier, and the tab order are unchanged, only the label follows
   the state, and the surface never carries two contrast actions.
+
+  _Superseded on 2026-11-12:_ `Paste lyrics` moved into the document sheet's start tray
+  (`DraftStart.svelte`), beside the format choice and the sample, so every way to begin an
+  empty document is in one place. The toolbar's contrast slot is empty while the document is,
+  and the tray holds the contrast tier until there is something to copy. The refusal behavior
+  below is unchanged.
 
   **And when that action refuses, it says so where the press can see it.** Safari denies
   `readText()` outside a gesture and Firefox gates it behind a prompt, which is ordinary rather

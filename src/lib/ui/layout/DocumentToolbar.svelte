@@ -1,6 +1,5 @@
 <script lang="ts">
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
-	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 	import CopyIcon from 'phosphor-svelte/lib/CopyIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwiseIcon';
@@ -126,7 +125,6 @@
 		controller.setTitle(input.value);
 	}
 
-	// Same slot, same tier, label following the state, as with `Paste lyrics`.
 	// The confirmation is the button itself, so nothing else has to appear to say
 	// the copy landed; it reverts on its own because there is no other way out.
 	let copied = $state(false);
@@ -244,7 +242,10 @@
 			<!-- Reviewing what the copy will change on the page is the step before
 		     copying it, so it sits beside the action it precedes. The component
 		     gates itself on the document being empty. -->
-			{#if !phone.current}<span class="document-toolbar__divider" aria-hidden="true"></span>{/if}
+			{#if !phone.current && !controller.isEmpty}<span
+					class="document-toolbar__divider"
+					aria-hidden="true"
+				></span>{/if}
 			<CompareDialog
 				{controller}
 				onDismiss={() => (commandsOpen = false)}
@@ -332,25 +333,15 @@
 	     What remains here is the one action that bounds the session's work, last
 	     in reading order and last in the tab order.
 
-	     Which end of the work it bounds depends on whether there is any. On an
-	     empty document `Copy lyrics` is the loudest thing on the screen pointing
-	     at the exit, so the slot holds `Paste lyrics` until the document has
-	     something in it. Same slot, same tier, label following the state, so the
-	     surface never carries two contrast actions, and the user is never offered
-	     the end of a job they have not started. -->
+	     An empty document has no work to take out, so the slot is empty with it:
+	     the way in (`Paste lyrics`) is in the document sheet's start tray
+	     (`DraftStart.svelte`), which holds the contrast tier until there is
+	     something to copy. The window never carries two contrast actions, and
+	     the user is never offered the end of a job they have not started. -->
 	<div class="document-toolbar__commands">
 		{#if phone.current}<ProfilePicker {controller} />{/if}
 		{#if !phone.current}{@render secondaryCommands()}{/if}
-		{#if controller.isEmpty}
-			<button
-				type="button"
-				class="button button--contrast"
-				onclick={() => controller.pasteLyrics()}
-			>
-				<ClipboardTextIcon aria-hidden="true" size={16} weight="bold" />
-				Paste lyrics
-			</button>
-		{:else}
+		{#if !controller.isEmpty}
 			{#if !controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery}<ExportDialog
 					{controller}
 				/>{/if}

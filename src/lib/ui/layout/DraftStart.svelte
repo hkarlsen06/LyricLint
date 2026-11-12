@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from '#lib/interaction/motion.js';
@@ -10,7 +11,6 @@
 	let { controller }: { controller: WorkbenchController } = $props();
 	const id = $props.id();
 	const profiles: ProfileId[] = ['genius', 'musixmatch'];
-	const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
 	const formats = {
 		genius: {
 			detail: 'Section headers in brackets, with performers and annotations.',
@@ -24,61 +24,90 @@
 	const leave = () => ({ duration: prefersReducedMotion() ? 0 : 120 });
 </script>
 
-<!-- The one decision a new 'scribe asks for, made in the document it decides.
-     It rests on the sheet's foot, clear of where a press starts writing, and
-     takes presses only on its two choices: everything else falls through to the
-     editor underneath, so typing and pasting start the draft as they always did.
-     It is absolutely positioned, so leaving moves no lyric line. -->
-{#if controller.writing.phase === 'new'}
+<!-- Where an empty 'scribe begins. While the draft is new it asks the one
+     decision that comes before writing, the format, in the document that format
+     decides; under it are the ways to begin, which stay for as long as the
+     document is empty. It rests on the sheet's foot, clear of where a press
+     starts writing, and takes presses only on its controls: everything else
+     falls through to the editor underneath, so typing and pasting start the
+     draft as they always did. It is absolutely positioned, so leaving moves no
+     lyric line. -->
+{#if controller.isEmpty}
 	<div class="draft-start" out:fade={leave()}>
-		<h2 class="draft-start__heading">Choose a format</h2>
-		<p class="draft-start__lede">
-			Each 'scribe is written in one. Export makes an editable copy in the other.
-		</p>
-		<div
-			class="draft-start__formats"
-			role="group"
-			aria-label="Lyric format"
-			aria-describedby="{id}-pending"
-		>
-			{#each profiles as profile (profile)}
-				{@const current = controller.profile === profile}
-				{@const format = formats[profile]}
-				<button
-					type="button"
-					class="draft-start__format"
-					aria-label={`Lyric format: ${profileLabels[profile]}`}
-					aria-pressed={current}
-					aria-describedby={current && controller.pendingProfile
-						? `${id}-pending`
-						: `${id}-${profile}`}
-					title={current && controller.pendingProfile ? 'Cancel pending format switch' : undefined}
-					onclick={() => controller.switchProfile(profile)}
-				>
-					<span class="draft-start__format-head">
-						<span class="draft-start__name">{profileLabels[profile]}</span>
-						<span class="draft-start__mark" aria-hidden="true">
-							{#if current && controller.pendingProfile}<XIcon size={12} weight="bold" />
-							{:else if current}<CheckIcon size={12} weight="bold" />{/if}
+		{#if controller.writing.phase === 'new'}
+			<h2 class="draft-start__heading">Choose a format</h2>
+			<p class="draft-start__lede">
+				Each 'scribe is written in one. Export makes an editable copy in the other.
+			</p>
+			<div
+				class="draft-start__formats"
+				role="group"
+				aria-label="Lyric format"
+				aria-describedby="{id}-pending"
+			>
+				{#each profiles as profile (profile)}
+					{@const current = controller.profile === profile}
+					{@const format = formats[profile]}
+					<button
+						type="button"
+						class="draft-start__format"
+						aria-label={`Lyric format: ${profileLabels[profile]}`}
+						aria-pressed={current}
+						aria-describedby={current && controller.pendingProfile
+							? `${id}-pending`
+							: `${id}-${profile}`}
+						title={current && controller.pendingProfile
+							? 'Cancel pending format switch'
+							: undefined}
+						onclick={() => controller.switchProfile(profile)}
+					>
+						<span class="draft-start__format-head">
+							<span class="draft-start__name">{profileLabels[profile]}</span>
+							<span class="draft-start__mark" aria-hidden="true">
+								{#if current && controller.pendingProfile}<XIcon size={12} weight="bold" />
+								{:else if current}<CheckIcon size={12} weight="bold" />{/if}
+							</span>
 						</span>
-					</span>
-					<span class="draft-start__detail" id="{id}-{profile}">{format.detail}</span>
-					<span class="draft-start__sample" aria-hidden="true">
-						{#each format.sample as line, index (index)}
-							<span class:draft-start__sample-header={line.startsWith('[')}>{line}</span>
-						{/each}
-					</span>
-				</button>
-			{/each}
-		</div>
-		<span id="{id}-pending" class="sr-only">
-			{#if controller.pendingProfile}Select the current format to cancel the pending switch.{/if}
-			{#if profileLanguage(controller.language) === 'und'}Language-independent conversion only.{/if}
-		</span>
-		<p class="draft-start__hint">
-			<span class="draft-start__keys"><kbd>{mac ? '⌘V' : 'Ctrl+V'}</kbd> pastes, or start</span
-			><span class="draft-start__touch">Paste or start</span> typing. Everything saves on this device.
-		</p>
+						<span class="draft-start__detail" id="{id}-{profile}">{format.detail}</span>
+						<span class="draft-start__sample" aria-hidden="true">
+							{#each format.sample as line, index (index)}
+								<span class:draft-start__sample-header={line.startsWith('[')}>{line}</span>
+							{/each}
+						</span>
+					</button>
+				{/each}
+			</div>
+			<span id="{id}-pending" class="sr-only">
+				{#if controller.pendingProfile}Select the current format to cancel the pending switch.{/if}
+				{#if profileLanguage(controller.language) === 'und'}Language-independent conversion only.{/if}
+			</span>
+		{/if}
+		<!-- The contrast tier belongs to the way in while there is nothing to take
+		     out: the toolbar's copy holds it once the document has words. -->
+		<button
+			type="button"
+			class="button button--contrast draft-start__action"
+			onclick={() => controller.pasteLyrics()}
+		>
+			<ClipboardTextIcon aria-hidden="true" size={16} weight="bold" />
+			Paste lyrics
+		</button>
+		<p class="draft-start__hint">Or start typing. Everything saves on this device.</p>
+		<!-- The sample is offered only where it can load (`canLoadSample`), which
+		     follows the chosen format. Where it cannot, an invisible strut with
+		     the button's own box holds its row, so choosing a format never moves
+		     the tray above it. -->
+		{#if controller.canLoadSample}
+			<button
+				type="button"
+				class="button button--quiet draft-start__action"
+				onclick={() => controller.loadSample()}
+			>
+				Load a sample 'scribe
+			</button>
+		{:else}
+			<span class="button button--quiet draft-start__strut" aria-hidden="true">&nbsp;</span>
+		{/if}
 	</div>
 {/if}
 
@@ -220,24 +249,16 @@
 		font-size-adjust: none;
 	}
 
-	.draft-start__touch {
-		display: none;
-	}
-	@media (pointer: coarse) {
-		.draft-start__keys {
-			display: none;
-		}
-		.draft-start__touch {
-			display: inline;
-		}
+	.draft-start__action {
+		pointer-events: auto;
 	}
 
-	.draft-start__hint kbd {
-		padding: 0 var(--space-1);
-		border-radius: var(--radius-xs);
-		background: var(--color-fill);
-		color: var(--color-text);
-		font-variant-numeric: tabular-nums;
+	.draft-start__hint {
+		margin-top: var(--space-1);
+	}
+
+	.draft-start__strut {
+		visibility: hidden;
 	}
 
 	@media (prefers-reduced-motion: no-preference) {
@@ -278,5 +299,24 @@
 		.draft-start__sample {
 			display: none;
 		}
+	}
+
+	/* A short phone has room for the ghost transcription and the tray only if
+	   the cards are their names alone. */
+	@media (max-width: 46rem) and (max-height: 44rem) {
+		.draft-start__detail {
+			display: none;
+		}
+	}
+
+	/* With the keyboard up the sheet is a few lines tall and the user is about
+	   to type, so the tray keeps the choice and the paste and drops the rest.
+	   Media queries cannot see the keyboard; `trackKeyboardInset` can. */
+	:global(:root[data-keyboard-inset]) .draft-start__lede,
+	:global(:root[data-keyboard-inset]) .draft-start__detail,
+	:global(:root[data-keyboard-inset]) .draft-start__sample,
+	:global(:root[data-keyboard-inset]) .draft-start__hint,
+	:global(:root[data-keyboard-inset]) .draft-start__hint ~ .button {
+		display: none;
 	}
 </style>
