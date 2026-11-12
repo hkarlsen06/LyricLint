@@ -9,6 +9,7 @@ const data = {
 	sections: guidanceTopics().map(({ topic }) => ({ topic, checksById: {}, additionalChecks: [] })),
 	spellings: undefined,
 	referenceCorpus: [],
+	musixmatchCorpus: [],
 	guidanceCount: 0,
 	guidanceTopics: guidanceTopics().map(({ topic }) => topic)
 } satisfies ComponentProps<typeof GuideArticle>['data'];
