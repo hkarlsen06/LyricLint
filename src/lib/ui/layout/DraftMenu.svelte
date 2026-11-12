@@ -90,7 +90,7 @@
 		<CaretDownIcon class="draft-menu__chevron" aria-hidden="true" size={13} weight="bold" />
 	</summary>
 	{#if initialized}
-		<div class="draft-menu__popover">
+		<div class="draft-menu__popover surface-lift">
 			<div class="draft-menu__titlebar">
 				<h2 class="draft-menu__heading">Saved 'scribes</h2>
 				<button

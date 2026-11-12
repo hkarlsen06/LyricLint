@@ -109,7 +109,7 @@
      does not redirect keyboard focus. Both honor Escape. -->
 <div
 	bind:this={root}
-	class="popover"
+	class="popover surface-lift"
 	class:anchored={anchor}
 	style={position}
 	role={takeFocus ? 'dialog' : 'group'}

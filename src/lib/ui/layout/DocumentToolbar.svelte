@@ -184,6 +184,7 @@
 		<div
 			id="document-commands"
 			class="document-toolbar__secondary-actions"
+			class:surface-lift={phone.current}
 			hidden={phone.current && !commandsOpen}
 		>
 			{#if phone.current}

@@ -67,6 +67,19 @@ with a direct DOM handoff. Reduced motion parks the mark and wave and skips the 
 explosion. Direct page loads and draft switches do not show it. See
 [site guidance](subsystems/site.md) for its lifetime and refusal paths.
 
+State changes have one CSS vocabulary, all inside the 120 to 240ms budget and dropped under
+reduced motion. Surfaces that arrive lift: a modal dialog, the drafts menu, the phone
+Document menu and the editor's diagnostic popover are at their resting place and full
+strength from the first frame, and only their shadow deepens, from `--shadow-control` to
+their own over `--duration-slow` (`surface-lift` in `overlays.css`, opted into with
+`.surface-lift`); a modal's backdrop dims over `--duration-medium`. Nothing moves, scales or
+fades, so no control is pressed or measured mid-flight and no surface is ever
+part-transparent; leaving is instant. Controls ease fill, edge and color over
+`--duration-fast`, so a raised segment, the open tool and a chosen format card settle
+rather than snap. The open finding's accent rail grows from its middle over
+`--duration-medium`. The new-draft format tray fades out over `--duration-fast` when writing
+begins, the one exit that animates, because it is leaving a surface the user is now typing in.
+
 ## Best practices
 
 - Keep startup motion in the workspace attachment. Do not add per-card or per-line mount

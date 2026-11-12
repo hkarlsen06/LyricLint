@@ -526,7 +526,15 @@
 	   than snapping. Only the tone, the shadow and the seams ease. The card's own
 	   expansion stays instant, because a height between two documents' worth of
 	   content has no honest intermediate frame. */
+	@keyframes rail-grow {
+		from {
+			scale: 1 0;
+		}
+	}
 	@media (prefers-reduced-motion: no-preference) {
+		.diagnostic-list > li.diagnostic-card--expanded::before {
+			animation: rail-grow var(--duration-medium) var(--ease-out-quart);
+		}
 		.diagnostic-list > li {
 			transition:
 				background-color var(--duration-fast) var(--ease-out-quart),
