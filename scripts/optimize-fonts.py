@@ -21,7 +21,7 @@ SOURCES = {
     "karla-latin-wght-normal.woff2": "cd614fed3fa0bf1b083d1a127a593081e2a1aa732ad61481eb12baee212c933d"
 }
 ROOT = Path(__file__).resolve().parents[1] / "static" / "fonts"
-WEIGHTS = (400, 550, 650, 700, 750, 800)
+WEIGHTS = (400, 500, 600, 700, 750, 800)
 
 for name, digest in SOURCES.items():
     family = "karla" if name.startswith("karla-") else "ibm-plex-sans"

@@ -121,8 +121,8 @@ The shipped IBM Plex Sans and Karla files retain the continuous weight axis from
 The token scale starts at 400; thinner masters downloaded on every cold load but never rendered.
 `python3 scripts/optimize-fonts.py` regenerates the six variable files from integrity-checked
 Fontsource 5.3.0 originals using fontTools 4.63.0. It verifies unchanged character coverage and
-identical glyph outlines and advance widths at every supported token weight, including 550,
-650, and Karla's 750. No characters, italic faces, font-display behavior, or used weights are
+identical glyph outlines and advance widths at every supported token weight, including 500,
+600, and Karla's 750. No characters, italic faces, font-display behavior, or used weights are
 removed. IBM Plex Mono remains unchanged. Regenerate and extend this verification before
 introducing a weight below 400. The original licenses remain with the shipped files.
 

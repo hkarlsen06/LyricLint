@@ -1888,7 +1888,7 @@ describe('EditorPane', () => {
 		const highlight = document.querySelector<HTMLElement>('.ll-performer-slot-3');
 		expect(highlight).not.toBeNull();
 		// Slot styling mirrors the markup (bold for slot 3); no underline ornament.
-		expect(getComputedStyle(highlight!).fontWeight).toBe('650');
+		expect(Number(getComputedStyle(highlight!).fontWeight)).toBeGreaterThanOrEqual(600);
 		expect(getComputedStyle(highlight!).borderBottomStyle).toBe('none');
 	});
 

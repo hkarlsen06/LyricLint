@@ -30,8 +30,8 @@
 
 /*
  * UI face: one variable file per subset carries the used weight axis
- * (400-700), so the token scale's 550/650 render as true intermediate
- * instances instead of snapping to a neighbouring static weight. The axis
+ * (400-700), so the token scale's 500/600 render as the face's own Medium
+ * and SemiBold masters. The axis
  * tops out at 700 (IBM Plex has no 750), so --font-weight-heavy clamps to
  * 700 and renders like bold. That is a limit of the typeface itself, not of
  * this build; a local Plex install could do no better.
@@ -67,7 +67,7 @@
  * true italic (slot 2) and semibold italic (slot 4), and Karla has a real
  * italic axis where Space Grotesk would be synthesized oblique. One variable
  * file per subset and style carries the 400-800 weight axis, so the
- * token scale's 550/650 render as true instances.
+ * token scale's 500/600 render as true instances.
  */
 @font-face {
 	font-family: 'Karla Variable';
@@ -116,12 +116,14 @@
  * Source face: IBM Plex Mono has no variable release anywhere (Fontsource or
  * IBM's own packages), so it ships as static instances. Each face is declared
  * with a font-weight *range* so the five-step token scale maps onto four
- * distinct faces instead of collapsing under default CSS matching (which
- * would send 550→600 and 650→700, making medium/semibold/bold in the editor
- * nearly indistinguishable):
+ * distinct faces whatever values the tokens take. Default CSS matching sends
+ * a weight between two static faces to the heavier one, which makes medium,
+ * semibold and bold in the editor nearly indistinguishable:
  *
- *   regular 400 → Regular    medium 550 → Medium(500)
- *   semibold 650 → SemiBold(600)    bold 700 / heavy 750 → Bold(700)
+ *   regular 400 → Regular    medium 500 → Medium(500)
+ *   semibold 600 → SemiBold(600)    bold 700 / heavy 750 → Bold(700)
+ *
+ * The italic split sits at 500, so a medium italic draws the 600 italic.
  *
  * Italics ship only where the editor uses them: performer style slots render
  * italic at regular weight (slot 2) and italic at semibold (slot 4), so the
@@ -171,7 +173,7 @@
 	font-family: 'IBM Plex Mono Web';
 	font-style: italic;
 	font-display: swap;
-	font-weight: 100 549;
+	font-weight: 100 499;
 	src: url('/fonts/ibm-plex-mono-latin-400-italic.woff2') format('woff2');
 	unicode-range:
 		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
@@ -181,7 +183,7 @@
 	font-family: 'IBM Plex Mono Web';
 	font-style: italic;
 	font-display: swap;
-	font-weight: 550 900;
+	font-weight: 500 900;
 	src: url('/fonts/ibm-plex-mono-latin-600-italic.woff2') format('woff2');
 	unicode-range:
 		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
@@ -235,7 +237,7 @@
 	font-family: 'IBM Plex Mono Web';
 	font-style: italic;
 	font-display: swap;
-	font-weight: 100 549;
+	font-weight: 100 499;
 	src: url('/fonts/ibm-plex-mono-latin-ext-400-italic.woff2') format('woff2');
 	unicode-range:
 		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
@@ -246,7 +248,7 @@
 	font-family: 'IBM Plex Mono Web';
 	font-style: italic;
 	font-display: swap;
-	font-weight: 550 900;
+	font-weight: 500 900;
 	src: url('/fonts/ibm-plex-mono-latin-ext-600-italic.woff2') format('woff2');
 	unicode-range:
 		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,

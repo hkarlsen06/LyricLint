@@ -102,8 +102,13 @@
 	   prerendered stand-in, which is sized to be the shape the editor will be. */
 	--font-size-editor: var(--font-size-lg);
 	--font-weight-regular: 400;
-	--font-weight-medium: 550;
-	--font-weight-semibold: 650;
+	/* Medium and semibold are Plex's own 500 and 600 masters. They were 550 and
+	   650, which set every control label near semibold and every heading near
+	   bold, so a toolbar, a dock and a finding title all read at one weight. The
+	   tools this is measured against set controls at 400 to 510 and headings at
+	   510 to 600. */
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
 	--font-weight-bold: 700;
 	--font-weight-heavy: 750;
 

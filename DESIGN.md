@@ -37,9 +37,9 @@ The canonical implementation is `src/lib/ui/styles/tokens.css`. Components consu
 - Fixed product scale: `--font-size-2xs` through `--font-size-xl`
 - Headings tighten as they grow: panel and dialog headings take `--tracking-heading` (-0.012em), display text `--tracking-display` (-0.02em). Body and UI text keep the face's own spacing.
 - Line-height roles: tight headings, compact UI, body copy, and editor text
-- Weight roles: regular, medium, semibold, bold, and heavy, but IBM Plex tops out at 700, so `--font-weight-heavy` (750) renders identically to bold. Treat the scale as four distinct faces and do not use heavy to mean "heavier than bold".
+- Weight roles: regular (400), medium (500), semibold (600), bold (700), and heavy, but IBM Plex tops out at 700, so `--font-weight-heavy` (750) renders identically to bold. Treat the scale as four distinct faces and do not use heavy to mean "heavier than bold". Medium and semibold are Plex's own masters, not the 550 and 650 they used to be: at those values every control label sat near semibold and every heading near bold, which flattened the hierarchy the roles exist to draw. Controls take medium, headings and the chosen item take semibold.
 
-All faces are self-hosted from `static/fonts` and declared in `src/lib/ui/styles/fonts.css`. The mono faces carry explicit `font-weight` _ranges_ rather than single values: with static weights and default CSS matching, 550 would resolve to the 600 face and 650 to the 700 face, silently collapsing medium, semibold, and bold into one another in the editor.
+All faces are self-hosted from `static/fonts` and declared in `src/lib/ui/styles/fonts.css`. The mono faces carry explicit `font-weight` _ranges_ rather than single values: the ranges keep each token on its own face whatever value it takes (under default CSS matching the earlier 550 and 650 resolved to the 600 and 700 faces, silently collapsing medium, semibold, and bold into one another in the editor).
 
 Body text is `--font-size-md`; the document is `--font-size-editor` (`lg`), a step above the UI ramp because it is the thing being read and written for an hour at a time; compact metadata is `--font-size-xs` or `--font-size-sm`.
 
