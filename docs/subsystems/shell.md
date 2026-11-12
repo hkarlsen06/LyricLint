@@ -9,7 +9,8 @@ Touches: `src/lib/ui/layout/Workspace.svelte`, `src/lib/ui/layout/DocumentToolba
 `src/lib/ui/tools/` (SongPanel/PreferencesPanel: the decision record below predates the
 Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 `src/lib/editor/extensions/document-placeholder.ts`, `src/lib/ui/layout/workspace-entrance.ts`,
-`src/lib/ui/layout/DraftStart.svelte`
+`src/lib/ui/layout/DraftStart.svelte`, `src/lib/ui/layout/ExportDialog.svelte`,
+`src/lib/ui/layout/ExportChecks.svelte`, `src/lib/ui/state/export-checks.ts`
 
 ## Where each surface lives
 
@@ -43,9 +44,20 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 - The populated toolbar names the main format, copies its exact text, and offers Export to
   the other format. The native export dialog edits independent plain output, never editor
   history, source metadata or selection. It is a title bar (heading, the edit-scope sentence,
-  an icon `Close`), one edge-to-edge output pane in the editor's paper and lyric face that
-  fills the dialog with no resize grip, and a chrome action band: `Edit lyrics` at the leading
+  an icon `Close`), a body, and a chrome action band: `Edit lyrics` at the leading
   end, `Download .txt` and the contrast `Copy` together at the trailing end. Copy and Download use the exact edited output.
+  The body is the output pane in the editor's paper and lyric face with no resize grip, and
+  beside it a review rail on chrome (`ExportChecks.svelte`): the destination format's own
+  rules run over the output as it stands, because the main draft is only ever reviewed in
+  its own format. Each finding is underlined in the output on a layer behind the field that
+  shares its box, wrap and scroll; opening a row washes its words and line and brings them
+  into view without taking focus. From the meta line down a row is the shared diagnostic
+  (`DiagnosticMeta`, `DiagnosticActions`): a fix edits the output only, `Ignore` sets the
+  finding aside for this open dialog, and `Fix N issues automatically` applies the safe
+  fixes together. Findings whose only answer lives in the workbench are left out
+  (`export-checks.ts`). A Musixmatch export also lists its section tags in song order under
+  the findings, since they are not part of its text. Under 52rem the rail stacks below the
+  output at up to two fifths of the dialog and scrolls as one column.
   Output too large to persist stays editable and guards departure. Closing points to an
   explicit discard-and-close action; discarding retains the last successfully saved export.
   Edited output persists per draft until a real original text, formatting, language, roster,

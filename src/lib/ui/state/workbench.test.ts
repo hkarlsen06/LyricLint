@@ -2810,3 +2810,20 @@ describe('Genius headers held as lyric lines by a Musixmatch draft', () => {
 		expect(controller.requestedConversionReview).toBeUndefined();
 	});
 });
+
+test('a Musixmatch export lists its section tags in song order, and a Genius export lists none', () => {
+	const genius = setup({
+		initial: draft(
+			'draft-a',
+			'[Verse 1]\nStay\n\n[Pre-Chorus]\nWait\n\n[Skit]\nHello\n\n[Chorus]\nGo'
+		)
+	}).controller;
+	expect(genius.exportSections()).toEqual(['Verse', 'Pre-Chorus', 'Untagged', 'Chorus']);
+	const musixmatch = setup({
+		initial: {
+			...draft('draft-a', 'Stay'),
+			writing: { schema: 1, phase: 'writing', profile: 'musixmatch' }
+		}
+	}).controller;
+	expect(musixmatch.exportSections()).toEqual([]);
+});

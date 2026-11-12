@@ -61,7 +61,7 @@ import type { ProfileId } from '#lib/profiles/types.js';
 import { applyPerformerRecordDelta } from '#lib/editor/extensions/conversion-roster.js';
 import { renamedPerformer, allocatePerformerColor } from '#lib/performers/index.js';
 import { renderProfile } from '#lib/conversion/index.js';
-import { recognizedSectionHeaders } from '#lib/conversion/section-types.js';
+import { recognizedSectionHeaders, sectionType } from '#lib/conversion/section-types.js';
 
 /**
  * Linked lyrics one page may open as new drafts. A page that opened this tab
@@ -159,6 +159,11 @@ export interface WorkbenchController {
 	requestExport(): void;
 	readonly writing: DraftWriting;
 	getExport(): string | undefined;
+	/**
+	 * The Musixmatch structure tags of a Musixmatch export, in song order. Empty
+	 * for a Genius export, whose headers are already in its text.
+	 */
+	exportSections(): string[];
 	setExport(text: string, session?: number): boolean;
 	copyExport(text: string): Promise<boolean>;
 	downloadExport(text: string): void;
@@ -1083,6 +1088,24 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				return;
 			}
 			return plan.value.projection.text;
+		},
+		exportSections() {
+			if (controller.profile !== 'genius') return [];
+			const conversion = editorSession.snapshot.conversion;
+			const model = conversion
+				? { ok: true as const, value: conversion.model }
+				: importDocument({
+						text: editorSession.snapshot.text,
+						profile: 'genius',
+						language: controller.language
+					});
+			if (!model.ok) return [];
+			return model.value.sections
+				.filter((section) => section.placement !== 'unresolved')
+				.map((section) => {
+					const type = sectionType(section, model.value.defaultLanguage);
+					return type === 'PreChorus' ? 'Pre-Chorus' : (type ?? 'Untagged');
+				});
 		},
 		setExport(text, session = draftSession) {
 			if (session !== draftSession) {

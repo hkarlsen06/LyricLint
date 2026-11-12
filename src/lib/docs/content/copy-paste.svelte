@@ -18,6 +18,12 @@
 	keeps your edited output.
 </p>
 <p>
+	Beside the output, the dialog reviews it against the format you are exporting to, since the main
+	draft is only checked in its own. Each finding is underlined in the output; open one to see why,
+	then fix it there or ignore it for this export. Fixes change the output only. A Musixmatch export
+	also lists its section tags in order, because Musixmatch takes structure as tags and not as text.
+</p>
+<p>
 	If you paste Genius lyrics into a Musixmatch 'scribe, the paste stays exact and LyricLint offers
 	<strong>Convert to sections</strong>. One press keeps every recognized header such as
 	<code>[Chorus: Mira]</code> as a section with its label and performers, and Undo brings the
