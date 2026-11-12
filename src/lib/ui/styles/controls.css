@@ -102,6 +102,7 @@
 .button--contrast {
 	border-color: var(--color-text);
 	background: var(--color-text);
+	box-shadow: var(--shadow-contrast);
 	color: var(--color-canvas);
 }
 
@@ -137,6 +138,77 @@
 	margin-inline: calc(-1 * var(--control-padding-inline));
 }
 
+/*
+ * A segmented control: mutually exclusive choices on one shallow track, the
+ * chosen one raised out of it, as Geist's Switch and the iOS segmented control
+ * draw it. The segments are ordinary buttons, so the tiers still decide the
+ * look: the chosen segment wears the default tier (filled, ringed), the rest
+ * the quiet tier. The raise is the shape cue and `aria-pressed` the accessible
+ * one; color carries neither. The track keeps the control's own corner plus
+ * its inset, so the nested corners stay concentric.
+ */
+.segmented {
+	display: inline-flex;
+	flex: none;
+	padding: var(--space-0-5);
+	border-radius: calc(var(--radius-control) + var(--space-0-5));
+	gap: var(--space-0-5);
+	align-items: stretch;
+	background: var(--color-track);
+	box-shadow: var(--shadow-track);
+}
+.segmented > .button {
+	min-height: var(--control-height-sm);
+	white-space: nowrap;
+}
+.segmented > .button--quiet:not(:disabled) {
+	color: var(--color-text-muted);
+}
+.segmented > .button--quiet:hover:not(:disabled) {
+	background: var(--color-fill);
+	color: var(--color-text);
+}
+/*
+ * A disclosure row. The browser's triangle is a glyph from a different type
+ * system than every icon around it, so the row draws its own chevron from two
+ * borders in the text color: it points at the content while closed and turns
+ * down when the content is below it.
+ */
+.disclosure > summary {
+	display: flex;
+	min-height: var(--control-height-md);
+	gap: var(--space-2);
+	align-items: center;
+	list-style: none;
+}
+.disclosure > summary::-webkit-details-marker {
+	display: none;
+}
+.disclosure > summary::before {
+	flex: none;
+	width: 0.42em;
+	height: 0.42em;
+	margin-inline: 0.2em 0.12em;
+	border-right: calc(1.5 * var(--border-width)) solid currentColor;
+	border-bottom: calc(1.5 * var(--border-width)) solid currentColor;
+	content: '';
+	rotate: -45deg;
+	translate: 0 -0.04em;
+}
+.disclosure[open] > summary::before {
+	rotate: 45deg;
+	translate: 0 -0.16em;
+}
+.disclosure > summary:hover {
+	color: var(--color-text);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.disclosure > summary::before {
+		transition:
+			rotate var(--duration-fast) var(--ease-out-quart),
+			translate var(--duration-fast) var(--ease-out-quart);
+	}
+}
 /* Form fields follow the button tier: the ring in `--shadow-control` is the
    resting boundary, and the focus ring is the strong one: a field is where
    the focus outline is guaranteed to arrive the moment it matters. */

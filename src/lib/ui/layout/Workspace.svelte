@@ -1617,9 +1617,9 @@
 	   fallback for browsers without the unit, where it is exactly today's
 	   behaviour. */
 	.workspace {
-		--radius-control: var(--radius-md);
-		--radius-panel: var(--radius-lg);
-		--radius-overlay: calc(var(--radius-lg) + var(--radius-xs));
+		--radius-control: var(--radius-sm);
+		--radius-panel: var(--radius-md);
+		--radius-overlay: var(--radius-lg);
 	}
 
 	.workspace {

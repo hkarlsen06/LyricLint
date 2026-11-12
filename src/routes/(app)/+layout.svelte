@@ -38,9 +38,9 @@
 	/* The workbench's own radii, inherited by the workspace and by the toasts and
 	   live region beside it. */
 	.app-shell {
-		--radius-control: var(--radius-md);
-		--radius-panel: var(--radius-lg);
-		--radius-overlay: calc(var(--radius-lg) + var(--radius-xs));
+		--radius-control: var(--radius-sm);
+		--radius-panel: var(--radius-md);
+		--radius-overlay: var(--radius-lg);
 	}
 
 	/* Global, so the `<noscript>` rule above, which hides the shell, keeps

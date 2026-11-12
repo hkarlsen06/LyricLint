@@ -2,7 +2,7 @@
 
 ## Design Direction
 
-LyricLint is a precise editorial instrument for long transcription sessions. The interface uses a restrained, warm-neutral palette so source text remains primary, with color reserved for actions, diagnostics, and performer identity. It should feel calm, approachable, and comfortable for long writing sessions. The workbench gives the document room, names every tool in a compact dock, and uses space instead of structural hairlines. Findings read as a list; the active finding alone becomes a raised surface for a decision.
+LyricLint is a precise editorial instrument for long transcription sessions. The interface uses a restrained, warm-neutral palette so source text remains primary, with color reserved for actions, diagnostics, and performer identity. It should feel calm, approachable, and comfortable for long writing sessions. The workbench is a chrome frame holding one raised document sheet. It gives the document room, names every tool in a compact dock, and uses space instead of structural hairlines; a hairline appears only as a divider between groups of commands or as the edge of an edge-to-edge pane. Findings read as a list; the active finding alone becomes a raised surface for a decision. The finish is measured against current professional tools (Geist, Linear, Raycast, Zed): crisp radii that track control height, ringed elevation, choices drawn as segmented controls, and headings that tighten as they grow.
 
 The dark theme is tuned for a transcriber working at a desktop in a dim room. The light theme supports daylight editing without turning the canvas into stark white.
 
@@ -21,6 +21,7 @@ The canonical implementation is `src/lib/ui/styles/tokens.css`. Components consu
   - **Light-mode shadows are not a garnish on the lightness step, they are the only cue above `--color-surface`**, which is why they used to be the weakest thing in the system, at 8%–18% against dark's 35%–55%, and are not any more. `--shadow-raised` is what a full-width row lifted out of a run of touching rows takes; it casts at both its top and bottom edges, because such a row is clipped left and right by its own column and a shadow below it alone reads as the row _beneath_ being lower.
   - **The active diagnostic rises in both schemes.** Resting findings are transparent on chrome, so opening one adds `--color-surface` and `--shadow-raised` without moving it. This replaces dark selection’s recessed well: with the resting cards removed, elevation now consistently identifies the decision being worked on. The rule index (`.rules__index`) remains recessed because its container clips an outer shadow.
 - Every performer identity has a solid (`--performer-*`, the roster swatch, picker dot, and editor gutter segment) and a tint (`--performer-*-tint`, used for legend names and every voice on mixed lyric lines) on the same hue. Adjacent physical lines led by the same performer merge into one fully rounded gutter run; hovering any part of the run reveals its performer label. Hues stay fixed across themes; only lightness and chroma move.
+- A segmented control's track is `--color-track` with `--shadow-track`: the recessed level with a hairline, set below the canvas in dark so the well still reads against the chrome.
 - Text and borders use `--color-text`, `--color-text-muted`, `--color-border`, and `--color-border-strong`.
 - Controls use the `--color-control-*` family.
 - Accent is reserved for primary action, selection, and current state.
@@ -34,6 +35,7 @@ The canonical implementation is `src/lib/ui/styles/tokens.css`. Components consu
 - Source and markup: `--font-mono` is IBM Plex Mono, shipped as self-hosted static weights, since no variable cut of Plex Mono exists.
 - Lyric words: `--font-lyrics` is Karla, shipped as a self-hosted variable face (normal and italic), with `Programme` leading the stack unshipped (tokens.css says why). The words are prose somebody reads for an hour; the markup inside a line stays `--font-mono` through the same decoration that dims it (`markup-dim.ts`), so "this is source" is carried by tone and type together, and an annotation link dims only its wrapper (`[` and `](id)`), because the fragment between them is sung words, not source. Karla runs small in its em, so every surface consuming `--font-lyrics` also applies `--font-lyrics-size-adjust`, which normalizes whatever face the stack resolves to Plex's x-height ratio, a deliberate no-op on every Plex face.
 - Fixed product scale: `--font-size-2xs` through `--font-size-xl`
+- Headings tighten as they grow: panel and dialog headings take `--tracking-heading` (-0.012em), display text `--tracking-display` (-0.02em). Body and UI text keep the face's own spacing.
 - Line-height roles: tight headings, compact UI, body copy, and editor text
 - Weight roles: regular, medium, semibold, bold, and heavy, but IBM Plex tops out at 700, so `--font-weight-heavy` (750) renders identically to bold. Treat the scale as four distinct faces and do not use heavy to mean "heavier than bold".
 
@@ -53,8 +55,7 @@ The rule reference's pages are `--measure-reference` rather than the editor's me
 
 - Spacing follows the `--space-*` scale from 0.125rem to 3rem. Padding and margins consume tokens; related edges derive from the same owner instead of independent optical offsets.
 - Inline diffs share `--inline-diff-padding` and `--inline-diff-gap` across the editor and comparison surfaces. These are type-relative spacing roles, while panel and control insets use the fixed spacing scale.
-- Standard controls use `--radius-control`. Within the workbench this takes `--radius-md`; panel surfaces take `--radius-lg`.
-- Panels use `--radius-panel`; floating overlays use `--radius-overlay`.
+- Radius tracks control height. Standard controls use `--radius-control`, which the workbench sets to `--radius-sm` (8px, about a quarter of a 32px control); panels and the document sheet use `--radius-panel` (`--radius-md`, 12px); floating overlays use `--radius-overlay` (`--radius-lg`, 16px), so an overlay's 16px inset holds 8px controls with concentric corners. A segmented track and the tray around its buttons add their inset to the control radius for the same reason.
 - Pills are reserved for compact categorical chips and badges, not ordinary action buttons.
 - Diagnostic severity is a distinct colored glyph on the meta line, without a chip background or border. Keep its word in the accessible tree and tooltip; the rule reference also shows the word visibly. `SeverityTag` owns both presentations.
 - A diagnostic states its facts on one line under the message: severity, line number, citation. Provenance is the link on that line, not a footer of block citations; the section cited and the verified date are the link's tooltip. One citation sits inline, two or more fold behind a `Sources` disclosure so the line stays one line.
@@ -108,7 +109,9 @@ of controls and neighboring content before and after real interactions on deskto
 ### Elevation and Layers
 
 - Raised in-flow elements use `--shadow-raised`.
-- Menus and anchored popovers use `--shadow-popover` or `--shadow-overlay`.
+- The document sheet uses `--shadow-sheet`: a one-pixel ring for its edge, a contact shadow and a long soft fall, so it lifts off the chrome frame instead of being a slightly different shade of it.
+- Menus and anchored popovers use `--shadow-popover` or `--shadow-overlay`. Both follow the Geist material recipe: a one-pixel ambient ring carries the edge, a tight contact layer seats the surface, and a wide layer with a negative spread throws depth below it rather than a halo around it.
+- The contrast tier wears `--shadow-contrast`: light along the top edge of the dark key in light, a shade along the foot of the near-white key in dark, and a contact shadow under both.
 - In dark, every outward shadow token also carries a 1px inset light along its top edge, the light the shadow implies, falling on the edge that faces it. Dark surfaces separate by tone alone and the tones are deliberately close, so without it a raised surface reads as a matte rectangle rather than a lit object. It rides the shadow tokens so no surface can pick up one cue without the other; `--shadow-recessed` stays inward-only, because a well is lit at its floor, not its rim.
 - Named layer tokens keep toolbars, panels, menus, pickers, diagnostics, and toasts predictable.
 
@@ -119,6 +122,10 @@ of controls and neighboring content before and after real interactions on deskto
   - `.button` is the filled default, for ordinary actions: borderless, with `--shadow-control` carrying the edge. Icon-only actions use `.icon-button`.
   - `.button--contrast` is theme-inverting, for the one destination action per surface.
   - The tiers live in `src/lib/ui/styles/controls.css`.
+- A set of mutually exclusive choices is a segmented control (`.segmented` in `controls.css`): ordinary buttons on one shallow track, the chosen one in the default tier (raised and ringed) and the rest quiet. Its state is the raise and `aria-pressed`, never color. Every segment keeps the same width whether chosen or not. The new-draft format choice and the phone's Write, Review and Tools views use it; a fixed format is a tag in the same track without a raised face.
+- A command strip groups its controls by what they act on and parts the groups with an `aria-hidden` hairline divider, never with a change of tier.
+- Dialogs are a title bar (heading, one muted sentence, an icon close), a body, and, where they act, an action band on chrome: the way back at the leading end, the outputs at the trailing end with the contrast action last. A body that is a document runs edge to edge between hairlines in the editor's paper and face, with no resize grip.
+- Disclosures draw their own chevron (`.disclosure`), pointing at the content while closed and turning down when it is open; the browser's triangle belongs to no icon set in the product.
 - `.button--danger` is a color modifier on the contrast tier and `.danger-text` on the quiet tier; neither is a fourth tier. There is no `.button--primary`: an accent-filled button duplicated the contrast tier's role, which is how one command ended up rendered two different ways on screen at once.
 - One command gets one emphasis. If the same action appears on two surfaces, the surface that owns it takes the contrast tier and the other steps down to the default.
 - There is no pill-shaped button variant; compact categorical elements are chips and badges, not buttons.

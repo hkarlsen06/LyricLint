@@ -85,6 +85,12 @@
 	   Prose at the editor's size reads at the body's own 1.5, and the looser
 	   value left the lyric sitting in a line box it visibly did not fill. */
 	--line-height-editor: 1.5;
+	/* Headings and display text tighten as they grow, as Geist (-0.02em at
+	   20px) and Linear (-0.012em at 20px) set theirs. Plex is already a narrow
+	   face, so the workbench takes the gentler of the two. Body and UI text
+	   keep the face's own spacing. */
+	--tracking-heading: -0.012em;
+	--tracking-display: -0.02em;
 	/* The lyric text's own size, alongside its own line height and measure. It is
 	   a step above the UI ramp's `md` on purpose: the document is the thing being
 	   read and written for an hour at a time, and 80% of the window's pixels are
@@ -125,9 +131,14 @@
 
 	/* Shape and borders */
 	--border-width: 1px;
+	/* Radius tracks control height the way Geist and Linear size it: about a
+	   quarter of a 32px control (8px), 12px for a panel, 16px for an overlay
+	   whose 16px inset holds 8px controls, so nested corners stay concentric.
+	   The softer 10px controls under 16px panels read as rounded rather than
+	   precise. */
 	--radius-xs: 0.25rem;
-	--radius-sm: 0.4rem;
-	--radius-md: 0.65rem;
+	--radius-sm: 0.5rem;
+	--radius-md: 0.75rem;
 	--radius-lg: 1rem;
 	--radius-round: 50%;
 	--radius-pill: 999rem;
@@ -152,6 +163,10 @@
 	   three labels needs. */
 	--header-height: 3.5rem;
 	--panel-tabs-height: 2.75rem;
+	/* How far the editor's floating command tray sits in from the document
+	   sheet's top-right corner. The tray and the find bar's reserve beside it
+	   both read it. */
+	--editor-actions-inset: var(--space-2);
 
 	/* Reading measures. `ch` resolves against the element's own font, so these
 	   cap a character count rather than a width, which is the point: the real
@@ -394,8 +409,31 @@
 	   set: a 32px control wearing `--shadow-raised` reads as a card. */
 	--shadow-control: 0 0 0 1px oklch(20% 0.01 285 / 0.12), 0 1px 2px oklch(20% 0.01 285 / 0.08);
 	--shadow-raised: 0 3px 8px oklch(20% 0.01 285 / 0.19), 0 -2px 5px oklch(20% 0.01 285 / 0.09);
-	--shadow-popover: 0 2px 8px oklch(20% 0.01 285 / 0.18), 0 1px 2px oklch(20% 0.01 285 / 0.1);
-	--shadow-overlay: 0 12px 32px oklch(20% 0.01 285 / 0.24), 0 2px 8px oklch(20% 0.01 285 / 0.16);
+	/* Floating surfaces follow the Geist material recipe: a one-pixel ambient
+	   ring carries the edge, a tight contact layer seats the surface, and a wide
+	   layer with a negative spread throws the depth below it instead of a halo
+	   around it. The ring is what keeps a white menu on a white sheet legible. */
+	--shadow-popover:
+		0 0 0 1px oklch(20% 0.01 285 / 0.09), 0 2px 4px -1px oklch(20% 0.01 285 / 0.1),
+		0 12px 28px -6px oklch(20% 0.01 285 / 0.22);
+	--shadow-overlay:
+		0 0 0 1px oklch(20% 0.01 285 / 0.09), 0 8px 16px -4px oklch(20% 0.01 285 / 0.14),
+		0 32px 64px -16px oklch(20% 0.01 285 / 0.34);
+	/* The document sheet: the one large raised surface in the window. Linear's
+	   app frame draws its content panel the same way: a faint ring for the
+	   edge, a contact shadow, and a long soft fall that never reaches past the
+	   sheet's own gutter. */
+	--shadow-sheet:
+		0 0 0 1px oklch(20% 0.01 285 / 0.07), 0 1px 3px oklch(20% 0.01 285 / 0.06),
+		0 12px 32px -16px oklch(20% 0.01 285 / 0.18);
+	/* The contrast tier is a physical key, as Raycast draws its primary button:
+	   light catching the top edge and a contact shadow under it. Without them
+	   the one destination action on a surface is a flat swatch. */
+	--shadow-contrast: inset 0 1px 0 oklch(100% 0 0 / 0.16), 0 1px 2px oklch(20% 0.01 285 / 0.3);
+	/* A segmented control's track is a shallow well, the recessed level with a
+	   hairline so its edge survives on either chrome. */
+	--color-track: var(--color-canvas);
+	--shadow-track: inset 0 0 0 1px oklch(20% 0.01 285 / 0.06);
 
 	/* Layering */
 	/* CodeMirror panels (the find bar is the only one) default to `z-index: 300`,
@@ -479,11 +517,14 @@
 		 * product shot that has to read as a lit screen rather than as a picture
 		 * pasted onto paper. Nothing in the workbench was built on the four points
 		 * this gives up, and the ramp is the same shape either way: canvas to
-		 * paper is 4.5 points here as it was there, so a diagnostic card still
+		 * paper is 5.5 points here, one more than there, so a diagnostic card still
 		 * sits the same distance above the column behind it.
 		 */
 		--color-canvas: oklch(15% 0.004 285);
-		--color-surface: oklch(19.5% 0.004 285);
+		/* One point above the site's paper so the document sheet stands four
+		   points off the window chrome instead of two: at two points the editor
+		   and the frame around it read as one dark field. */
+		--color-surface: oklch(20.5% 0.004 285);
 		--color-fill-subtle: oklch(23% 0.005 285);
 		--color-fill: oklch(27% 0.006 285);
 		--color-fill-strong: oklch(32% 0.007 285);
@@ -500,18 +541,18 @@
 		 * composition depends on.
 		 *
 		 * What it costs is the step between a chrome band and the canvas, which
-		 * falls from 8.5 points of lightness to 2.5, and one surface in the
+		 * falls from 8.5 points of lightness to 1.5, and one surface in the
 		 * workbench reads that step. The bulk-fix strip is chrome hanging
 		 * directly over a run of cards whose *selected* member drops to
 		 * `--color-canvas`, and it was made chrome precisely so it would not be
-		 * read as a continuation of whichever card was open below it. At 2.5
+		 * read as a continuation of whichever card was open below it. At 1.5
 		 * points the fill no longer carries that on its own. What does is the
 		 * hairline the strip already draws along its bottom edge (`.linter-panel__bulk`
 		 * in `LinterPanel.svelte`, and `__filters` above it), which is 8.5 points off
 		 * either surface and is the same way the site's own header is told apart
 		 * from the hero it sits on. Do not take that border off.
 		 */
-		--color-chrome: oklch(17.5% 0.004 285);
+		--color-chrome: oklch(16.5% 0.004 285);
 		--color-text: oklch(97% 0.002 285);
 		/* The document's own tone. The root token's note says why it steps down
 		   from `--color-text` only here. ~9.3:1 on `--color-surface`. */
@@ -561,10 +602,23 @@
 		   A faint light ring hugging the border box is the whole edge. */
 		--shadow-control: 0 0 0 1px oklch(100% 0 0 / 0.07);
 		--shadow-raised: inset 0 1px 0 oklch(100% 0 0 / 0.05), 0 1px 2px oklch(4% 0.005 285 / 0.35);
-		--shadow-popover: inset 0 1px 0 oklch(100% 0 0 / 0.06), 0 2px 8px oklch(4% 0.005 285 / 0.4);
+		--shadow-popover:
+			inset 0 1px 0 oklch(100% 0 0 / 0.06), 0 0 0 1px oklch(100% 0 0 / 0.08),
+			0 4px 8px -2px oklch(4% 0.005 285 / 0.4), 0 16px 32px -8px oklch(4% 0.005 285 / 0.55);
 		--shadow-overlay:
-			inset 0 1px 0 oklch(100% 0 0 / 0.07), 0 12px 32px oklch(4% 0.005 285 / 0.55),
-			0 2px 8px oklch(4% 0.005 285 / 0.45);
+			inset 0 1px 0 oklch(100% 0 0 / 0.07), 0 0 0 1px oklch(100% 0 0 / 0.09),
+			0 12px 24px -8px oklch(4% 0.005 285 / 0.5), 0 40px 80px -20px oklch(4% 0.005 285 / 0.7);
+		--shadow-sheet:
+			inset 0 1px 0 oklch(100% 0 0 / 0.04), 0 0 0 1px oklch(100% 0 0 / 0.055),
+			0 16px 40px -20px oklch(4% 0.005 285 / 0.7);
+		/* The dark contrast key is near-white, so its edge is the shade along
+		   its foot rather than light along its top. */
+		--shadow-contrast:
+			inset 0 -1px 0 oklch(20% 0.01 285 / 0.18), 0 1px 2px oklch(4% 0.005 285 / 0.6);
+		/* Below the canvas: at one and a half points under the chrome the
+		   canvas alone reads as no well at all. */
+		--color-track: oklch(13.5% 0.004 285);
+		--shadow-track: inset 0 0 0 1px oklch(100% 0 0 / 0.045);
 
 		/* Hues are the identity and are held fixed across both themes; only
 		   lightness and chroma move. */
