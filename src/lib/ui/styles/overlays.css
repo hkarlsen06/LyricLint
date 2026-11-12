@@ -116,14 +116,18 @@
 }
 
 /*
- * Motion for surfaces that arrive. A dialog or a menu lifts off the window:
- * it is at its resting place and full strength from the first frame, and its
- * shadow deepens from a control's edge to its own over `--duration-slow`
- * while a modal's backdrop dims behind it. Nothing moves, scales or fades, so
- * no control is ever pressed or measured mid-flight and no surface is ever
- * part-transparent. Leaving is instant: the user has already moved on.
- * Reduced motion drops it. The surfaces opt in with `.surface-lift`; every
- * modal dialog takes it.
+ * Motion for surfaces that arrive. A menu lifts off the window: it is at its
+ * resting place and full strength from the first frame, and its shadow
+ * deepens from a control's edge to its own over `--duration-slow`. A modal
+ * dialog arrives whole while the room dims behind it. Nothing moves, scales or
+ * fades, so no control is ever pressed or measured mid-flight and no surface
+ * is ever part-transparent. Leaving is instant: the user has already moved on.
+ * Reduced motion drops it. Menus opt in with `.surface-lift`.
+ *
+ * Dialogs do not lift. A dialog's shadow is the largest blurred paint in the
+ * window, and WebKit re-rasterizes it on every frame of the animation: across
+ * the export flow's six dialog openings that measured as most of this
+ * motion's cost, and the backdrop alone carries the arrival.
  */
 @keyframes surface-lift {
 	from {
@@ -138,7 +142,6 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-	dialog:modal,
 	.surface-lift {
 		animation: surface-lift var(--duration-slow) var(--ease-out-quart);
 	}

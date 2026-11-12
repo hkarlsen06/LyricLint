@@ -68,11 +68,14 @@ explosion. Direct page loads and draft switches do not show it. See
 [site guidance](subsystems/site.md) for its lifetime and refusal paths.
 
 State changes have one CSS vocabulary, all inside the 120 to 240ms budget and dropped under
-reduced motion. Surfaces that arrive lift: a modal dialog, the drafts menu, the phone
-Document menu and the editor's diagnostic popover are at their resting place and full
-strength from the first frame, and only their shadow deepens, from `--shadow-control` to
-their own over `--duration-slow` (`surface-lift` in `overlays.css`, opted into with
-`.surface-lift`); a modal's backdrop dims over `--duration-medium`. Nothing moves, scales or
+reduced motion. Menus that arrive lift: the drafts menu, the phone Document menu and
+the editor's diagnostic popover are at their resting place and full strength from the first
+frame, and only their shadow deepens, from `--shadow-control` to their own over
+`--duration-slow` (`surface-lift` in `overlays.css`, opted into with `.surface-lift`). A modal
+dialog arrives whole while its backdrop dims over `--duration-medium`; its own shadow does not
+animate, because WebKit re-rasterizes that large blurred paint on every frame (in a timing
+probe of the export flow, with six dialog openings, the dialog lift was most of the motion's
+cost). Nothing moves, scales or
 fades, so no control is pressed or measured mid-flight and no surface is ever
 part-transparent; leaving is instant. Controls ease fill and color over
 `--duration-fast`; the dock's tools and the new-draft format cards also ease their edge, so
