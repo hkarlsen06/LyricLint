@@ -76,7 +76,8 @@
 			{#if profileLanguage(controller.language) === 'und'}Language-independent conversion only.{/if}
 		</span>
 		<p class="draft-start__hint">
-			<kbd>{mac ? '⌘V' : 'Ctrl+V'}</kbd> pastes, or start typing. Everything saves on this device.
+			<span class="draft-start__keys"><kbd>{mac ? '⌘V' : 'Ctrl+V'}</kbd> pastes, or start</span
+			><span class="draft-start__touch">Paste or start</span> typing. Everything saves on this device.
 		</p>
 	</div>
 {/if}
@@ -217,6 +218,18 @@
 		color: var(--color-text-muted);
 		font-family: var(--font-mono);
 		font-size-adjust: none;
+	}
+
+	.draft-start__touch {
+		display: none;
+	}
+	@media (pointer: coarse) {
+		.draft-start__keys {
+			display: none;
+		}
+		.draft-start__touch {
+			display: inline;
+		}
 	}
 
 	.draft-start__hint kbd {

@@ -1879,6 +1879,23 @@
 			flex: 1;
 			min-height: 0;
 		}
+		/* On a phone the editing commands are the sheet's own header: one ringed
+		   surface holds the strip and the lyrics under it, rather than a row of
+		   words floating between the toolbar and the document. */
+		.workspace .editor-region {
+			border-radius: var(--radius-panel);
+			background: var(--color-surface);
+			box-shadow: var(--shadow-sheet);
+		}
+		.workspace .editor-region > .editor-host {
+			border-radius: 0 0 var(--radius-panel) var(--radius-panel);
+			box-shadow: none;
+		}
+		.workspace[data-mobile-view='review'][data-review-focused='true']
+			.editor-region
+			> .editor-host {
+			border-radius: var(--radius-panel);
+		}
 		.workspace[data-mobile-view='review'][data-review-focused='true'] {
 			grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto auto auto auto;
 		}

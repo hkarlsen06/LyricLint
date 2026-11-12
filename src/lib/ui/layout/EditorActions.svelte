@@ -289,8 +289,11 @@
 	@media (pointer: coarse) and (max-width: 68rem) {
 		:global(.workspace) .editor-actions {
 			position: static;
-			align-self: flex-end;
+			align-self: stretch;
 			flex: none;
+			justify-content: flex-end;
+			border-bottom: var(--border-width) solid var(--color-border);
+			border-radius: 0;
 		}
 
 		:global(.workspace[data-mobile-view='review'][data-review-focused='true']) .editor-actions {
@@ -306,6 +309,9 @@
 		max-width: 100%;
 		padding-inline: var(--space-1);
 		gap: 0;
+	}
+	.editor-actions--phone .editor-actions__button:not([aria-pressed='true'], :hover) {
+		color: var(--color-text-muted);
 	}
 	.editor-actions--phone .editor-actions__button {
 		min-height: var(--control-height-touch);

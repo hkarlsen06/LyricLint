@@ -194,10 +194,11 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 
 - The toolbar spans the whole window and splits on what a control acts on, not on how loud it
   is; the save readout draws nothing while saving is going well (`sr-only` otherwise).
-  On desktop, hairline dividers part the command strip into the format, the document's
-  history and language (muted quiet controls), and its outputs: Compare and Export at full
-  tone with their glyphs, then the contrast action. Dividers are decoration
-  (`aria-hidden`) and never children the button order tests count.
+  On desktop the fixed format tag is part of the draft's identity, after its title, Open and
+  New; a hairline divider parts the command strip into the document's history and language
+  (muted quiet controls) and its outputs: Compare and Export at full tone with their
+  glyphs, then the contrast action. Dividers are decoration (`aria-hidden`) and never
+  children the button order tests count. Phones keep the tag on the command row.
   The draft-title group shrinks within the identity strip, truncating a long title before
   it can overlap Open, New or the document commands. The complete title remains editable.
 - When Undo or Redo exhausts its history while holding focus, focus moves to the available
@@ -219,7 +220,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   carry their kind's color on the mark alone; the label stays in the text color and a
   pressed chip is its kind's tint.
 - Desktop tools have an icon and visible name: Review, Linking, Assistant (when available), Performers,
-  Song, Preferences. The open tool is a raised key: surface plus the control ring. At `78rem` the dock runs vertically along the outside edge; below
+  Song, Preferences. The open tool is a raised key: surface plus the control ring, its glyph in the accent. At `78rem` the dock runs vertically along the outside edge; below
   it runs horizontally. Bits UI orientation follows the same query so arrow keys follow
   the visible order. `.right-panel__content` owns the body, media, and footer independently
   of the dock. `RightPanel.svelte.test.ts` pins orientation and pane visibility.
@@ -238,7 +239,8 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   unignored diagnostics and blind to the filters, or hiding a kind deletes the way back to it.
 - On desktop the editor's command tray (`.editor-actions`) floats as a small ringed chrome
   toolbar inset `--editor-actions-inset` from the document sheet's top-right corner; phones
-  give their larger labelled controls a dedicated row. A pressed tray toggle takes a fill as
+  give their larger labelled controls the sheet's own header strip, inside the sheet's ring
+  and parted from the lyrics by a hairline, resting muted. A pressed tray toggle takes a fill as
   well as the accent.
   Desktop glyphs are the marks they insert; tooltips carry the name (and the keystroke where one exists). Up to four editing/source glyphs
   precede the icon-only expand/restore control at the right edge. The audio note

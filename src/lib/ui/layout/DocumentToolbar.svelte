@@ -198,14 +198,9 @@
 					New 'scribe
 				</button>
 			{/if}
-			<!-- Hairline dividers part the strip into what the commands act on: the
-			     format, the document's history and language, then its outputs. A new
-			     'scribe chooses its format in the document, so it has no format group
-			     here to part from. -->
-			{#if !phone.current && controller.writing.phase !== 'new'}<span
-					class="document-toolbar__divider"
-					aria-hidden="true"
-				></span>{/if}
+			<!-- A hairline divider parts the strip into what the commands act on: the
+			     document's history and language, then its outputs. The format is the
+			     draft's identity, so on desktop it sits by the title instead. -->
 			<!-- The keystrokes already exist in the editor; these are the same two
 		     commands for the pointer, and they act on the document, so they belong
 		     in this strip rather than beside the draft's name. Quiet tier: they are
@@ -305,6 +300,9 @@
 				<PlusIcon aria-hidden="true" size={16} weight="bold" />
 			</button>
 		{/if}
+		<!-- The fixed format is what this 'scribe is, so on desktop it reads with
+		     its name. Phones keep it on the command row beside the copy it names. -->
+		{#if !phone.current}<ProfilePicker {controller} />{/if}
 		{#if phone.current}{@render secondaryCommands()}{/if}
 		<!-- Nothing is drawn while saving is going well: a disk glyph that is always
 		     there reports a state that never changes, and the slot went to the plus.
@@ -340,7 +338,7 @@
 	     surface never carries two contrast actions, and the user is never offered
 	     the end of a job they have not started. -->
 	<div class="document-toolbar__commands">
-		<ProfilePicker {controller} />
+		{#if phone.current}<ProfilePicker {controller} />{/if}
 		{#if !phone.current}{@render secondaryCommands()}{/if}
 		{#if controller.isEmpty}
 			<button
@@ -411,6 +409,9 @@
 	.document-toolbar__identity {
 		flex: 1 1 auto;
 		gap: var(--space-1);
+	}
+	.document-toolbar__identity > :global(.profile-picker) {
+		margin-inline-start: var(--space-1);
 	}
 
 	.document-toolbar__commands {
@@ -579,7 +580,7 @@
 
 		/* The words already name these actions. Keep the history glyphs, which
 		   have no visible text, and spend the remaining width on full labels. */
-		.document-toolbar__commands > .button > :global(svg) {
+		.document-toolbar__commands > :global(.button > svg) {
 			display: none;
 		}
 
@@ -645,6 +646,11 @@
 	.document-toolbar__secondary--phone {
 		flex: none;
 		position: relative;
+	}
+	/* The way into the document's other commands rests muted beside Open, the
+	   other way into something; the title is the one strong word in the row. */
+	.document-toolbar__secondary--phone > .button[aria-expanded='false'] {
+		color: var(--color-text-muted);
 	}
 	.document-toolbar__secondary--phone .document-toolbar__secondary-actions {
 		position: absolute;
@@ -715,7 +721,16 @@
 		padding-inline: var(--space-2);
 		white-space: nowrap;
 	}
-	.document-toolbar--phone .document-toolbar__commands > .button :global(svg) {
+	/* On a phone the export is the row's second output, beside the contrast copy,
+	   so it takes the default tier's face: a bare word between a tag and a key
+	   read as a caption rather than a command. */
+	.document-toolbar--phone
+		.document-toolbar__commands
+		> :global(.button--quiet[aria-haspopup='dialog']) {
+		background: var(--color-control);
+		box-shadow: var(--shadow-control);
+	}
+	.document-toolbar--phone .document-toolbar__commands > :global(.button > svg) {
 		display: none;
 	}
 	/* On the narrowest phones the format tag and both outputs share one row at

@@ -247,7 +247,7 @@ describe('Workspace and toolbar', () => {
 		expect((await repository.list()).map(({ id }) => id)).toEqual([initialDraftId]);
 	});
 
-	test('reads brand, draft name, then the new-draft plus across the identity strip', async () => {
+	test('reads brand, draft name, the new-draft plus, then the format across the identity strip', async () => {
 		const { controller } = createTestWorkbench();
 		await render(DocumentToolbar, { controller });
 
@@ -261,6 +261,8 @@ describe('Workspace and toolbar', () => {
 			// Creation sits with the draft it creates, in the slot the save glyph
 			// used to hold; the save readout trails it, silent unless it fails.
 			screen.getByRole('button', { name: "New 'scribe" }),
+			// The fixed format is what this draft is, so it reads with its name.
+			document.querySelector('.profile-picker--fixed'),
 			screen.getByRole('img', { name: /^Autosave status/ })
 		]);
 	});

@@ -49,7 +49,11 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
 - Mobile document commands live behind the named Document disclosure; identity, the fixed
   format tag, and Copy or Paste remain visible. A new draft's two format cards sit side by
   side at the foot of the Write view's sheet, without their samples. The toolbar reserves an identity row and a command
-  row, with Document beside the truncated title; switching formats in one click never moves the Copy target. Retained section
+  row, with Document resting muted beside Open and the truncated title; switching formats in
+  one click never moves the Copy target. The command row is the format tag, then Export in
+  the default tier and the contrast Copy, both without glyphs, so the two outputs read as one
+  pair. The editing commands (Section, Find, audio) are the sheet's header strip rather than
+  a loose row between the toolbar and the sheet. Retained section
   widgets open Song, and Show passage returns to Write without opening the keyboard.
   `e2e/profile-workbench.spec.ts` covers these bounds and handoffs. Touch editing actions are named, and assignment uses the shared
   voice-group predicate. `MobileCommands.svelte.test.ts` pins bounds, dismissal, and selection.
