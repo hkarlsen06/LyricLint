@@ -22,6 +22,13 @@ researched clause and its remaining scope.
 
 ## 1. Format selection
 
+Superseded for placement: each draft now has one fixed format, chosen only while it is new.
+That choice is two described cards in the document sheet (`DraftStart.svelte`, see
+`docs/subsystems/shell.md`), and a written draft shows its format as a static tag (beside the
+title on desktop, on the command row on phones). The button semantics below (names, check,
+`aria-pressed`, the pending-switch cancel) still describe those cards. The live switching
+and sketches in this section are historical.
+
 The format group in `DocumentToolbar.svelte` always exposes ordinary **Genius** and
 **Musixmatch** buttons. The committed choice has a check and `aria-pressed="true"`;
 the other choice uses the quiet tier. One click or Enter/Space selects the named
