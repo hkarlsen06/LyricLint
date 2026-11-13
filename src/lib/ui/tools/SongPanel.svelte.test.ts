@@ -718,7 +718,7 @@ describe('SongPanel conversion restraint', () => {
 				await fireEvent.click(screen.getByRole('button', { name: 'Spanish' }));
 				expect(run.controller.language).toBe('es');
 				const model = structuredClone(run.controller.snapshot.conversion?.model);
-				await fireEvent.change(classification, { target: { value: 'translation' } });
+				await chooseOption(classification, 'Translation');
 				expect(run.controller.snapshot.conversion?.model).toEqual({
 					...model,
 					contentKind: 'translation'

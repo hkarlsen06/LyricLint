@@ -15,6 +15,7 @@
 	import PassageLanguage from './PassageLanguage.svelte';
 	import ConversionDetails from './ConversionDetails.svelte';
 	import SectionOutline from './SectionOutline.svelte';
+	import { Select } from '../primitives/select/index.js';
 	import ClipboardReview from './ClipboardReview.svelte';
 	import LanguagePicker from '../layout/LanguagePicker.svelte';
 
@@ -24,6 +25,12 @@
 		{ value: 'translation', label: 'Translation' },
 		{ value: 'romanization', label: 'Romanization' }
 	] satisfies readonly { value: ContentKind; label: string }[];
+
+	const timedLyricsFormats = [
+		{ value: 'lrc', label: 'LRC' },
+		{ value: 'srt', label: 'SRT' },
+		{ value: 'vtt', label: 'VTT' }
+	] satisfies readonly { value: TimedLyricsFormat; label: string }[];
 
 	let { controller, active = true }: { controller: WorkbenchController; active?: boolean } =
 		$props();
@@ -266,26 +273,14 @@
 						disabled={!settingsEnabled}
 						onchoose={(tag) => controller.setLanguage(tag)}
 					/>
-					<label
-						>Content type
-						<select
-							disabled={!settingsEnabled}
-							value={controller.snapshot.conversion?.model.contentKind ?? 'unknown'}
-							onchange={(event) => {
-								const value = event.currentTarget.value;
-								const kind = contentKinds.find((entry) => entry.value === value);
-								if (kind)
-									controller.applyConversionAction({
-										kind: 'setContentKind',
-										contentKind: kind.value
-									});
-							}}
-						>
-							{#each contentKinds as kind (kind.value)}
-								<option value={kind.value}>{kind.label}</option>
-							{/each}
-						</select>
-					</label>
+					<Select
+						label="Content type"
+						disabled={!settingsEnabled}
+						value={controller.snapshot.conversion?.model.contentKind ?? 'unknown'}
+						options={contentKinds}
+						onchange={(contentKind) =>
+							controller.applyConversionAction({ kind: 'setContentKind', contentKind })}
+					/>
 				</div>
 			</details>
 			<!--
@@ -344,12 +339,14 @@
 			<section>
 				<h2>Timed lyrics</h2>
 				<div class="tool-actions">
-					<label class="sr-only" for="timed-lyrics-format">Timed lyrics format</label>
-					<select id="timed-lyrics-format" bind:value={timedLyricsFormat}>
-						<option value="lrc">LRC</option>
-						<option value="srt">SRT</option>
-						<option value="vtt">VTT</option>
-					</select>
+					<Select
+						label="Timed lyrics format"
+						labelHidden
+						compact
+						value={timedLyricsFormat}
+						options={timedLyricsFormats}
+						onchange={(format) => (timedLyricsFormat = format)}
+					/>
 					<button
 						type="button"
 						class="button"
@@ -618,12 +615,7 @@
 		gap: var(--space-3);
 		margin-top: var(--space-2);
 	}
-	.document-settings > label {
-		display: grid;
-		gap: var(--space-1);
-	}
 	.song-panel :global(input:not([type='checkbox'])),
-	.song-panel :global(select),
 	.song-panel :global(textarea) {
 		border-radius: var(--radius-control);
 		font-size: var(--font-size-editor);
