@@ -75,11 +75,12 @@ type OverlayState =
 	  }
 	| { kind: 'section'; range: TextRange }
 	/**
-	 * The tag of a headerless draft's stanza. `range` is the stanza's first
-	 * line and `at` where its boundary sits or would sit; whether a section
-	 * already begins there is read from the document when the card draws.
+	 * The tag of a headerless draft's stanza. `range` is the line the card
+	 * anchors to and `at` where a new boundary would go. `sectionId` names the
+	 * tag being changed: two sections can share an offset, so the card never
+	 * finds its section by position.
 	 */
-	| { kind: 'sectionTag'; range: TextRange; at: number };
+	| { kind: 'sectionTag'; range: TextRange; at: number; sectionId?: string };
 
 /** The overlay plus the suppression that outlives any single overlay. */
 export interface OverlaySession {
@@ -157,9 +158,15 @@ export function openSectionPicker(session: OverlaySession, range: TextRange): Ov
 export function openSectionTagPicker(
 	session: OverlaySession,
 	range: TextRange,
-	at: number
+	at: number,
+	sectionId?: string
 ): OverlaySession {
-	return withOverlay(session, { kind: 'sectionTag', range, at });
+	return withOverlay(
+		session,
+		sectionId === undefined
+			? { kind: 'sectionTag', range, at }
+			: { kind: 'sectionTag', range, at, sectionId }
+	);
 }
 
 /**

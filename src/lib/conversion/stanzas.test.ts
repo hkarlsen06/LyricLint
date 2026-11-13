@@ -15,7 +15,7 @@ const lyrics = [
 	'Hold the LINE'
 ].join('\n');
 
-function outline(text: string, tags: readonly [number, 'Verse' | 'Chorus'][]) {
+function outline(text: string, tags: readonly [number, 'Verse' | 'Chorus' | 'Bridge'][]) {
 	const imported = importDocument({ text, language: 'en', profile: 'musixmatch' });
 	if (!imported.ok) throw Error(imported.refusal.message);
 	let document = imported.value;
@@ -75,6 +75,37 @@ describe('the stanza outline of a headerless draft', () => {
 			[1, 1, 'Verse'],
 			[2, 2, 'Chorus']
 		]);
+	});
+});
+
+describe('sections with no lyric line of their own', () => {
+	it('lets a tag on the blank line before a stanza begin that stanza', () => {
+		const rows = outline(lyrics, [[lyrics.indexOf('\nMorning'), 'Verse']]);
+		const morning = rows.find((row) => row.opening.startsWith('Morning'))!;
+		expect(morning.section?.type).toBe('Verse');
+		expect(morning.continues).toBeUndefined();
+		expect(rows.filter((row) => row.lineCount === 0)).toEqual([]);
+	});
+
+	it("gives a trailing tag and an empty draft's tag a row with no lyrics", () => {
+		const trailing = outline('One\n\n', [[5, 'Bridge']]);
+		expect(trailing.map((row) => [row.lineCount, row.opening, row.section?.type])).toEqual([
+			[1, 'One', undefined],
+			[0, '', 'Bridge']
+		]);
+		expect(outline('', [[0, 'Verse']]).map((row) => row.section?.type)).toEqual(['Verse']);
+	});
+
+	it('gives the earlier of two tags at one offset its own empty row', () => {
+		const rows = outline(lyrics, [
+			[0, 'Verse'],
+			[0, 'Chorus']
+		]);
+		expect(rows.slice(0, 2).map((row) => [row.lineCount, row.section?.type])).toEqual([
+			[0, 'Verse'],
+			[2, 'Chorus']
+		]);
+		expect(new Set(rows.map((row) => row.section?.id).filter(Boolean)).size).toBe(2);
 	});
 });
 

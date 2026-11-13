@@ -105,20 +105,49 @@ function wording(text: string, stanza: Stanza): string {
 		.join('\n');
 }
 
+/** A row for a section that holds no lyric line of its own: an empty or blank-line boundary. */
+function emptyRow(text: string, section: TaggedSection): StanzaRow {
+	return {
+		from: section.at,
+		to: section.at,
+		line: text.slice(0, section.at).split('\n').length,
+		lineCount: 0,
+		opening: '',
+		section
+	};
+}
+
 /**
- * The song's stanzas with the section each begins or continues. A stanza
- * worded exactly like a tagged one carries that tag as a suggestion, because a
- * repeated chorus is the same decision made twice.
+ * The song's stanzas with the section each begins or continues. A section
+ * that sits on blank lines just before a stanza begins that stanza. Any other
+ * section with no lyric line of its own (an empty draft's tag, a trailing one,
+ * or the earlier of two at one offset) is a row with no lyrics, so every tag
+ * the editor draws has exactly one row. A stanza worded exactly like a tagged
+ * one carries that tag as a suggestion, because a repeated chorus is the same
+ * decision made twice.
  */
 export function stanzaOutline(text: string, sections: readonly TaggedSection[]): StanzaRow[] {
-	const rows: StanzaRow[] = stanzas(text, boundariesOf(sections)).map((stanza) => {
-		const row: StanzaRow = { ...stanza };
-		const section = sections.find((entry) => entry.at === stanza.from);
-		const continues = section ? undefined : sections.findLast((entry) => entry.at <= stanza.from);
-		if (section) row.section = section;
+	const found = stanzas(text, boundariesOf(sections));
+	const rows: StanzaRow[] = found.map((stanza) => ({ ...stanza }));
+	const empty: StanzaRow[] = [];
+	for (const section of sections) {
+		const row = rows.find(
+			(entry) => entry.from >= section.at && !text.slice(section.at, entry.from).trim()
+		);
+		if (!row) {
+			empty.push(emptyRow(text, section));
+			continue;
+		}
+		// Sections come in document order, so of two that begin one stanza the
+		// later holds its lyrics and the earlier is empty.
+		if (row.section) empty.push(emptyRow(text, row.section));
+		row.section = section;
+	}
+	for (const row of rows) {
+		if (row.section) continue;
+		const continues = sections.findLast((entry) => entry.at <= row.from);
 		if (continues) row.continues = continues;
-		return row;
-	});
+	}
 	const typed = new Map<string, SectionType>();
 	for (const row of rows)
 		if (row.section?.type && !typed.has(wording(text, row)))
@@ -127,7 +156,26 @@ export function stanzaOutline(text: string, sections: readonly TaggedSection[]):
 		const suggestion = row.section ? undefined : typed.get(wording(text, row));
 		if (suggestion) row.suggestion = suggestion;
 	}
-	return rows;
+	// An empty row reads before the stanza it shares an offset with.
+	return [...empty, ...rows].sort(
+		(left, right) => left.from - right.from || left.lineCount - right.lineCount
+	);
+}
+
+/** The outline row a tag for the stanza around `offset` belongs to, when there is one. */
+export function stanzaRowAt(
+	text: string,
+	offset: number,
+	sections: readonly TaggedSection[]
+): { at: number; section?: TaggedSection; suggestion?: SectionType } {
+	const at = stanzaStartAt(text, offset, sections);
+	// An empty row sorts first at its offset, so the last match is the stanza's own.
+	const row = stanzaOutline(text, sections).findLast((entry) => entry.from === at);
+	return {
+		at,
+		...(row?.section && { section: row.section }),
+		...(row?.suggestion && { suggestion: row.suggestion })
+	};
 }
 
 /**

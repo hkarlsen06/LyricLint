@@ -2,7 +2,7 @@ import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { EditorHandle } from '#lib/core/types.js';
-import { importDocument } from '#lib/conversion/index.js';
+import { importDocument, renderProfile } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import type { LyricEditorCallbacks } from './contracts.js';
@@ -21,9 +21,12 @@ const lyrics = [
 	'Hold the line'
 ].join('\n');
 
-async function mount(text = lyrics) {
-	const imported = importDocument({ text, language: 'en', profile: 'musixmatch' });
+async function mount(source = lyrics, sourceProfile: 'genius' | 'musixmatch' = 'musixmatch') {
+	const imported = importDocument({ text: source, language: 'en', profile: sourceProfile });
 	if (!imported.ok) throw new Error(imported.refusal.message);
+	const projected = renderProfile(imported.value, 'musixmatch');
+	if (!projected.ok) throw new Error(projected.refusal.message);
+	const text = projected.value.text;
 	let handle: EditorHandle | undefined;
 	const callbacks = {
 		onSnapshot: vi.fn(),
@@ -151,5 +154,43 @@ describe('tagging a stanza in a headerless draft', () => {
 		await expect
 			.element(card.getByRole('button', { name: 'Section options' }))
 			.not.toBeInTheDocument();
+	});
+
+	it('changes the tag that was pressed when two sections share an offset', async () => {
+		const run = await mount('[Intro]\n[Verse]\nBack down the block', 'genius');
+		expect(run.tags()).toEqual(['Intro · Empty section', 'Verse']);
+
+		await page.getByRole('button', { name: 'Edit Verse details' }).click();
+		await expect
+			.element(page.getByRole('option', { name: /^Verse/u }))
+			.toHaveAttribute('aria-selected', 'true');
+		await userEvent.keyboard('b');
+
+		expect(run.tags()).toEqual(['Intro · Empty section', 'Bridge']);
+	});
+
+	it('draws no section rows for a host that takes no section requests', async () => {
+		const imported = importDocument({ text: '[Verse 1]\nOne', language: 'en', profile: 'genius' });
+		if (!imported.ok) throw new Error(imported.refusal.message);
+		await render(EditorPane, {
+			props: {
+				initialText: '[Verse 1]\nOne',
+				initialConversion: createConversionEnvelope(
+					imported.value,
+					'genius',
+					profilePolicyVersions
+				),
+				context: { language: 'en', performers: [], ruleSetVersion: 'test' },
+				callbacks: {
+					onSnapshot: vi.fn(),
+					onAssignRequest: vi.fn(),
+					onSectionHeaderRequest: vi.fn(),
+					onDiagnosticActivate: vi.fn(),
+					onAnnouncement: vi.fn()
+				}
+			}
+		});
+		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+		expect(document.querySelector('.ll-conversion-heading')).toBeNull();
 	});
 });

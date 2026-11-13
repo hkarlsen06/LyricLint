@@ -54,7 +54,7 @@
 	import type SectionPickerComponent from './overlays/SectionPicker.svelte';
 	import type SectionTagPickerComponent from './overlays/SectionTagPicker.svelte';
 	import { conversionForState } from './extensions/conversion-state.js';
-	import { stanzaOutline, stanzaStartAt, taggedSections } from '#lib/conversion/stanzas.js';
+	import { stanzaOutline, stanzaRowAt, taggedSections } from '#lib/conversion/stanzas.js';
 	import { sectionTypeLabel, type SectionType } from '#lib/conversion/section-types.js';
 	import type { ConversionAction } from '#lib/conversion/index.js';
 	import LazyContent from '#lib/interaction/LazyContent.svelte';
@@ -415,14 +415,14 @@
 			onSectionHeaderRequest(request) {
 				if (context.profile === 'musixmatch') {
 					const view = editor?.view;
-					if (view)
-						openSectionTag(
-							stanzaStartAt(
-								view.state.doc.toString(),
-								view.state.selection.main.head,
-								sectionTags().sections
-							)
+					if (view) {
+						const target = stanzaRowAt(
+							view.state.doc.toString(),
+							view.state.selection.main.head,
+							sectionTags().sections
 						);
+						openSectionTag(target.at, target.section?.id);
+					}
 					callbacks.onSectionHeaderRequest(request);
 					return;
 				}
@@ -430,15 +430,19 @@
 				callbacks.onSectionHeaderRequest(request);
 			},
 			// A tag pressed in a headerless draft changes in place; the section's
-			// full options stay one press further, inside the card.
-			onSectionDetailRequest(sectionId) {
-				const section =
-					context.profile === 'musixmatch'
-						? sectionTags().sections.find((entry) => entry.id === sectionId)
-						: undefined;
-				if (section) openSectionTag(section.at);
-				else callbacks.onSectionDetailRequest?.(sectionId);
-			},
+			// full options stay one press further, inside the card. Defined only
+			// when the host takes section requests: its presence is what makes the
+			// editor draw section rows at all (`conversion-sections.ts`).
+			...(callbacks.onSectionDetailRequest && {
+				onSectionDetailRequest(sectionId: string) {
+					const section =
+						context.profile === 'musixmatch'
+							? sectionTags().sections.find((entry) => entry.id === sectionId)
+							: undefined;
+					if (section) openSectionTag(section.at, section.id);
+					else callbacks.onSectionDetailRequest?.(sectionId);
+				}
+			}),
 			// Linking is a persistent shell workspace, opened only by an explicit request.
 			onSectionLinkRequest(request, origin) {
 				session = closeOverlay(session);
@@ -635,11 +639,11 @@
 			.flatMap((section) => (section.header ? [section.header.rawNamePart] : []));
 	}
 
-	function openSectionTag(at: number): void {
+	function openSectionTag(at: number, sectionId?: string): void {
 		const view = editor?.view;
 		if (!view) return;
 		const line = view.state.doc.lineAt(Math.min(at, view.state.doc.length));
-		session = openSectionTagPicker(session, { from: line.from, to: line.to }, at);
+		session = openSectionTagPicker(session, { from: line.from, to: line.to }, at, sectionId);
 	}
 
 	/** The draft's placed sections and stanzas, read when a tag card draws or answers. */
@@ -653,19 +657,28 @@
 	}
 
 	/** What an open tag card is about. Read once as it opens, and again by each answer. */
-	function sectionTagTarget(at: number) {
+	function sectionTagTarget(at: number, sectionId: string | undefined) {
 		const { sections, rows } = sectionTags();
+		const section =
+			sectionId === undefined ? undefined : sections.find((entry) => entry.id === sectionId);
+		const row = section
+			? rows.find((entry) => entry.section?.id === section.id)
+			: rows.findLast((entry) => entry.from === at);
 		const view = editor?.view;
-		const line = view?.state.doc.lineAt(Math.min(at, view.state.doc.length));
+		const line = view?.state.doc.lineAt(Math.min(row?.from ?? at, view.state.doc.length));
 		return {
 			at,
-			section: sections.find((entry) => entry.at === at),
-			suggested: rows.find((row) => row.from === at)?.suggestion,
-			opening: line?.text ?? '',
+			// A tag whose section has gone (an Undo under the open card) falls back
+			// to adding one, never to editing a neighbour.
+			section,
+			suggested: section ? undefined : row?.suggestion,
+			opening: row?.opening ?? line?.text ?? '',
 			line: line?.number ?? 1
 		};
 	}
-	const sectionTag = $derived(sectionTagOverlay && sectionTagTarget(sectionTagOverlay.at));
+	const sectionTag = $derived(
+		sectionTagOverlay && sectionTagTarget(sectionTagOverlay.at, sectionTagOverlay.sectionId)
+	);
 
 	// Each answer closes the card, so it takes its target before the close
 	// retires the derived the markup reads.
