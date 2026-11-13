@@ -199,3 +199,31 @@
 	>. The guide's <a href={resolve('guidelines/non-english/')}>non-English songs</a> and
 	<a href={resolve('guidelines/section-headers/')}>section headers</a> topics explain the conventions.
 </p>
+
+<h2 id="musixmatch-tags">Section tags in a Musixmatch 'scribe</h2>
+
+<p>
+	Musixmatch lyrics carry no headers. Each stanza gets a tag instead (Intro, Verse, Pre-Chorus,
+	Chorus, Hook, Bridge or Outro), shown above its first line and kept out of the copied text.
+</p>
+
+<ul>
+	<li>
+		Put the cursor anywhere in a stanza and press <Keys combo="Mod-Shift-h" />, or press the
+		<code>[+]</code> <strong>Section boundary</strong> button. Press the first letter of a tag, such
+		as <Keys combo="C" /> for Chorus, or choose it from the list.
+	</li>
+	<li>
+		Press a tag in the lyrics to change it, remove it, or open <strong>Section options</strong>.
+	</li>
+	<li>
+		The <strong>Song</strong> tab lists every stanza under <strong>Sections</strong>. Set each tag
+		from its row without moving the cursor.
+	</li>
+</ul>
+
+<p>
+	A stanza worded exactly like one you have tagged is offered the same tag: the list opens on it,
+	and its row in <strong>Song</strong> shows it as a one-press suggestion. Apply the tags in
+	Musixmatch when you submit.
+</p>

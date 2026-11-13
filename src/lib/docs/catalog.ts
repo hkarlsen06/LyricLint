@@ -99,9 +99,22 @@ export const docsPages: readonly DocsPage[] = [
 		sections: [
 			{ id: 'insert', title: 'Insert a header' },
 			{ id: 'numbering', title: 'Numbering and repeats' },
-			{ id: 'languages', title: 'Headers in other languages' }
+			{ id: 'languages', title: 'Headers in other languages' },
+			{ id: 'musixmatch-tags', title: "Section tags in a Musixmatch 'scribe" }
 		],
-		keywords: ['verse', 'chorus', 'bridge', 'header', 'song part', 'intro', 'outro', 'language']
+		keywords: [
+			'verse',
+			'chorus',
+			'bridge',
+			'header',
+			'song part',
+			'intro',
+			'outro',
+			'language',
+			'tag',
+			'stanza',
+			'structure'
+		]
 	},
 	{
 		slug: 'section-links',

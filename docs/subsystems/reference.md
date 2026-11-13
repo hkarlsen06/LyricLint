@@ -102,7 +102,7 @@ Musixmatch additions: `src/lib/profiles/reference.server.ts`, `src/lib/profiles/
 - Guide disclosures share `.site-disclosure` in `site.css`: full reading rows for contents and
   explanations, compact controls beside source facts and search results. Labels stay fixed;
   a turning chevron indicates the open state. Native details keep keyboard behavior and snapshots.
-  Show and Topic filters retain native select pickers, with matching chevrons and token styling.
+  Show and Topic filters are the shared `Select` (`src/lib/ui/primitives/select/`), superseding the native select pickers.
 - Guidelines explain sourced conventions; checks explain exact linter triggers and fixes.
   Each convention's "What LyricLint checks" group is inset behind a quiet leading rule, including
   the standardized spellings. The inset narrows on phones and includes expanded check content.

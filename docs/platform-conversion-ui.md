@@ -129,15 +129,15 @@ Retained-section requests carry their Review origin and reopen the requested sec
 activation, even if another section was expanded in between. Each request focuses once;
 later parent or model refreshes preserve the user's action focus. A new activation of the same
 section still focuses its heading. A missing-boundaries request opens
-and focuses Add a section. Back to Review focuses the surviving retained decision's action,
+Song on its Sections outline, where every stanza carries its tag. Back to Review focuses the surviving retained decision's action,
 falling back to the Review tab after the last decision is resolved.
 
 | Control | Behavior |
 | --- | --- |
 | Type | Reuse the recognized heading automatically; allow an explicit supported override while preserving the independent Genius label and performer legend exactly |
 | Genius section label | Edit the label in More section options without raw source editing; preserve the performer legend and other metadata |
-| Insert section | Require a New section type choice, then insert a boundary with that type and a matching Genius heading; select the new section and focus its editor |
-| Split a section | Use Add a section at a lyric-line boundary; the original identity stays on the original part and the new part receives the explicitly chosen type |
+| Insert section | Choose a type in the editor's tag card (`Mod-Shift-H`) or in the stanza's row of the Sections outline; the boundary lands on the stanza's first line with that type and a matching Genius heading |
+| Split a section | Separate the lyrics with a blank line, then tag the new stanza; the original identity stays on the original part and the new part receives the explicitly chosen type |
 | Move to cursor | Move the chosen boundary to the start of a lyric line; refuse changes that cross retained annotation or voice ownership |
 | Merge into previous or next section | Keep both bodies in the chosen destination, retaining its label, type and identity; refuse incompatible voice styles |
 | Remove boundary | Remove an unvoiced boundary and keep the lyrics |
@@ -187,10 +187,10 @@ voice passages, boundary moves, merges and confirmed deletion. Label edits chang
 label, keeping performer legend syntax and retained annotations intact. Type changes never
 rewrite independently authored or imported Genius labels, including a literal `[Section]`.
 
-Add a section stays below the editor. Choose New section type before inserting at the cursor's
-line boundary. The existing typed insertion creates a matching Genius heading (PreChorus uses
-`Pre-Chorus`), then selects the new section and focuses its heading so the next action is
-reachable. No untyped generated placeholder or durable provenance flag is needed. The label
+A section is added by tagging its stanza: in the editor's tag card or in the Sections outline
+in Song (superseding the Add a section form below the editor). The typed insertion creates a
+matching Genius heading (PreChorus uses `Pre-Chorus`) on the stanza's first line and leaves
+the caret where it was. No untyped generated placeholder or durable provenance flag is needed. The label
 can subsequently be changed explicitly through More section options; type and Genius label
 remain independent. This does not infer language-specific equivalents or resolve ambiguous
 policy mappings. Language and content type stay collapsed beside the document exports;

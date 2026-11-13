@@ -59,7 +59,7 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`, `src/lib/diagno
 	An unsaved type belongs to its draft, profile, finding and document revision. Document changes
 	clear the shown choice, disable Save and explain that a new choice is needed; selection-only
 	changes keep it. Other retained section requests reopen and focus their section even when requested repeatedly;
-	missing boundaries open Add a section. Back to Review restores focus to the next retained
+	missing boundaries open Song on its Sections outline (`Tag sections in Song`). Back to Review restores focus to the next retained
 	decision, or the Review tab when none remain. `e2e/profile-workbench.spec.ts` pins desktop
 	and phone navigation.
 

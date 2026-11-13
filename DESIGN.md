@@ -135,6 +135,7 @@ of controls and neighboring content before and after real interactions on deskto
 - One command gets one emphasis. If the same action appears on two surfaces, the surface that owns it takes the contrast tier and the other steps down to the default.
 - There is no pill-shaped button variant; compact categorical elements are chips and badges, not buttons.
 - Inputs, selects, and textareas share control surface, border, height, radius, focus, hover, disabled, and error vocabulary.
+- A choice from a list is the shared `Select` (`src/lib/ui/primitives/select/`), never a native `<select>`: the trigger is a field on the control surface, and its list is a floating surface on the overlay tokens with the chosen row checked. It keeps the combobox role and its label, portals into an open dialog, and closes on Escape before the surface around it does.
 - Diagnostic cards use severity colors only for labels and state emphasis. The source explanation remains neutral.
 - Every decision about a diagnostic (the fix, ignore, the guided actions, a popover's close) shares one control geometry and one type size, in one row, in one order. Emphasis is carried by the button tier alone.
 - A proposed edit is shown in the document as a diff, with outgoing text struck through in `--color-danger` and incoming text washed in `--color-suggestion`, rather than behind a preview step. The surface that shows it offers one control for the fix, labelled with the fix itself (`Replace with Don't`), never with a verb prefixed to a label that is already a command.

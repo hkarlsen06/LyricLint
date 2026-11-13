@@ -6,6 +6,8 @@ Touches: `src/lib/ui/layout/Workspace.svelte`, `src/lib/ui/layout/DocumentToolba
 `src/lib/ui/layout/EditorActions.svelte`, `src/lib/ui/linter/LinterPanel.svelte`,
 `src/lib/ui/state/control-tooltip.svelte.ts`, `src/lib/ui/primitives/ControlTooltip.svelte`,
 `src/lib/interaction/dismiss.ts`, `src/lib/interaction/stick-to-bottom.ts`,
+`src/lib/ui/primitives/select/`, `src/lib/conversion/stanzas.ts`,
+`src/lib/editor/overlays/SectionTagPicker.svelte`,
 `src/lib/ui/tools/` (SongPanel/PreferencesPanel: the decision record below predates the
 Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 `src/lib/editor/extensions/document-placeholder.ts`, `src/lib/ui/layout/workspace-entrance.ts`,
@@ -119,7 +121,28 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   Opening captures the selected passage before focusing the trigger and showing the modal. Native close returns to that noneditable control directly; it must not briefly refocus the editor before explicit restoration.
   Document and passage language commands share bounded code validation. Invalid custom codes stay in the dialog with an announced field error and leave draft state unchanged. Escape from any dialog control returns to its trigger. Writing controls include their visible Selection language label in the accessible name; the dialog keeps its separate scope heading.
 
-- Song follows the section at the caret, with no section chooser or duplicate section heading. Advanced tools stays closed for normal Song viewing and contains the Genius reference editor, exact line timing and retained metadata. An explicit section request replaces the ordinary Song content with that section’s editor, with type and source label before Boundary and voice options. The requested identity stays fixed while the caret moves. Back to Song closes the tools and restores summary focus; Review requests retain Back to Review. Removing the last boundary closes the editor instead of leaving an empty chooser. Adding a section is an explicit action at the cursor, not a permanent form. A saved Genius page remains directly reachable as a link. Document language and content type share the named disclosure beside document exports. Available timed exports follow those files before the growing passage tools. Passage language is direct afterward and uses the shared searchable language dialog with an explicit custom-code path. Other selected passage tools and retained details open deliberately. Clear this transcription is separate from export actions. Preferences exposes the `Musixmatch tools` switch and workspace backup actions directly; Local data and Reviewed rules remain secondary disclosures.
+- Song opens on `Sections`, an outline of the song (`SectionOutline.svelte`), before `Document`.
+  In a Musixmatch draft the tags live outside the text, so each stanza is a row: its tag as the
+  shared `Select` (`Add tag` while untagged, `No tag` to take a removable tag off), its first
+  line as a button that goes to it, a one-press `Chorus?` when an identically worded stanza is
+  already tagged, and a `…` button that opens that section's options. The row holding the caret
+  is `aria-current` with a rail. In a Genius draft the rows are the headers and only navigate,
+  because a header is text. A blank line or a section boundary starts a row
+  (`conversion/stanzas.ts` owns that, and which stanza a caret belongs to, for the outline and
+  the editor's tag card alike). The outline is not a form: nothing is pending, each choice
+  applies as one undoable step. This supersedes the earlier rule that Song had no section list
+  and that adding a section was a command under Advanced tools; the `Add a section` form and
+  the `Edit current section` and `Add section at cursor` commands are removed.
+- The section command (`[+]`, `Mod-Shift-H`) answers inside the editor in both formats. Genius
+  opens the header picker. Musixmatch opens the tag card (`SectionTagPicker.svelte`) on the
+  stanza the caret is in: the stanza's first line, the seven types as a listbox that holds the
+  focus, one key per type (`I V P C H B O`), and no confirm step. It starts on the stanza's own
+  tag, or on the tag of an identically worded stanza so Enter repeats it. A tag pressed in the
+  lyrics opens the same card with `Remove tag` (when no voice is assigned) and
+  `Section options`, which opens the section editor in Song. Escape and an outside press
+  cancel; every exit but `Section options` returns the caret. The shell carries out the choice
+  through `onConversionAction`, so a refusal is the controller's toast and announcement.
+- Advanced tools stays closed for normal Song viewing and contains the Genius reference editor, exact line timing and retained metadata. An explicit section request replaces the ordinary Song content with that section’s editor, with type and source label before Boundary and voice options. The requested identity stays fixed while the caret moves. Back to Song closes the editor and returns focus to that section's row in the outline, or to Advanced tools when the section is gone; Review requests retain Back to Review. Removing the last boundary closes the editor instead of leaving an empty chooser. A saved Genius page remains directly reachable as a link. Document language and content type share the named disclosure beside document exports. Available timed exports follow those files before the growing passage tools. Passage language is direct afterward and uses the shared searchable language dialog with an explicit custom-code path. Other selected passage tools and retained details open deliberately. Clear this transcription is separate from export actions. Preferences exposes the `Musixmatch tools` switch and workspace backup actions directly; Local data and Reviewed rules remain secondary disclosures.
   Local data explains reset consequences before its action. The warning and reset target stay
   in place through confirmation and cancellation.
   Escape closes a language picker even when its search has text, returning focus to its trigger.
