@@ -1,19 +1,6 @@
 import { canRenderSection, canRetainSectionHeader } from '#lib/conversion/section-placement.js';
-import {
-	RangeSet,
-	StateField,
-	type EditorState,
-	type Extension,
-	type Range
-} from '@codemirror/state';
-import {
-	Decoration,
-	EditorView,
-	GutterMarker,
-	WidgetType,
-	gutterLineClass,
-	type DecorationSet
-} from '@codemirror/view';
+import { StateField, type EditorState, type Extension } from '@codemirror/state';
+import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
 import { conversionForState } from './conversion-state.js';
 import {
 	editorCallbacksField,
@@ -26,7 +13,6 @@ import { conversionSectionLocal } from './conversion-scope.js';
 interface BoundarySection {
 	id: string;
 	label: string;
-	header: string;
 	empty: boolean;
 	local: boolean;
 }
@@ -43,7 +29,6 @@ class SectionBoundaryWidget extends WidgetType {
 				(section, index) =>
 					section.id === other.sections[index]?.id &&
 					section.label === other.sections[index]?.label &&
-					section.header === other.sections[index]?.header &&
 					section.empty === other.sections[index]?.empty &&
 					section.local === other.sections[index]?.local
 			)
@@ -56,10 +41,6 @@ class SectionBoundaryWidget extends WidgetType {
 		for (const section of this.sections) {
 			const item = document.createElement('div');
 			item.className = 'll-conversion-section-row';
-			const size = document.createElement('span');
-			size.className = 'll-conversion-heading-size';
-			size.dataset.heading = section.header;
-			size.setAttribute('aria-hidden', 'true');
 			const button = document.createElement('button');
 			button.type = 'button';
 			button.className = 'button button--quiet ll-conversion-section';
@@ -80,7 +61,7 @@ class SectionBoundaryWidget extends WidgetType {
 				open();
 			});
 			pressed(button, open);
-			item.append(size, button);
+			item.append(button);
 			row.append(item);
 		}
 		return row;
@@ -129,10 +110,6 @@ function boundaries(state: EditorState): DecorationSet {
 		group.push({
 			id: section.id,
 			label: section.type ?? section.name ?? 'Section',
-			header: (record?.header ?? `[${section.type ?? section.name ?? 'Section'}]`).replace(
-				/\r?\n$|\r$/u,
-				''
-			),
 			empty: record?.explicitEmpty ?? false,
 			local: conversionSectionLocal(state) === section.id
 		});
@@ -168,40 +145,15 @@ const sectionBoundaryField = StateField.define<DecorationSet>({
 	provide: (field) => EditorView.decorations.from(field)
 });
 
-const headingGutterMarker = new (class extends GutterMarker {
-	override elementClass = 'll-conversion-heading-gutter';
-})();
-
 export const conversionSectionBoundaries: Extension = [
 	sectionBoundaryField,
-	// A retained heading's row is padded taller than a lyric's, so its line
-	// number takes the same top padding to stay level with the text.
-	gutterLineClass.compute([sectionBoundaryField], (state) => {
-		const marks: Range<GutterMarker>[] = [];
-		state.field(sectionBoundaryField).between(0, state.doc.length, (from, _to, value) => {
-			if (value.spec.class === 'll-conversion-heading') marks.push(headingGutterMarker.range(from));
-		});
-		return RangeSet.of(marks);
-	}),
 	EditorView.baseTheme({
-		// On the scroller so the gutters resolve it as well as the lines.
-		'.cm-scroller': { '--ll-section-control-height': 'var(--control-height-md)' },
 		'.ll-conversion-literal-heading .ll-syntax-dim': { fontFamily: 'inherit' },
-		'.cm-line.ll-conversion-heading, .ll-conversion-heading-size': {
-			boxSizing: 'border-box',
-			minHeight: 'calc(var(--ll-section-control-height) + 2 * var(--space-1))',
-			paddingBlock:
-				'max(0px, calc((var(--ll-section-control-height) + 2 * var(--space-1) - 1lh) / 2))',
+		'.cm-line.ll-conversion-heading': {
 			fontFamily: 'var(--font-mono)',
 			fontSize: 'var(--font-size-editor)',
 			lineHeight: 'var(--line-height-editor)',
 			wordBreak: 'break-all'
-		},
-		// `1lh` here would be the gutter's own small type, so the heading line's
-		// height is spelled out from the tokens it is set in.
-		'.cm-lineNumbers .cm-gutterElement.ll-conversion-heading-gutter': {
-			paddingTop:
-				'calc(var(--space-0-5) + max(0px, calc((var(--ll-section-control-height) + 2 * var(--space-1) - var(--font-size-editor) * var(--line-height-editor)) / 2)))'
 		},
 		'.ll-conversion-sections': {
 			userSelect: 'none'
@@ -219,15 +171,6 @@ export const conversionSectionBoundaries: Extension = [
 			background: 'var(--color-border)',
 			pointerEvents: 'none'
 		},
-		'.ll-conversion-heading-size': {
-			gridArea: '1 / 1',
-			visibility: 'hidden',
-			whiteSpace: 'break-spaces',
-			overflowWrap: 'anywhere',
-			paddingInlineStart: 'var(--space-1)',
-			paddingInlineEnd: 'max(var(--space-1), calc(100% - var(--measure-editor)))'
-		},
-		'.ll-conversion-heading-size::before': { content: 'attr(data-heading)' },
 		'.ll-conversion-section': {
 			gridArea: '1 / 1',
 			alignSelf: 'center',
@@ -253,12 +196,6 @@ export const conversionSectionBoundaries: Extension = [
 		'.ll-conversion-section:hover': {
 			background: 'var(--color-fill-subtle)',
 			color: 'var(--color-text)'
-		},
-		'@media (max-width: 46rem)': {
-			'.cm-scroller': { '--ll-section-control-height': 'var(--control-height-lg)' }
-		},
-		'@media (pointer: coarse)': {
-			'.cm-scroller': { '--ll-section-control-height': 'var(--control-height-touch)' }
 		}
 	})
 ];

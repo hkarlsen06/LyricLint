@@ -173,7 +173,7 @@ export interface CreateLyricEditorOptions {
 	/**
 	 * Whether a headerless section offers its `+ Add section header` row. On by
 	 * default for standalone editors. The workbench uses its persistent Section
-	 * action instead, so a helper row cannot move lyrics during a format switch.
+	 * action instead.
 	 * The fixed-height landing demo also omits these rows.
 	 */
 	sectionGhosts?: boolean;

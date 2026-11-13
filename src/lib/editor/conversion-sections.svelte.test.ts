@@ -41,7 +41,7 @@ function mount(text: string, width: number, switchToMusixmatch = true) {
 
 describe('retained section boundaries', () => {
 	it.each([false, true])(
-		'sets a heading row line number level with its text (coarse pointer: %s)',
+		'sets a retained heading at lyric row height, its number level with it (coarse pointer: %s)',
 		async (coarse) => {
 			await cdp().send('Emulation.setTouchEmulationEnabled', {
 				enabled: coarse,
@@ -51,21 +51,22 @@ describe('retained section boundaries', () => {
 			await new Promise<void>((resolve) =>
 				requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
 			);
+			const row = (lineNumber: number) => {
+				const at = view.domAtPos(view.state.doc.line(lineNumber).from).node;
+				return (at instanceof HTMLElement ? at : at.parentElement)!.closest('.cm-line')!;
+			};
 			// How far each row's number sits below its own text's top edge.
 			const numberOffset = (lineNumber: number) => {
-				const line = view.state.doc.line(lineNumber);
 				const number = [...view.dom.querySelectorAll('.cm-lineNumbers .cm-gutterElement')].find(
 					(element) => element.textContent === String(lineNumber)
 				)!;
 				const range = document.createRange();
 				range.selectNodeContents(number);
+				const line = view.state.doc.line(lineNumber);
 				return range.getBoundingClientRect().top - view.coordsAtPos(line.from + 1)!.top;
 			};
-			const heading = view.state.doc.line(3);
-			expect(view.domAtPos(heading.from).node.parentElement?.closest('.cm-line')).toHaveProperty(
-				'className',
-				expect.stringContaining('ll-conversion-heading')
-			);
+			expect(row(3).classList.contains('ll-conversion-heading')).toBe(true);
+			expect(row(3).getBoundingClientRect().height).toBe(row(4).getBoundingClientRect().height);
 			// Line 1 holds the caret, whose number is drawn differently, so line 4 is the reference.
 			expect(Math.abs(numberOffset(3) - numberOffset(4))).toBeLessThanOrEqual(1);
 		}
@@ -121,49 +122,28 @@ describe('retained section boundaries', () => {
 		}
 	);
 
-	it.each([360, 390, 1280])(
-		'keeps lyric positions stable across format switches at %ipx, including wrapped and empty headings',
+	it.each([360, 1280])(
+		'keeps each Musixmatch section control at the pointer floor at %ipx',
 		async (width) => {
 			await page.viewport(width, 900);
 			await cdp().send('Emulation.setTouchEmulationEnabled', {
 				enabled: width < 500,
 				maxTouchPoints: 1
 			});
-			expect(matchMedia('(pointer: coarse)').matches).toBe(width < 500);
-			const text =
-				'Opening words\n\n[Verse 1: Mira & <i>A performer with a long name</i>]\nMoon rises\n\n' +
-				'[Chorus]\n[Post-Chorus]\nStars fall\n\n' +
-				'[A very long explicitly retained section label that wraps on narrow screens]\nMorning comes';
-			const { handle, view } = mount(text, width, false);
-			const frame = () =>
-				new Promise<void>((resolve) =>
-					requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+			const { view } = mount(
+				'[Verse 1]\nMoon rises\n\n[Chorus]\n[Post-Chorus]\nStars fall\n\n' +
+					'[A very long explicitly retained section label that wraps on narrow screens]\nMorning comes',
+				width
+			);
+			await new Promise<void>((resolve) =>
+				requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+			);
+			const buttons = view.dom.querySelectorAll('.ll-conversion-section');
+			expect(buttons).toHaveLength(4);
+			for (const button of buttons) {
+				expect(button.getBoundingClientRect().height).toBeGreaterThanOrEqual(
+					matchMedia('(pointer: coarse)').matches ? 44 : 24
 				);
-			const positions = () =>
-				['Opening words', 'Moon rises', 'Stars fall', 'Morning comes'].map((lyric) => {
-					const at = view.state.doc.toString().indexOf(lyric);
-					expect(at).toBeGreaterThanOrEqual(0);
-					return view.coordsAtPos(at)!.top;
-				});
-			await frame();
-			const original = positions();
-			for (let repeat = 0; repeat < 3; repeat++) {
-				handle.switchProfile!('musixmatch');
-				await frame();
-				expect(positions().map((top, index) => top - original[index]!)).toEqual([0, 0, 0, 0]);
-				expect(handle.getSnapshot().text).toBe(
-					'Opening words\n\nMoon rises\n\nStars fall\n\nMorning comes'
-				);
-				expect(view.dom.querySelector('.ll-section-ghost')).toBeNull();
-				for (const button of view.dom.querySelectorAll('.ll-conversion-section')) {
-					expect(button.getBoundingClientRect().height).toBeGreaterThanOrEqual(
-						matchMedia('(pointer: coarse)').matches ? 44 : 24
-					);
-				}
-				handle.switchProfile!('genius');
-				await frame();
-				expect(positions()).toEqual(original);
-				expect(handle.getSnapshot().text).toBe(text);
 			}
 		}
 	);

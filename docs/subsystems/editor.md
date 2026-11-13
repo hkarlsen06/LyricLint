@@ -69,10 +69,10 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 - Musixmatch section boundaries are editor widgets backed by stable retained IDs. Their controls
   open Song details; they never become copied text. Voice decorations update in the same editor
   transaction as the projection so a native caret cannot jump during asynchronous shell updates.
-  Retained Genius headings and their Musixmatch controls reserve matching section rows, including separate
-  rows for coincident empty sections. Heading syntax uses the mono face and character wrapping;
-  a hidden sizing layer preserves its wrapping height in Musixmatch without adding lyrics.
-  A heading row's line number takes the row's top padding, so it stays level with the heading text.
+  Retained Genius headings use the mono face and character wrapping at lyric row height. A draft's
+  format is fixed once it has text, so a heading row does not reserve the height of the Musixmatch
+  control row that would replace it; Musixmatch keeps a separate control row for each coincident
+  empty section.
   Literal bracket lines, including nameless headers and headers authored as Musixmatch lyrics,
   keep ordinary lyric-row geometry; their brackets inherit the lyric face.
   Coarse-pointer rows retain the control touch floor. The workbench's persistent Section action
