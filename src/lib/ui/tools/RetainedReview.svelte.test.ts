@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test } from 'vitest';
-import { createTestWorkbench } from '../test-utils.js';
+import { chooseOption, createTestWorkbench } from '../test-utils.js';
 import RetainedReview from './RetainedReview.svelte';
 import { retainedFindings, type RetainedFinding } from '#lib/conversion/review.js';
 import {
@@ -188,19 +188,19 @@ test('requires Save, resets pending choice between items, and refuses unavailabl
 	];
 	const view = await render(RetainedReview, { controller, findings });
 	const select = () => screen.getByRole('combobox', { name: 'Musixmatch section type' });
-	await fireEvent.change(select(), { target: { value: 'Verse' } });
+	await chooseOption(select(), 'Verse');
 	expect(controller.feedback.announcement).toBe('');
 	await fireEvent.click(screen.getByRole('button', { name: 'Next detail' }));
-	expect(select()).toHaveValue('');
-	await fireEvent.change(select(), { target: { value: 'Chorus' } });
+	expect(select()).toHaveTextContent('Choose a section type');
+	await chooseOption(select(), 'Chorus');
 	await fireEvent.click(screen.getByRole('button', { name: 'Save section type' }));
 	expect(controller.feedback.announcement).toBe('Document details are not ready yet.');
-	expect(select()).toHaveValue('Chorus');
+	expect(select()).toHaveTextContent('Chorus');
 	select().focus();
 	await view.rerender({ controller, findings: [] });
 	expect(screen.getByRole('heading', { name: 'Retained details (0)' })).toHaveFocus();
 	await view.rerender({ controller, findings });
-	expect(select()).toHaveValue('');
+	expect(select()).toHaveTextContent('Choose a section type');
 });
 
 test('expires a prepared section choice after an edit while retaining selection-only choices', async () => {
@@ -224,10 +224,10 @@ test('expires a prepared section choice after an edit while retaining selection-
 	});
 	const select = screen.getByRole('combobox', { name: 'Musixmatch section type' });
 	const save = screen.getByRole('button', { name: 'Save section type' });
-	await fireEvent.change(select, { target: { value: 'Verse' } });
+	await chooseOption(select, 'Verse');
 	controller.onSnapshot({ ...controller.snapshot, selection: { anchor: 2, head: 2 } });
 	await view.rerender({ controller, findings: retainedFindings(controller.snapshot) });
-	expect(select).toHaveValue('Verse');
+	expect(select).toHaveTextContent('Verse');
 	expect(save).toBeEnabled();
 	const before = save.getBoundingClientRect().toJSON();
 	save.focus();
@@ -244,7 +244,7 @@ test('expires a prepared section choice after an edit while retaining selection-
 		conversion: createConversionEnvelope(edited.value.document, 'musixmatch', profilePolicyVersions)
 	});
 	await view.rerender({ controller, findings: retainedFindings(controller.snapshot) });
-	expect(select).toHaveValue('');
+	expect(select).toHaveTextContent('Choose a section type');
 	expect(save).toBeDisabled();
 	expect(screen.getByRole('status')).toHaveTextContent(
 		'The document changed. Choose the section type again.'
@@ -254,8 +254,8 @@ test('expires a prepared section choice after an edit while retaining selection-
 	await fireEvent.submit(save.closest('form')!);
 	expect(controller.snapshot.conversion?.model).toEqual(edited.value.document);
 	expect(controller.feedback.announcement).toBe('');
-	await fireEvent.change(select, { target: { value: 'Chorus' } });
-	expect(select).toHaveValue('Chorus');
+	await chooseOption(select, 'Chorus');
+	expect(select).toHaveTextContent('Chorus');
 	expect(save).toBeEnabled();
 	expect(screen.queryByRole('status')).toBeNull();
 	expect(controller.snapshot.text).toBe(text);

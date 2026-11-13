@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { sectionTypeChoices } from '#lib/conversion/section-types.js';
+	import { sectionTypeOptions } from '#lib/conversion/section-types.js';
 	import type { SectionRecord } from '#lib/conversion/model.js';
 	import type { RetainedFinding } from '#lib/conversion/review.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
+	import { Select } from '../primitives/select/index.js';
 	let {
 		controller,
 		findings
@@ -84,25 +85,17 @@
 					</div>
 					{#if finding.kind === 'section-type'}
 						<form onsubmit={save}>
-							<label
-								>Musixmatch section type
-								<select
-									value={chosen}
-									onchange={(event) => {
-										const value = event.currentTarget.value;
-										const type = sectionTypeChoices.find((type) => type === value);
-										pending =
-											currentId && type
-												? { id: currentId, revision: controller.snapshot.revision, type }
-												: undefined;
-									}}
-								>
-									<option value="">Choose a section type</option>
-									{#each sectionTypeChoices as type (type)}<option value={type}
-											>{type === 'PreChorus' ? 'Pre-Chorus' : type}</option
-										>{/each}
-								</select>
-							</label>
+							<Select
+								label="Musixmatch section type"
+								placeholder="Choose a section type"
+								value={chosen}
+								options={sectionTypeOptions}
+								onchange={(type) => {
+									pending = currentId
+										? { id: currentId, revision: controller.snapshot.revision, type }
+										: undefined;
+								}}
+							/>
 							<button type="submit" class="button button--contrast" disabled={!chosen}
 								>Save section type</button
 							>
@@ -147,8 +140,7 @@
 {/if}
 
 <style>
-	form,
-	label {
+	form {
 		display: grid;
 		gap: var(--space-2);
 		min-width: 0;
@@ -156,9 +148,7 @@
 	form {
 		margin-block: var(--space-3);
 	}
-	select {
-		width: 100%;
-		min-width: 0;
+	form :global(.ui-select .ui-select__trigger) {
 		font-size: var(--font-size-editor);
 		min-height: var(--control-height-touch);
 	}

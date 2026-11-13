@@ -99,13 +99,18 @@ for (const width of [1440, 390, 360]) {
 				save: await save.boundingBox(),
 				next: await next.boundingBox()
 			};
+			// ArrowDown opens the list on its first type and Enter chooses it; the
+			// form is then submitted from Save, as it is after a pointer choice.
 			await select.focus();
 			await select.press('ArrowDown');
 			await select.press('Enter');
+			await select.press('Tab');
+			await expect(save).toBeFocused();
+			await save.press('Enter');
 			await expect(region.getByRole('heading')).toHaveText('Retained details (2)');
 			await expect.poll(() => lyrics(page)).toBe(plain);
 			await next.click();
-			await expect(select).toHaveValue('');
+			await expect(select).toHaveText('Choose a section type');
 			expect(await select.boundingBox()).toEqual(before.select);
 			expect(await save.boundingBox()).toEqual(before.save);
 			expect(await next.boundingBox()).toEqual(before.next);
@@ -116,7 +121,8 @@ for (const width of [1440, 390, 360]) {
 			expect(
 				await select.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))
 			).toBeGreaterThanOrEqual(16);
-			await select.selectOption('Chorus');
+			await select.click();
+			await page.getByRole('option', { name: 'Chorus', exact: true }).click();
 			await select.press('Tab');
 			await expect(save).toBeFocused();
 			await save.press('Enter');
@@ -141,9 +147,11 @@ for (const width of [1440, 390, 360]) {
 					.getByRole('button', { name: /Review/ })
 					.click();
 			await expect(region.getByRole('heading')).toHaveText('Retained details (2)');
-			await select.selectOption('Verse');
+			await select.click();
+			await page.getByRole('option', { name: 'Verse', exact: true }).click();
 			await save.click();
-			await select.selectOption('Chorus');
+			await select.click();
+			await page.getByRole('option', { name: 'Chorus', exact: true }).click();
 			await save.click();
 			await expect(region.getByRole('heading')).toHaveText('Retained details (0)');
 			await expect(region.getByRole('heading')).toBeFocused();

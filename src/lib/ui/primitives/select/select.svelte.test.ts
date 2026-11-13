@@ -65,4 +65,19 @@ describe('Select', () => {
 		await expect.element(trigger).toHaveAttribute('aria-expanded', 'false');
 		expect(onchange).not.toHaveBeenCalled();
 	});
+
+	it('opens from the keyboard and chooses the highlighted row', async () => {
+		const onchange = vi.fn();
+		await render(Select<string>, { label: 'Section type', value: '', options, onchange });
+		const trigger = page.getByRole('combobox', { name: 'Section type' });
+
+		(trigger.element() as HTMLElement).focus();
+		await userEvent.keyboard('{ArrowDown}');
+		await expect.element(page.getByRole('listbox')).toBeVisible();
+		await userEvent.keyboard('{Enter}');
+
+		expect(onchange).toHaveBeenCalledExactlyOnceWith('verse');
+		await expect.element(page.getByRole('listbox')).not.toBeInTheDocument();
+		await expect.element(trigger).toHaveFocus();
+	});
 });
