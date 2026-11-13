@@ -113,8 +113,12 @@
 						<button
 							type="button"
 							class="button button--quiet button--flush"
-							onclick={() => controller.openSectionDetails(finding.sectionId ?? 'new', 'review')}
-							>Review in Song</button
+							onclick={() => {
+								// Untagged stanzas have no section to open: Song lists every
+								// stanza with its tag.
+								if (finding.sectionId) controller.openSectionDetails(finding.sectionId, 'review');
+								else controller.setActiveTab('song');
+							}}>{finding.sectionId ? 'Review in Song' : 'Tag sections in Song'}</button
 						>
 					{/if}
 				</li>

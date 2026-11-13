@@ -6,7 +6,7 @@ import youtubeIcon from '#lib/assets/youtube-icon.svg';
 import type { WorkbenchController } from '../state/workbench.svelte.js';
 import type { MediaPlayer, SongDetails } from '../state/media-player.svelte.js';
 import type { MediaStore } from '../state/media-store.svelte.js';
-import { createTestWorkbench, diagnostic, performer } from '../test-utils.js';
+import { chooseOption, createTestWorkbench, diagnostic, performer } from '../test-utils.js';
 import { importDocument } from '#lib/conversion/import.js';
 import { renderProfile } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
@@ -89,7 +89,7 @@ describe('SongPanel skimmability', () => {
 			[...container.querySelectorAll('h2')]
 				.filter((heading) => heading.checkVisibility())
 				.map((heading) => heading.textContent)
-		).toEqual(['Document', 'Passage language', 'Song metadata']);
+		).toEqual(['Sections', 'Document', 'Passage language', 'Song metadata']);
 		expect((screen.getByRole('link', { name: 'Search YouTube' }) as HTMLAnchorElement).href).toBe(
 			'https://www.youtube.com/results?search_query=Test%20draft'
 		);
@@ -739,7 +739,7 @@ describe('SongPanel conversion restraint', () => {
 		}
 	);
 
-	test('keeps routine Song view quiet and opens the caret section without a chooser', async () => {
+	test('keeps the section editor out of the routine Song view and opens it from the outline', async () => {
 		const source = '[Verse 1]\nOne\n[Chorus: Mira]\nTwo';
 		const run = await withLiveConversion(source);
 		try {
@@ -748,33 +748,33 @@ describe('SongPanel conversion restraint', () => {
 			expect(screen.queryByRole('combobox', { name: 'Section type' })).toBeNull();
 			expect(screen.getByRole('textbox', { name: 'Genius page link' })).not.toBeVisible();
 			expect(screen.getByRole('spinbutton', { name: 'Time in seconds' })).not.toBeVisible();
-			expect(screen.queryByRole('heading', { name: 'Sections' })).toBeNull();
-			expect(run.controller.snapshot.conversion).toBe(original);
-			const at = run.controller.snapshot.text.indexOf('Two');
-			run.controller.editor.setSelection({ anchor: at, head: at });
+			// The outline replaced the two commands that used to sit under Advanced tools.
+			expect(screen.getByRole('heading', { name: 'Sections' })).toBeVisible();
 			await openAdvancedTools();
-			await fireEvent.click(screen.getByRole('button', { name: 'Edit current section' }));
+			expect(screen.queryByRole('button', { name: 'Edit current section' })).toBeNull();
+			expect(screen.queryByRole('button', { name: 'Add section at cursor' })).toBeNull();
+			expect(run.controller.snapshot.conversion).toBe(original);
+			const options = () => screen.getByRole('button', { name: 'Chorus section options, line 2' });
+			await fireEvent.click(options());
 			const heading = await screen.findByRole('heading', { name: 'Section 2 · Chorus' });
 			await waitFor(() => expect(heading).toHaveFocus());
 			const picker = screen.getByRole('combobox', { name: 'Section type' });
-			expect(picker).toHaveValue('Chorus');
+			expect(picker).toHaveTextContent('Chorus');
 			expect(screen.queryByRole('textbox', { name: 'Genius page link' })).toBeNull();
 			const label = screen.getByRole('textbox', { name: 'Genius section label' });
 			const before = label.getBoundingClientRect();
 			await fireEvent.change(label, { target: { value: 'The quiet return' } });
-			expect(picker).toHaveValue('');
+			expect(picker).toHaveTextContent('Type not set');
 			expect(label.getBoundingClientRect().top).toBe(before.top);
 			run.controller.undo();
-			await waitFor(() => expect(picker).toHaveValue('Chorus'));
-			await fireEvent.change(picker, { target: { value: 'Bridge' } });
+			await waitFor(() => expect(picker).toHaveTextContent('Chorus'));
+			await chooseOption(picker, 'Bridge');
 			expect(run.controller.geniusText).toBe(source);
 			expect(screen.getByRole('heading', { name: 'Section 2 · Bridge' })).toBeVisible();
 			run.controller.undo();
-			await waitFor(() => expect(picker).toHaveValue('Chorus'));
+			await waitFor(() => expect(picker).toHaveTextContent('Chorus'));
 			await fireEvent.click(screen.getByRole('button', { name: 'Back to Song' }));
-			const summary = screen.getByText('Advanced tools', { exact: true });
-			await waitFor(() => expect(summary).toHaveFocus());
-			expect(summary.closest('details')?.open).toBe(false);
+			await waitFor(() => expect(options()).toHaveFocus());
 			expect(run.controller.requestedSection).toBeUndefined();
 			expect(run.controller.snapshot.text).toBe('One\nTwo');
 		} finally {
@@ -890,7 +890,7 @@ describe('SongPanel conversion restraint', () => {
 	});
 
 	test.each([360, 960])(
-		'creates and immediately opens a typed musical section with distinct stanza counts at %ipx',
+		'tags a stanza from the outline and opens its section options at %ipx',
 		async (width) => {
 			const lyrics = 'A paper moon\nAbove the road\n\nStay beside me';
 			const { controller } = withConversion(lyrics);
@@ -916,15 +916,15 @@ describe('SongPanel conversion restraint', () => {
 				expect(
 					screen.queryByRole('combobox', { name: 'Choose a section', hidden: true })
 				).toBeNull();
-				await openAdvancedTools();
 				expect(container.textContent).toContain('2 stanzas');
-				await fireEvent.click(screen.getByRole('button', { name: 'Add section at cursor' }));
-				const insert = screen.getByRole('button', { name: 'Insert boundary at cursor' });
-				expect(insert).toBeDisabled();
-				await fireEvent.change(screen.getByRole('combobox', { name: 'New section type' }), {
-					target: { value: 'Verse' }
-				});
-				await fireEvent.click(insert);
+				expect(screen.getByText(/^0 of 2 stanzas tagged\./u)).toBeVisible();
+				await chooseOption(
+					screen.getByRole('combobox', { name: 'Tag for the stanza on line 1' }),
+					'Verse'
+				);
+				await fireEvent.click(
+					await screen.findByRole('button', { name: 'Verse section options, line 1' })
+				);
 				await waitFor(() =>
 					expect(screen.getByRole('heading', { name: 'Section 1 · Verse' })).toHaveFocus()
 				);
@@ -963,7 +963,7 @@ describe('SongPanel conversion restraint', () => {
 			[...container.querySelectorAll('h2')]
 				.filter((heading) => heading.checkVisibility())
 				.map((heading) => heading.textContent)
-		).toEqual(['Document', 'Passage language', 'Song metadata']);
+		).toEqual(['Sections', 'Document', 'Passage language', 'Song metadata']);
 		expect(screen.queryByText('Decisions that need listening')).toBeNull();
 		expect(screen.queryByText('Expand a repeated passage')).toBeNull();
 		// Clearing is here, quiet, because the draft has lyrics.
@@ -1000,29 +1000,20 @@ describe('SongPanel conversion restraint', () => {
 		}
 	);
 
-	test('opens and focuses section creation when Review requests missing boundaries', async () => {
-		const { controller } = withConversion('Under the moon');
-		await render(SongPanel, { controller });
-		expect(screen.queryByRole('button', { name: 'Insert boundary at cursor' })).toBeNull();
-		controller.openSectionDetails('new', 'review');
-		await waitFor(() => expect(screen.getByText('Add a section', { exact: true })).toHaveFocus());
-		expect(screen.getByRole('button', { name: 'Insert boundary at cursor' })).toBeVisible();
-		await fireEvent.click(screen.getByRole('button', { name: 'Back to Review' }));
-		expect(controller.activeTab).toBe('linter');
-		expect(controller.requestedSection).toBeUndefined();
-	});
-
 	test('never retargets a removed requested section to a neighboring section on Undo', async () => {
 		const run = await withLiveConversion('[Verse]\nOne\nTwo');
 		try {
 			const at = run.controller.snapshot.text.indexOf('Two');
 			run.controller.editor.setSelection({ anchor: at, head: at });
-			run.controller.openSectionDetails('new');
-			await screen.findByRole('heading', { name: 'Add a section' });
-			await fireEvent.change(screen.getByRole('combobox', { name: 'New section type' }), {
-				target: { value: 'Chorus' }
-			});
-			await fireEvent.click(screen.getByRole('button', { name: 'Insert boundary at cursor' }));
+			const before = new Set(
+				run.controller.snapshot.conversion!.model.sections.map((section) => section.id)
+			);
+			run.controller.applyConversionAction({ kind: 'insertSection', at, type: 'Chorus' });
+			run.controller.openSectionDetails(
+				run.controller.snapshot.conversion!.model.sections.find(
+					(section) => !before.has(section.id)
+				)!.id
+			);
 			await screen.findByRole('heading', { name: 'Section 2 · Chorus' });
 			run.controller.undo();
 			await screen.findByText('This section is no longer in the draft.');

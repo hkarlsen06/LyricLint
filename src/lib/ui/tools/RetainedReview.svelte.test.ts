@@ -297,3 +297,16 @@ for (const header of ['Chorus x2', 'Repeat Chorus', 'Chorus 2x', 'Chorus x 2']) 
 		expect(controller.getExport()).toBe(`[${header}: Mira]\nStay beside me`);
 	});
 }
+
+test('sends untagged lyrics to the Sections outline in Song, with no section to open', async () => {
+	const { controller } = createTestWorkbench();
+	controller.setActiveTab('linter');
+	await render(RetainedReview, {
+		controller,
+		findings: [{ kind: 'metadata', id: 'tags', message: 'Confirm the musical section tags.' }]
+	});
+	expect(screen.queryByRole('button', { name: 'Review in Song' })).toBeNull();
+	await fireEvent.click(screen.getByRole('button', { name: 'Tag sections in Song' }));
+	expect(controller.activeTab).toBe('song');
+	expect(controller.requestedSection).toBeUndefined();
+});

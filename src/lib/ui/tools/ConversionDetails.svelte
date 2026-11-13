@@ -4,11 +4,7 @@
 
 	import { parseDocument } from '#lib/core/parser.js';
 	import { tick, untrack } from 'svelte';
-	import {
-		sectionTypeChoices as types,
-		sectionType,
-		sectionTypeOptions
-	} from '#lib/conversion/section-types.js';
+	import { sectionType, sectionTypeOptions } from '#lib/conversion/section-types.js';
 	import { Select } from '../primitives/select/index.js';
 	import { contentOffset, projectOffset, renderProfile } from '#lib/conversion/index.js';
 	import type { SectionRecord } from '#lib/conversion/model.js';
@@ -21,8 +17,6 @@
 		conversion ? renderProfile(conversion.model, conversion.profile) : undefined
 	);
 
-	let newSectionType = $state('');
-	let newSectionHeading = $state<HTMLElement>();
 	let sectionOptionsOpen = $state(false);
 	$effect(() => {
 		const id = selectedSection;
@@ -68,33 +62,6 @@
 			to: projectOffset(projection.value, to, -1)
 		});
 	}
-	async function insertSection() {
-		const type = types.find((entry) => entry === newSectionType);
-		if (!type) return;
-		const previousIds = new Set(model?.sections.map((section) => section.id));
-		if (
-			!controller.applyConversionAction({
-				kind: 'insertSection',
-				type,
-				at:
-					controller.snapshot.text.lastIndexOf(
-						'\n',
-						Math.max(0, controller.snapshot.selection.head - 1)
-					) + 1
-			})
-		)
-			return;
-		const created = controller.snapshot.conversion?.model.sections.find(
-			(section) => !previousIds.has(section.id)
-		);
-		if (created) {
-			controller.openSectionDetails(created.id, controller.requestedSection?.origin);
-			await tick();
-			container
-				.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(created.id)}"]`)
-				?.focus();
-		}
-	}
 	async function removeSection(action: Extract<ConversionAction, { kind: 'removeSection' }>) {
 		const index = model?.sections.findIndex((section) => section.id === action.sectionId) ?? -1;
 		const destination =
@@ -130,13 +97,10 @@
 		handledSectionRequest = request;
 		removeId = undefined;
 		if (!request) return;
-		if (request.id === 'new') newSectionType = '';
 		void tick().then(() => {
-			if (request.id === 'new') newSectionHeading?.focus({ preventScroll: true });
-			else
-				container
-					?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(request.id)}"]`)
-					?.focus({ preventScroll: true });
+			container
+				?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(request.id)}"]`)
+				?.focus({ preventScroll: true });
 			container?.scrollIntoView({ block: 'start' });
 		});
 	});
@@ -165,24 +129,10 @@
 	{/if}
 	{#if model && enabled}
 		{#if !controller.requestedSection}
-			<div class="tool-actions">
-				{#if selectedSection}<button
-						type="button"
-						class="button button--quiet"
-						onclick={() => {
-							const id = selectedSection;
-							if (id) controller.openSectionDetails(id);
-						}}>Edit current section</button
-					>{/if}
-				<button
-					type="button"
-					class="button button--quiet"
-					onclick={() => controller.openSectionDetails('new')}>Add section at cursor</button
-				>
-			</div>
-		{:else if controller.requestedSection.id !== 'new' && !selectedSection}
+			<!-- The Sections list in Song opens a section's options and adds tags. -->
+		{:else if !selectedSection}
 			<p role="status">This section is no longer in the draft.</p>
-		{:else if controller.requestedSection.id !== 'new'}
+		{:else}
 			<section class="section-editor">
 				{#each model.sections as section, index (section.id)}
 					{@const type = sectionType(section, model.defaultLanguage)}
@@ -341,23 +291,6 @@
 						</section>{/if}
 				{/each}
 			</section>
-		{:else}
-			<section class="section-editor">
-				<h2 tabindex="-1" bind:this={newSectionHeading}>Add a section</h2>
-				<label
-					>New section type
-					<select bind:value={newSectionType}>
-						<option value="" disabled>Choose a type</option>
-						{#each types as type (type)}<option value={type}
-								>{type === 'PreChorus' ? 'Pre-Chorus' : type}</option
-							>{/each}
-					</select>
-				</label>
-				<button type="button" class="button" disabled={!newSectionType} onclick={insertSection}
-					>Insert boundary at cursor</button
-				>
-				<p>Section tags stay in this draft. Apply them separately when submitting to Musixmatch.</p>
-			</section>
 		{/if}
 		{#if !controller.requestedSection}
 			{#if model.wrappers.length || model.forms.length}
@@ -480,7 +413,9 @@
 	.conversion-details > details {
 		margin: 0;
 	}
-	.conversion-details :is(section, details[open]) > :is(label, .tool-actions, button, p, details) {
+	.conversion-details
+		:is(section, details[open])
+		> :is(label, .tool-actions, button, p, details, :global(.ui-select)) {
 		margin-block-start: var(--space-3);
 	}
 	.conversion-details summary {
@@ -498,7 +433,7 @@
 		color: var(--color-text-muted);
 		font-size: var(--font-size-sm);
 	}
-	.section-editor > label {
+	.section-editor > :is(label, :global(.ui-select)) {
 		margin-bottom: var(--space-3);
 	}
 
@@ -508,7 +443,7 @@
 	.conversion-section__advanced {
 		margin-block-start: var(--space-3);
 	}
-	.conversion-details :is(input, select, textarea) {
+	.conversion-details :is(input, textarea) {
 		max-width: 100%;
 		box-sizing: border-box;
 		font-size: var(--font-size-editor);
@@ -526,7 +461,7 @@
 		display: grid;
 		gap: var(--space-2);
 	}
-	.conversion-details select,
+	.conversion-details :global(.ui-select__trigger),
 	.conversion-details input,
 	.conversion-details textarea {
 		width: 100%;

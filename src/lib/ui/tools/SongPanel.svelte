@@ -14,6 +14,7 @@
 	import { youtubeSearchTerm } from '../state/media-youtube.js';
 	import PassageLanguage from './PassageLanguage.svelte';
 	import ConversionDetails from './ConversionDetails.svelte';
+	import SectionOutline from './SectionOutline.svelte';
 	import ClipboardReview from './ClipboardReview.svelte';
 	import LanguagePicker from '../layout/LanguagePicker.svelte';
 
@@ -42,10 +43,20 @@
 		handledToolsDraft = draft;
 		advancedOpen = false;
 	});
+	let panel = $state<HTMLElement>();
+	// Back from a section's options lands on the row that opened them, or on
+	// Advanced tools when that section is gone.
 	async function closeSectionDetails() {
+		const id = controller.requestedSection?.id;
 		controller.dismissSectionDetails();
 		await tick();
-		advancedSummary?.focus();
+		(
+			(id &&
+				panel?.querySelector<HTMLElement>(
+					`.section-outline [data-section-id="${CSS.escape(id)}"]`
+				)) ||
+			advancedSummary
+		)?.focus();
 	}
 	const settingsEnabled = $derived(
 		!controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery
@@ -187,7 +198,7 @@
 		}
 	}}
 />
-<div class="panel-content panel-sections song-panel">
+<div class="panel-content panel-sections song-panel" bind:this={panel}>
 	<ClipboardReview {controller} />
 	{#if controller.snapshot.conversionRecovery || controller.snapshot.originalRecovery}
 		<section>
@@ -222,6 +233,7 @@
 			<ConversionDetails {controller} onclose={closeSectionDetails} />
 		{/key}
 	{:else}
+		<SectionOutline {controller} {active} />
 		<section>
 			<h2>Document</h2>
 			{#if documentCounts.length > 0}
