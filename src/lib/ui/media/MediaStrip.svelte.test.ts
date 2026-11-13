@@ -520,7 +520,10 @@ describe('MediaStrip', () => {
 		await expect.element(select).toBeVisible();
 		// Until the player answers, the workbench's own offer stands; a control
 		// that collapsed to one option and grew back would be worse than either.
-		expect(select.element().querySelectorAll('option')).toHaveLength(5);
+		await select.click();
+		await expect.poll(() => page.getByRole('option').elements()).toHaveLength(5);
+		await userEvent.keyboard('{Escape}');
+		await expect.element(page.getByRole('listbox')).not.toBeInTheDocument();
 
 		const video = youtube.players.at(-1);
 		if (!video) throw new Error('The strip mounted no player for the video.');
@@ -529,7 +532,15 @@ describe('MediaStrip', () => {
 
 		expect(player.availableRates).toEqual([0.5, 1]);
 		await expect.element(select).toBeVisible();
-		expect(select.element().querySelectorAll('option')).toHaveLength(2);
+		await select.click();
+		await expect
+			.poll(() =>
+				page
+					.getByRole('option')
+					.elements()
+					.map((option) => option.textContent?.trim())
+			)
+			.toEqual(['0.5×', '1×']);
 	});
 
 	it('says which question the waiting control is asking', async () => {

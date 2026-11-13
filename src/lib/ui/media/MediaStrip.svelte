@@ -11,7 +11,8 @@
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import { dismissOnOutside, openListOwnsEscape } from '#lib/interaction/dismiss.js';
+	import { Select } from '../primitives/select/index.js';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import { drawsCoverBand, formatTime } from '../state/media-player.svelte.js';
 	import type { MediaStore } from '../state/media-store.svelte.js';
@@ -85,7 +86,13 @@
 	}
 
 	function dismissOnEscape(event: KeyboardEvent) {
-		if (phone.current && detailsOpen && !sync?.active && event.key === 'Escape') {
+		if (
+			phone.current &&
+			detailsOpen &&
+			!sync?.active &&
+			event.key === 'Escape' &&
+			!openListOwnsEscape(event.target)
+		) {
 			event.preventDefault();
 			if (document.getElementById(detailsId)?.contains(document.activeElement)) disclosure?.focus();
 			detailsOpen = false;
@@ -118,10 +125,10 @@
 	 * pause, type: a pause that dismissed the keyboard would cost a tap to bring it
 	 * back and a scroll to find the line again, every single time.
 	 *
-	 * Buttons only. A `<select>` and a `range` need their default press to open and
-	 * to drag, so the rate control and the scrubber are left alone. They are also
-	 * the two controls here that are aimed rather than tapped, where losing the
-	 * keyboard is the smaller cost.
+	 * Buttons only, and not the rate's combobox. A list and a `range` need their
+	 * default press to open and to drag, so the rate control and the scrubber are
+	 * left alone. They are also the two controls here that are aimed rather than
+	 * tapped, where losing the keyboard is the smaller cost.
 	 *
 	 * Leave `pointerdown` alone: cancelling a touch pointerdown suppresses the
 	 * activation click in WebKit. Its compatibility mousedown is the focus gate;
@@ -139,7 +146,9 @@
 	function keepFocus(node: HTMLElement) {
 		const onPress = (event: MouseEvent) => {
 			const target = event.target;
-			if (target instanceof Element && target.closest('button')) event.preventDefault();
+			if (target instanceof Element && target.closest('button:not([role="combobox"])')) {
+				event.preventDefault();
+			}
 		};
 		node.addEventListener('mousedown', onPress);
 		return () => {
@@ -295,17 +304,19 @@
 			     workbench would like to offer. YouTube has a menu of its own and
 			     ignores anything off it without a word, so a control listing the
 			     constant would be offering presses that silently do nothing. -->
-					<label class="media-strip__rate">
-						<span class="sr-only">Playback speed</span>
-						<select
-							value={player.rate}
-							onchange={(event) => player.setRate(Number(event.currentTarget.value))}
-						>
-							{#each player.availableRates as rate (rate)}
-								<option value={rate}>{rate}×</option>
-							{/each}
-						</select>
-					</label>
+					<Select
+						class="media-strip__rate"
+						label="Playback speed"
+						labelHidden
+						compact
+						value={String(player.rate)}
+						placeholder={`${player.rate}×`}
+						options={player.availableRates.map((rate) => ({
+							value: String(rate),
+							label: `${rate}×`
+						}))}
+						onchange={(rate) => player.setRate(Number(rate))}
+					/>
 
 					<!--
 				Timing the whole lyric. It sits here because syncing is a transport
@@ -879,25 +890,28 @@
 		background: var(--color-control-disabled);
 	}
 
-	/* No indicator glyph: the number is the control, and a chevron beside four
-	   characters of muted type is a second mark for the press the pointer is
-	   already on. */
-	.media-strip__rate select {
-		appearance: none;
-		/* A select is otherwise as wide as `0.75×` in every state, including the
-		   `1×` it sits at nearly always. */
-		field-sizing: content;
+	/* The shared select, quieted to the row's readouts. No indicator glyph: the
+	   number is the control, and a chevron beside four characters of muted type
+	   is a second mark for the press the pointer is already on. `compact` keeps
+	   it as wide as its value rather than as wide as `0.75×` in every state. */
+	.media-strip :global(.media-strip__rate .ui-select__trigger) {
+		justify-content: center;
 		min-height: var(--control-height-sm);
 		padding: 0 var(--space-1);
-		border-color: transparent;
 		background: transparent;
 		box-shadow: none;
 		color: var(--color-text-muted);
 		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-regular);
 		font-variant-numeric: tabular-nums;
 	}
 
-	.media-strip__rate select:hover:not(:disabled) {
+	.media-strip :global(.media-strip__rate .ui-select__caret) {
+		display: none;
+	}
+
+	.media-strip :global(.media-strip__rate .ui-select__trigger:hover:not(:disabled)),
+	.media-strip :global(.media-strip__rate .ui-select__trigger[data-state='open']) {
 		background: var(--color-control-hover);
 		color: var(--color-text);
 	}
@@ -1081,12 +1095,12 @@
 		.media-strip :global(.icon-button),
 		.media-strip :global(.button),
 		.media-strip :global(.button--quiet),
-		.media-strip .media-strip__rate select {
+		.media-strip :global(.media-strip__rate .ui-select__trigger) {
 			min-width: var(--control-height-touch);
 			min-height: var(--control-height-touch);
 		}
 
-		.media-strip .media-strip__rate select {
+		.media-strip :global(.media-strip__rate .ui-select__trigger) {
 			font-size: var(--font-size-lg);
 		}
 	}
