@@ -57,7 +57,7 @@ describe('Workspace and toolbar', () => {
 		await render(DocumentToolbar, { controller });
 		await render(LiveRegion, { feedback });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy Genius' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
 		expect(writeText).toHaveBeenCalledWith(canonical);
 		await waitFor(() =>
 			expect(screen.getByTestId('live-region').textContent).toContain(
@@ -74,12 +74,12 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
 		await render(DocumentToolbar, { controller });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy Genius' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Lyrics copied' })).toBeTruthy());
 
 		writeText.mockRejectedValueOnce(new Error('denied'));
 		await fireEvent.click(screen.getByRole('button', { name: 'Lyrics copied' }));
-		await waitFor(() => expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeTruthy());
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy());
 	});
 
 	test('copies without interrupting with song metadata even when facts are available', async () => {
@@ -94,7 +94,7 @@ describe('Workspace and toolbar', () => {
 			media: { player } as MediaStore
 		};
 		await render(DocumentToolbar, { controller: withSong });
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy Genius' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Lyrics copied' })).toBeTruthy());
 		expect(writeText).toHaveBeenCalledWith('[Verse]\nLine');
 		expect(document.querySelector('dialog.copy-receipt')).toBeNull();
@@ -107,7 +107,7 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
 		await render(DocumentToolbar, { controller });
 
-		expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Paste lyrics' })).toBeNull();
 	});
 
@@ -118,7 +118,7 @@ describe('Workspace and toolbar', () => {
 		// Section insertion and performer assignment stay reachable through the
 		// editor itself (ghost control and selection surface).
 		expect(screen.getByRole('button', { name: "New 'scribe" })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: "Open saved 'scribes" })).toBeTruthy();
 		// The left edge is the brand lockup now, and it returns to the marketing home.
 		expect(screen.getByRole('link', { name: 'LyricLint home' })).toHaveAttribute('href', '/');
@@ -209,6 +209,7 @@ describe('Workspace and toolbar', () => {
 
 	test('reads brand, draft name, the new-draft plus, then the format across the identity strip', async () => {
 		const { controller } = createTestWorkbench();
+		controller.setMusixmatchToolsEnabled(true);
 		await render(DocumentToolbar, { controller });
 
 		const identity = document.querySelector('.document-toolbar__identity');
@@ -247,6 +248,7 @@ describe('Workspace and toolbar', () => {
 	test.each([1280, 1440])('keeps a long title clear of desktop commands at %ipx', async (width) => {
 		await page.viewport(width, 900);
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA line to review' });
+		controller.setMusixmatchToolsEnabled(true);
 		await renderWorkspace(controller);
 		const title = screen.getByLabelText("'Scribe title") as HTMLInputElement;
 		const open = screen.getByRole('button', { name: "Open saved 'scribes" });
@@ -304,6 +306,7 @@ describe('Workspace and toolbar', () => {
 
 	test('leaves document commands in the command strip, with drafts and creation out of it', async () => {
 		const { controller } = createTestWorkbench();
+		controller.setMusixmatchToolsEnabled(true);
 		await render(DocumentToolbar, { controller });
 
 		const commands = document.querySelector('.document-toolbar__commands');
@@ -1313,6 +1316,7 @@ describe('Workspace and toolbar', () => {
 		try {
 			expect(window.matchMedia('(pointer: fine)').matches).toBe(true);
 			const { controller } = createTestWorkbench({ text: '[Verse]\nA line to review' });
+			controller.setMusixmatchToolsEnabled(true);
 			await renderWorkspace(controller);
 			const toolbar = screen.getByRole('banner', { name: 'Document controls' });
 			await screen.findByRole('button', { name: 'Copy Genius' });

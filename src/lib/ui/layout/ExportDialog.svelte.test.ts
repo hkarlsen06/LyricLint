@@ -9,6 +9,7 @@ const lyrics = '[Verse 1]\nShe said hold on.\nevery window I pass\n\n[Chorus]\nH
 
 async function openExport(text = lyrics) {
 	const workbench = createTestWorkbench({ text });
+	workbench.controller.setMusixmatchToolsEnabled(true);
 	await render(DocumentToolbar, { controller: workbench.controller });
 	await userEvent.click(screen.getByRole('button', { name: 'Export to Musixmatch' }));
 	const review = await screen.findByRole('region', { name: 'Musixmatch review' });

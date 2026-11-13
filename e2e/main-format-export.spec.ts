@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Locator } from '@playwright/test';
+import { enableMusixmatchTools } from './format-fixture.js';
 
 async function documentText(editor: Locator): Promise<string> {
 	return editor.evaluate((element) => {
@@ -32,6 +33,7 @@ for (const width of [1280, 360, 390]) {
 				preparedExport: [
 					async ({ page, browserName }, use, testInfo) => {
 						await page.goto('/workbench/');
+						await enableMusixmatchTools(page);
 						const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 						await expect(editor).toBeVisible();
 						await page

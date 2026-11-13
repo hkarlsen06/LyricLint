@@ -293,6 +293,19 @@ export interface WorkbenchController {
 	 */
 	readonly grammarCheckEnabled: boolean;
 	setGrammarCheckEnabled(enabled: boolean): void;
+	/**
+	 * Whether Genius 'scribes show the Musixmatch format's tools: the format tag
+	 * and Export to Musixmatch. Most users write only Genius, so with nothing
+	 * stored it follows the workspace: on once any draft is or exports
+	 * Musixmatch. Choosing Musixmatch for a new draft stores it on.
+	 */
+	readonly musixmatchToolsEnabled: boolean;
+	setMusixmatchToolsEnabled(enabled: boolean): void;
+	/**
+	 * Whether the toolbar names this draft's format and offers the other one.
+	 * A Musixmatch draft always does; a Genius draft follows the preference.
+	 */
+	readonly showsFormatTools: boolean;
 	toggleSeverity(severity: Severity): void;
 	/** Draw Review's rows in rank order again, after Review was hidden and is shown again. */
 	releaseReviewOrder(): void;
@@ -362,6 +375,7 @@ const largePasteThreshold = 32;
 
 /** The preference keys this controller owns. */
 const grammarCheckPreference = 'grammarCheck';
+const musixmatchToolsPreference = 'musixmatchTools';
 
 /**
  * Compose the workbench from its four stores (editor session, draft, roster,
@@ -547,6 +561,24 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		.catch(() => {
 			// A preference that cannot be read is a preference at its default.
 		});
+
+	// Undefined until the user decides; the derived default then reads the
+	// workspace, so someone who already writes Musixmatch sees no change.
+	let musixmatchToolsStored = $state<boolean | undefined>();
+	void deps.repository
+		.getPreference(musixmatchToolsPreference)
+		.then((stored) => {
+			if (stored !== undefined) musixmatchToolsStored = stored === 'true';
+		})
+		.catch(() => {});
+	const musixmatchToolsEnabled = $derived(
+		musixmatchToolsStored ??
+			draft.drafts.some((summary) => summary.profile === 'musixmatch' || summary.exported)
+	);
+	function setMusixmatchToolsEnabled(enabled: boolean) {
+		musixmatchToolsStored = enabled;
+		void deps.repository.setPreference(musixmatchToolsPreference, String(enabled)).catch(() => {});
+	}
 
 	/**
 	 * Let the song name the draft, but only while nothing else has.
@@ -1175,6 +1207,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			const model = importDocument({ text: '', profile, language: controller.language });
 			if (!model.ok) return;
 			draft.chooseProfile(profile);
+			if (profile === 'musixmatch') setMusixmatchToolsEnabled(true);
 			record.writing = draft.writing;
 			record.conversion = createConversionEnvelope(model.value, profile, profilePolicyVersions);
 			const opened = deps.onOpenDraft?.(record) ?? {
@@ -1469,6 +1502,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		setGrammarCheckEnabled(enabled) {
 			grammarCheckEnabled = enabled;
 			void deps.repository.setPreference(grammarCheckPreference, String(enabled)).catch(() => {});
+		},
+		get musixmatchToolsEnabled() {
+			return musixmatchToolsEnabled;
+		},
+		setMusixmatchToolsEnabled,
+		get showsFormatTools() {
+			return draft.writing.profile === 'musixmatch' || musixmatchToolsEnabled;
 		},
 		toggleSeverity: panel.toggleSeverity,
 		releaseReviewOrder: panel.releaseReviewOrder,
@@ -1826,7 +1866,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// A reset returns the running session to its defaults too: the stored
 			// rows are already gone, and a switch still showing the old choice would
 			// be reporting a preference that no longer exists.
-			if (await draft.deleteAllDrafts()) grammarCheckEnabled = true;
+			if (await draft.deleteAllDrafts()) {
+				grammarCheckEnabled = true;
+				musixmatchToolsStored = undefined;
+			}
 		},
 		async backupWorkspace() {
 			if (!deps.backup) return;

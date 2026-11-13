@@ -3,6 +3,9 @@ import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cdp, page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test } from 'vitest';
+import { importDocument } from '#lib/conversion/index.js';
+import { createConversionEnvelope } from '#lib/persistence/conversion.js';
+import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { createTestWorkbench } from '../test-utils.js';
 import DocumentToolbar from './DocumentToolbar.svelte';
 
@@ -10,6 +13,52 @@ afterEach(async () => {
 	await cleanup();
 	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
 	await page.viewport(800, 600);
+});
+
+function musixmatchWorkbench() {
+	const imported = importDocument({ profile: 'genius', text: '[Verse]\nLine', language: 'en' });
+	if (!imported.ok) throw new Error(imported.refusal.message);
+	return createTestWorkbench({
+		conversion: createConversionEnvelope(imported.value, 'musixmatch', profilePolicyVersions)
+	});
+}
+
+test.each([1280, 390])(
+	'a Genius draft shows the other format only with Musixmatch tools on at %ipx',
+	async (width) => {
+		await cdp().send('Emulation.setTouchEmulationEnabled', {
+			enabled: width < 600,
+			maxTouchPoints: 1
+		});
+		await page.viewport(width, 700);
+		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
+		const { container } = await render(DocumentToolbar, { controller });
+
+		expect(controller.musixmatchToolsEnabled).toBe(false);
+		expect(screen.queryByText('Genius', { exact: true })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Export to Musixmatch' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Copy Genius' })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeVisible();
+		if (width >= 600) {
+			expect(screen.getByRole('button', { name: 'Compare' })).toBeVisible();
+			expect(container.querySelectorAll('.document-toolbar__divider')).toHaveLength(1);
+		}
+
+		controller.setMusixmatchToolsEnabled(true);
+		await waitFor(() => expect(screen.getByText('Genius', { exact: true })).toBeVisible());
+		expect(screen.getByRole('button', { name: 'Export to Musixmatch' })).toBeVisible();
+		expect(screen.getByRole('button', { name: 'Copy Genius' })).toBeVisible();
+		expect(screen.queryByRole('button', { name: 'Copy lyrics' })).toBeNull();
+	}
+);
+
+test('a Musixmatch draft keeps its tag, export and copy label with Musixmatch tools off', async () => {
+	const { controller } = musixmatchWorkbench();
+	controller.setMusixmatchToolsEnabled(false);
+	await render(DocumentToolbar, { controller });
+	expect(screen.getByText('Musixmatch', { exact: true })).toBeVisible();
+	expect(screen.getByRole('button', { name: 'Export to Genius' })).toBeVisible();
+	expect(screen.getByRole('button', { name: 'Copy Musixmatch' })).toBeVisible();
 });
 
 test.each([1280, 360, 390])(
@@ -21,6 +70,7 @@ test.each([1280, 360, 390])(
 		});
 		await page.viewport(width, 700);
 		const { controller } = createTestWorkbench({ text: 'A [silver compass](123456) (nearby)' });
+		controller.setMusixmatchToolsEnabled(true);
 		const original = controller.snapshot;
 		await render(DocumentToolbar, { controller });
 		expect(screen.queryByRole('button', { name: 'Lyric format: Musixmatch' })).toBeNull();
@@ -49,6 +99,7 @@ test.each([1280, 360, 390])(
 
 test('refuses oversized output without truncating it or changing the primary, and guards departure', async () => {
 	const { controller } = createTestWorkbench({ text: 'Original words' });
+	controller.setMusixmatchToolsEnabled(true);
 	controller.setExport('Last saved output');
 	const original = controller.snapshot;
 	await render(DocumentToolbar, { controller });

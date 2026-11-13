@@ -9,8 +9,9 @@
 <!-- A new 'scribe asks for its format in the document itself (`DraftStart.svelte`).
      Once writing begins the format is fixed, so it is a tag in the segmented
      control's track rather than a control: the choice it reports, without a
-     raised face that would invite a press. -->
-{#if controller.writing.phase !== 'new'}
+     raised face that would invite a press. A Genius-only user has no other
+     format to tell it from, so the tag waits for Musixmatch tools. -->
+{#if controller.writing.phase !== 'new' && controller.showsFormatTools}
 	<span class="profile-picker profile-picker--fixed"
 		><FileTextIcon
 			class="profile-picker__icon"

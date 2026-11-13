@@ -2679,6 +2679,77 @@ test('creation preference changes deliberately and is independent of opening leg
 	expect(controller.profile).toBe('genius');
 });
 
+describe('Musixmatch tools preference', () => {
+	const musixmatchDraft = (id: string) => ({ ...draft(id), writing: legacyWriting('musixmatch') });
+
+	test('defaults off in a Genius-only workspace and keeps a Genius draft plain', async () => {
+		const { controller } = setup({});
+		await controller.refreshDrafts();
+		expect(controller.musixmatchToolsEnabled).toBe(false);
+		expect(controller.showsFormatTools).toBe(false);
+	});
+
+	test.each([
+		['a Musixmatch draft', musixmatchDraft('mm')],
+		[
+			'a Genius draft with an edited export',
+			{ ...draft('exported'), writing: withExportCopy(legacyWriting('genius'), 'Output\n') }
+		]
+	])('defaults on when the workspace holds %s', async (_label, other) => {
+		const initial = draft('draft-a');
+		const { controller } = setup({ initial, drafts: [initial, other] });
+		await controller.refreshDrafts();
+		expect(controller.profile).toBe('genius');
+		expect(controller.musixmatchToolsEnabled).toBe(true);
+		expect(controller.showsFormatTools).toBe(true);
+	});
+
+	test('a stored choice wins over the workspace', async () => {
+		const initial = draft('draft-a');
+		const repository = createInMemoryDraftRepository([initial, musixmatchDraft('mm')]);
+		await repository.setPreference('musixmatchTools', 'false');
+		const { controller } = setup({ initial, repository });
+		await controller.refreshDrafts();
+		await vi.waitFor(() => expect(controller.musixmatchToolsEnabled).toBe(false));
+		expect(controller.showsFormatTools).toBe(false);
+
+		controller.setMusixmatchToolsEnabled(true);
+		expect(controller.showsFormatTools).toBe(true);
+		expect(await repository.getPreference('musixmatchTools')).toBe('true');
+	});
+
+	test('a Musixmatch draft shows its tools whatever the setting', async () => {
+		const initial = musixmatchDraft('mm');
+		const { controller } = setup({ initial });
+		controller.setMusixmatchToolsEnabled(false);
+		expect(controller.profile).toBe('musixmatch');
+		expect(controller.showsFormatTools).toBe(true);
+	});
+
+	test('choosing Musixmatch for a new draft turns the tools on and keeps them on', async () => {
+		const initial = {
+			...draft('draft-a', ''),
+			writing: { schema: 1, phase: 'new', profile: 'genius' } as const
+		};
+		const { controller, repository } = setup({ initial });
+		await controller.refreshDrafts();
+		expect(controller.musixmatchToolsEnabled).toBe(false);
+		controller.switchProfile('genius');
+		expect(controller.musixmatchToolsEnabled).toBe(false);
+		controller.switchProfile('musixmatch');
+		expect(controller.musixmatchToolsEnabled).toBe(true);
+		expect(await repository.getPreference('musixmatchTools')).toBe('true');
+	});
+
+	test('a reset returns the session to the workspace default', async () => {
+		const { controller, repository } = setup({});
+		controller.setMusixmatchToolsEnabled(true);
+		await controller.deleteAllDrafts();
+		expect(await repository.getPreference('musixmatchTools')).toBeUndefined();
+		expect(controller.musixmatchToolsEnabled).toBe(false);
+	});
+});
+
 test('saved Musixmatch ownership and edited Genius output survive loading a Genius-ancestry model', async () => {
 	const model = importDocument({
 		text: '[Verse]\nA [silver compass](123456) (Whatever)',

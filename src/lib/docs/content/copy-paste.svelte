@@ -12,6 +12,8 @@
 </p>
 <p>
 	Use <strong>Export to Genius</strong> or <strong>Export to Musixmatch</strong> for the other format.
+	Genius 'scribes show their format and the export only with <strong>Musixmatch tools</strong> on in
+	Preferences. It turns on by itself once you create a Musixmatch 'scribe.
 	The dialog contains separate editable output. Copy and Download .txt use exactly that output; Edit lyrics
 	returns to the main draft. Output edits are remembered through closing, reload and switching drafts
 	until you edit the original lyrics or their formatting details. Changing a title or moving the caret
@@ -32,8 +34,8 @@
 
 <h2 id="copy">Copy the lyrics</h2>
 <p>
-	Press <strong>Copy Genius</strong> or <strong>Copy Musixmatch</strong> in the toolbar to copy the
-	whole 'scribe. The button reads
+	Press the toolbar's copy button to copy the whole 'scribe. It reads <strong>Copy Genius</strong> or
+	<strong>Copy Musixmatch</strong>, or <strong>Copy lyrics</strong> while Musixmatch tools is off. The button reads
 	<strong>Lyrics copied</strong> for a moment once the lyrics are on the clipboard. If the browser refuses,
 	a message asks you to check its clipboard permission.
 </p>

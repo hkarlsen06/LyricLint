@@ -89,6 +89,7 @@ describe('PreferencesPanel skimmability', () => {
 
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Grammar checking',
+			'Musixmatch tools',
 			'Workspace backup',
 			'Local data',
 			'Reviewed rules'
@@ -109,6 +110,7 @@ describe('PreferencesPanel skimmability', () => {
 
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Grammar checking',
+			'Musixmatch tools',
 			'Local data',
 			'Reviewed rules'
 		]);
@@ -213,6 +215,7 @@ describe('PreferencesPanel grammar toggle', () => {
 			expect(screen.queryByRole('switch', { name: 'Grammar checking' })).toBeNull()
 		);
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
+			'Musixmatch tools',
 			'Local data',
 			'Reviewed rules'
 		]);
@@ -223,6 +226,31 @@ describe('PreferencesPanel grammar toggle', () => {
 		await waitFor(() =>
 			expect(screen.getByRole('switch', { name: 'Grammar checking' })).toBeTruthy()
 		);
+	});
+});
+
+describe('PreferencesPanel Musixmatch tools', () => {
+	afterEach(cleanup);
+
+	test('reflects and writes the preference', async () => {
+		const { controller, repository } = createTestWorkbench();
+		await render(PreferencesPanel, { controller });
+
+		// A Genius-only workspace starts with the tools hidden.
+		const toggle = screen.getByRole('switch', { name: 'Musixmatch tools' });
+		expect(toggle).toHaveAttribute('aria-checked', 'false');
+		expect(toggle).toHaveAccessibleDescription(
+			"Show the format tag and Export to Musixmatch in Genius 'scribes. Creating a Musixmatch 'scribe turns this on."
+		);
+
+		await fireEvent.click(toggle);
+		await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'));
+		expect(controller.musixmatchToolsEnabled).toBe(true);
+		expect(await repository.getPreference('musixmatchTools')).toBe('true');
+
+		await fireEvent.click(toggle);
+		await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'));
+		expect(await repository.getPreference('musixmatchTools')).toBe('false');
 	});
 });
 

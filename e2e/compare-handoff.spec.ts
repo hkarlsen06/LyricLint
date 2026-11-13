@@ -30,9 +30,9 @@ for (const { width, profile, origin } of [
 			await expect(write).toBeFocused();
 			await expect(editor).toBeVisible();
 			await expect(editor).toContainText('Silver compass');
-			await expect(
-				page.getByRole('button', { name: `Copy ${profile}`, exact: true })
-			).toBeVisible();
+			// A Genius-only workspace keeps Musixmatch tools off, so its copy names the lyrics.
+			const copy = profile === 'Genius' ? 'Copy lyrics' : `Copy ${profile}`;
+			await expect(page.getByRole('button', { name: copy, exact: true })).toBeVisible();
 			await expect(documentControl).toHaveAttribute('aria-expanded', 'false');
 
 			for (const dismissal of ['Escape', 'Close', 'outside', 'Cancel then Escape']) {

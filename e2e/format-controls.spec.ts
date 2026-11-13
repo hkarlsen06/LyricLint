@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { enableMusixmatchTools } from './format-fixture.js';
 
 for (const [width, colorScheme] of [
 	[1440, 'dark'],
@@ -17,6 +18,7 @@ for (const [width, colorScheme] of [
 			page
 		}) => {
 			await page.goto('/workbench/');
+			await enableMusixmatchTools(page);
 			const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 			const title = page.getByRole('textbox', { name: "'Scribe title", exact: true });
 			await title.fill(

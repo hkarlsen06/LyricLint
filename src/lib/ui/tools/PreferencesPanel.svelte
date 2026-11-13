@@ -95,6 +95,27 @@
 		</section>
 	{/if}
 
+	<section aria-labelledby="musixmatch-tools-heading">
+		<div class="toggle-field preferences-panel__heading">
+			<h2 id="musixmatch-tools-heading">
+				<label for="musixmatch-tools-switch">Musixmatch tools</label>
+			</h2>
+			<Switch.Root
+				id="musixmatch-tools-switch"
+				class="switch"
+				aria-describedby="musixmatch-tools-description"
+				checked={controller.musixmatchToolsEnabled}
+				onCheckedChange={(checked) => controller.setMusixmatchToolsEnabled(checked)}
+			>
+				<Switch.Thumb class="switch__thumb" />
+			</Switch.Root>
+		</div>
+		<p id="musixmatch-tools-description">
+			Show the format tag and Export to Musixmatch in Genius 'scribes. Creating a Musixmatch 'scribe
+			turns this on.
+		</p>
+	</section>
+
 	{#if controller.backup}
 		<section aria-labelledby="backup-heading">
 			<h2 id="backup-heading">Workspace backup</h2>

@@ -125,6 +125,14 @@
 		controller.setTitle(input.value);
 	}
 
+	// Without the other format in view there is nothing to tell this copy apart
+	// from, so it names the lyrics rather than their format.
+	const copyLabel = $derived(
+		!controller.showsFormatTools
+			? 'Copy lyrics'
+			: `Copy ${controller.profile === 'genius' ? 'Genius' : 'Musixmatch'}`
+	);
+
 	// The confirmation is the button itself, so nothing else has to appear to say
 	// the copy landed; it reverts on its own because there is no other way out.
 	let copied = $state(false);
@@ -343,7 +351,7 @@
 		{#if phone.current}<ProfilePicker {controller} />{/if}
 		{#if !phone.current}{@render secondaryCommands()}{/if}
 		{#if !controller.isEmpty}
-			{#if !controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery}<ExportDialog
+			{#if controller.showsFormatTools && !controller.snapshot.conversionRecovery && !controller.snapshot.originalRecovery}<ExportDialog
 					{controller}
 				/>{/if}
 			<button type="button" class="button button--contrast" onclick={copyLyrics}>
@@ -353,9 +361,7 @@
 					<CopyIcon aria-hidden="true" size={16} weight="bold" />
 				{/if}
 				<span class="copy-label">
-					<span class:copy-label__hidden={copied} aria-hidden={copied}
-						>Copy {controller.profile === 'genius' ? 'Genius' : 'Musixmatch'}</span
-					>
+					<span class:copy-label__hidden={copied} aria-hidden={copied}>{copyLabel}</span>
 					<span class:copy-label__hidden={!copied} aria-hidden={!copied}>Lyrics copied</span>
 				</span>
 			</button>

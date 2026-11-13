@@ -1,4 +1,4 @@
-import { exportOutput } from './format-fixture.js';
+import { enableMusixmatchTools, exportOutput } from './format-fixture.js';
 import { expect, test, type Page } from '@playwright/test';
 
 async function text(page: Page): Promise<string> {
@@ -30,6 +30,7 @@ test('native immediate reload preserves the pending words and selected lyric for
 	page
 }) => {
 	await page.goto('/workbench/');
+	await enableMusixmatchTools(page);
 	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 	await editor.fill('[Verse]\nSilver moon');
 	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/u })).toBeAttached();
@@ -151,6 +152,7 @@ test('failed departure recovery keeps the workbench accessible when an in-app ex
 
 test('each draft restores its own format and lyrics after immediate reload', async ({ page }) => {
 	await page.goto('/workbench/');
+	await enableMusixmatchTools(page);
 	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 	const title = page.getByRole('textbox', { name: "'Scribe title", exact: true });
 	await editor.fill('[Verse]\nMoon words');

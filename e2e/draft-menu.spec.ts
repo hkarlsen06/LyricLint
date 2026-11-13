@@ -82,7 +82,7 @@ for (const width of [1280, 360, 390]) {
 					'data-entrance-pending',
 					'false'
 				);
-				await expect(page.getByRole('button', { name: 'Copy Genius', exact: true })).toBeVisible();
+				await expect(page.getByRole('button', { name: 'Copy lyrics', exact: true })).toBeVisible();
 				await editor.press('ControlOrMeta+End');
 				await editor.pressSequentially(' in the copy');
 				await exportedLyrics(page, copy, `${source} in the copy`, touch);

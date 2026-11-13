@@ -1,4 +1,4 @@
-import { importPrimary, exportOutput } from './format-fixture.js';
+import { enableMusixmatchTools, importPrimary, exportOutput } from './format-fixture.js';
 import { expect, test, type Page } from '@playwright/test';
 
 // Functional cases need the ready workspace. Keep the complete animated startup
@@ -38,6 +38,7 @@ test('phone independent export preserves multilingual lyrics and retained annota
 	page
 }) => {
 	await openWorkspace(page);
+	await enableMusixmatchTools(page);
 	const source = '[Verse]\n[مرحبا](123) — café\n\n[Chorus]\n夜の光 🎵';
 	const plain = 'مرحبا — café\n\n夜の光 🎵';
 	await replaceLyrics(page, source);
@@ -162,7 +163,7 @@ test('phone review fixes a finding beside its lyric passage and returns to writi
 			}
 		});
 	});
-	await page.getByRole('button', { name: 'Copy Genius' }).click();
+	await page.getByRole('button', { name: 'Copy lyrics' }).click();
 	await expect(page.locator('html')).toHaveAttribute('data-copied-lyrics', "[Verse]\nI'ma go");
 	await page.getByRole('button', { name: 'Document', exact: true }).click();
 	await page.getByRole('button', { name: 'Undo', exact: true }).click();

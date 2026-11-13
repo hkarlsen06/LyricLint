@@ -38,6 +38,21 @@ export async function importPrimary(page: Page, text: string, profile: ProfileId
 		.toBe(conversion.projectionText);
 }
 
+/** Turn on Musixmatch tools in Preferences, which Genius drafts need for their export. */
+export async function enableMusixmatchTools(page: Page) {
+	await expect(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+	const views = page.getByRole('navigation', { name: 'Workbench views' });
+	const phone = await views.isVisible();
+	if (phone) await views.getByRole('button', { name: 'Tools', exact: true }).click();
+	await page.getByRole('tab', { name: 'Preferences', exact: true }).click();
+	const toggle = page.getByRole('switch', { name: 'Musixmatch tools' });
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-checked', 'true');
+	if (phone) await views.getByRole('button', { name: 'Write', exact: true }).click();
+	else await page.getByRole('tab', { name: /^Review/u }).click();
+	await expect(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+}
+
 export async function exportOutput(page: Page, profile: 'Genius' | 'Musixmatch', expected: string) {
 	await page.getByRole('button', { name: `Export to ${profile}`, exact: true }).click();
 	await expect(page.getByRole('textbox', { name: `${profile} output` })).toHaveValue(expected);

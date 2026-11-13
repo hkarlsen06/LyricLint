@@ -42,7 +42,9 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   or importing a saved draft never changes it. Legacy records use their saved conversion
   profile, or Genius when absent, regardless of retained model ancestry.
 - The populated toolbar names the main format, copies its exact text, and offers Export to
-  the other format. The native export dialog edits independent plain output, never editor
+  the other format. In a Genius draft the `Musixmatch tools` preference gates the tag and the
+  export; while it is off neither draws and the copy reads `Copy lyrics`. A Musixmatch draft
+  always draws both (`controller.showsFormatTools`). The native export dialog edits independent plain output, never editor
   history, source metadata or selection. It is a title bar (heading, the edit-scope sentence,
   an icon `Close`), a body, and a chrome action band: `Edit lyrics` at the leading
   end, `Download .txt` and the contrast `Copy` together at the trailing end. Copy and Download use the exact edited output.
@@ -117,7 +119,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   Opening captures the selected passage before focusing the trigger and showing the modal. Native close returns to that noneditable control directly; it must not briefly refocus the editor before explicit restoration.
   Document and passage language commands share bounded code validation. Invalid custom codes stay in the dialog with an announced field error and leave draft state unchanged. Escape from any dialog control returns to its trigger. Writing controls include their visible Selection language label in the accessible name; the dialog keeps its separate scope heading.
 
-- Song follows the section at the caret, with no section chooser or duplicate section heading. Advanced tools stays closed for normal Song viewing and contains the Genius reference editor, exact line timing and retained metadata. An explicit section request replaces the ordinary Song content with that section’s editor, with type and source label before Boundary and voice options. The requested identity stays fixed while the caret moves. Back to Song closes the tools and restores summary focus; Review requests retain Back to Review. Removing the last boundary closes the editor instead of leaving an empty chooser. Adding a section is an explicit action at the cursor, not a permanent form. A saved Genius page remains directly reachable as a link. Document language and content type share the named disclosure beside document exports. Available timed exports follow those files before the growing passage tools. Passage language is direct afterward and uses the shared searchable language dialog with an explicit custom-code path. Other selected passage tools and retained details open deliberately. Clear this transcription is separate from export actions. Preferences exposes workspace backup actions directly; Local data and Reviewed rules remain secondary disclosures.
+- Song follows the section at the caret, with no section chooser or duplicate section heading. Advanced tools stays closed for normal Song viewing and contains the Genius reference editor, exact line timing and retained metadata. An explicit section request replaces the ordinary Song content with that section’s editor, with type and source label before Boundary and voice options. The requested identity stays fixed while the caret moves. Back to Song closes the tools and restores summary focus; Review requests retain Back to Review. Removing the last boundary closes the editor instead of leaving an empty chooser. Adding a section is an explicit action at the cursor, not a permanent form. A saved Genius page remains directly reachable as a link. Document language and content type share the named disclosure beside document exports. Available timed exports follow those files before the growing passage tools. Passage language is direct afterward and uses the shared searchable language dialog with an explicit custom-code path. Other selected passage tools and retained details open deliberately. Clear this transcription is separate from export actions. Preferences exposes the `Musixmatch tools` switch and workspace backup actions directly; Local data and Reviewed rules remain secondary disclosures.
   Local data explains reset consequences before its action. The warning and reset target stay
   in place through confirmation and cancellation.
   Escape closes a language picker even when its search has text, returning focus to its trigger.
@@ -149,7 +151,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   behave exactly as without it, and its exit moves no lyric line. It fades out over `--duration-fast` once writing begins, instantly under reduced
   motion. While it is open the toolbar draws no format and no format divider. Once writing
   begins the format is a static tag in the toolbar's track, never a raised face that invites
-  a press. Once writing begins, the toolbar names that fixed format and offers its direct Copy action and the opposite-format export.
+  a press. Once writing begins, the toolbar names that fixed format and offers its direct Copy action and the opposite-format export, unless `Musixmatch tools` hides them in a Genius draft.
   Recognized headings supply their supported section types automatically.
   Review owns the deliberate type choice and Save action for custom or unsupported labels. Song keeps advanced section editing, voices, annotations,
   language spans, authored forms and explicit conversion decisions. Hidden information is reviewed
@@ -221,7 +223,9 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   New; a hairline divider parts the command strip into the document's history and language
   (muted quiet controls) and its outputs: Compare and Export at full tone with their
   glyphs, then the contrast action. Dividers are decoration (`aria-hidden`) and never
-  children the button order tests count. Phones keep the tag on the command row.
+  children the button order tests count. Phones keep the tag on the command row. When
+  `Musixmatch tools` hides the tag and Export, the divider still parts language from Compare
+  and the copy.
   The draft-title group shrinks within the identity strip, truncating a long title before
   it can overlap Open, New or the document commands. The complete title remains editable.
 - When Undo or Redo exhausts its history while holding focus, focus moves to the available
@@ -307,6 +311,11 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   other language before its download, so under Norwegian the switch would be an answer that
   cannot be carried out. The app-scoped preference keeps its stored value; only the control
   waits. Pinned in `PreferencesPanel.svelte.test.ts`.
+- `Musixmatch tools` draws in every language. Its stored value (`musixmatchTools`) wins; with
+  none stored it is on once any draft in the workspace is Musixmatch or carries an edited
+  export, so Genius-only users start without the other format's tools. Choosing Musixmatch for
+  a new draft stores it on. The controller owns the derivation; components read only
+  `musixmatchToolsEnabled` and `showsFormatTools`.
 - Every transient surface dismisses on `Escape`, its own control, and an outside press: use
   `dismissOnOutside`, never a hand-rolled listener; the callback moves no focus and abandons
   pending state. Dropping the closing control requires naming the visible exit that replaces it.
