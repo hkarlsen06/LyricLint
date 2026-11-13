@@ -9,6 +9,7 @@
 	import type { WorkbenchController, ConversionReviewRequest } from '../state/workbench.svelte.js';
 	import ConversionFacts from './ConversionFacts.svelte';
 	import InlineDiffText from '../primitives/InlineDiffText.svelte';
+	import { Select } from '../primitives/select/index.js';
 	import { conversionContext } from './conversion-context.js';
 	let {
 		controller,
@@ -454,17 +455,19 @@
 				{#if surface === 'result' && shown?.ok && shown.action.kind === 'replaceRepeatPlaceholder'}
 					<div class="repeat-dialog__navigation">
 						{#if shown.action.copies > 1}
-							<label>
-								<span>Go to copy</span>
-								<select
-									bind:value={copyDestination}
-									onchange={(event) => goToCopy(Number(event.currentTarget.value))}
-								>
-									{#each Array.from({ length: shown.action.copies }, (_, index) => index) as index (index)}
-										<option value={index}>{index + 1} of {shown.action.copies}</option>
-									{/each}
-								</select>
-							</label>
+							<Select
+								label="Go to copy"
+								compact
+								value={String(copyDestination)}
+								options={Array.from({ length: shown.action.copies }, (_, index) => ({
+									value: String(index),
+									label: `${index + 1} of ${shown.action.copies}`
+								}))}
+								onchange={(index) => {
+									copyDestination = Number(index);
+									goToCopy(copyDestination);
+								}}
+							/>
 						{/if}
 						<button
 							class="button button--quiet"
@@ -682,14 +685,12 @@
 		gap: var(--space-3);
 		padding: 0 var(--space-4) var(--space-3);
 	}
-	.repeat-dialog__navigation label {
-		display: flex;
+	/* The label sits beside its select, so the row keeps one control's height. */
+	.repeat-dialog__navigation :global(.ui-select) {
+		grid-auto-flow: column;
 		align-items: center;
-		gap: var(--space-2);
-		min-width: 0;
 	}
-	.repeat-dialog__navigation select {
-		min-width: 0;
+	.repeat-dialog__navigation :global(.ui-select .ui-select__trigger) {
 		font-size: var(--font-size-editor);
 	}
 	.repeat-dialog__body {

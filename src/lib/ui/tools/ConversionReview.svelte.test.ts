@@ -1,7 +1,7 @@
 import { fireEvent, within, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test } from 'vitest';
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { chooseOption, createTestWorkbench, diagnostic } from '../test-utils.js';
 import { importDocument, renderProfile, reconcileEdit } from '#lib/conversion/index.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
@@ -583,9 +583,9 @@ test.each([1280, 360, 390])(
 			viewer.getBoundingClientRect().bottom
 		);
 		const destination = within(viewer).getByLabelText('Go to copy');
-		expect(destination).toHaveValue('0');
+		expect(destination).toHaveTextContent('1 of 2');
 		const destinationPosition = destination.getBoundingClientRect().toJSON();
-		await fireEvent.change(destination, { target: { value: '1' } });
+		await chooseOption(destination, '2 of 2');
 		expect(scrollport.scrollTop).toBeGreaterThan(0);
 		const copyStart = document.createRange();
 		copyStart.setStart(complete.firstChild!, long.length + 1);
@@ -602,7 +602,12 @@ test.each([1280, 360, 390])(
 		expect(destination.getBoundingClientRect().toJSON()).toEqual(destinationPosition);
 		expect(readerApply.getBoundingClientRect().toJSON()).toEqual(readerApplyPosition);
 		expect(complete.textContent).toBe(long + '\n' + long);
-		await fireEvent.change(destination, { target: { value: '0' } });
+		// Escape closes the open list, not the dialog the list sits in.
+		await userEvent.click(destination);
+		await userEvent.keyboard('{Escape}');
+		await waitFor(() => expect(destination).toHaveAttribute('aria-expanded', 'false'));
+		expect(viewer).toHaveProperty('open', true);
+		await chooseOption(destination, '1 of 2');
 		expect(scrollport.scrollTop).toBeLessThan(1);
 		await fireEvent.click(within(viewer).getByRole('button', { name: 'Close' }));
 		expect(fullResult).toHaveFocus();
@@ -647,7 +652,7 @@ test.each([1, 100])(
 		expect(complete.textContent).toBe(Array(copies).fill(plain).join('\n'));
 		if (copies > 1) {
 			const destination = within(viewer).getByLabelText('Go to copy');
-			await fireEvent.change(destination, { target: { value: '99' } });
+			await chooseOption(destination, '100 of 100');
 			expect(complete.parentElement!.scrollTop).toBeGreaterThan(0);
 			const copyStart = document.createRange();
 			copyStart.setStart(complete.firstChild!, Array(99).fill(plain).join('\n').length + 1);
