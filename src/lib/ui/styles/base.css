@@ -64,6 +64,13 @@ a:hover {
 	outline-offset: var(--focus-ring-offset);
 }
 
+/* A modal dialog that holds focus itself is where Tab starts, not a control.
+   WebKit matches `:focus-visible` there after a click, and the ring traced the
+   whole dialog with its panes painting over parts of it. */
+dialog:focus-visible {
+	outline: none;
+}
+
 /*
  * Native selection paints over an element's own background, so an opaque wash
  * stays visible on the tinted chips, badges, and lyric excerpts in the panels.
