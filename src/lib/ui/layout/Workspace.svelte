@@ -900,9 +900,10 @@
 			editorExpanded = false;
 			if (phone.current) mobileView = 'tools';
 		},
-		onSectionHeaderRequest: () => {
-			if (controller.profile === 'musixmatch') controller.insertSection();
-		},
+		// Either format answers this inside the editor: Genius picks a header,
+		// Musixmatch tags the stanza. The shell only carries out the tag.
+		onSectionHeaderRequest: () => {},
+		onConversionAction: (action) => controller.applyConversionAction(action),
 		// `Ctrl-Alt-U`, and the action bar's own press goes through the controller
 		// directly, and it is one implementation either way, because the edit is the
 		// session's to dispatch.

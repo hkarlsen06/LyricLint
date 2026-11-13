@@ -73,7 +73,13 @@ type OverlayState =
 			 */
 			pendingVoice?: readonly PerformerId[];
 	  }
-	| { kind: 'section'; range: TextRange };
+	| { kind: 'section'; range: TextRange }
+	/**
+	 * The tag of a headerless draft's stanza. `range` is the stanza's first
+	 * line and `at` where its boundary sits or would sit; whether a section
+	 * already begins there is read from the document when the card draws.
+	 */
+	| { kind: 'sectionTag'; range: TextRange; at: number };
 
 /** The overlay plus the suppression that outlives any single overlay. */
 export interface OverlaySession {
@@ -146,6 +152,14 @@ export function beginLegendAssignment(
 
 export function openSectionPicker(session: OverlaySession, range: TextRange): OverlaySession {
 	return withOverlay(session, { kind: 'section', range });
+}
+
+export function openSectionTagPicker(
+	session: OverlaySession,
+	range: TextRange,
+	at: number
+): OverlaySession {
+	return withOverlay(session, { kind: 'sectionTag', range, at });
 }
 
 /**

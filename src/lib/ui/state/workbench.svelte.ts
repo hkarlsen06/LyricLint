@@ -1567,17 +1567,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			);
 		},
 		insertSection() {
-			if (controller.profile === 'genius') {
-				editorSession.insertSection();
-				return;
-			}
-			const snapshot = editorSession.snapshot;
-			const conversion = snapshot.conversion;
-			const projection = conversion && renderProfile(conversion.model, conversion.profile);
-			const section = projection?.ok
-				? projection.value.sections.filter((entry) => entry.at <= snapshot.selection.head).at(-1)
-				: undefined;
-			controller.openSectionDetails(section?.id ?? 'new');
+			editorSession.insertSection();
 		},
 		get searchOpen() {
 			return editorSession.searchOpen;

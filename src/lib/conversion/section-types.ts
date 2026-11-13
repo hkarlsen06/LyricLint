@@ -3,6 +3,8 @@ import type { SectionRecord } from './model.js';
 import { canRetainSectionHeader } from './section-placement.js';
 import { getLanguagePack, headerSemanticKey, semanticPartKey } from '#lib/languages/registry.js';
 
+export type SectionType = NonNullable<SectionRecord['type']>;
+
 /** Shared order for deliberate Musixmatch type choices in Review and Song. */
 export const sectionTypeChoices: readonly NonNullable<SectionRecord['type']>[] = [
 	'Intro',

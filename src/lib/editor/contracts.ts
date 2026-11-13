@@ -166,6 +166,11 @@ interface EditorOverlayCallbacks {
 	/** A deliberate pointer press; true means Review handled it instead of a popover. */
 	onDiagnosticReviewRequest?(diagnostic: Diagnostic, range?: TextRange): boolean;
 	onDiagnosticActivateIntent?(diagnostic: Diagnostic, intent: 'navigate' | 'fix'): void;
+	/**
+	 * Carry out a retained-detail decision made in an editor overlay, such as a
+	 * stanza's section tag. False means the shell refused and has said why.
+	 */
+	onConversionAction?(action: import('#lib/conversion/index.js').ConversionAction): boolean;
 	/** Open the retained details of a stable section identity, including empty sections. */
 	onSectionDetailRequest?(sectionId: string): void;
 	/** Apply the same touched performer identities as this history event before publishing its snapshot. */

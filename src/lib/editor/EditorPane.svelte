@@ -42,6 +42,7 @@
 		forgetDismissedSelection,
 		openPerformerPicker,
 		openSectionPicker,
+		openSectionTagPicker,
 		overlayRange,
 		releaseUnanchoredDiagnostic,
 		reportSelectionAnchor,
@@ -51,6 +52,11 @@
 	import type DiagnosticPopoverComponent from './overlays/DiagnosticPopover.svelte';
 	import type PerformerPickerComponent from './overlays/PerformerPicker.svelte';
 	import type SectionPickerComponent from './overlays/SectionPicker.svelte';
+	import type SectionTagPickerComponent from './overlays/SectionTagPicker.svelte';
+	import { conversionForState } from './extensions/conversion-state.js';
+	import { stanzaOutline, stanzaStartAt, taggedSections } from '#lib/conversion/stanzas.js';
+	import { sectionTypeLabel, type SectionType } from '#lib/conversion/section-types.js';
+	import type { ConversionAction } from '#lib/conversion/index.js';
 	import LazyContent from '#lib/interaction/LazyContent.svelte';
 	import PendingEditorOverlay from './overlays/PendingEditorOverlay.svelte';
 
@@ -138,6 +144,7 @@
 	// the overlay's own callbacks fire from.
 	const performerOverlay = $derived(overlay.kind === 'performer' ? overlay : undefined);
 	const sectionOverlay = $derived(overlay.kind === 'section' ? overlay : undefined);
+	const sectionTagOverlay = $derived(overlay.kind === 'sectionTag' ? overlay : undefined);
 	const diagnosticOverlay = $derived(overlay.kind === 'diagnostic' ? overlay : undefined);
 	const legend = $derived(performerOverlay?.legend);
 	const pendingVoice = $derived(performerOverlay?.pendingVoice);
@@ -403,13 +410,34 @@
 				session = openPerformerPicker(session, request.range, true);
 				callbacks.onAssignRequest(request);
 			},
+			// A headerless draft has no header to write. The same command tags the
+			// stanza the caret is in, and the card opens on that stanza's first line.
 			onSectionHeaderRequest(request) {
 				if (context.profile === 'musixmatch') {
+					const view = editor?.view;
+					if (view)
+						openSectionTag(
+							stanzaStartAt(
+								view.state.doc.toString(),
+								view.state.selection.main.head,
+								sectionTags().sections
+							)
+						);
 					callbacks.onSectionHeaderRequest(request);
 					return;
 				}
 				session = openSectionPicker(session, request.range);
 				callbacks.onSectionHeaderRequest(request);
+			},
+			// A tag pressed in a headerless draft changes in place; the section's
+			// full options stay one press further, inside the card.
+			onSectionDetailRequest(sectionId) {
+				const section =
+					context.profile === 'musixmatch'
+						? sectionTags().sections.find((entry) => entry.id === sectionId)
+						: undefined;
+				if (section) openSectionTag(section.at);
+				else callbacks.onSectionDetailRequest?.(sectionId);
 			},
 			// Linking is a persistent shell workspace, opened only by an explicit request.
 			onSectionLinkRequest(request, origin) {
@@ -605,6 +633,74 @@
 		return sections
 			.slice(0, headersBeforeEnd)
 			.flatMap((section) => (section.header ? [section.header.rawNamePart] : []));
+	}
+
+	function openSectionTag(at: number): void {
+		const view = editor?.view;
+		if (!view) return;
+		const line = view.state.doc.lineAt(Math.min(at, view.state.doc.length));
+		session = openSectionTagPicker(session, { from: line.from, to: line.to }, at);
+	}
+
+	/** The draft's placed sections and stanzas, read when a tag card draws or answers. */
+	function sectionTags() {
+		const view = editor?.view;
+		const conversion = view && conversionForState(view.state);
+		const sections = conversion
+			? taggedSections(conversion.envelope.model, conversion.projection)
+			: [];
+		return { sections, rows: view ? stanzaOutline(view.state.doc.toString(), sections) : [] };
+	}
+
+	/** What an open tag card is about. Read once as it opens, and again by each answer. */
+	function sectionTagTarget(at: number) {
+		const { sections, rows } = sectionTags();
+		const view = editor?.view;
+		const line = view?.state.doc.lineAt(Math.min(at, view.state.doc.length));
+		return {
+			at,
+			section: sections.find((entry) => entry.at === at),
+			suggested: rows.find((row) => row.from === at)?.suggestion,
+			opening: line?.text ?? '',
+			line: line?.number ?? 1
+		};
+	}
+	const sectionTag = $derived(sectionTagOverlay && sectionTagTarget(sectionTagOverlay.at));
+
+	// Each answer closes the card, so it takes its target before the close
+	// retires the derived the markup reads.
+	function answerSectionTag(action: (target: NonNullable<typeof sectionTag>) => void): void {
+		const target = sectionTag;
+		session = closeOverlay(session);
+		if (target) action(target);
+	}
+
+	function chooseSectionTag(type: SectionType): void {
+		answerSectionTag(({ at, section, line }) => {
+			const action: ConversionAction = section
+				? { kind: 'setSectionType', sectionId: section.id, type }
+				: { kind: 'insertSection', at, type };
+			if (callbacks.onConversionAction?.(action))
+				callbacks.onAnnouncement(
+					`${sectionTypeLabel(type)} tag ${section ? 'set' : 'added'} on line ${line}.`
+				);
+		});
+	}
+
+	function removeSectionTag(): void {
+		answerSectionTag(({ section, line }) => {
+			if (
+				section &&
+				callbacks.onConversionAction?.({ kind: 'removeSection', sectionId: section.id })
+			)
+				callbacks.onAnnouncement(`Section tag removed from line ${line}.`);
+		});
+	}
+
+	function openSectionOptions(): void {
+		answerSectionTag(({ section }) => {
+			if (section) callbacks.onSectionDetailRequest?.(section.id);
+		});
 	}
 
 	async function chooseSection(choice: SectionHeaderChoice): Promise<void> {
@@ -822,7 +918,8 @@
 {#snippet overlays(
 	PerformerPicker: typeof PerformerPickerComponent,
 	SectionPicker: typeof SectionPickerComponent,
-	DiagnosticPopover: typeof DiagnosticPopoverComponent
+	DiagnosticPopover: typeof DiagnosticPopoverComponent,
+	SectionTagPicker: typeof SectionTagPickerComponent
 )}
 	{#if performerOverlay}
 		{#key legend?.step ?? (pendingVoice ? 'section-voice' : 'selection')}
@@ -867,6 +964,21 @@
 			range={sectionOverlay.range}
 			anchor={overlayAnchor}
 			onChoose={chooseSection}
+			onCancel={() => (session = closeOverlay(session))}
+			{returnFocus}
+		/>
+	{:else if sectionTag}
+		<SectionTagPicker
+			current={sectionTag.section?.type}
+			currentName={sectionTag.section && !sectionTag.section.type
+				? sectionTag.section.name
+				: undefined}
+			suggested={sectionTag.suggested}
+			opening={sectionTag.opening}
+			anchor={overlayAnchor}
+			onChoose={chooseSectionTag}
+			onRemove={sectionTag.section?.removable ? removeSectionTag : undefined}
+			onOptions={sectionTag.section ? openSectionOptions : undefined}
 			onCancel={() => (session = closeOverlay(session))}
 			{returnFocus}
 		/>
@@ -923,6 +1035,7 @@
 					<PendingEditorOverlay
 						anchor={overlayAnchor}
 						takeFocus={overlay.kind === 'section' ||
+							overlay.kind === 'sectionTag' ||
 							(overlay.kind !== 'none' && overlay.takesFocus)}
 						hover={overlay.kind === 'diagnostic'}
 						onDismiss={dismissPendingOverlay}
