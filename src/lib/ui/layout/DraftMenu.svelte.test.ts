@@ -3,7 +3,7 @@ import { page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { DraftRecord } from '#lib/core/types.js';
-import { createTestWorkbench } from '../test-utils.js';
+import { chooseOption, createTestWorkbench } from '../test-utils.js';
 import DraftMenu from './DraftMenu.svelte';
 
 function secondDraft(): DraftRecord {
@@ -61,11 +61,19 @@ describe('DraftMenu', () => {
 				target: { files: [file] }
 			});
 			const source = screen.getByRole('combobox', { name: 'Source format' });
-			expect((source as HTMLSelectElement).value).toBe('musixmatch');
+			expect(source.textContent).toContain('Musixmatch');
 			expect(trigger.getBoundingClientRect().top).toBe(before.top);
 			expect(source.getBoundingClientRect().right).toBeLessThanOrEqual(width);
 			expect(parseFloat(getComputedStyle(source).fontSize)).toBeGreaterThanOrEqual(16);
-			await fireEvent.change(source, { target: { value: 'genius' } });
+			await chooseOption(source, 'Genius');
+			// Choosing from the portalled list is a press on the menu's own control.
+			expect(document.querySelector('details')?.open).toBe(true);
+			// Escape closes the open list first and leaves the menu standing.
+			await userEvent.click(source);
+			await userEvent.keyboard('{Escape}');
+			await waitFor(() => expect(source.getAttribute('aria-expanded')).toBe('false'));
+			expect(document.querySelector('details')?.open).toBe(true);
+			expect(document.activeElement).toBe(source);
 			await fireEvent.click(screen.getByRole('button', { name: 'Open lyrics' }));
 			expect(importLyrics).toHaveBeenCalledWith(file, 'genius');
 			await waitFor(() => expect(document.querySelector('details')?.open).toBe(false));

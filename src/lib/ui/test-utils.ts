@@ -265,3 +265,15 @@ export function createTestWorkbench(options?: {
 
 	return { controller, repository, feedback, calls, editor, initialDraft };
 }
+
+/**
+ * Choose a row of the shared `Select` the way a user does: press the combobox,
+ * then press the option in its list, which is portalled out of the component.
+ * `vitest/browser` is imported here rather than at the top because Node tests
+ * import this file too.
+ */
+export async function chooseOption(combobox: Element, name: string): Promise<void> {
+	const { page, userEvent } = await import('vitest/browser');
+	await userEvent.click(combobox);
+	await page.getByRole('option', { name, exact: true }).click();
+}

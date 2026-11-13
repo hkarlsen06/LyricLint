@@ -1,10 +1,16 @@
 <script lang="ts">
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import { dismissOnOutside } from '#lib/interaction/dismiss.js';
+	import { dismissOnOutside, openListOwnsEscape } from '#lib/interaction/dismiss.js';
 	import LazyContent from '#lib/interaction/LazyContent.svelte';
 	import { untrack } from 'svelte';
 	import type { ProfileId } from '#lib/profiles/types.js';
+	import { Select } from '../primitives/select/index.js';
+
+	const sourceFormats = [
+		{ value: 'genius', label: 'Genius' },
+		{ value: 'musixmatch', label: 'Musixmatch' }
+	] as const satisfies readonly { value: ProfileId; label: string }[];
 
 	let { controller, open = $bindable(false) }: { controller: WorkbenchController; open?: boolean } =
 		$props();
@@ -26,7 +32,7 @@
 		pendingLyrics = undefined;
 	}
 	function handleKeydown(event: KeyboardEvent): void {
-		if (event.key !== 'Escape' || !menu?.open) return;
+		if (event.key !== 'Escape' || !menu?.open || openListOwnsEscape(event.target)) return;
 		event.preventDefault();
 		dismiss();
 		menuTrigger?.focus();
@@ -122,13 +128,13 @@
 					}}
 				>
 					<p>Open {pendingLyrics.name}</p>
-					<label
-						>Source format
-						<select bind:value={sourceProfile} disabled={importing}>
-							<option value="genius">Genius</option>
-							<option value="musixmatch">Musixmatch</option>
-						</select>
-					</label>
+					<Select
+						label="Source format"
+						value={sourceProfile}
+						options={sourceFormats}
+						onchange={(profile) => (sourceProfile = profile)}
+						disabled={importing}
+					/>
 					<p>The lyrics open exactly as written. Switch format afterward to convert them.</p>
 					<div class="tool-actions">
 						<button class="button button--contrast" type="submit" disabled={importing}
@@ -257,13 +263,9 @@
 		margin-block: var(--space-4);
 		overflow-wrap: anywhere;
 	}
-	.draft-menu__lyrics-import label {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-3);
-	}
-	.draft-menu__lyrics-import select {
+	/* Read from on a phone the moment a text file is picked, so it keeps the
+	   16px floor at every width, as the native select here did. */
+	.draft-menu__lyrics-import :global(.ui-select__trigger) {
 		font-size: var(--font-size-editor);
 	}
 	.draft-menu__lyrics-import p {
