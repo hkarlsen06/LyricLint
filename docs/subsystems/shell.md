@@ -342,6 +342,10 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
 - Every transient surface dismisses on `Escape`, its own control, and an outside press: use
   `dismissOnOutside`, never a hand-rolled listener; the callback moves no focus and abandons
   pending state. Dropping the closing control requires naming the visible exit that replaces it.
+  A shared `Select`'s list is portalled out of the surface that opened it, so `dismissOnOutside`
+  counts a press on a list as inside when that list's combobox is inside the surface, and a
+  surface with its own Escape handler stands down while `openListOwnsEscape` holds: the first
+  Escape closes the list, the next closes the surface.
 - The assistant transcript follows its own foot via `stickToBottom()`: unpinned only by an
   upward move (or wheel/touch intent), re-pinned only at the foot; instant scroll, deferred to
   `requestAnimationFrame`. No `Jump to latest` control.

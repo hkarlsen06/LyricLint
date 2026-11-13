@@ -99,14 +99,12 @@ for (const width of [1440, 390, 360]) {
 				save: await save.boundingBox(),
 				next: await next.boundingBox()
 			};
-			// ArrowDown opens the list on its first type and Enter chooses it; the
-			// form is then submitted from Save, as it is after a pointer choice.
+			// ArrowDown opens the list on its first type and Enter chooses it. A
+			// choice alone saves nothing: the count holds until Save.
 			await select.focus();
 			await select.press('ArrowDown');
 			await select.press('Enter');
-			await select.press('Tab');
-			await expect(save).toBeFocused();
-			await save.press('Enter');
+			await expect(select).toHaveText('Intro');
 			await expect(region.getByRole('heading')).toHaveText('Retained details (2)');
 			await expect.poll(() => lyrics(page)).toBe(plain);
 			await next.click();
@@ -249,13 +247,17 @@ test.describe('touch controls', () => {
 		expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
 			true
 		);
+		// A tag opens its card in the lyrics; the section's options are one press on.
 		await page.locator('.ll-conversion-section').first().click();
+		await page.getByRole('button', { name: 'Section options', exact: true }).tap();
 		await expect(page.getByRole('heading', { name: /Section 1/ })).toBeVisible();
 		await expect(control).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Show passage', exact: true })).toHaveCount(0);
 		await page.getByRole('button', { name: 'Back to Song', exact: true }).tap();
-		const tools = page.getByText('Advanced tools', { exact: true });
-		await expect(tools).toBeFocused();
+		// Back lands on the row in the Sections outline that leads to this section.
+		await expect(
+			page.getByRole('button', { name: 'Verse section options, line 1', exact: true })
+		).toBeFocused();
 		await expect(page.locator('.song-panel__advanced')).not.toHaveAttribute('open', '');
 		await expect(page.getByRole('combobox', { name: 'Choose a section' })).toHaveCount(0);
 		await page
@@ -335,6 +337,7 @@ test('reopens a rich draft and exports entirely offline', async ({ page, context
 	await expect.poll(() => lyrics(page)).toBe('Under the moon');
 	await exportOutput(page, 'Genius', source);
 	await page.locator('.ll-conversion-section').click();
+	await page.getByRole('button', { name: 'Section options', exact: true }).click();
 	await expect(page.getByRole('heading', { name: /Section 1/u })).toBeVisible();
 	await context.setOffline(false);
 });
