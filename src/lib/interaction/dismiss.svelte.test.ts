@@ -73,6 +73,27 @@ describe('dismissOnOutside', () => {
 		expect(onDismiss).toHaveBeenCalledTimes(1);
 	});
 
+	it('counts a press on a list a control inside the surface opened as inside it', () => {
+		// The shared Select portals its list to the body, outside the surface.
+		const surface = element('surface');
+		element('trigger', surface).setAttribute('aria-controls', 'owned-list');
+		const list = element('list');
+		list.setAttribute('role', 'listbox');
+		list.id = 'owned-list';
+		const row = element('row', list);
+		const foreign = element('foreign');
+		foreign.setAttribute('role', 'listbox');
+		foreign.id = 'foreign-list';
+		const onDismiss = vi.fn();
+		attachTo(surface, onDismiss);
+
+		press(row);
+		expect(onDismiss).not.toHaveBeenCalled();
+
+		press(foreign);
+		expect(onDismiss).toHaveBeenCalledTimes(1);
+	});
+
 	it('stops listening once the surface is gone', () => {
 		const surface = element('surface');
 		const elsewhere = element('elsewhere');

@@ -9,6 +9,29 @@ export function modalOwnsEscape(target: EventTarget | null): boolean {
 }
 
 /**
+ * An open list (the shared `Select`) closes on Escape before the surface around
+ * it does. Focus stays on its trigger while the list is open, so the keydown
+ * reaches the surface's own handler first; the surface stands down for it.
+ */
+export function openListOwnsEscape(target: EventTarget | null): boolean {
+	return (
+		target instanceof Element && target.closest('[role="combobox"][aria-expanded="true"]') !== null
+	);
+}
+
+/**
+ * Whether a press landed on this surface: on the surface itself, or on a list a
+ * control inside it opened. The shared `Select` portals its list to the body,
+ * out of the surface's subtree, and choosing a row there is a press on the
+ * surface's own control.
+ */
+function pressedInside(node: Element, target: Node): boolean {
+	if (node.contains(target)) return true;
+	const list = target instanceof Element ? target.closest('[role="listbox"][id]') : null;
+	return list !== null && node.querySelector(`[aria-controls="${CSS.escape(list.id)}"]`) !== null;
+}
+
+/**
  * Close a transient surface when a pointer press lands outside it.
  *
  * Every floating surface in the workbench (pickers, popovers, the drafts menu)
@@ -33,7 +56,7 @@ export function dismissOnOutside(onDismiss: () => void): Attachment<Element> {
 	return (node) => {
 		const handlePointerDown = (event: PointerEvent): void => {
 			const target = event.target;
-			if (target instanceof Node && !node.contains(target)) {
+			if (target instanceof Node && !pressedInside(node, target)) {
 				onDismiss();
 			}
 		};
