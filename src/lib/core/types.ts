@@ -817,8 +817,14 @@ export interface DraftRepository {
 	duplicate(id: string, newId: string): Promise<DraftRecord>;
 	delete(id: string): Promise<void>;
 	deleteAll(): Promise<void>;
-	setCurrent(id: string | undefined): Promise<void>;
+	/**
+	 * `unsaved` points at a new draft that has no record yet, so a reload opens a
+	 * blank draft under that id instead of the newest saved one.
+	 */
+	setCurrent(id: string | undefined, options?: { unsaved: true }): Promise<void>;
 	getCurrent(): Promise<string | undefined>;
+	/** The current id while it still names a new draft that has no record. */
+	getUnsavedCurrent(): Promise<string | undefined>;
 	getRecentLanguages(): Promise<string[]>;
 	/**
 	 * A small, durable UI preference, by key.

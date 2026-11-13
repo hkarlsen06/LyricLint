@@ -147,8 +147,12 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.
   (`RemoveButton`, shared by every list that offers a way out of a row) and moves focus onto
   itself; the armed row is the list's state, one question open at a time.
   Cancel returns focus to the restored Delete control, keeping Escape within the menu.
-- An untouched new blank draft is transient. A deliberate clear of saved work is a guarded
-  save, including an empty conflict copy, and survives reload. `recoverStartupDraft` sweeps
+- An untouched new blank draft is transient: it writes no record. New still moves the
+  current-draft pointer to it (`setCurrent(id, { unsaved: true })`), so a reload reopens a blank
+  draft under that id, in the most recent language, rather than the newest saved one. Any
+  ordinary `setCurrent` clears the unsaved mark, and a pointer at a missing record without it
+  still falls through to the newest draft. Backup import never carries the mark. A deliberate
+  clear of saved work is a guarded save, including an empty conflict copy, and survives reload. `recoverStartupDraft` sweeps
   historical blanks without a storage generation only after rechecking that generation in the
   deletion transaction; a concurrent save wins. Audio, a Genius page link, and rich metadata
   also keep wordless drafts recoverable. Explicit Delete remains the way to remove saved work.

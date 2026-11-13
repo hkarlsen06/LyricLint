@@ -183,6 +183,30 @@ test('each draft restores its own format and lyrics after immediate reload', asy
 	expect(await text(page)).toBe('Sun words');
 });
 
+test('a reload keeps an untouched new draft open instead of the last saved one', async ({
+	page
+}) => {
+	await page.goto('/workbench/');
+	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
+	await editor.fill('[Verse]\nSaved words');
+	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/u })).toBeAttached();
+	await page.getByRole('button', { name: 'Document', exact: true }).click();
+	await page.getByRole('button', { name: "New 'scribe", exact: true }).click();
+	await expect.poll(() => text(page)).toBe('');
+
+	await freshReload(page);
+	expect(await text(page)).toBe('');
+	await freshReload(page);
+	expect(await text(page)).toBe('');
+
+	await editor.fill('Fresh words');
+	await expect(page.getByRole('img', { name: /^Autosave status: Saved locally/u })).toBeAttached();
+	await freshReload(page);
+	expect(await text(page)).toBe('Fresh words');
+	await page.getByRole('button', { name: "Open saved 'scribes", exact: true }).click();
+	await expect(page.locator('.draft-list > li')).toHaveCount(2);
+});
+
 test('malformed recovery is preserved with a visible alert and downloadable original bytes', async ({
 	page
 }) => {

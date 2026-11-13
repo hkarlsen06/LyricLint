@@ -12,6 +12,7 @@ import Dexie, { type ObservabilitySet } from 'dexie';
 
 import { randomId } from '../core/random-id.js';
 import { mutatedKeys } from './mutation-keys.js';
+import { UNSAVED_CURRENT_KEY } from './draft-repository.js';
 import { ASSISTANT_DRAFT_ACCESS_PREFIX } from '../assistant/permissions.js';
 import {
 	MAX_RECENT_LANGUAGES,
@@ -820,7 +821,12 @@ export function createWorkspaceBackup(
 					const metadata = new Map(localMetadata.map((record) => [record.key, record]));
 					const backupMetadata = new Map(backup.appMetadata.map((record) => [record.key, record]));
 					const additions = backup.appMetadata.flatMap((record) => {
-						if (record.key === CURRENT_DRAFT_KEY || record.key === RECENT_LANGUAGES_KEY) return [];
+						if (
+							record.key === CURRENT_DRAFT_KEY ||
+							record.key === UNSAVED_CURRENT_KEY ||
+							record.key === RECENT_LANGUAGES_KEY
+						)
+							return [];
 						const remapped = remapImportedMetadata(record, idMap);
 						return remapped === undefined || metadata.has(remapped.key) ? [] : [remapped];
 					});

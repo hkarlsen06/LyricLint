@@ -626,13 +626,13 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 					noteSaveStatus('failed');
 					return;
 				}
-				// Nothing is written here. A new draft is empty by definition, and the
-				// first save with text in it is what creates the record and takes over
-				// the current-draft pointer, so a new draft abandoned untouched leaves
-				// nothing behind, and a reload before the first keystroke comes back to
-				// the draft that still has the user's work in it.
+				// No record is written: a new draft abandoned untouched leaves no row
+				// behind, and its first save creates one. The pointer still follows it,
+				// so a reload comes back to the new draft the user chose.
 				await creationPreferenceReady;
-				loadDraft(emptyTransientDraft(), false);
+				const created = emptyTransientDraft();
+				await deps.repository.setCurrent(created.id, { unsaved: true }).catch(() => {});
+				loadDraft(created, false);
 				await store.refreshDrafts();
 				feedback.announce("New 'scribe created.");
 			});

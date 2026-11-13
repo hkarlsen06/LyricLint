@@ -25,6 +25,8 @@ export class DraftSaveConflictError extends Error {
 }
 
 const CURRENT_DRAFT_KEY = 'currentDraftId';
+// Names the current id while it belongs to a new draft with no record yet.
+export const UNSAVED_CURRENT_KEY = 'currentDraftUnsaved';
 
 /**
  * Preferences share the metadata table with the keys above, so they are
@@ -583,17 +585,26 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			);
 		},
 
-		async setCurrent(id) {
-			if (id === undefined) {
-				await database.appMetadata.delete(CURRENT_DRAFT_KEY);
-				return;
-			}
-
-			await database.appMetadata.put(currentDraftMetadata(id));
+		async setCurrent(id, options) {
+			await database.transaction('rw', database.appMetadata, async () => {
+				if (id === undefined) await database.appMetadata.delete(CURRENT_DRAFT_KEY);
+				else await database.appMetadata.put(currentDraftMetadata(id));
+				if (id !== undefined && options?.unsaved)
+					await database.appMetadata.put({ ...currentDraftMetadata(id), key: UNSAVED_CURRENT_KEY });
+				else await database.appMetadata.delete(UNSAVED_CURRENT_KEY);
+			});
 		},
 
 		async getCurrent() {
 			return (await database.appMetadata.get(CURRENT_DRAFT_KEY))?.value;
+		},
+
+		async getUnsavedCurrent() {
+			return database.transaction('r', database.appMetadata, async () => {
+				const current = (await database.appMetadata.get(CURRENT_DRAFT_KEY))?.value;
+				const unsaved = (await database.appMetadata.get(UNSAVED_CURRENT_KEY))?.value;
+				return current !== undefined && current === unsaved ? current : undefined;
+			});
 		},
 
 		async getPreference(key) {

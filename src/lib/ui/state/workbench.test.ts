@@ -577,11 +577,11 @@ describe('workbench draft safety', () => {
 
 		expect(events).toContain('flush');
 		expect((await repository.get(first.id))?.text).toBe('[Verse]\nUnsaved edit');
-		// The new draft is empty, so it exists only in memory: no record, and the
-		// current-draft pointer still names the draft that has the user's work.
+		// The new draft is empty, so it exists only in memory: no record, but the
+		// pointer follows it so a reload comes back to it.
 		expect(events).not.toContain('create');
 		expect((await repository.list()).map(({ id }) => id)).toEqual([first.id]);
-		expect(await repository.getCurrent()).toBe(first.id);
+		expect(await repository.getUnsavedCurrent()).toBe(controller.draftId);
 	});
 
 	test('writes the new draft on its first text, and takes over the current pointer then', async () => {
@@ -601,6 +601,7 @@ describe('workbench draft safety', () => {
 
 		expect((await repository.get(created))?.text).toBe('[Verse]\nFirst words');
 		expect(await repository.getCurrent()).toBe(created);
+		expect(await repository.getUnsavedCurrent()).toBeUndefined();
 	});
 
 	// Attaching audio is the one thing other than text that makes a draft worth a

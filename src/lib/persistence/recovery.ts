@@ -15,14 +15,18 @@ const DEFAULT_LANGUAGE = 'en';
  * one more row called "Untitled transcription" in the drafts list. The first save with
  * something in it is what gives this draft a record (see the draft store).
  */
-function blankDraft(profile: 'genius' | 'musixmatch'): DraftRecord {
+function blankDraft(
+	profile: 'genius' | 'musixmatch',
+	id = randomId(),
+	language = DEFAULT_LANGUAGE
+): DraftRecord {
 	const timestamp = new Date().toISOString();
 	return {
 		writing: newWriting(profile),
-		id: randomId(),
+		id,
 		title: DEFAULT_TITLE,
 		text: '',
-		language: DEFAULT_LANGUAGE,
+		language,
 		performers: [],
 		createdAt: timestamp,
 		updatedAt: timestamp,
@@ -32,8 +36,9 @@ function blankDraft(profile: 'genius' | 'musixmatch'): DraftRecord {
 }
 
 /**
- * Restore the current recoverable draft, then the newest draft, then a blank
- * one that is not persisted.
+ * Restore the current recoverable draft, then a new draft the user opened and
+ * has not written in yet, then the newest draft, then a blank one that is not
+ * persisted.
  *
  * Blank records are swept on the way through. Earlier builds wrote one for
  * every new draft, so a session of "new draft, changed my mind" left the list
@@ -125,6 +130,17 @@ export async function recoverStartupDraft(
 		}
 	}
 
+	const preference = await repository
+		.getPreference(CREATION_PROFILE_PREFERENCE)
+		.catch(() => undefined);
+	const profile = preference === 'musixmatch' ? 'musixmatch' : 'genius';
+	const unsavedId = await repository.getUnsavedCurrent();
+	if (unsavedId !== undefined) {
+		// The new draft took the language last in use, which is the most recent one.
+		const [language] = await repository.getRecentLanguages().catch(() => []);
+		return blankDraft(profile, unsavedId, language);
+	}
+
 	// `listRecords` is ordered newest first.
 	const newest = recoverable[0];
 	if (newest !== undefined) {
@@ -133,8 +149,5 @@ export async function recoverStartupDraft(
 	}
 
 	await repository.setCurrent(undefined);
-	const preference = await repository
-		.getPreference(CREATION_PROFILE_PREFERENCE)
-		.catch(() => undefined);
-	return blankDraft(preference === 'musixmatch' ? 'musixmatch' : 'genius');
+	return blankDraft(profile);
 }

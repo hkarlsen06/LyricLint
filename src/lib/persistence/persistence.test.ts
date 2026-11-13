@@ -1124,6 +1124,23 @@ describe('autosave and recovery', () => {
 		expect(await repository.getCurrent()).toBe('newest');
 	});
 
+	it('reopens a new draft the user has not written in yet', async () => {
+		const { repository } = await createRepository('recover-unsaved-current');
+		await repository.create(draft({ id: 'saved', text: 'saved words' }));
+		await repository.rememberLanguage('fr');
+		await repository.setCurrent('fresh', { unsaved: true });
+
+		const recovered = await recoverStartupDraft(repository);
+
+		expect(recovered).toMatchObject({ id: 'fresh', text: '', language: 'fr' });
+		expect((await repository.list()).map(({ id }) => id)).toEqual(['saved']);
+		expect(await repository.getUnsavedCurrent()).toBe('fresh');
+
+		await repository.setCurrent('saved');
+		expect(await repository.getUnsavedCurrent()).toBeUndefined();
+		expect((await recoverStartupDraft(repository)).id).toBe('saved');
+	});
+
 	it('hands back a blank draft without writing one when nothing is recoverable', async () => {
 		const { repository } = await createRepository('recover-blank');
 

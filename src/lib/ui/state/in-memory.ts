@@ -34,6 +34,7 @@ export function createInMemoryDraftRepository(
 ): DraftRepository {
 	const drafts = new Map(initialDrafts.map((draft) => [draft.id, cloneDraft(draft)]));
 	let currentId: string | undefined = initialDrafts[0]?.id;
+	let unsavedCurrent = false;
 	let recentLanguages: string[] = [];
 	const preferences = new Map<string, string>();
 
@@ -111,11 +112,15 @@ export function createInMemoryDraftRepository(
 			preferences.clear();
 			recentLanguages = [];
 		},
-		async setCurrent(id) {
+		async setCurrent(id, options) {
 			currentId = id;
+			unsavedCurrent = options?.unsaved === true;
 		},
 		async getCurrent() {
 			return currentId;
+		},
+		async getUnsavedCurrent() {
+			return unsavedCurrent ? currentId : undefined;
 		},
 		async getPreference(key) {
 			return preferences.get(key);
