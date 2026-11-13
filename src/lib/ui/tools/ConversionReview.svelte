@@ -453,15 +453,16 @@
 					<button class="button button--quiet" type="button" onclick={closeSurface}>Close</button>
 				</header>
 				{#if surface === 'result' && shown?.ok && shown.action.kind === 'replaceRepeatPlaceholder'}
+					{@const copies = shown.action.copies}
 					<div class="repeat-dialog__navigation">
-						{#if shown.action.copies > 1}
+						{#if copies > 1}
 							<Select
 								label="Go to copy"
 								compact
 								value={String(copyDestination)}
-								options={Array.from({ length: shown.action.copies }, (_, index) => ({
+								options={Array.from({ length: copies }, (_, index) => ({
 									value: String(index),
-									label: `${index + 1} of ${shown.action.copies}`
+									label: `${index + 1} of ${copies}`
 								}))}
 								onchange={(index) => {
 									copyDestination = Number(index);
