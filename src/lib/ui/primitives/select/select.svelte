@@ -46,10 +46,12 @@
 	const selected = $derived(options.find((option) => option.value === value));
 	let trigger = $state<HTMLElement | null>(null);
 	/**
-	 * A modal `<dialog>` is in the top layer, above anything portalled to the
-	 * body, so a list opened inside one is portalled into that dialog instead.
+	 * Where the list is drawn. A modal `<dialog>` is in the top layer, above
+	 * anything portalled to the body, and the site pins its own dark palette on
+	 * `.site`, which the body does not carry: a list opened inside either is
+	 * portalled into it, so it is neither hidden nor drawn in the wrong scheme.
 	 */
-	const portalTarget = $derived(trigger?.closest('dialog') ?? undefined);
+	const portalTarget = $derived(trigger?.closest('dialog, .site') ?? undefined);
 </script>
 
 <div class={['ui-select', compact && 'ui-select--compact', className]}>

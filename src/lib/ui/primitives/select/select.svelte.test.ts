@@ -66,6 +66,27 @@ describe('Select', () => {
 		expect(onchange).not.toHaveBeenCalled();
 	});
 
+	it.each(['dialog', 'div'] as const)(
+		'draws its list inside the %s that holds it, where its layer and palette apply',
+		async (tag) => {
+			const holder = document.createElement(tag);
+			if (holder instanceof HTMLDialogElement) holder.open = true;
+			else holder.className = 'site';
+			document.body.append(holder);
+			try {
+				await render(Select<string>, {
+					target: holder,
+					props: { label: 'Topic', value: 'verse', options, onchange: () => {} }
+				});
+				await page.getByRole('combobox', { name: 'Topic' }).click();
+				await expect.element(page.getByRole('listbox')).toBeVisible();
+				expect(holder.querySelector('[role="listbox"]')).not.toBeNull();
+			} finally {
+				holder.remove();
+			}
+		}
+	);
+
 	it('opens from the keyboard and chooses the highlighted row', async () => {
 		const onchange = vi.fn();
 		await render(Select<string>, { label: 'Section type', value: '', options, onchange });
