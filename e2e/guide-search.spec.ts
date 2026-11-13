@@ -97,8 +97,12 @@ test('desktop article search updates only the finder and replaces history', asyn
 test('all finder filters survive typing, navigation and reload', async ({ page }) => {
 	await page.goto('/guidelines/?scope=rules&topic=spelling&severity=warning&fix=none');
 	await page.getByRole('button', { name: /^Filters/u }).click();
-	await expect(page.getByRole('combobox', { name: 'Show', exact: true })).toHaveValue('rules');
-	await expect(page.getByRole('combobox', { name: 'Topic', exact: true })).toHaveValue('spelling');
+	await expect(page.getByRole('combobox', { name: 'Show', exact: true })).toHaveText(
+		'LyricLint checks'
+	);
+	await expect(page.getByRole('combobox', { name: 'Topic', exact: true })).toHaveText(
+		'Spelling and contractions'
+	);
 	await page.getByRole('searchbox', { name: 'What are you working on?' }).fill('spelling');
 	await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('spelling');
 	for (const [key, value] of Object.entries({
@@ -133,8 +137,11 @@ test('all finder filters survive typing, navigation and reload', async ({ page }
 	await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
 	await expect(page).toHaveURL('/guidelines/section-headers/');
 	await expect(page.getByRole('searchbox')).toHaveValue('');
-	await expect(page.getByRole('combobox', { name: 'Show', exact: true })).toHaveValue('all');
-	await page.getByRole('combobox', { name: 'Show', exact: true }).selectOption('guidelines');
+	await expect(page.getByRole('combobox', { name: 'Show', exact: true })).toHaveText(
+		'All advice and checks'
+	);
+	await page.getByRole('combobox', { name: 'Show', exact: true }).click();
+	await page.getByRole('option', { name: 'Transcription advice', exact: true }).click();
 	await page.getByRole('searchbox').fill('unknown word');
 	await expect(page.locator('.reference-result > a').first()).toBeVisible();
 	await expect(page.locator('.reference-result > a[href*="/checks/"]')).toHaveCount(0);

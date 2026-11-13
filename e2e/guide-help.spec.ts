@@ -71,11 +71,15 @@ test('guide disclosures and filter dropdowns remain accessible', async ({
 	await expect(page.getByRole('button', { name: 'linter: show definition' })).toBeVisible();
 	await advice.click();
 	await page.getByRole('button', { name: 'Filters', exact: true }).click();
-	await expect(page.getByLabel('Show', { exact: true })).toBeVisible();
-	await page.getByLabel('Show', { exact: true }).selectOption('rules');
-	await page.getByLabel('Topic', { exact: true }).selectOption('spelling');
-	await expect(page.getByLabel('Show', { exact: true })).toHaveValue('rules');
-	await expect(page.getByLabel('Topic', { exact: true })).toHaveValue('spelling');
+	const show = page.getByRole('combobox', { name: 'Show', exact: true });
+	const topic = page.getByRole('combobox', { name: 'Topic', exact: true });
+	await expect(show).toBeVisible();
+	await show.click();
+	await page.getByRole('option', { name: 'LyricLint checks', exact: true }).click();
+	await topic.click();
+	await page.getByRole('option', { name: 'Spelling and contractions', exact: true }).click();
+	await expect(show).toHaveText('LyricLint checks');
+	await expect(topic).toHaveText('Spelling and contractions');
 	await page.screenshot({ path: testInfo.outputPath('filter-dropdowns.png') });
 });
 

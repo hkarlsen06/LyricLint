@@ -18,6 +18,7 @@
 	import StandardizedSpellings from './StandardizedSpellings.svelte';
 	import type { RuleLookupTable } from '#lib/rules/lookup-tables.js';
 	import { safeDecodeHash } from './hash.js';
+	import { Select } from '../primitives/select/index.js';
 	import {
 		createReferenceResults,
 		referenceSearchState,
@@ -88,6 +89,17 @@
 		if (value === 'all' || value === 'guidelines' || value === 'rules')
 			setReferenceSearchState({ scope: value, severities: [], fixabilities: [] });
 	}
+	const scopeOptions = [
+		{ value: 'all', label: 'All advice and checks' },
+		{ value: 'guidelines', label: 'Transcription advice' },
+		{ value: 'rules', label: 'LyricLint checks' }
+	] as const;
+	/** The state's empty topic, as a value the select can hold. */
+	const ALL_TOPICS = 'all-topics';
+	const topicOptions = $derived([
+		{ value: ALL_TOPICS, label: 'All topics' },
+		...topics.map((topic) => ({ value: topic.id, label: topic.title }))
+	]);
 	function query(value: string): void {
 		setReferenceSearchState({ query: value });
 	}
@@ -154,32 +166,22 @@
 		<p class="sr-only" role="status">{showResults ? `${results.length} results` : ''}</p>
 	</search>
 	<div id="reference-filters" class="reference-filters" hidden={!filtersOpen}>
-		<label for="reference-content">Show</label>
-		<span class="reference-select">
-			<select
-				id="reference-content"
-				value={filters.scope}
-				onchange={(event) => scope(event.currentTarget.value)}
-			>
-				<option value="all">All advice and checks</option><option value="guidelines"
-					>Transcription advice</option
-				><option value="rules">LyricLint checks</option>
-			</select>
-			<CaretDownIcon class="reference-select__chevron" size={16} aria-hidden="true" />
-		</span>
-		<label for="reference-topic">Topic</label>
-		<span class="reference-select">
-			<select
-				id="reference-topic"
-				value={filters.topic}
-				onchange={(event) => setReferenceSearchState({ topic: event.currentTarget.value })}
-			>
-				<option value="">All topics</option>{#each topics as topic (topic.id)}<option
-						value={topic.id}>{topic.title}</option
-					>{/each}
-			</select>
-			<CaretDownIcon class="reference-select__chevron" size={16} aria-hidden="true" />
-		</span>
+		<Select
+			id="reference-content"
+			class="reference-select"
+			label="Show"
+			value={filters.scope}
+			options={scopeOptions}
+			onchange={scope}
+		/>
+		<Select
+			id="reference-topic"
+			class="reference-select"
+			label="Topic"
+			value={filters.topic || ALL_TOPICS}
+			options={topicOptions}
+			onchange={(topic) => setReferenceSearchState({ topic: topic === ALL_TOPICS ? '' : topic })}
+		/>
 		{#if filters.scope === 'rules'}
 			<fieldset>
 				<legend>Severity</legend>
@@ -375,8 +377,7 @@
 		font-weight: var(--font-weight-semibold);
 		margin-bottom: var(--space-2);
 	}
-	input,
-	select {
+	input {
 		width: 100%;
 		font: inherit;
 		font-size: var(--font-size-editor);
@@ -385,8 +386,7 @@
 	/* The shared coarse-pointer floor in responsive-shared.css has this rule's
 	   specificity and comes first, so a phone's fields would keep the desktop height. */
 	@media (pointer: coarse) {
-		input,
-		select {
+		input {
 			min-height: var(--control-height-touch);
 		}
 	}
@@ -399,25 +399,24 @@
 	.reference-filters {
 		padding-block: var(--space-4);
 	}
-	/* The native select keeps its own keyboard and touch picker; only the closed
-	   control is drawn, with the chevron the site's disclosures use. */
-	.reference-select {
-		position: relative;
-		display: block;
+	/* The shared select, at this page's field size: its label reads as the
+	   fieldset legends beside it do, and its trigger as tall as the search field. */
+	.reference-filters :global(.reference-select) {
 		margin-bottom: var(--space-4);
 	}
-	.reference-select select {
-		appearance: none;
-		padding-inline-end: calc(var(--control-padding-inline) * 2 + var(--space-4));
-		text-overflow: ellipsis;
+	.reference-filters :global(.reference-select .ui-select__label) {
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-semibold);
 	}
-	.reference-select :global(.reference-select__chevron) {
-		position: absolute;
-		inset-inline-end: var(--control-padding-inline);
-		top: 50%;
-		translate: 0 -50%;
-		color: var(--color-text-muted);
-		pointer-events: none;
+	.reference-filters :global(.reference-select .ui-select__trigger) {
+		min-height: var(--control-height-lg);
+		font-size: var(--font-size-editor);
+		font-weight: var(--font-weight-regular);
+	}
+	@media (pointer: coarse) {
+		.reference-filters :global(.reference-select .ui-select__trigger) {
+			min-height: var(--control-height-touch);
+		}
 	}
 	fieldset {
 		border: 0;

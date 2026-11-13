@@ -608,7 +608,7 @@ test('legacy rule URLs redirect into the guide without losing search or fragment
 		/\/guidelines\/checks\/spelling-english-common\/\?q=definately&scope=rules#example$/u
 	);
 	await expect(page.locator('main h1')).toHaveText('A common English misspelling');
-	await expect(page.locator('#reference-content')).toHaveValue('rules');
+	await expect(page.locator('#reference-content')).toHaveText('LyricLint checks');
 });
 
 test('shared reference search finds warning text and preserves URL state', async ({ page }) => {
@@ -619,7 +619,8 @@ test('shared reference search finds warning text and preserves URL state', async
 	await expect(rows).toHaveCount(0);
 	await search.fill('definately');
 	await page.getByRole('button', { name: /^Filters/ }).click();
-	await page.getByRole('combobox', { name: 'Show', exact: true }).selectOption('rules');
+	await page.getByRole('combobox', { name: 'Show', exact: true }).click();
+	await page.getByRole('option', { name: 'LyricLint checks', exact: true }).click();
 	await expect(rows).toHaveCount(1);
 	await expect(rows.first()).toContainText('A common English misspelling');
 	await expect(rows.first().locator('.reference-description')).toBeVisible();
@@ -633,11 +634,11 @@ test('shared reference search finds warning text and preserves URL state', async
 	);
 	await page.reload();
 	await expect(search).toHaveValue('definately');
-	await expect(page.locator('#reference-content')).toHaveValue('rules');
+	await expect(page.locator('#reference-content')).toHaveText('LyricLint checks');
 	await page.goBack();
 	await expect(search).toHaveValue('definately');
 	await expect(page).toHaveURL(/\/guidelines\/\?q=definately&scope=rules$/u);
-	await expect(page.locator('#reference-content')).toHaveValue('rules');
+	await expect(page.locator('#reference-content')).toHaveText('LyricLint checks');
 
 	await search.fill('languages');
 	await rows
