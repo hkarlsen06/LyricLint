@@ -80,6 +80,19 @@
 	background: var(--color-accent-hover);
 }
 
+/* A switch that cannot be pressed keeps its thumb where its state is and takes
+   the disabled tokens, never a fade. */
+.switch[data-disabled],
+.switch[data-disabled]:hover {
+	border-color: var(--color-border-disabled);
+	background: var(--color-control-disabled);
+	cursor: default;
+}
+
+.switch[data-disabled] .switch__thumb {
+	background: var(--color-text-disabled);
+}
+
 /* The travel is the track's inner width less the thumb, spelled out rather
    than eyeballed, so resizing either variable keeps the resting places true. */
 .switch__thumb {

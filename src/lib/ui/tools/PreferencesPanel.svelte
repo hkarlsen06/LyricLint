@@ -111,8 +111,8 @@
 			</Switch.Root>
 		</div>
 		<p id="musixmatch-tools-description">
-			Show the format tag and Export to Musixmatch in Genius 'scribes. Creating a Musixmatch 'scribe
-			turns this on.
+			Show the format tag and Export to Musixmatch in Genius 'scribes. Choosing a format for a new
+			'scribe sets this: on for Musixmatch, off for Genius.
 		</p>
 	</section>
 

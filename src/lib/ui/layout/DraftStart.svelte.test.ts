@@ -95,9 +95,12 @@ describe('the start tray holds every way to begin an empty document', () => {
 		await render(DraftStart, { controller });
 
 		const top = (name: string) => screen.getByRole('button', { name }).getBoundingClientRect().top;
+		const switchTop = () =>
+			screen.getByRole('switch', { name: 'Musixmatch tools' }).getBoundingClientRect().top;
 		const before = [
 			top('Lyric format: Genius'),
 			top('Lyric format: Musixmatch'),
+			switchTop(),
 			top('Paste lyrics')
 		];
 
@@ -109,8 +112,35 @@ describe('the start tray holds every way to begin an empty document', () => {
 		expect([
 			top('Lyric format: Genius'),
 			top('Lyric format: Musixmatch'),
+			switchTop(),
 			top('Paste lyrics')
 		]).toEqual(before);
+	});
+
+	// The Preferences switch, asked beside the format: Genius starts without the
+	// other format's tools unless the user turns them on here, and a Musixmatch
+	// 'scribe always has them, so there the switch reads on and cannot be pressed.
+	test('offers Musixmatch tools under the format, set by the choice', async () => {
+		const { controller, repository } = createTestWorkbench({ text: '' });
+		await render(DraftStart, { controller });
+		const tools = () => screen.getByRole('switch', { name: 'Musixmatch tools' });
+
+		expect(tools()).toHaveAttribute('aria-checked', 'false');
+		expect(tools()).toBeEnabled();
+		expect(tools()).toHaveAccessibleDescription('Adds the format tag and Export to Musixmatch.');
+		await fireEvent.click(tools());
+		await waitFor(() => expect(tools()).toHaveAttribute('aria-checked', 'true'));
+		expect(controller.showsFormatTools).toBe(true);
+		expect(await repository.getPreference('musixmatchTools')).toBe('true');
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Lyric format: Genius' }));
+		await waitFor(() => expect(tools()).toHaveAttribute('aria-checked', 'false'));
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Lyric format: Musixmatch' }));
+		await waitFor(() => expect(tools()).toHaveAttribute('aria-checked', 'true'));
+		expect(tools()).toBeDisabled();
+		expect(tools()).toHaveAccessibleDescription("Always on in a Musixmatch 'scribe.");
+		expect(await repository.getPreference('musixmatchTools')).toBe('true');
 	});
 
 	// Once a draft has been written in, its format is fixed even if it is

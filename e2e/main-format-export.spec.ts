@@ -33,12 +33,12 @@ for (const width of [1280, 360, 390]) {
 				preparedExport: [
 					async ({ page, browserName }, use, testInfo) => {
 						await page.goto('/workbench/');
-						await enableMusixmatchTools(page);
 						const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 						await expect(editor).toBeVisible();
 						await page
 							.getByRole('button', { name: `Lyric format: ${primary}`, exact: true })
 							.click();
+						await enableMusixmatchTools(page);
 						const source =
 							primary === 'Genius'
 								? '[Verse]\nWith 2 old tickets and a folded map (Whatever)\nA [silver compass](123456) (nearby)'

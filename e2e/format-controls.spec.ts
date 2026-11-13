@@ -18,7 +18,6 @@ for (const [width, colorScheme] of [
 			page
 		}) => {
 			await page.goto('/workbench/');
-			await enableMusixmatchTools(page);
 			const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 			const title = page.getByRole('textbox', { name: "'Scribe title", exact: true });
 			await title.fill(
@@ -26,6 +25,7 @@ for (const [width, colorScheme] of [
 			);
 			await title.press('Enter');
 			await page.getByRole('button', { name: 'Lyric format: Genius', exact: true }).click();
+			await enableMusixmatchTools(page);
 			const state = () =>
 				editor.evaluate((el) => {
 					const node = el as HTMLElement & {

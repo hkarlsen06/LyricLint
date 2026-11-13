@@ -2726,7 +2726,7 @@ describe('Musixmatch tools preference', () => {
 		expect(controller.showsFormatTools).toBe(true);
 	});
 
-	test('choosing Musixmatch for a new draft turns the tools on and keeps them on', async () => {
+	test('choosing a format for a new draft stores the tools: on for Musixmatch, off for Genius', async () => {
 		const initial = {
 			...draft('draft-a', ''),
 			writing: { schema: 1, phase: 'new', profile: 'genius' } as const
@@ -2739,6 +2739,9 @@ describe('Musixmatch tools preference', () => {
 		controller.switchProfile('musixmatch');
 		expect(controller.musixmatchToolsEnabled).toBe(true);
 		expect(await repository.getPreference('musixmatchTools')).toBe('true');
+		controller.switchProfile('genius');
+		expect(controller.musixmatchToolsEnabled).toBe(false);
+		expect(await repository.getPreference('musixmatchTools')).toBe('false');
 	});
 
 	test('a reset returns the session to the workspace default', async () => {

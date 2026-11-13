@@ -240,7 +240,7 @@ describe('PreferencesPanel Musixmatch tools', () => {
 		const toggle = screen.getByRole('switch', { name: 'Musixmatch tools' });
 		expect(toggle).toHaveAttribute('aria-checked', 'false');
 		expect(toggle).toHaveAccessibleDescription(
-			"Show the format tag and Export to Musixmatch in Genius 'scribes. Creating a Musixmatch 'scribe turns this on."
+			"Show the format tag and Export to Musixmatch in Genius 'scribes. Choosing a format for a new 'scribe sets this: on for Musixmatch, off for Genius."
 		);
 
 		await fireEvent.click(toggle);

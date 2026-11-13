@@ -2,6 +2,7 @@
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import ClipboardTextIcon from 'phosphor-svelte/lib/ClipboardTextIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import { Switch } from 'bits-ui';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from '#lib/interaction/motion.js';
 	import { profileLabels, type ProfileId } from '#lib/profiles/types.js';
@@ -76,6 +77,30 @@
 						</span>
 					</button>
 				{/each}
+			</div>
+			<!-- The Preferences switch, asked where the format is: choosing Genius
+			     stores it off and Musixmatch on, and a Genius 'scribe may then turn
+			     it on. A Musixmatch 'scribe always shows its tools, so there it
+			     reads on and cannot be pressed. -->
+			<div class="draft-start__tools">
+				<span class="draft-start__tools-text">
+					<label class="draft-start__tools-label" for="{id}-tools">Musixmatch tools</label>
+					<span class="draft-start__tools-hint" id="{id}-tools-hint">
+						{controller.profile === 'musixmatch'
+							? "Always on in a Musixmatch 'scribe."
+							: 'Adds the format tag and Export to Musixmatch.'}
+					</span>
+				</span>
+				<Switch.Root
+					id="{id}-tools"
+					class="switch"
+					aria-describedby="{id}-tools-hint"
+					checked={controller.showsFormatTools}
+					disabled={controller.profile === 'musixmatch'}
+					onCheckedChange={(checked) => controller.setMusixmatchToolsEnabled(checked)}
+				>
+					<Switch.Thumb class="switch__thumb" />
+				</Switch.Root>
 			</div>
 			<span id="{id}-pending" class="sr-only">
 				{#if controller.pendingProfile}Select the current format to cancel the pending switch.{/if}
@@ -249,6 +274,42 @@
 		font-size-adjust: none;
 	}
 
+	/* A settings row the cards' width: name and hint at the start, the switch at
+	   the end, as Preferences sets it. */
+	.draft-start__tools {
+		display: flex;
+		width: 100%;
+		margin-bottom: var(--space-3);
+		padding-inline: var(--space-4);
+		gap: var(--space-3);
+		align-items: center;
+		justify-content: space-between;
+		text-align: start;
+	}
+
+	.draft-start__tools-text {
+		display: grid;
+		min-width: 0;
+	}
+
+	.draft-start__tools-label {
+		color: var(--color-text);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+		cursor: pointer;
+		pointer-events: auto;
+	}
+
+	.draft-start__tools-hint {
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		line-height: var(--line-height-ui);
+	}
+
+	.draft-start__tools :global(.switch) {
+		pointer-events: auto;
+	}
+
 	.draft-start__action {
 		pointer-events: auto;
 	}
@@ -287,6 +348,10 @@
 			margin-block: var(--space-3) var(--space-2);
 			gap: var(--space-2);
 		}
+		.draft-start__tools {
+			margin-bottom: var(--space-2);
+			padding-inline: var(--space-3);
+		}
 		.draft-start__format {
 			min-height: var(--control-height-touch);
 			padding: var(--space-3);
@@ -296,6 +361,7 @@
 	@media (max-height: 36rem) {
 		.draft-start__lede,
 		.draft-start__detail,
+		.draft-start__tools-hint,
 		.draft-start__sample {
 			display: none;
 		}
@@ -304,7 +370,8 @@
 	/* A short phone has room for the ghost transcription and the tray only if
 	   the cards are their names alone. */
 	@media (max-width: 46rem) and (max-height: 44rem) {
-		.draft-start__detail {
+		.draft-start__detail,
+		.draft-start__tools-hint {
 			display: none;
 		}
 	}
@@ -314,6 +381,7 @@
 	   Media queries cannot see the keyboard; `trackKeyboardInset` can. */
 	:global(:root[data-keyboard-inset]) .draft-start__lede,
 	:global(:root[data-keyboard-inset]) .draft-start__detail,
+	:global(:root[data-keyboard-inset]) .draft-start__tools-hint,
 	:global(:root[data-keyboard-inset]) .draft-start__sample,
 	:global(:root[data-keyboard-inset]) .draft-start__hint,
 	:global(:root[data-keyboard-inset]) .draft-start__hint ~ .button {

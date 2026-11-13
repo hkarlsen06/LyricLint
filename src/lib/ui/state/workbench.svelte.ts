@@ -1210,7 +1210,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			const model = importDocument({ text: '', profile, language: controller.language });
 			if (!model.ok) return;
 			draft.chooseProfile(profile);
-			if (profile === 'musixmatch') setMusixmatchToolsEnabled(true);
+			setMusixmatchToolsEnabled(profile === 'musixmatch');
 			record.writing = draft.writing;
 			record.conversion = createConversionEnvelope(model.value, profile, profilePolicyVersions);
 			const opened = deps.onOpenDraft?.(record) ?? {

@@ -13,7 +13,8 @@
 <p>
 	Use <strong>Export to Genius</strong> or <strong>Export to Musixmatch</strong> for the other format.
 	Genius 'scribes show their format and the export only with <strong>Musixmatch tools</strong> on in
-	Preferences. It turns on by itself once you create a Musixmatch 'scribe.
+	Preferences or under the format choice of a new 'scribe. Choosing Musixmatch turns it on and
+	choosing Genius turns it off, so switch it back on there to start a Genius 'scribe with them.
 	The dialog contains separate editable output. Copy and Download .txt use exactly that output; Edit lyrics
 	returns to the main draft. Output edits are remembered through closing, reload and switching drafts
 	until you edit the original lyrics or their formatting details. Changing a title or moving the caret
