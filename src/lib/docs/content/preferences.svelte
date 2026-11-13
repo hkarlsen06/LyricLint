@@ -9,7 +9,7 @@
 </p>
 <DocsFigure
 	name="docs-preferences"
-	alt="The Preferences tab, listing Grammar checking with its switch, then Workspace backup, Local data, and Reviewed rules, with About LyricLint at the foot."
+	alt="The Preferences tab, listing Grammar checking and Musixmatch tools with their switches, then Workspace backup, Local data, and Reviewed rules, with About LyricLint at the foot."
 />
 
 <h2 id="grammar">Grammar checking</h2>
@@ -22,6 +22,19 @@
 <p>
 	The setting appears only while the 'scribe's language is English, because the checker reads only
 	English. Your choice is kept when you switch to a 'scribe in another language and back.
+</p>
+
+<h2 id="musixmatch-tools">Musixmatch tools</h2>
+<p>
+	The switch shows the format tag and <strong>Export to Musixmatch</strong> in Genius 'scribes. While
+	it is off, a Genius 'scribe's copy button reads <strong>Copy lyrics</strong>. A Musixmatch 'scribe
+	always shows its format and its export, whatever the switch says.
+</p>
+<p>
+	Choosing a format for a new 'scribe sets the switch: on for Musixmatch, off for Genius. The same
+	switch sits above the format choice, so you can start a Genius 'scribe with the tools on. See <a
+		href="{resolve('docs/copy-paste/')}#formats">Main format and exports</a
+	> for the formats and the export.
 </p>
 
 <h2 id="backup">Workspace backup</h2>
@@ -50,7 +63,7 @@
 <p>
 	Expand <strong>Reviewed rules</strong> to see which version of LyricLint's rules you are running:
 	its version, when it was published, and how many rules it holds. Below that are links to every
-	reviewed Genius source the rules cite. The full list of rules is on <a href={resolve('rules/')}
+	reviewed Genius and Musixmatch source the rules cite. The full list of rules is on <a href={resolve('rules/')}
 		>the rules page</a
 	>.
 </p>

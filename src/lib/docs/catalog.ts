@@ -246,14 +246,26 @@ export const docsPages: readonly DocsPage[] = [
 		group: 'Reference',
 		title: 'Preferences',
 		summary:
-			'Turn grammar checking on or off, back up your workspace, and manage what this browser stores.',
+			'Turn grammar checking and Musixmatch tools on or off, back up your workspace, and manage what this browser stores.',
 		sections: [
 			{ id: 'grammar', title: 'Grammar checking' },
+			{ id: 'musixmatch-tools', title: 'Musixmatch tools' },
 			{ id: 'backup', title: 'Workspace backup' },
 			{ id: 'local-data', title: 'Local data' },
 			{ id: 'rules', title: 'Reviewed rules' }
 		],
-		keywords: ['settings', 'options', 'harper', 'spelling', 'backup', 'import', 'reset', 'storage']
+		keywords: [
+			'settings',
+			'options',
+			'harper',
+			'spelling',
+			'musixmatch',
+			'export',
+			'backup',
+			'import',
+			'reset',
+			'storage'
+		]
 	},
 	{
 		slug: 'assistant',

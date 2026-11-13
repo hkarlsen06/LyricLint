@@ -342,7 +342,7 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   none stored it is on once any draft in the workspace is Musixmatch or carries an edited
   export, so Genius-only users start without the other format's tools. Choosing a format for
   a new draft stores it: on for Musixmatch, off for Genius. The new-draft tray draws the same
-  switch under the format cards, so a Genius draft can start with the tools on; under Musixmatch
+  switch directly above the format cards, so a Genius draft can start with the tools on; under Musixmatch
   it reads on and is disabled, since a Musixmatch draft always draws them. The controller owns the derivation; components read only
   `musixmatchToolsEnabled` and `showsFormatTools`.
 - Every transient surface dismisses on `Escape`, its own control, and an outside press: use
