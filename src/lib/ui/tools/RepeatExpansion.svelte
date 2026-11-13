@@ -3,6 +3,7 @@
 	import { renderProfile, resolveDecision, type ConversionAction } from '#lib/conversion/index.js';
 	import type { TextRange } from '#lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
+	import { Select } from '../primitives/select/index.js';
 	let { controller }: { controller: WorkbenchController } = $props();
 	const id = $props.id();
 	let open = $state(false);
@@ -23,6 +24,10 @@
 	const currentPassage = $derived(passage?.basis === basis ? passage : undefined);
 	let count = $state<number | undefined>(2);
 	let separator = $state<'\n' | ' '>('\n');
+	const separatorOptions = [
+		{ value: 'line', label: 'A line break' },
+		{ value: 'space', label: 'A space' }
+	] as const;
 	const previewBasis = $derived(
 		JSON.stringify([basis, currentPassage, selection, count, separator])
 	);
@@ -90,11 +95,13 @@
 					bind:value={count}
 				/></label
 			>
-			<label
-				>Separate occurrences with<select bind:value={separator}
-					><option value="&#10;">A line break</option><option value=" ">A space</option></select
-				></label
-			>
+			<Select
+				class="repeat-expansion__separator"
+				label="Separate occurrences with"
+				value={separator === '\n' ? 'line' : 'space'}
+				options={separatorOptions}
+				onchange={(next) => (separator = next === 'line' ? '\n' : ' ')}
+			/>
 			<button
 				type="button"
 				class="button"
@@ -136,12 +143,19 @@
 		gap: var(--space-1);
 		padding-block: var(--space-2);
 	}
-	.repeat-expansion input,
-	.repeat-expansion select {
+	.repeat-expansion input {
 		font-size: var(--font-size-editor);
 		min-width: 0;
 		max-width: 100%;
 		width: 100%;
+	}
+	/* The shared select spaces and sizes like the labelled field above it. */
+	.repeat-expansion :global(.repeat-expansion__separator) {
+		gap: var(--space-1);
+		padding-block: var(--space-2);
+	}
+	.repeat-expansion :global(.repeat-expansion__separator .ui-select__trigger) {
+		font-size: var(--font-size-editor);
 	}
 	.repeat-expansion pre,
 	.repeat-expansion__lyrics {
