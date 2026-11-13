@@ -32,118 +32,132 @@
      starts writing, and takes presses only on its controls: everything else
      falls through to the editor underneath, so typing and pasting start the
      draft as they always did. It is absolutely positioned, so leaving moves no
-     lyric line. -->
+     lyric line. Its frame covers the sheet so the tray can size itself to
+     the sheet's height, which the window's height does not tell: stacked
+     panels halve it. -->
 {#if controller.isEmpty}
-	<div class="draft-start" out:fade={leave()}>
-		{#if controller.writing.phase === 'new'}
-			<h2 class="draft-start__heading">Choose a format</h2>
-			<p class="draft-start__lede">
-				Each 'scribe is written in one. Export makes an editable copy in the other.
-			</p>
-			<!-- The Preferences switch, asked where the format is: choosing Genius
+	<div class="draft-start-frame" out:fade={leave()}>
+		<div class="draft-start">
+			{#if controller.writing.phase === 'new'}
+				<h2 class="draft-start__heading">Choose a format</h2>
+				<p class="draft-start__lede">
+					Each 'scribe is written in one. Export makes an editable copy in the other.
+				</p>
+				<!-- The Preferences switch, asked where the format is: choosing Genius
 			     stores it off and Musixmatch on, and a Genius 'scribe may then turn
 			     it on. A Musixmatch 'scribe always shows its tools, so there it
 			     reads on and cannot be pressed. It sits above the cards because the
 			     tray rests on the sheet's foot: a row under them would lift the
 			     cards over the middle of the sheet, where a press starts writing. -->
-			<div class="draft-start__tools">
-				<span class="draft-start__tools-text">
-					<label class="draft-start__tools-label" for="{id}-tools">Musixmatch tools</label>
-					<!-- One sentence for both formats, so the row keeps its height
+				<div class="draft-start__tools">
+					<span class="draft-start__tools-text">
+						<label class="draft-start__tools-label" for="{id}-tools">Musixmatch tools</label>
+						<!-- One sentence for both formats, so the row keeps its height
 					     and the switch its place when the choice changes. -->
-					<span class="draft-start__tools-hint" id="{id}-tools-hint">
-						Format tag and Export in Genius 'scribes; always on in Musixmatch.
+						<span class="draft-start__tools-hint" id="{id}-tools-hint">
+							Format tag and Export in Genius 'scribes; always on in Musixmatch.
+						</span>
 					</span>
-				</span>
-				<Switch.Root
-					id="{id}-tools"
-					class="switch"
-					aria-describedby="{id}-tools-hint"
-					checked={controller.showsFormatTools}
-					disabled={controller.profile === 'musixmatch'}
-					onCheckedChange={(checked) => controller.setMusixmatchToolsEnabled(checked)}
-				>
-					<Switch.Thumb class="switch__thumb" />
-				</Switch.Root>
-			</div>
-			<div
-				class="draft-start__formats"
-				role="group"
-				aria-label="Lyric format"
-				aria-describedby="{id}-pending"
-			>
-				{#each profiles as profile (profile)}
-					{@const current = controller.profile === profile}
-					{@const format = formats[profile]}
-					<button
-						type="button"
-						class="draft-start__format"
-						aria-label={`Lyric format: ${profileLabels[profile]}`}
-						aria-pressed={current}
-						aria-describedby={current && controller.pendingProfile
-							? `${id}-pending`
-							: `${id}-${profile}`}
-						title={current && controller.pendingProfile
-							? 'Cancel pending format switch'
-							: undefined}
-						onclick={() => controller.switchProfile(profile)}
+					<Switch.Root
+						id="{id}-tools"
+						class="switch"
+						aria-describedby="{id}-tools-hint"
+						checked={controller.showsFormatTools}
+						disabled={controller.profile === 'musixmatch'}
+						onCheckedChange={(checked) => controller.setMusixmatchToolsEnabled(checked)}
 					>
-						<span class="draft-start__format-head">
-							<span class="draft-start__name">{profileLabels[profile]}</span>
-							<span class="draft-start__mark" aria-hidden="true">
-								{#if current && controller.pendingProfile}<XIcon size={12} weight="bold" />
-								{:else if current}<CheckIcon size={12} weight="bold" />{/if}
+						<Switch.Thumb class="switch__thumb" />
+					</Switch.Root>
+				</div>
+				<div
+					class="draft-start__formats"
+					role="group"
+					aria-label="Lyric format"
+					aria-describedby="{id}-pending"
+				>
+					{#each profiles as profile (profile)}
+						{@const current = controller.profile === profile}
+						{@const format = formats[profile]}
+						<button
+							type="button"
+							class="draft-start__format"
+							aria-label={`Lyric format: ${profileLabels[profile]}`}
+							aria-pressed={current}
+							aria-describedby={current && controller.pendingProfile
+								? `${id}-pending`
+								: `${id}-${profile}`}
+							title={current && controller.pendingProfile
+								? 'Cancel pending format switch'
+								: undefined}
+							onclick={() => controller.switchProfile(profile)}
+						>
+							<span class="draft-start__format-head">
+								<span class="draft-start__name">{profileLabels[profile]}</span>
+								<span class="draft-start__mark" aria-hidden="true">
+									{#if current && controller.pendingProfile}<XIcon size={12} weight="bold" />
+									{:else if current}<CheckIcon size={12} weight="bold" />{/if}
+								</span>
 							</span>
-						</span>
-						<span class="draft-start__detail" id="{id}-{profile}">{format.detail}</span>
-						<span class="draft-start__sample" aria-hidden="true">
-							{#each format.sample as line, index (index)}
-								<span class:draft-start__sample-header={line.startsWith('[')}>{line}</span>
-							{/each}
-						</span>
-					</button>
-				{/each}
-			</div>
-			<span id="{id}-pending" class="sr-only">
-				{#if controller.pendingProfile}Select the current format to cancel the pending switch.{/if}
-				{#if profileLanguage(controller.language) === 'und'}Language-independent conversion only.{/if}
-			</span>
-		{/if}
-		<!-- The contrast tier belongs to the way in while there is nothing to take
+							<span class="draft-start__detail" id="{id}-{profile}">{format.detail}</span>
+							<span class="draft-start__sample" aria-hidden="true">
+								{#each format.sample as line, index (index)}
+									<span class:draft-start__sample-header={line.startsWith('[')}>{line}</span>
+								{/each}
+							</span>
+						</button>
+					{/each}
+				</div>
+				<span id="{id}-pending" class="sr-only">
+					{#if controller.pendingProfile}Select the current format to cancel the pending switch.{/if}
+					{#if profileLanguage(controller.language) === 'und'}Language-independent conversion only.{/if}
+				</span>
+			{/if}
+			<!-- The contrast tier belongs to the way in while there is nothing to take
 		     out: the toolbar's copy holds it once the document has words. -->
-		<button
-			type="button"
-			class="button button--contrast draft-start__action"
-			onclick={() => controller.pasteLyrics()}
-		>
-			<ClipboardTextIcon aria-hidden="true" size={16} weight="bold" />
-			Paste lyrics
-		</button>
-		<p class="draft-start__hint">Or start typing. Everything saves on this device.</p>
-		<!-- The sample is offered only where it can load (`canLoadSample`), which
+			<button
+				type="button"
+				class="button button--contrast draft-start__action"
+				onclick={() => controller.pasteLyrics()}
+			>
+				<ClipboardTextIcon aria-hidden="true" size={16} weight="bold" />
+				Paste lyrics
+			</button>
+			<p class="draft-start__hint">Or start typing. Everything saves on this device.</p>
+			<!-- The sample is offered only where it can load (`canLoadSample`), which
 		     follows the chosen format. Where it cannot, an invisible strut with
 		     the button's own box holds its row, so choosing a format never moves
 		     the tray above it. -->
-		{#if controller.canLoadSample}
-			<button
-				type="button"
-				class="button button--quiet draft-start__action"
-				onclick={() => controller.loadSample()}
-			>
-				Load a sample 'scribe
-			</button>
-		{:else}
-			<span class="button button--quiet draft-start__strut" aria-hidden="true">&nbsp;</span>
-		{/if}
+			{#if controller.canLoadSample}
+				<button
+					type="button"
+					class="button button--quiet draft-start__action"
+					onclick={() => controller.loadSample()}
+				>
+					Load a sample 'scribe
+				</button>
+			{:else}
+				<span class="button button--quiet draft-start__strut" aria-hidden="true">&nbsp;</span>
+			{/if}
+		</div>
 	</div>
 {/if}
 
 <style>
+	/* A size container only the tray lives in. On the editor region itself
+	   the containment would make the region the containing block for the
+	   editor's fixed popovers. */
+	.draft-start-frame {
+		position: absolute;
+		z-index: var(--layer-editor-panel);
+		inset: 0;
+		container: draft-sheet / size;
+		pointer-events: none;
+	}
+
 	.draft-start {
 		position: absolute;
 		inset-inline: 0;
 		bottom: 0;
-		z-index: var(--layer-editor-panel);
 		display: grid;
 		width: min(100% - 2 * var(--space-5), 40rem);
 		margin-inline: auto;
@@ -365,11 +379,26 @@
 		}
 	}
 
-	@media (max-height: 36rem) {
+	/* The tray stays in the sheet's lower half, clear of where a press starts
+	   writing, by shedding rows as the sheet gets shorter: the samples, then
+	   the explanations, then everything but the choice and the paste. */
+	@container draft-sheet (max-height: 40rem) {
+		.draft-start__sample {
+			display: none;
+		}
+	}
+
+	@container draft-sheet (max-height: 37rem) {
 		.draft-start__lede,
 		.draft-start__detail,
-		.draft-start__tools-hint,
-		.draft-start__sample {
+		.draft-start__tools-hint {
+			display: none;
+		}
+	}
+
+	@container draft-sheet (max-height: 30rem) {
+		.draft-start__hint,
+		.draft-start__hint ~ .button {
 			display: none;
 		}
 	}

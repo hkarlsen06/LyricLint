@@ -173,7 +173,12 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   stay for as long as the document is empty (`controller.isEmpty`), so a cleared draft shows
   them without the format choice. A short phone draws the cards as names alone, and with the
   keyboard up (`data-keyboard-inset`) the tray keeps only the choice and the paste. The tray
-  rests at the sheet's foot, clear of where a press starts writing, and is absolutely
+  rests at the sheet's foot, clear of where a press starts writing: it stays in the sheet's
+  lower half by shedding rows as the sheet gets shorter (the samples at 40rem, the lede, card
+  details and switch hint at 37rem, the typing hint and sample action at 30rem). Those tiers
+  query the sheet's height, not the window's, through a size container on the tray's own
+  full-sheet frame, because stacked panels halve the sheet; on the editor region the
+  containment would capture the editor's fixed popovers. It is absolutely
   positioned with presses only on its controls, so the ghost transcription, typing and paste
   behave exactly as without it, and its exit moves no lyric line. It fades out over `--duration-fast` once writing begins, instantly under reduced
   motion. While it is open the toolbar draws no format and no format divider. Once writing
