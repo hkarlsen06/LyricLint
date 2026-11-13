@@ -101,7 +101,9 @@ async function blur(page) {
 }
 
 async function replaceDocument(page, editor, text) {
-	await editor.click();
+	// Focus, not click: on an empty 'scribe the format cards can cover the
+	// sheet's middle in a short window, and a click there picks a format.
+	await editor.focus();
 	await page.keyboard.press('Control+A');
 	await editor.fill(text);
 	await settle(page);
@@ -507,7 +509,7 @@ const scenes = {
 	/** The Preferences tab of the right panel. */
 	preferences: {
 		// Short enough that the panel's settings fill it rather than trail off.
-		viewport: { width: 1280, height: 600 },
+		viewport: { width: 1280, height: 740 },
 		async run(page, editor) {
 			await replaceDocument(page, editor, performersTranscription);
 			await page.getByRole('tab', { name: 'Preferences', exact: true }).click();
