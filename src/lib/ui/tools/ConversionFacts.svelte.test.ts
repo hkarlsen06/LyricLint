@@ -2,12 +2,12 @@ import { importDocument } from '#lib/conversion/import.js';
 import { createConversionEnvelope } from '#lib/persistence/conversion.js';
 import { profilePolicyVersions } from '#lib/profiles/versions.js';
 import { fireEvent, waitFor, within } from '@testing-library/dom';
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, expect, test, vi } from 'vitest';
 import type { EditorHandle } from '#lib/core/types.js';
 import EditorPane from '#lib/editor/EditorPane.svelte';
-import { createTestWorkbench } from '../test-utils.js';
+import { chooseOption, createTestWorkbench } from '../test-utils.js';
 import { createMediaPlayer } from '../state/media-player.svelte.js';
 import { createFeedbackState } from '../state/feedback.svelte.js';
 import { createInMemoryMediaRepository } from '../state/in-memory.js';
@@ -62,12 +62,8 @@ async function setup(text = '[Verse]\n2 stars') {
 
 async function fillQuantity(panel: ReturnType<typeof within>, value = '2') {
 	await fireEvent.input(panel.getByLabelText('Exact whole-number value'), { target: { value } });
-	await fireEvent.change(panel.getByLabelText('How is this number used?'), {
-		target: { value: 'ordinary-cardinal' }
-	});
-	await fireEvent.change(panel.getByLabelText('How is it sung?'), {
-		target: { value: 'whole-quantity' }
-	});
+	await chooseOption(panel.getByLabelText('How is this number used?'), 'An ordinary quantity');
+	await chooseOption(panel.getByLabelText('How is it sung?'), 'Sung as the whole quantity');
 }
 
 afterEach(async () => {
@@ -149,16 +145,16 @@ test.each([false, true])(
 		expect(
 			controller.snapshot.conversion!.model.sections.every((section) => section.type === undefined)
 		).toBe(true);
-		expect(panel.getByRole('option', { name: 'Verse → Chorus' })).toBeTruthy();
+		await userEvent.click(panel.getByLabelText('Between sections'));
+		expect(page.getByRole('option', { name: 'Verse → Chorus' }).element()).toBeTruthy();
+		await userEvent.keyboard('{Escape}');
 		await controller.media!.attachFile(new File(['audio'], 'song.mp3', { type: 'audio/mpeg' }));
 		audio.setDuration(60);
 		controller.applyConversionAction({
 			kind: 'setRecording',
 			recordingId: controller.media!.recordingId
 		});
-		await fireEvent.change(panel.getByLabelText('Between sections'), {
-			target: { value: controller.snapshot.conversion!.model.sections[0].id }
-		});
+		await chooseOption(panel.getByLabelText('Between sections'), 'Verse → Chorus');
 		await fireEvent.input(panel.getByLabelText('Starts at (seconds)'), { target: { value: '5' } });
 		await fireEvent.input(panel.getByLabelText('Ends at (seconds)'), { target: { value: '20' } });
 		const confirmation = panel.getByRole('checkbox');
@@ -224,9 +220,7 @@ test.each(['2', '２'])(
 test('unsupported roles offer a local next action without a conversion or generic fact', async () => {
 	const { panel, controller, player } = await setup();
 	const before = JSON.stringify(controller.snapshot.conversion?.model);
-	await fireEvent.change(panel.getByLabelText('How is this number used?'), {
-		target: { value: 'date-or-time' }
-	});
+	await chooseOption(panel.getByLabelText('How is this number used?'), 'A date or time');
 	expect(panel.queryByLabelText('How is it sung?')).toBeNull();
 	expect(panel.queryByRole('button', { name: 'Preview quantity' })).toBeNull();
 	expect(panel.getByRole('status').textContent?.replace(/\s+/gu, ' ')).toContain(

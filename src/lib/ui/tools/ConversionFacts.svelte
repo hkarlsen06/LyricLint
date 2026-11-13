@@ -15,6 +15,25 @@
 		quantityWordingRequirement
 	} from '#lib/profiles/decisions.js';
 	import type { ConversionReviewRequest, WorkbenchController } from '../state/workbench.svelte.js';
+	import { Select, type SelectOption } from '../primitives/select/index.js';
+
+	const usageOptions: SelectOption<QuantityFacts['usage']>[] = [
+		{ value: 'unknown', label: 'Not confirmed' },
+		{ value: 'ordinary-cardinal', label: 'An ordinary quantity' },
+		{ value: 'name-or-identifier', label: 'A name or identifier' },
+		{ value: 'fixed-expression', label: 'A fixed expression' },
+		{ value: 'date-or-time', label: 'A date or time' },
+		{ value: 'phone-or-decade', label: 'A phone number or decade' }
+	];
+	const pronunciationOptions: SelectOption<QuantityFacts['pronunciation']>[] = [
+		{ value: 'unknown', label: 'Not confirmed' },
+		{ value: 'whole-quantity', label: 'Sung as the whole quantity' },
+		{ value: 'individual-digits', label: 'Sung as individual digits' }
+	];
+	const targetOptions: SelectOption<'genius' | 'musixmatch'>[] = [
+		{ value: 'genius', label: 'Genius' },
+		{ value: 'musixmatch', label: 'Musixmatch' }
+	];
 	let {
 		controller,
 		savedOnly = false,
@@ -109,6 +128,12 @@
 		)
 	);
 	const pair = $derived(pairs.find((entry) => entry.before.id === beforeId));
+	const pairOptions = $derived(
+		pairs.map((entry) => ({
+			value: entry.before.id,
+			label: `${entry.before.type} → ${entry.after.type}`
+		}))
+	);
 	const recordingId = $derived(controller.media?.recordingId);
 	const duration = $derived(controller.media?.player.duration);
 	const intervalFacts = $derived<InstrumentalIntervalFacts>({
@@ -246,25 +271,19 @@
 						{#if valueGuidance && !valueGuidance.ok}<p id={`${id}-value-guidance`} role="status">
 								{valueGuidance.message}
 							</p>{/if}
-						<label
-							>How is this number used?<select bind:value={usage}
-								><option value="unknown">Not confirmed</option><option value="ordinary-cardinal"
-									>An ordinary quantity</option
-								><option value="name-or-identifier">A name or identifier</option><option
-									value="fixed-expression">A fixed expression</option
-								><option value="date-or-time">A date or time</option><option value="phone-or-decade"
-									>A phone number or decade</option
-								></select
-							></label
-						>
+						<Select
+							label="How is this number used?"
+							value={usage}
+							options={usageOptions}
+							onchange={(next) => (usage = next)}
+						/>
 						{#if usage === 'ordinary-cardinal'}
-							<label
-								>How is it sung?<select bind:value={pronunciation}
-									><option value="unknown">Not confirmed</option><option value="whole-quantity"
-										>Sung as the whole quantity</option
-									><option value="individual-digits">Sung as individual digits</option></select
-								></label
-							>
+							<Select
+								label="How is it sung?"
+								value={pronunciation}
+								options={pronunciationOptions}
+								onchange={(next) => (pronunciation = next)}
+							/>
 							{#if pronunciation === 'whole-quantity' && wordingRequirement === 'required'}
 								<label
 									>Exact words as sung (required)<textarea bind:value={spokenForm} rows="4" required
@@ -291,13 +310,12 @@
 									>
 								</details>{/if}
 							{#if !focused}
-								<label
-									>Format for this decision<select bind:value={target}
-										><option value="genius">Genius</option><option value="musixmatch"
-											>Musixmatch</option
-										></select
-									></label
-								>
+								<Select
+									label="Format for this decision"
+									value={target}
+									options={targetOptions}
+									onchange={(next) => (target = next)}
+								/>
 							{/if}
 							<button
 								type="button"
@@ -346,14 +364,13 @@
 					{#if !pairs.length}<p>
 							Confirm the types of two adjacent sections before placing an interval between them.
 						</p>{/if}
-					<label
-						>Between sections<select bind:value={beforeId}
-							><option value="">Choose adjacent sections</option
-							>{#each pairs as entry (entry.before.id)}<option value={entry.before.id}
-									>{entry.before.type} → {entry.after.type}</option
-								>{/each}</select
-						></label
-					>
+					<Select
+						label="Between sections"
+						placeholder="Choose adjacent sections"
+						value={beforeId}
+						options={pairOptions}
+						onchange={(next) => (beforeId = next)}
+					/>
 					<div class="conversion-facts__interval-times">
 						<label
 							>Starts at (seconds)<input
@@ -447,13 +464,19 @@
 		gap: var(--space-1);
 	}
 	.conversion-facts input,
-	.conversion-facts textarea,
-	.conversion-facts select {
+	.conversion-facts textarea {
 		font-size: var(--font-size-editor);
 		width: 100%;
 		max-width: 100%;
 		min-width: 0;
 		box-sizing: border-box;
+	}
+	/* The shared select lines up with the labelled fields around it. */
+	.conversion-facts :global(.ui-select) {
+		gap: var(--space-1);
+	}
+	.conversion-facts :global(.ui-select .ui-select__trigger) {
+		font-size: var(--font-size-editor);
 	}
 	.conversion-facts textarea {
 		padding: var(--control-padding-block) var(--control-padding-inline);

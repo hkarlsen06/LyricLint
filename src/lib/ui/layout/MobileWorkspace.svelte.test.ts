@@ -5,7 +5,7 @@ import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import type { Diagnostic } from '#lib/core/types.js';
 import type { HarperDiagnosticProvider } from '#lib/rules/index.js';
-import { createTestWorkbench, diagnostic } from '../test-utils.js';
+import { chooseOption, createTestWorkbench, diagnostic } from '../test-utils.js';
 import MockEditorPane from './MockEditorPane.svelte';
 import EditorPane from '#lib/editor/EditorPane.svelte';
 import Workspace from './Workspace.svelte';
@@ -227,15 +227,11 @@ test.each([360, 390])(
 		expect(pane.height).toBeGreaterThan(550);
 		expect(pane.bottom).toBeLessThanOrEqual(nav.top);
 		expect(screen.queryByLabelText('Exact whole-number value')).toBeNull();
-		expect(screen.getByLabelText('How is this number used?')).toHaveValue('unknown');
+		expect(screen.getByLabelText('How is this number used?')).toHaveTextContent('Not confirmed');
 		expect(screen.queryByLabelText('How is it sung?')).toBeNull();
-		await fireEvent.change(screen.getByLabelText('How is this number used?'), {
-			target: { value: 'ordinary-cardinal' }
-		});
-		expect(screen.getByLabelText('How is it sung?')).toHaveValue('unknown');
-		await fireEvent.change(screen.getByLabelText('How is it sung?'), {
-			target: { value: 'whole-quantity' }
-		});
+		await chooseOption(screen.getByLabelText('How is this number used?'), 'An ordinary quantity');
+		expect(screen.getByLabelText('How is it sung?')).toHaveTextContent('Not confirmed');
+		await chooseOption(screen.getByLabelText('How is it sung?'), 'Sung as the whole quantity');
 		const wording = screen.getByText('Use custom exact wording', { exact: true });
 		expect(wording.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
 		const beforeWording = wording.getBoundingClientRect().toJSON();

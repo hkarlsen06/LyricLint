@@ -93,7 +93,8 @@ for (const width of [1440, 360, 390]) {
 					.getByRole('button', { name: 'Go to Confirm this instrumental interval.' })
 					.click();
 			await page.getByRole('button', { name: 'Review instrumental interval', exact: true }).click();
-			await page.getByLabel('Between sections').selectOption({ label: 'Verse → Chorus' });
+			await page.getByRole('combobox', { name: 'Between sections' }).click();
+			await page.getByRole('option', { name: 'Verse → Chorus', exact: true }).click();
 			await page.getByLabel('Starts at (seconds)').fill('2');
 			await page.getByLabel('Ends at (seconds)').fill('26');
 			await page.getByRole('checkbox', { name: /^I listened to this recording:/ }).check();

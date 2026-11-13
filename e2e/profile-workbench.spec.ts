@@ -298,12 +298,10 @@ test('opens the exact listening decision from a diagnostic, previews it, and ret
 	await expect(page.getByRole('heading', { name: 'Review quantity' })).toBeFocused();
 	await expect(page.getByLabel('Exact whole-number value', { exact: true })).toHaveCount(0);
 	await expect(page.getByRole('combobox', { name: 'How is it sung?', exact: true })).toHaveCount(0);
-	await page
-		.getByRole('combobox', { name: 'How is this number used?', exact: true })
-		.selectOption('ordinary-cardinal');
-	await page
-		.getByRole('combobox', { name: 'How is it sung?', exact: true })
-		.selectOption('whole-quantity');
+	await page.getByRole('combobox', { name: 'How is this number used?', exact: true }).click();
+	await page.getByRole('option', { name: 'An ordinary quantity', exact: true }).click();
+	await page.getByRole('combobox', { name: 'How is it sung?', exact: true }).click();
+	await page.getByRole('option', { name: 'Sung as the whole quantity', exact: true }).click();
 	await expect(page.getByLabel('Exact words as sung (required)', { exact: true })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Preview quantity', exact: true }).click();
 	await expect(page.getByLabel('Replacement preview')).toHaveText('I saw two stars');
