@@ -162,20 +162,12 @@ export function stanzaOutline(text: string, sections: readonly TaggedSection[]):
 	);
 }
 
-/** The outline row a tag for the stanza around `offset` belongs to, when there is one. */
-export function stanzaRowAt(
-	text: string,
-	offset: number,
-	sections: readonly TaggedSection[]
-): { at: number; section?: TaggedSection; suggestion?: SectionType } {
+/** Where a tag for the stanza around `offset` goes, and the section already there. */
+export function stanzaRowAt(text: string, offset: number, sections: readonly TaggedSection[]) {
 	const at = stanzaStartAt(text, offset, sections);
 	// An empty row sorts first at its offset, so the last match is the stanza's own.
 	const row = stanzaOutline(text, sections).findLast((entry) => entry.from === at);
-	return {
-		at,
-		...(row?.section && { section: row.section }),
-		...(row?.suggestion && { suggestion: row.suggestion })
-	};
+	return { at, section: row?.section };
 }
 
 /**
