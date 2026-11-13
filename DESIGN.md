@@ -84,6 +84,9 @@ of controls and neighboring content before and after real interactions on deskto
   The ring is neutral gray in both themes, with theme-specific lightness.
   The offset is the negative ring width, keeping the outline inside the control
   so scroll ports cannot clip it. Focus styling does not change control geometry.
+  Text entry is the exception: browsers match `:focus-visible` on every click into a field,
+  so a text field or the editor draws no ring. The caret marks it, and a field's resting
+  edge firms to `--color-border-input` (on the wrapper when the wrapper draws the field).
 - State transitions use 120 to 240 milliseconds and `--ease-out-quart`. The cap is what it costs to answer an action: the result has to be settled before the user looks for it, and an overshoot past the target reads as the control missing and correcting. Nothing that reports state may reach past this.
 - On load and each ’scribe opening or creation, viewport lyric lines and diagnostic rows
   reveal in top-to-bottom order,

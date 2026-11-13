@@ -326,11 +326,6 @@
 		resize: vertical;
 	}
 
-	.compare-dialog__ask textarea:focus-visible {
-		outline: var(--focus-ring-width) solid var(--color-focus);
-		outline-offset: var(--focus-ring-offset);
-	}
-
 	.compare-dialog__ask-actions {
 		display: flex;
 		gap: var(--space-2);

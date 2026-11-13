@@ -191,8 +191,4 @@
 		line-height: var(--line-height-editor);
 		tab-size: 2;
 	}
-
-	textarea:focus-visible {
-		outline-offset: -3px;
-	}
 </style>

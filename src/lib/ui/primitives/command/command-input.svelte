@@ -53,14 +53,8 @@
 	}
 
 	/* The dialog is the field's only content, and focus sits in it from the
-	   moment it opens; the caret says so. The ring moves to the row so it is
-	   drawn around something the reader can see as the field. */
+	   moment it opens; the caret says so, so the field draws no focus edge. */
 	:global(.ui-command__input:focus-visible) {
-		outline: none;
-	}
-
-	.ui-command__input-row:has(:global(.ui-command__input:focus-visible)) {
-		outline: var(--focus-ring-width) solid var(--color-focus);
-		outline-offset: var(--focus-ring-offset);
+		box-shadow: none;
 	}
 </style>

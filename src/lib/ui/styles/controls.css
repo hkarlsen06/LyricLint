@@ -210,8 +210,7 @@
 	}
 }
 /* Form fields follow the button tier: the ring in `--shadow-control` is the
-   resting boundary, and the focus ring is the strong one: a field is where
-   the focus outline is guaranteed to arrive the moment it matters. */
+   resting boundary. */
 input,
 select,
 textarea {
@@ -232,6 +231,28 @@ input:hover:not(:disabled),
 select:hover:not(:disabled),
 textarea:hover:not(:disabled) {
 	background: var(--color-control-hover);
+}
+
+/* Text entry draws no focus ring. Browsers match `:focus-visible` on every
+   click into a text field, so the global ring outlined each field the pointer
+   touched. The caret already marks the focused field (the editor drops its
+   ring for the same reason), and the resting edge firms to the input boundary
+   color. A field drawn by its wrapper repeats this edge on the wrapper. */
+:where(
+	textarea,
+	input:not(
+		[type='checkbox'],
+		[type='radio'],
+		[type='range'],
+		[type='file'],
+		[type='color'],
+		[type='button'],
+		[type='submit'],
+		[type='reset']
+	)
+):focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 var(--border-width) var(--color-border-input);
 }
 
 input:disabled,

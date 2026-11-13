@@ -424,9 +424,9 @@
 		align-items: center;
 	}
 
+	/* The text-entry focus edge (controls.css), drawn on the box the reader sees as the field. */
 	.language-search:focus-within {
-		outline: var(--focus-ring-width) solid var(--color-focus);
-		outline-offset: var(--focus-ring-offset);
+		box-shadow: 0 0 0 var(--border-width) var(--color-border-input);
 	}
 
 	.language-search :global(svg) {

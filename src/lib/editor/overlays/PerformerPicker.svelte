@@ -817,13 +817,12 @@
 
 	/* The picker takes focus as it opens, so the global :focus-visible ring would
 	   land on a chip nobody navigated to. Hold it back until the first Tab or
-	   arrow key; text entry keeps its ring either way. */
+	   arrow key. Text entry takes the shared field edge (controls.css). */
 	.picker:not(.show-focus) button:focus-visible {
 		outline: none;
 	}
 
-	.show-focus button:focus-visible,
-	input:focus-visible {
+	.show-focus button:focus-visible {
 		outline: var(--focus-ring-width) solid var(--color-focus);
 		outline-offset: var(--focus-ring-offset);
 	}

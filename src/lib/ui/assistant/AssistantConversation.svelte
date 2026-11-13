@@ -753,9 +753,9 @@
 		background: var(--color-control-hover);
 	}
 
+	/* The text-entry focus edge (controls.css), drawn on the box the reader sees as the field. */
 	.assistant-composer__field:focus-within {
-		border-color: var(--color-focus);
-		box-shadow: 0 0 0 var(--focus-ring-width) var(--color-focus-soft);
+		box-shadow: 0 0 0 var(--border-width) var(--color-border-input);
 	}
 
 	/* Sizing only. Everything the control *is* (the silhouette, the contrast

@@ -485,9 +485,6 @@
 		background: var(--color-accent-soft);
 		box-shadow: 0 0 0 var(--space-0-5) var(--color-accent-soft);
 	}
-	textarea:focus-visible {
-		outline-offset: calc(-1 * var(--focus-ring-width));
-	}
 	.export-error {
 		display: flex;
 		padding: var(--space-2) var(--space-5);
