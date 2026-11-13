@@ -40,8 +40,8 @@
 	<p>
 		The assistant answers questions about the transcription guidelines. When you press <em>Ask</em>,
 		the question you typed, plus the recent turns of that same conversation, up to a bounded window,
-		is sent to LyricLint's answering service, a Cloudflare Worker, which forwards it to OpenAI's API
-		through Cloudflare AI Gateway. Anything else depends on one explicit permission:
+		is sent to LyricLint's answering service, a Cloudflare Worker, which forwards it to Anthropic's
+		API through Cloudflare AI Gateway. Anything else depends on one explicit permission:
 	</p>
 	<ul>
 		<li>
@@ -50,21 +50,15 @@
 			only text you type into the assistant's own composer leaves the browser.
 		</li>
 		<li>
-			Each request carries the recent turns it needs. LyricLint sets OpenAI Responses
-			<code>store: false</code>, which disables stored response state; this is not zero data
-			retention. OpenAI may retain abuse-monitoring logs containing request and response content for
-			up to 30 days by default. OpenAI prompt caching covers the fixed instructions and reviewed
-			rules, with a 30-minute minimum lifetime; cache state may remain for up to 24 hours. See
-			<a href="https://developers.openai.com/api/docs/guides/your-data" rel="external"
-				>OpenAI's data controls</a
-			>
-			and
-			<a href="https://developers.openai.com/api/docs/guides/prompt-caching" rel="external"
-				>prompt caching documentation</a
-			>. Each request includes a hashed, anonymous session identifier. LyricLint uses its own OpenAI
-			API key. Cloudflare Gateway payload logging and response caching are disabled, and each
-			request explicitly skips the Gateway response cache. LyricLint retains operational metadata
-			only: status, latency, token counts, request id, and hashed abuse identifiers.
+			Anthropic's API keeps no conversation state between requests (each request carries the turns
+			it needs). Each request to Anthropic includes a hashed, anonymous session identifier.
+			LyricLint authenticates to Anthropic with its own API key; Cloudflare does not supply or bill
+			the model. Cloudflare Gateway payload logging and response caching are disabled, and each
+			request explicitly skips the Gateway response cache. Anthropic prompt caching may temporarily
+			retain a cache of the fixed prompt prefix (the tool definitions and the reviewed rules) for up
+			to one hour after its last use. Anthropic's API data-retention terms still apply. LyricLint
+			retains operational metadata only: status, latency, token counts, request id, and hashed abuse
+			identifiers.
 		</li>
 	</ul>
 
@@ -85,7 +79,7 @@
 	<h2>Subprocessors</h2>
 	<ul>
 		<li>Cloudflare (hosting, AI Gateway, Turnstile) processes assistant requests.</li>
-		<li>OpenAI generates assistant answers from the text the service forwards.</li>
+		<li>Anthropic generates assistant answers from the text the service forwards.</li>
 		<li>
 			Attaching audio from YouTube, Spotify, or Apple Music loads that provider's player, per
 			session, only after you choose it. The one earlier contact: where Apple Music is offered,

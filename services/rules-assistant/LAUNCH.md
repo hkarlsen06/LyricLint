@@ -19,7 +19,7 @@ per-request spend reservations remain enabled.
 - AI Gateway payload logging is off.
 - AI Gateway authentication is on.
 - AI Gateway response caching is off.
-- `OPENAI_API_KEY` is provisioned and the base route ends in `/openai`.
+- `ANTHROPIC_API_KEY` is provisioned and the base route ends in `/anthropic`.
 - The Gateway has a $15/day spend cap.
 - Budget alerts are configured at 50%, 80%, and 100%.
 - The production Pages environment contains the real Turnstile site key as
@@ -30,8 +30,8 @@ per-request spend reservations remain enabled.
 1. From the repository root regenerate the corpus with
    `bun run assistant:corpus`.
 2. Run the scoped checks, versioned staging question eval, opt-in tool-language
-   eval, and manual semantic review described in [the Terra research](eval/terra-prompt-research.md).
-   Finish or restart active Claude tool turns across the switch; settled saved
+   eval, and the manual semantic review described in [the eval guide](eval/README.md).
+   Finish or restart active tool turns across a provider switch; settled saved
    conversation text remains compatible. Obtain deployment approval before
    changing the existing production service.
 3. Complete the CI token setup in [CI and deployment](../../docs/ci.md), then

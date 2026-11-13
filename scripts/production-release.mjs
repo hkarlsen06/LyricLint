@@ -115,7 +115,7 @@ export function productionWorkerConfig(source) {
 	config.workers_dev = false;
 	config.preview_urls = false;
 	// Strict inheritance rejects a missing provider key before changing the Worker.
-	const inheritedBindings = ['ASSISTANT_DISABLED', 'OPENAI_API_KEY'];
+	const inheritedBindings = ['ASSISTANT_DISABLED', 'ANTHROPIC_API_KEY'];
 	delete config.vars.ASSISTANT_DISABLED;
 	config.unsafe.bindings = [
 		...config.unsafe.bindings.filter((binding) => !inheritedBindings.includes(binding.name)),

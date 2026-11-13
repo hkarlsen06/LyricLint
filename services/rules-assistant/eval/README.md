@@ -38,7 +38,7 @@ narrow heuristic, not a general language detector; inspect printed prose on fail
 Set `TOOL_LANGUAGE_EVAL_QUESTION` to run a longer Norwegian control question.
 It makes at most five provider requests and never changes a real document.
 
-From the repository root, with `AI_GATEWAY_BASE_URL`, `OPENAI_API_KEY`, and
+From the repository root, with `AI_GATEWAY_BASE_URL`, `ANTHROPIC_API_KEY`, and
 `AI_GATEWAY_TOKEN` available in the environment or the service's `.dev.vars`:
 
 ```bash
@@ -48,10 +48,6 @@ bun --env-file=services/rules-assistant/.dev.vars services/rules-assistant/eval/
 The base URL is also documented in `services/rules-assistant/wrangler.jsonc`;
 set it explicitly if `.dev.vars` only contains secrets. This check spends provider
 tokens and is not part of the default unit suite.
-
-The adapter targets exact `gpt-6.1-terra`. See [the Terra prompt research](terra-prompt-research.md)
-for the market comparison, sources, tuning rationale, and release prerequisites.
-Medium reasoning and the revised zero-shot prompt have not been measured live.
 
 Question cases carrying `manualReview` print their answer and semantic rubric.
 Review these for unsupported audio certainty, rewritten dialect, and source-tier
@@ -68,7 +64,7 @@ ASSISTANT_EVAL_ORIGIN=http://127.0.0.1:5173 \
 bun services/rules-assistant/eval/run.mjs
 ```
 
-Compare prior and revised prompts on the same Terra configuration, corpus,
+Compare prior and revised prompts on the same model configuration, corpus,
 questions, and fictional tool transcripts. Record model settings, corpus hash,
-answers, notes, and human judgments. Neither unit tests nor the historical
-Sol/Luna experiment establishes a Terra improvement.
+answers, notes, and human judgments. Unit tests do not establish a quality
+improvement.

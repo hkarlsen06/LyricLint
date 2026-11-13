@@ -69,11 +69,11 @@ vars and inherits that binding by name. Wrangler's strict inheritance rejects
 an absent binding. This preserves the live operational kill switch: `--keep-vars`
 alone would still overwrite it with the source value. The other source vars and
 all quota, rate-limit, and analytics bindings remain configured as reviewed.
-The release also inherits `OPENAI_API_KEY` explicitly. A missing provider key
+The release also inherits `ANTHROPIC_API_KEY` explicitly. A missing provider key
 therefore fails the Worker upload before the current service is replaced.
 
 To provision or rotate that key through CI, supply the temporary encrypted
-GitHub Actions secret `ASSISTANT_OPENAI_API_KEY`. The deploy job prepares the key
+GitHub Actions secret `ASSISTANT_ANTHROPIC_API_KEY`. The deploy job prepares the key
 with `wrangler versions secret put` before the coordinated publisher runs.
 Preparing the secret creates a version without sending production traffic to it.
 The publisher inherits the key into the compatible Worker release. Remove the

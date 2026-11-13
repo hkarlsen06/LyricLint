@@ -233,7 +233,7 @@ test('code releases retain the domain and require the kill switch and provider k
 	assert.deepEqual(config.unsafe.bindings, [
 		...source.unsafe.bindings,
 		{ name: 'ASSISTANT_DISABLED', type: 'inherit' },
-		{ name: 'OPENAI_API_KEY', type: 'inherit' }
+		{ name: 'ANTHROPIC_API_KEY', type: 'inherit' }
 	]);
 	assert.deepEqual(config.durable_objects, source.durable_objects);
 	assert.deepEqual(config.migrations, source.migrations);

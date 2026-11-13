@@ -287,9 +287,8 @@ export const docsPages: readonly DocsPage[] = [
 			'ask',
 			'permission',
 			'proofread',
-			'openai',
-			'gpt',
-			'terra'
+			'anthropic',
+			'claude'
 		]
 	},
 	{

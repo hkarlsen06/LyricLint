@@ -75,9 +75,9 @@ export function makeEnv(
 	return {
 		ASSISTANT_DISABLED: 'false',
 		ALLOWED_ORIGIN: 'https://lyriclint.com,https://dev.lyriclint.com',
-		AI_GATEWAY_BASE_URL: 'https://gateway.invalid/openai',
+		AI_GATEWAY_BASE_URL: 'https://gateway.invalid/anthropic',
 		AI_GATEWAY_TOKEN: 'gateway-token',
-		OPENAI_API_KEY: 'openai-key',
+		ANTHROPIC_API_KEY: 'anthropic-key',
 		TURNSTILE_SECRET: 'turnstile-secret',
 		TURNSTILE_ALLOW_LOCALHOST: 'false',
 		ABUSE_HMAC_SECRET: 'abuse-secret',

@@ -94,9 +94,10 @@ describe('profile corpus allowlist', () => {
 			'offered',
 			musixmatch
 		);
-		expect(request.prompt_cache_key).not.toBe(
+		// Anthropic caches by the prefix's bytes, so the system block is the cache identity.
+		expect(request.system).not.toEqual(
 			providerRequest([{ role: 'user', content: 'Review this' }], 'browser', 'offered', genius)
-				.prompt_cache_key
+				.system
 		);
 		expect(request.tools?.some((tool) => 'name' in tool && tool.name === 'manage_links')).toBe(
 			false
