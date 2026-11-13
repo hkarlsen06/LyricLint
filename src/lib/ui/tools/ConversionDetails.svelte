@@ -4,7 +4,12 @@
 
 	import { parseDocument } from '#lib/core/parser.js';
 	import { tick, untrack } from 'svelte';
-	import { sectionTypeChoices as types, sectionType } from '#lib/conversion/section-types.js';
+	import {
+		sectionTypeChoices as types,
+		sectionType,
+		sectionTypeOptions
+	} from '#lib/conversion/section-types.js';
+	import { Select } from '../primitives/select/index.js';
 	import { contentOffset, projectOffset, renderProfile } from '#lib/conversion/index.js';
 	import type { SectionRecord } from '#lib/conversion/model.js';
 	import type { ConversionAction } from '#lib/conversion/index.js';
@@ -138,22 +143,14 @@
 </script>
 
 {#snippet typePicker(section: SectionRecord)}
-	<label
-		>Section type
-		<select
-			value={sectionType(section, model?.defaultLanguage ?? 'und') ?? ''}
-			onchange={(event) => {
-				const type = types.find((type) => type === event.currentTarget.value);
-				if (type)
-					controller.applyConversionAction({ kind: 'setSectionType', sectionId: section.id, type });
-			}}
-		>
-			<option value="" disabled>Type not set</option>
-			{#each types as type (type)}<option value={type}
-					>{type === 'PreChorus' ? 'Pre-Chorus' : type}</option
-				>{/each}
-		</select>
-	</label>
+	<Select
+		label="Section type"
+		placeholder="Type not set"
+		value={sectionType(section, model?.defaultLanguage ?? 'und') ?? ''}
+		options={sectionTypeOptions}
+		onchange={(type) =>
+			controller.applyConversionAction({ kind: 'setSectionType', sectionId: section.id, type })}
+	/>
 {/snippet}
 
 <div class="conversion-details" bind:this={container}>

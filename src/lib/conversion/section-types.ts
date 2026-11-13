@@ -14,6 +14,17 @@ export const sectionTypeChoices: readonly NonNullable<SectionRecord['type']>[] =
 	'Outro'
 ];
 
+/** A type as its tag reads: `PreChorus` is stored without its hyphen. */
+export function sectionTypeLabel(type: NonNullable<SectionRecord['type']>): string {
+	return type === 'PreChorus' ? 'Pre-Chorus' : type;
+}
+
+/** The type choices as a list a picker draws, in the shared order. */
+export const sectionTypeOptions = sectionTypeChoices.map((type) => ({
+	value: type,
+	label: sectionTypeLabel(type)
+}));
+
 /** The Musixmatch tag a reviewed song-part name stands for, in the draft's language or English. */
 export function sectionTypeForName(name: string, language: string): SectionRecord['type'] {
 	const literal = semanticPartKey(name.replace(/\s+\d+$/u, ''));
