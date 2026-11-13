@@ -49,6 +49,9 @@ subsequent shortcuts through the existing window handler, with no second transpo
 
 The handoff does not move the playhead, rebuild the frame, cover it, or intercept its clicks.
 Tab entry preserves native keyboard access to captions, settings, and the provider's other controls.
+Whether the entry was Tab is read at the window's blur, not in the deferred check: a frame
+laid out under a resting cursor fires `pointerenter` without any movement, and reading later
+let that pull Tab focus back out of the provider (a flaky CI failure in November 2026).
 Fullscreen keeps its native focus and Escape behavior. A pending handoff is cancelled on unmount.
 
 ### A mobile task view cannot own the video

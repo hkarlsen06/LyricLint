@@ -12,11 +12,14 @@ export const keepVideoShortcuts: Attachment<HTMLElement> = (node) => {
 	};
 	const blur = () => {
 		clearTimeout(pending);
+		// Read the entry at blur: a pointerenter from a frame laid out under a resting
+		// cursor can arrive before the deferred check without the pointer moving.
+		const tabbed = keyboardEntry;
 		// The active element becomes the iframe after the window's blur event.
 		pending = setTimeout(() => {
 			const focused = document.activeElement;
 			if (
-				keyboardEntry ||
+				tabbed ||
 				!document.hasFocus() ||
 				!(focused instanceof HTMLIFrameElement) ||
 				!node.contains(focused) ||
