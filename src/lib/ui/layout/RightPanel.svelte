@@ -368,9 +368,16 @@
 		background: var(--color-chrome);
 	}
 
+	/* The list scrolls, and a scroll port clips whatever paints outside it: the
+	   open tool's ring (`--shadow-control`) sits outside a button that spans the
+	   port, so its sides were cut. The padding gives the ring room and the
+	   matching negative margin keeps the rail's geometry. */
 	.right-panel__header :global(.panel-tabs) {
 		display: flex;
-		width: 100%;
+		flex: 1;
+		min-width: 0;
+		padding: var(--space-0-5);
+		margin: calc(-1 * var(--space-0-5));
 		gap: var(--space-1);
 		overflow-x: auto;
 		scrollbar-width: none;
@@ -462,6 +469,7 @@
 		}
 
 		.right-panel__header :global(.panel-tabs) {
+			flex: none;
 			flex-direction: column;
 			min-height: 0;
 			overflow: auto;
