@@ -13,11 +13,14 @@
 	type Choice = (typeof sectionTypeOptions)[number]['value'] | typeof NO_TAG;
 
 	interface OutlineRow {
+		key: string;
 		from: number;
 		line: number;
 		/** What the row is called: its tag in a headerless draft, its header in Genius. */
 		title?: string;
 		opening: string;
+		/** The retained section this row opens the options of. */
+		sectionId?: string;
 		stanza?: StanzaRow;
 	}
 
@@ -30,12 +33,13 @@
 	const rows = $derived.by(() => {
 		if (!active) return lastRows;
 		const snapshot = controller.snapshot;
+		const conversion = snapshot.conversion;
+		const projection = conversion && renderProfile(conversion.model, conversion.profile);
 		if (musixmatch) {
-			const conversion = snapshot.conversion;
-			const projection = conversion && renderProfile(conversion.model, conversion.profile);
 			const sections =
 				conversion && projection?.ok ? taggedSections(conversion.model, projection.value) : [];
 			lastRows = stanzaOutline(snapshot.text, sections).map((stanza) => ({
+				key: stanza.lineCount ? `stanza:${stanza.from}` : `section:${stanza.section?.id}`,
 				from: stanza.from,
 				line: stanza.line,
 				title: stanza.section
@@ -44,19 +48,32 @@
 						: stanza.section.name
 					: undefined,
 				opening: stanza.opening,
+				...(stanza.section && { sectionId: stanza.section.id }),
 				stanza
 			}));
 		} else {
+			// A Genius header is text; its retained section is found by where the
+			// header's projection starts.
+			const retained = new Map(
+				projection?.ok
+					? projection.value.sections.flatMap((section) =>
+							section.headerFrom === undefined ? [] : [[section.headerFrom, section.id] as const]
+						)
+					: []
+			);
 			lastRows = snapshot.parsed.sections.flatMap((section) => {
 				const first = section.lines[0];
 				const from = section.header?.from ?? first?.from;
 				if (from === undefined) return [];
+				const sectionId = section.header ? retained.get(section.header.from) : undefined;
 				return [
 					{
+						key: `header:${from}`,
 						from,
 						line: snapshot.text.slice(0, from).split('\n').length,
 						title: section.header?.rawNamePart.trim() || undefined,
-						opening: first ? snapshot.text.slice(first.from, first.to) : ''
+						opening: first ? snapshot.text.slice(first.from, first.to) : '',
+						...(sectionId && { sectionId })
 					}
 				];
 			});
@@ -64,8 +81,11 @@
 		return lastRows;
 	});
 	const caret = $derived(controller.snapshot.selection.head);
-	const currentFrom = $derived(rows.findLast((row) => row.from <= caret)?.from);
-	const taggedCount = $derived(rows.filter((row) => row.stanza?.section).length);
+	const currentKey = $derived(rows.findLast((row) => row.from <= caret)?.key);
+	const stanzaCount = $derived(rows.filter((row) => row.stanza?.lineCount).length);
+	const taggedCount = $derived(
+		rows.filter((row) => row.stanza?.lineCount && row.stanza.section).length
+	);
 
 	function options(stanza: StanzaRow): SelectOption<Choice>[] {
 		const tags: SelectOption<Choice>[] = [...sectionTypeOptions];
@@ -99,27 +119,30 @@
 	The song's shape, first in the tab that is named for the song. In a
 	Musixmatch draft the tags live outside the text, so this list is where every
 	stanza's tag can be read and set without moving the caret; in a Genius draft
-	the headers are text, and the list is a way to move between them.
+	the headers are text, and the list moves between them and opens each one's
+	retained options.
 -->
 {#if rows.length > 0}
 	<section class="section-outline" aria-labelledby="section-outline-title">
 		<h2 id="section-outline-title">Sections</h2>
 		{#if musixmatch}
 			<p>
-				{taggedCount === rows.length
-					? `All ${rows.length} stanzas tagged.`
-					: `${taggedCount} of ${rows.length} stanzas tagged.`} Tags stay in this draft; apply them in
+				{taggedCount === stanzaCount
+					? `All ${stanzaCount} stanzas tagged.`
+					: `${taggedCount} of ${stanzaCount} stanzas tagged.`} Tags stay in this draft; apply them in
 				Musixmatch when you submit.
 			</p>
 		{/if}
 		<ol>
-			{#each rows as row (row.from)}
+			{#each rows as row (row.key)}
 				{@const stanza = row.stanza}
-				<li aria-current={row.from === currentFrom ? 'true' : undefined}>
+				<li aria-current={row.key === currentKey ? 'true' : undefined}>
 					{#if stanza}
 						<Select
 							class="section-outline__tag"
-							label={`Tag for the stanza on line ${row.line}`}
+							label={stanza.lineCount
+								? `Tag for the stanza on line ${row.line}`
+								: `Tag for the empty section on line ${row.line}`}
 							labelHidden
 							placeholder="Add tag"
 							value={stanza.section?.type ?? ''}
@@ -141,13 +164,14 @@
 						<span class="section-outline__opening">{row.opening || 'No lyrics yet'}</span>
 						<span class="sr-only">, line {row.line}</span>
 					</button>
-					{#if stanza?.section}
+					{#if row.sectionId}
+						{@const sectionId = row.sectionId}
 						<button
 							type="button"
 							class="icon-button section-outline__options"
-							data-section-id={stanza.section.id}
-							aria-label={`${row.title} section options, line ${row.line}`}
-							onclick={() => controller.openSectionDetails(stanza.section!.id)}
+							data-section-id={sectionId}
+							aria-label={`${row.title ?? 'Section'} section options, line ${row.line}`}
+							onclick={() => controller.openSectionDetails(sectionId)}
 							><DotsThreeIcon size="1.125em" weight="bold" aria-hidden="true" /></button
 						>
 					{:else if stanza?.suggestion}

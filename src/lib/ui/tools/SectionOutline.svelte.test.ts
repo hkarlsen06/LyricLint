@@ -135,8 +135,22 @@ describe('the Sections outline of a Musixmatch draft', () => {
 	});
 });
 
+describe('sections with no lyric line of their own', () => {
+	test('a trailing tag has its own row, and the stanza count leaves it out', async () => {
+		const controller = await mount('One\n\n', 'musixmatch');
+		controller.applyConversionAction({ kind: 'insertSection', at: 5, type: 'Bridge' });
+		const empty = await screen.findByRole('combobox', {
+			name: 'Tag for the empty section on line 3'
+		});
+		expect(empty).toHaveTextContent('Bridge');
+		expect(screen.getByText(/^0 of 1 stanzas tagged\./u)).toBeVisible();
+		await chooseOption(empty, 'No tag');
+		await waitFor(() => expect(sections(controller)).toEqual([]));
+	});
+});
+
 describe('the Sections outline of a Genius draft', () => {
-	test('lists the headers as a way to move, with nothing to tag', async () => {
+	test('lists the headers to move between and opens their retained options', async () => {
 		const source = '[Verse 1]\nBack down the block\n\n[Chorus: Mira]\nHold the line';
 		const controller = await mount(source, 'genius');
 		expect(screen.queryByRole('combobox')).toBeNull();
@@ -146,10 +160,16 @@ describe('the Sections outline of a Genius draft', () => {
 			expect.stringMatching(/Chorus\s*Hold the line/u)
 		]);
 
-		await fireEvent.click(screen.getByRole('button', { name: /^Chorus/u }));
+		await fireEvent.click(screen.getByRole('button', { name: /^Chorus Hold the line/u }));
 
 		const at = source.indexOf('[Chorus');
 		expect(controller.conversionPassageRequest?.range).toEqual({ from: at, to: at });
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Chorus section options, line 4' }));
+		expect(controller.requestedSection).toEqual({
+			id: controller.snapshot.conversion!.model.sections[1]!.id,
+			origin: 'editor'
+		});
 	});
 
 	test('draws nothing for an empty draft', async () => {
