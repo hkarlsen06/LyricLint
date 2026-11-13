@@ -568,7 +568,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	void deps.repository
 		.getPreference(musixmatchToolsPreference)
 		.then((stored) => {
-			if (stored !== undefined) musixmatchToolsStored = stored === 'true';
+			// A choice made while the read was in flight is newer than the stored row.
+			if (stored !== undefined && musixmatchToolsStored === undefined) {
+				musixmatchToolsStored = stored === 'true';
+			}
 		})
 		.catch(() => {});
 	const musixmatchToolsEnabled = $derived(
