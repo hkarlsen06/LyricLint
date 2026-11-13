@@ -72,6 +72,7 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   Retained Genius headings and their Musixmatch controls reserve matching section rows, including separate
   rows for coincident empty sections. Heading syntax uses the mono face and character wrapping;
   a hidden sizing layer preserves its wrapping height in Musixmatch without adding lyrics.
+  A heading row's line number takes the row's top padding, so it stays level with the heading text.
   Literal bracket lines, including nameless headers and headers authored as Musixmatch lyrics,
   keep ordinary lyric-row geometry; their brackets inherit the lyric face.
   Coarse-pointer rows retain the control touch floor. The workbench's persistent Section action

@@ -1,6 +1,19 @@
 import { canRenderSection, canRetainSectionHeader } from '#lib/conversion/section-placement.js';
-import { StateField, type EditorState, type Extension } from '@codemirror/state';
-import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view';
+import {
+	RangeSet,
+	StateField,
+	type EditorState,
+	type Extension,
+	type Range
+} from '@codemirror/state';
+import {
+	Decoration,
+	EditorView,
+	GutterMarker,
+	WidgetType,
+	gutterLineClass,
+	type DecorationSet
+} from '@codemirror/view';
 import { conversionForState } from './conversion-state.js';
 import {
 	editorCallbacksField,
@@ -155,10 +168,24 @@ const sectionBoundaryField = StateField.define<DecorationSet>({
 	provide: (field) => EditorView.decorations.from(field)
 });
 
+const headingGutterMarker = new (class extends GutterMarker {
+	override elementClass = 'll-conversion-heading-gutter';
+})();
+
 export const conversionSectionBoundaries: Extension = [
 	sectionBoundaryField,
+	// A retained heading's row is padded taller than a lyric's, so its line
+	// number takes the same top padding to stay level with the text.
+	gutterLineClass.compute([sectionBoundaryField], (state) => {
+		const marks: Range<GutterMarker>[] = [];
+		state.field(sectionBoundaryField).between(0, state.doc.length, (from, _to, value) => {
+			if (value.spec.class === 'll-conversion-heading') marks.push(headingGutterMarker.range(from));
+		});
+		return RangeSet.of(marks);
+	}),
 	EditorView.baseTheme({
-		'.cm-content': { '--ll-section-control-height': 'var(--control-height-md)' },
+		// On the scroller so the gutters resolve it as well as the lines.
+		'.cm-scroller': { '--ll-section-control-height': 'var(--control-height-md)' },
 		'.ll-conversion-literal-heading .ll-syntax-dim': { fontFamily: 'inherit' },
 		'.cm-line.ll-conversion-heading, .ll-conversion-heading-size': {
 			boxSizing: 'border-box',
@@ -169,6 +196,12 @@ export const conversionSectionBoundaries: Extension = [
 			fontSize: 'var(--font-size-editor)',
 			lineHeight: 'var(--line-height-editor)',
 			wordBreak: 'break-all'
+		},
+		// `1lh` here would be the gutter's own small type, so the heading line's
+		// height is spelled out from the tokens it is set in.
+		'.cm-lineNumbers .cm-gutterElement.ll-conversion-heading-gutter': {
+			paddingTop:
+				'calc(var(--space-0-5) + max(0px, calc((var(--ll-section-control-height) + 2 * var(--space-1) - var(--font-size-editor) * var(--line-height-editor)) / 2)))'
 		},
 		'.ll-conversion-sections': {
 			userSelect: 'none'
@@ -222,10 +255,10 @@ export const conversionSectionBoundaries: Extension = [
 			color: 'var(--color-text)'
 		},
 		'@media (max-width: 46rem)': {
-			'.cm-content': { '--ll-section-control-height': 'var(--control-height-lg)' }
+			'.cm-scroller': { '--ll-section-control-height': 'var(--control-height-lg)' }
 		},
 		'@media (pointer: coarse)': {
-			'.cm-content': { '--ll-section-control-height': 'var(--control-height-touch)' }
+			'.cm-scroller': { '--ll-section-control-height': 'var(--control-height-touch)' }
 		}
 	})
 ];

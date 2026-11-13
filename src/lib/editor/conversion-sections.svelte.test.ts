@@ -40,6 +40,37 @@ function mount(text: string, width: number, switchToMusixmatch = true) {
 }
 
 describe('retained section boundaries', () => {
+	it.each([false, true])(
+		'sets a heading row line number level with its text (coarse pointer: %s)',
+		async (coarse) => {
+			await cdp().send('Emulation.setTouchEmulationEnabled', {
+				enabled: coarse,
+				maxTouchPoints: 1
+			});
+			const { view } = mount('Moon rises\n\n[Chorus: Frikk]\nStars fall', 800, false);
+			await new Promise<void>((resolve) =>
+				requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+			);
+			// How far each row's number sits below its own text's top edge.
+			const numberOffset = (lineNumber: number) => {
+				const line = view.state.doc.line(lineNumber);
+				const number = [...view.dom.querySelectorAll('.cm-lineNumbers .cm-gutterElement')].find(
+					(element) => element.textContent === String(lineNumber)
+				)!;
+				const range = document.createRange();
+				range.selectNodeContents(number);
+				return range.getBoundingClientRect().top - view.coordsAtPos(line.from + 1)!.top;
+			};
+			const heading = view.state.doc.line(3);
+			expect(view.domAtPos(heading.from).node.parentElement?.closest('.cm-line')).toHaveProperty(
+				'className',
+				expect.stringContaining('ll-conversion-heading')
+			);
+			// Line 1 holds the caret, whose number is drawn differently, so line 4 is the reference.
+			expect(Math.abs(numberOffset(3) - numberOffset(4))).toBeLessThanOrEqual(1);
+		}
+	);
+
 	it('replaces a retained Genius draft with shorter lyrics before projection ranges are refreshed', () => {
 		const { handle, view } = mount(
 			`[Verse]\n${'Moon rises\n'.repeat(10)}[Chorus]\nStars fall`,
