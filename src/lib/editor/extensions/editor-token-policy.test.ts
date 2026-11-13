@@ -91,8 +91,10 @@ describe('editor theme token policy', () => {
 				if (!read.has(name)) read.set(name, relative(path));
 			}
 		}
+		// bits-ui writes its floating layer's measurements (`--bits-select-anchor-width`
+		// and the like) inline on the element it positions; the product can only read them.
 		const orphans = [...read]
-			.filter(([name]) => !defined.has(name))
+			.filter(([name]) => !defined.has(name) && !name.startsWith('--bits-'))
 			.map(([name, path]) => `${path}: ${name}`);
 		expect(orphans).toEqual([]);
 	});
@@ -160,8 +162,10 @@ describe('application custom-property policy', () => {
 			}
 		}
 
+		// bits-ui writes its floating layer's measurements (`--bits-select-anchor-width`
+		// and the like) inline on the element it positions; the product can only read them.
 		const orphans = [...read]
-			.filter(([name]) => !defined.has(name))
+			.filter(([name]) => !defined.has(name) && !name.startsWith('--bits-'))
 			.map(([name, path]) => `${path}: ${name}`);
 		expect(orphans).toEqual([]);
 	});
