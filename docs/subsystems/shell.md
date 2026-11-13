@@ -162,9 +162,11 @@ Find a surface by what it shows, then open its file. Rows routed elsewhere name 
   and `Lyric format: Musixmatch` in a group named `Lyric format`. Each card says what the
   format means and shows a two-line sample in the editor's faces (phones drop the samples).
   The chosen card rises with the accent ring and a filled check, and is pressed; every card
-  keeps one box whether chosen or not. A `Musixmatch tools` switch row sits under the cards
-  (see the preference below); a short phone and the raised keyboard drop its hint line. Under
-  them the tray holds the ways to begin:
+  keeps one box whether chosen or not. A `Musixmatch tools` switch row sits directly above the
+  cards (see the preference below), never under them: the tray rests on the sheet's foot, so a
+  row below the cards lifts them over the middle of the sheet, and the e2e suites' editor
+  clicks land on a card. A short phone and the raised keyboard drop its hint line. Under the
+  cards the tray holds the ways to begin:
   `Paste lyrics` on the contrast tier, one line saying typing works too, and a quiet
   `Load a sample 'scribe` where `canLoadSample` allows it. The sample's row keeps its height
   when the sample is withdrawn, so choosing a format moves nothing above it. The ways to begin

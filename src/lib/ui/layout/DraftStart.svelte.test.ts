@@ -127,7 +127,9 @@ describe('the start tray holds every way to begin an empty document', () => {
 
 		expect(tools()).toHaveAttribute('aria-checked', 'false');
 		expect(tools()).toBeEnabled();
-		expect(tools()).toHaveAccessibleDescription('Adds the format tag and Export to Musixmatch.');
+		expect(tools()).toHaveAccessibleDescription(
+			"Format tag and Export in Genius 'scribes; always on in Musixmatch."
+		);
 		await fireEvent.click(tools());
 		await waitFor(() => expect(tools()).toHaveAttribute('aria-checked', 'true'));
 		expect(controller.showsFormatTools).toBe(true);
@@ -139,7 +141,6 @@ describe('the start tray holds every way to begin an empty document', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Lyric format: Musixmatch' }));
 		await waitFor(() => expect(tools()).toHaveAttribute('aria-checked', 'true'));
 		expect(tools()).toBeDisabled();
-		expect(tools()).toHaveAccessibleDescription("Always on in a Musixmatch 'scribe.");
 		expect(await repository.getPreference('musixmatchTools')).toBe('true');
 	});
 

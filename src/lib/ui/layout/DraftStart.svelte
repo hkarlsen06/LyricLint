@@ -40,6 +40,32 @@
 			<p class="draft-start__lede">
 				Each 'scribe is written in one. Export makes an editable copy in the other.
 			</p>
+			<!-- The Preferences switch, asked where the format is: choosing Genius
+			     stores it off and Musixmatch on, and a Genius 'scribe may then turn
+			     it on. A Musixmatch 'scribe always shows its tools, so there it
+			     reads on and cannot be pressed. It sits above the cards because the
+			     tray rests on the sheet's foot: a row under them would lift the
+			     cards over the middle of the sheet, where a press starts writing. -->
+			<div class="draft-start__tools">
+				<span class="draft-start__tools-text">
+					<label class="draft-start__tools-label" for="{id}-tools">Musixmatch tools</label>
+					<!-- One sentence for both formats, so the row keeps its height
+					     and the switch its place when the choice changes. -->
+					<span class="draft-start__tools-hint" id="{id}-tools-hint">
+						Format tag and Export in Genius 'scribes; always on in Musixmatch.
+					</span>
+				</span>
+				<Switch.Root
+					id="{id}-tools"
+					class="switch"
+					aria-describedby="{id}-tools-hint"
+					checked={controller.showsFormatTools}
+					disabled={controller.profile === 'musixmatch'}
+					onCheckedChange={(checked) => controller.setMusixmatchToolsEnabled(checked)}
+				>
+					<Switch.Thumb class="switch__thumb" />
+				</Switch.Root>
+			</div>
 			<div
 				class="draft-start__formats"
 				role="group"
@@ -77,30 +103,6 @@
 						</span>
 					</button>
 				{/each}
-			</div>
-			<!-- The Preferences switch, asked where the format is: choosing Genius
-			     stores it off and Musixmatch on, and a Genius 'scribe may then turn
-			     it on. A Musixmatch 'scribe always shows its tools, so there it
-			     reads on and cannot be pressed. -->
-			<div class="draft-start__tools">
-				<span class="draft-start__tools-text">
-					<label class="draft-start__tools-label" for="{id}-tools">Musixmatch tools</label>
-					<span class="draft-start__tools-hint" id="{id}-tools-hint">
-						{controller.profile === 'musixmatch'
-							? "Always on in a Musixmatch 'scribe."
-							: 'Adds the format tag and Export to Musixmatch.'}
-					</span>
-				</span>
-				<Switch.Root
-					id="{id}-tools"
-					class="switch"
-					aria-describedby="{id}-tools-hint"
-					checked={controller.showsFormatTools}
-					disabled={controller.profile === 'musixmatch'}
-					onCheckedChange={(checked) => controller.setMusixmatchToolsEnabled(checked)}
-				>
-					<Switch.Thumb class="switch__thumb" />
-				</Switch.Root>
 			</div>
 			<span id="{id}-pending" class="sr-only">
 				{#if controller.pendingProfile}Select the current format to cancel the pending switch.{/if}
@@ -173,7 +175,7 @@
 		display: grid;
 		width: 100%;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-		margin-block: var(--space-4) var(--space-3);
+		margin-block: var(--space-2) var(--space-3);
 		gap: var(--space-3);
 	}
 
@@ -274,12 +276,12 @@
 		font-size-adjust: none;
 	}
 
-	/* A settings row the cards' width: name and hint at the start, the switch at
-	   the end, as Preferences sets it. */
+	/* A settings row the cards' width, just above them: name and hint at the
+	   start, the switch at the end, as Preferences sets it. */
 	.draft-start__tools {
 		display: flex;
 		width: 100%;
-		margin-bottom: var(--space-3);
+		margin-top: var(--space-3);
 		padding-inline: var(--space-4);
 		gap: var(--space-3);
 		align-items: center;
@@ -287,9 +289,14 @@
 		text-align: start;
 	}
 
+	/* One line where it fits, so the tray grows by a single row; the hint wraps
+	   under the name on a phone. */
 	.draft-start__tools-text {
-		display: grid;
+		display: flex;
 		min-width: 0;
+		flex-wrap: wrap;
+		column-gap: var(--space-2);
+		align-items: baseline;
 	}
 
 	.draft-start__tools-label {
@@ -345,11 +352,11 @@
 			display: none;
 		}
 		.draft-start__formats {
-			margin-block: var(--space-3) var(--space-2);
+			margin-block: var(--space-1) var(--space-2);
 			gap: var(--space-2);
 		}
 		.draft-start__tools {
-			margin-bottom: var(--space-2);
+			margin-top: var(--space-2);
 			padding-inline: var(--space-3);
 		}
 		.draft-start__format {
