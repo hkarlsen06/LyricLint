@@ -44,29 +44,26 @@ const guillemetPattern = new RegExp(`[${Object.keys(quoteMarks).join('')}"]`, 'g
 const openingDoubles = new Set(['“', '„', '‟', '«']);
 
 /**
- * The guillemet a double mark becomes. Curly and low forms carry their own
- * direction; a straight `"` does not, so it alternates with the straight
- * marks before it on the line and previews rather than batches.
+ * A straight mark can start a nested pair when it sits at the start of text.
+ * Otherwise, use the open pair on this line to guess its direction.
  */
-function guillemetFor(mark: string, line: string, offset: number) {
-	if (mark !== '"') {
-		// `„bli her“` closes with the curly opener, so a `“` after an unclosed
-		// `„` on the line is the closing half.
-		const low = line.lastIndexOf('„', offset);
-		const closesLow = mark === '“' && low !== -1 && !line.slice(low, offset).includes('“');
+function guillemetFor(mark: string, openDouble: string | undefined, before: string, after: string) {
+	const atClosingBoundary = after === '' || /[\s\p{Pe}\p{Pf}.,!?;:]/u.test(after);
+	if (mark === '"') {
+		const startsText =
+			(/[\s\p{Ps}]/u.test(before) || openingDoubles.has(before)) && !atClosingBoundary;
 		return {
-			replacement: openingDoubles.has(mark) && !closesLow ? '«' : '»',
-			fix: 'safe' as const,
-			name: quoteMarks[mark]?.name ?? mark
+			replacement: openDouble === undefined || startsText ? '«' : '»',
+			fix: 'preview' as const
 		};
 	}
-	// ponytail: parity on the line; a quote spanning lines opens twice.
-	const before = count(line.slice(0, offset), '"');
-	return {
-		replacement: before % 2 === 0 ? '«' : '»',
-		fix: 'preview' as const,
-		name: 'straight double quote'
-	};
+	// The low form `„bli her“` closes with the curly opener.
+	if (mark === '“' && openDouble === '„') return { replacement: '»', fix: 'safe' as const };
+	// The low opener may already have been fixed. Keep this guess out of the batch.
+	if (mark === '“' && openDouble === '«' && /\S/u.test(before) && atClosingBoundary) {
+		return { replacement: '»', fix: 'preview' as const };
+	}
+	return { replacement: openingDoubles.has(mark) ? '«' : '»', fix: 'safe' as const };
 }
 
 /**
@@ -79,13 +76,9 @@ function isApostrophe(text: string, index: number): boolean {
 	return /\p{L}/u.test(text[index - 1] ?? '') && /\p{L}/u.test(text[index + 1] ?? '');
 }
 
-function count(text: string, mark: string): number {
-	return text.split(mark).length - 1;
-}
-
 export const quotesTypewriterRule: RuleDefinition = {
 	id: 'quotes.typewriter',
-	version: 4,
+	version: 5,
 	defaultSeverity: 'warning',
 	fixability: 'preview',
 	sourceIds: ['G-TYPEWRITER'],
@@ -98,24 +91,34 @@ export const quotesTypewriterRule: RuleDefinition = {
 	check(document, context) {
 		const guillemets = guillemetLanguages.has(context.language.toLowerCase().split('-')[0]);
 		return document.sections.flatMap((section) =>
-			section.lines.flatMap((line) =>
-				matchesOutsideMarkup(line, guillemets ? guillemetPattern : quotePattern).flatMap(
+			section.lines.flatMap((line) => {
+				const openDoubles: string[] = [];
+				return matchesOutsideMarkup(line, guillemets ? guillemetPattern : quotePattern).flatMap(
 					(match) => {
 						const offset = match.from - line.from;
-						if (guillemets && (match.text === '"' || quoteMarks[match.text]?.straight === '"')) {
-							const { replacement, fix, name } = guillemetFor(match.text, line.text, offset);
+						const mark = quoteMarks[match.text];
+						const straightDouble = match.text === '"';
+						if (guillemets && (straightDouble || mark?.straight === '"')) {
+							const { replacement, fix } = guillemetFor(
+								match.text,
+								openDoubles.at(-1),
+								line.text[offset - 1] ?? '',
+								line.text[offset + 1] ?? ''
+							);
+							if (replacement === '«') openDoubles.push(match.text);
+							else openDoubles.pop();
 							if (replacement === match.text) return [];
+							const name = mark?.name ?? 'straight double quote';
 							return diagnostic(
 								this,
 								match,
 								`Use ${replacement} instead of the ${name}.`,
-								fix === 'preview'
-									? 'Nordic transcriptions quote with guillemets. A straight double quote carries no direction, so check whether this one opens or closes before replacing it.'
-									: 'Nordic transcriptions quote with guillemets, and this mark already says which half it is, so it can be replaced mechanically.',
+								fix === 'safe'
+									? 'Nordic transcriptions quote with guillemets, and this mark already says which half it is, so it can be replaced mechanically.'
+									: 'Nordic transcriptions quote with guillemets. Check whether this mark opens or closes the quotation before replacing it.',
 								[replacementFix(context, fix, `Replace with ${replacement}`, match, replacement)]
 							);
 						}
-						const mark = quoteMarks[match.text];
 						if (!mark) return [];
 						// A spacing accent beside a word can be an apostrophe typo.
 						// Keep standalone accent notation and actual combining accents intact.
@@ -145,8 +148,8 @@ export const quotesTypewriterRule: RuleDefinition = {
 							[replacementFix(context, mark.fix, `Replace with ${replacement}`, match, replacement)]
 						);
 					}
-				)
-			)
+				);
+			})
 		);
 	}
 };

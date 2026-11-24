@@ -47,7 +47,7 @@ describe('quotes.typewriter', () => {
 			}
 		);
 
-		it('alternates straight double quotes by parity and previews them', () => {
+		it('previews alternating opening and closing guillemets for straight pairs', () => {
 			const text = '[Vers]\nHun sa "kom hit" og "bli her"';
 			const findings = checkRule(rule, text, { language: 'no' });
 			expect(findings.map((finding) => finding.message)).toEqual([
@@ -71,6 +71,33 @@ describe('quotes.typewriter', () => {
 			const findings = checkRule(rule, '[Vers]\nHun sa “kom hit” og «bli her»', { language: 'no' });
 			expect(markedText('[Vers]\nHun sa “kom hit” og «bli her»', findings)).toEqual(['“', '”']);
 			expect(collectSafeFixes(findings)).toHaveLength(2);
+		});
+
+		it.each([
+			['Jeg sa «rist litt på bunda"', 'Jeg sa «rist litt på bunda»', '»'],
+			['Hun sa "kom hit» og "bli her"', 'Hun sa «kom hit» og «bli her»', '«'],
+			['Hun sa “kom hit"', 'Hun sa «kom hit»', '»'],
+			['Hun sa «bruk «ordet» her"', 'Hun sa «bruk «ordet» her»', '»'],
+			['Hun sa „bruk "ordet" her“', 'Hun sa «bruk «ordet» her»', '«']
+		])('previews the straight mark in a mixed quote: %s', (input, expected, replacement) => {
+			const text = `[Vers]\n${input}`;
+			const findings = checkRule(rule, text, { language: 'no' });
+			expect(findings.find((finding) => finding.fixes?.[0]?.kind === 'preview')).toMatchObject({
+				message: `Use ${replacement} instead of the straight double quote.`,
+				fixes: [{ label: `Replace with ${replacement}` }]
+			});
+			expect(applyRuleFixes(rule, text, { language: 'no' })).toBe(`[Vers]\n${expected}`);
+		});
+
+		it('keeps the next pair correct after the low opener is fixed on its own', () => {
+			const text = '[Vers]\nHun sa «hei“ og "kom hit"';
+			const findings = checkRule(rule, text, { language: 'no' });
+			expect(findings.map((finding) => finding.fixes?.[0]?.label)).toEqual([
+				'Replace with »',
+				'Replace with «',
+				'Replace with »'
+			]);
+			expect(collectSafeFixes(findings)).toEqual([]);
 		});
 
 		it('still straightens single marks to an apostrophe', () => {

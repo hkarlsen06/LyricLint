@@ -228,6 +228,10 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
 - Native text checks use the original line directly when it contains no markup. Markup masking
   replaces tags with equal-length spaces without retaining a text-keyed result cache. Match and
   fix offsets remain UTF-16 offsets, and unsupported markup still suppresses the same checks.
+- The Nordic quote rule tracks open double quotes on each lyric line, including guillemets
+  already in the text. Straight double quotes preview a guillemet based on the open pairs
+  and adjacent characters. A curly opener that appears to close an existing guillemet also
+  requires a preview. Applying a low-opener fix on its own can produce this mixed pair.
 - Statistical language scoring uses the dependency's complete profiles and sample parser with
   flat numeric model ranks. Its ordered scores match `languagedetect`, including Unicode
   candidate narrowing and valid rank-zero profiles. The model table initializes lazily.
@@ -416,13 +420,11 @@ marks in this sense.
 **Except in a Nordic language, where the guillemet is the convention and `"` is the
 finding** (2026-09-21). The Nordic Genius communities quote with `«…»`, so when the
 document language is one of `guillemetLanguages` (`no`, `nb`, `nn`, `da`, `sv`, `is`,
-`fo`, matched on the primary subtag) the rule inverts for double marks: curly, low and
-reversed doubles become `«` or `»` with a `safe` fix (they carry their own direction,
-and a `“` after an unclosed `„` on the line is read as the closing half of a German-style
-pair), while a straight `"` carries no direction, so it alternates by parity with the
-straight marks before it on the line and previews rather than batches. A quote spanning
-lines opens twice; that is the ceiling of the heuristic. Single marks still straighten to
-`'` in every language, because most of them are apostrophes. The convention was
+`fo`, matched on the primary subtag) the rule replaces other double marks with guillemets.
+A `“` closing an open `„` forms a German-style pair. The rule originally guessed straight
+quote direction by counting straight quotes on the line. The rules above describe the current
+behavior. Quote state resets at each line. Single marks still straighten to `'` in every
+language, because most of them are apostrophes. The convention was
 supplied by the maintainer rather than a registered source, so the guidance entry
 (`guidance.punctuation.nordic-guillemets`) carries `lyriclint` standing until a
 Genius page is registered for it.
